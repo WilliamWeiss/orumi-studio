@@ -4,15 +4,15 @@
   <title>Orumi Player</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<script src="js/orumi-catalog.js"></script>
-<script src="js/themes.js"></script>
-<script src="js/voices.js"></script>
+  <script src="js/orumi-catalog.js"></script>
+  <script src="js/themes.js"></script>
+  <script src="js/voices.js"></script>
 
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #111;
-      color: white;
+      background: var(--page-bg, #111);
+      color: var(--text-color, white);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -25,13 +25,17 @@
 
       --native-glow: rgba(255,255,255,0.98);
       --outside-glow: rgba(150,150,150,0.5);
+
+      transition:
+        background 0.35s ease,
+        color 0.35s ease;
     }
 
     h1 { margin: 8px 0; }
 
     #gridLabel {
       margin-bottom: 8px;
-      color: #ccc;
+      color: var(--muted-text, #ccc);
       font-size: 16px;
       font-weight: 700;
       letter-spacing: 0.04em;
@@ -45,14 +49,14 @@
       margin: 6px 0;
       border: none;
       border-radius: 12px;
-      background: white;
-      color: black;
+      background: var(--button-bg, white);
+      color: var(--button-text, black);
       cursor: pointer;
     }
 
     #status {
       margin-bottom: 10px;
-      color: #ccc;
+      color: var(--muted-text, #ccc);
       font-size: 18px;
       height: 26px;
       font-weight: 700;
@@ -70,8 +74,8 @@
       display: grid;
       place-items: center;
       font-size: 24px;
-      color: #222;
-      background: rgba(255,255,255,0.86);
+      color: var(--button-text, #222);
+      background: var(--button-bg, rgba(255,255,255,0.86));
       box-shadow: 0 4px 14px rgba(0,0,0,0.18);
       backdrop-filter: blur(8px);
       z-index: 1000;
@@ -211,6 +215,7 @@
       const system = getSystem(systemKey);
 
       const root = params.get("root") || system.defaultRoot || "C";
+
       const familyKey =
         params.get("family") ||
         params.get("architecture") ||
@@ -242,6 +247,7 @@
       octaves = [...new Set(octaves)].sort((a, b) => a - b);
 
       const rootKey = pitchClasses[root] ? root : "C";
+
       const voiceKey = ORUMI_CATALOG.voices[voice]
         ? voice
         : system.defaultVoice || "warm";
@@ -361,37 +367,38 @@
       statusText.textContent = system.label + " Ready";
     }
 
-async function startAudio() {
-  if (!audioContext) {
-    audioContext =
-      new (window.AudioContext || window.webkitAudioContext)();
-  }
+    async function startAudio() {
+      if (!audioContext) {
+        audioContext =
+          new (window.AudioContext || window.webkitAudioContext)();
+      }
 
-  if (audioContext.state === "suspended") {
-    await audioContext.resume();
-  }
+      if (audioContext.state === "suspended") {
+        await audioContext.resume();
+      }
 
-  const osc = audioContext.createOscillator();
-  const gain = audioContext.createGain();
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
 
-  osc.frequency.value = 440;
-  gain.gain.value = 0.05;
+      osc.frequency.value = 440;
+      gain.gain.value = 0.05;
 
-  osc.connect(gain);
-  gain.connect(audioContext.destination);
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
 
-  osc.start();
-  osc.stop(audioContext.currentTime + 0.1);
+      osc.start();
+      osc.stop(audioContext.currentTime + 0.1);
 
-  statusText.textContent = "Audio Ready";
-  startButton.style.display = "none";
-}
+      statusText.textContent = "Audio Ready";
+      startButton.style.display = "none";
+    }
 
     startButton.addEventListener("click", startAudio);
+
     startButton.addEventListener("touchend", event => {
-  event.preventDefault();
-  startAudio();
-});
+      event.preventDefault();
+      startAudio();
+    });
 
     function startSustainedNote(button, pointerId) {
       if (!audioContext) {
