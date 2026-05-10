@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Orumi Player</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<script src="js/orumi-catalog.js"></script>
+<script src="js/themes.js"></script>
+<script src="js/voices.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #111;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+      height: 100vh;
+      overflow: hidden;
+      touch-action: none;
+      user-select: none;
+
+      --native-glow: rgba(255,255,255,0.98);
+      --outside-glow: rgba(150,150,150,0.5);
+    }
+
+    h1 { margin: 8px 0; }
+
+    #gridLabel {
+      margin-bottom: 8px;
+      color: #ccc;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-align: center;
+      max-width: 90vw;
+    }
+
+    #startButton {
+      font-size: 18px;
+      padding: 12px 20px;
+      margin: 6px 0;
+      border: none;
+      border-radius: 12px;
+      background: white;
+      color: black;
+      cursor: pointer;
+    }
+
+    #status {
+      margin-bottom: 10px;
+      color: #ccc;
+      font-size: 18px;
+      height: 26px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-align: center;
+    }
+
+    .top-button {
+      position: fixed;
+      top: 18px;
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      text-decoration: none;
+      display: grid;
+      place-items: center;
+      font-size: 24px;
+      color: #222;
+      background: rgba(255,255,255,0.86);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      transition: 0.12s;
+    }
+
+    .top-button:hover,
+    .top-button:active {
+      transform: scale(0.94);
+      filter: brightness(1.08);
+    }
+
+    .back-button { left: 18px; }
+    .settings-button { right: 18px; }
+
+    .grid {
+      width: min(92vmin, 720px);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .octave-row {
+      display: grid;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .square {
+      border: none;
+      border-radius: 16px;
+      aspect-ratio: 1 / 1;
+      width: 100%;
+      font-size: clamp(7px, 1.4vmin, 14px);
+      font-weight: bold;
+      color: white;
+      transition: 0.08s;
+      cursor: pointer;
+      line-height: 1.05;
+      padding: 4px;
+      text-align: center;
+    }
+
+    .native {
+      box-shadow:
+        0 0 32px var(--native-glow),
+        0 6px 14px rgba(0,0,0,0.35);
+      filter: brightness(1.25);
+    }
+
+    .outside {
+      box-shadow:
+        0 0 14px var(--outside-glow),
+        0 6px 14px rgba(0,0,0,0.35);
+      filter: brightness(0.72) saturate(0.65);
+    }
+
+    .root {
+      outline: 3px solid rgba(255,255,255,1);
+      outline-offset: -5px;
+    }
+
+    .square.active {
+      transform: scale(0.9);
+      filter: brightness(1.65);
+      box-shadow:
+        0 0 34px var(--native-glow),
+        0 6px 14px rgba(0,0,0,0.35);
+    }
+
+    .c  { background: #ff6b6b; }
+    .db { background: linear-gradient(135deg, #ff6b6b, #f7b267); }
+    .d  { background: #f7b267; }
+    .eb { background: linear-gradient(135deg, #f7b267, #ffd93d); color: #222; }
+    .e  { background: #ffd93d; color: #222; }
+    .f  { background: #6bcb77; }
+    .gb { background: linear-gradient(135deg, #6bcb77, #4d96ff); }
+    .g  { background: #4d96ff; }
+    .ab { background: linear-gradient(135deg, #4d96ff, #9d4edd); }
+    .a  { background: #9d4edd; }
+    .bb { background: linear-gradient(135deg, #9d4edd, #ff8fab); }
+    .b  { background: #ff8fab; }
+  </style>
+</head>
+
+<body>
+
+  <a class="top-button back-button" href="index.html" title="Back">←</a>
+  <a class="top-button settings-button" href="selection-control.html" title="Control Settings">⚙</a>
+
+  <h1 id="pageTitle">Orumi Player</h1>
+
+  <div id="gridLabel">Grid</div>
+
+  <button id="startButton">Start Audio</button>
+
+  <div id="status">Tap Start Audio</div>
+
+  <div id="grid" class="grid"></div>
+
+  <script>
+    let audioContext;
+
+    const startButton = document.getElementById("startButton");
+    const statusText = document.getElementById("status");
+    const gridLabel = document.getElementById("gridLabel");
+    const grid = document.getElementById("grid");
+    const pageTitle = document.getElementById("pageTitle");
+
+    const activeNotes = new Map();
+
+    const pitchClasses = ORUMI_CATALOG.pitchClasses;
+    const numberToPitchClass = ORUMI_CATALOG.numberToPitchClass;
+
+    function getUrlParams() {
+      return new URLSearchParams(window.location.search);
+    }
+
+    function getSystem(systemKey) {
+      return ORUMI_CATALOG.systems[systemKey] || ORUMI_CATALOG.systems.western;
+    }
+
+    function getFamily(system, familyKey) {
+      return system.families[familyKey] ||
+        system.families[system.defaultFamily];
+    }
+
+    function getMode(family, modeKey) {
+      return family.modes[modeKey] ||
+        family.modes[Object.keys(family.modes)[0]];
+    }
+
+    function getSettingsFromUrl() {
+      const params = getUrlParams();
+
+      const systemKey = params.get("system") || "western";
+      const system = getSystem(systemKey);
+
+      const root = params.get("root") || system.defaultRoot || "C";
+      const familyKey =
+        params.get("family") ||
+        params.get("architecture") ||
+        system.defaultFamily;
+
+      const modeKey =
+        params.get("scaleMode") ||
+        params.get("mode") ||
+        system.defaultMode;
+
+      const setView = params.get("set") || system.defaultSet || "native";
+      const voice = params.get("voice") || system.defaultVoice || "warm";
+      const octavesParam = params.get("octaves");
+
+      const family = getFamily(system, familyKey);
+      const mode = getMode(family, modeKey);
+
+      let octaves = octavesParam
+        ? octavesParam
+            .split(",")
+            .map(value => parseInt(value, 10))
+            .filter(value => value >= 1 && value <= 6)
+        : [...(system.defaultOctaves || [2, 3, 4, 5])];
+
+      if (octaves.length === 0) {
+        octaves = [2, 3, 4, 5];
+      }
+
+      octaves = [...new Set(octaves)].sort((a, b) => a - b);
+
+      const rootKey = pitchClasses[root] ? root : "C";
+      const voiceKey = ORUMI_CATALOG.voices[voice]
+        ? voice
+        : system.defaultVoice || "warm";
+
+      return {
+        systemKey,
+        system,
+        root: rootKey,
+        familyKey,
+        family,
+        modeKey,
+        mode,
+        setView: setView === "full" ? "full" : "native",
+        voice: voiceKey,
+        octaves
+      };
+    }
+
+    function midiToPc(midi) {
+      return numberToPitchClass[midi % 12];
+    }
+
+    function midiToOctave(midi) {
+      return Math.floor(midi / 12) - 1;
+    }
+
+    function midiToFrequency(midi) {
+      return 440 * Math.pow(2, (midi - 69) / 12);
+    }
+
+    function buildGrid() {
+      stopAllNotes();
+
+      const {
+        system,
+        root,
+        family,
+        mode,
+        setView,
+        voice,
+        octaves
+      } = getSettingsFromUrl();
+
+      ORUMI_THEMES.apply(system, mode);
+
+      const rootNumber = pitchClasses[root].number;
+      const nativeFormula = mode.formula;
+      const finalInterval = nativeFormula[nativeFormula.length - 1];
+
+      grid.innerHTML = "";
+
+      octaves.forEach(octave => {
+        const row = document.createElement("div");
+        row.classList.add("octave-row");
+
+        const startMidi = 12 * (octave + 1) + rootNumber;
+        const endMidi = startMidi + finalInterval;
+
+        const buttonsForRow = [];
+
+        for (let midi = startMidi; midi <= endMidi; midi++) {
+          const pc = midiToPc(midi);
+          const pitch = pitchClasses[pc];
+          const noteOctave = midiToOctave(midi);
+          const intervalFromRoot = (midi - startMidi) % 12;
+          const isNative = nativeFormula.includes(intervalFromRoot);
+          const isRoot = intervalFromRoot === 0;
+
+          if (setView === "native" && !isNative) {
+            continue;
+          }
+
+          const button = document.createElement("button");
+
+          button.classList.add("square");
+          button.classList.add(pitch.className);
+          button.classList.add(isNative ? "native" : "outside");
+
+          if (isRoot) {
+            button.classList.add("root");
+          }
+
+          button.dataset.name = pc + noteOctave;
+          button.dataset.displayName = pitch.display + noteOctave;
+          button.dataset.note = midiToFrequency(midi).toFixed(2);
+          button.dataset.pc = pc;
+          button.dataset.midi = midi;
+
+          button.textContent = pitch.display + noteOctave;
+
+          attachSquareEvents(button);
+          buttonsForRow.push(button);
+        }
+
+        row.style.gridTemplateColumns =
+          `repeat(${buttonsForRow.length}, minmax(0, 1fr))`;
+
+        buttonsForRow.forEach(button => row.appendChild(button));
+        grid.appendChild(row);
+      });
+
+      pageTitle.textContent = system.label + " Sound Square";
+
+      gridLabel.textContent =
+        pitchClasses[root].display +
+        " · " +
+        family.label +
+        " · " +
+        mode.label +
+        " · " +
+        (setView === "native" ? "Native Only" : "Full Set") +
+        " · Octaves " +
+        octaves.join(", ") +
+        " · " +
+        ORUMI_CATALOG.voices[voice].label;
+
+      statusText.textContent = system.label + " Ready";
+    }
+
+    function startAudio() {
+      if (audioContext) return;
+
+      audioContext =
+        new (window.AudioContext || window.webkitAudioContext)();
+
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+
+      osc.frequency.value = 440;
+      gain.gain.value = 0.05;
+
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
+
+      osc.start();
+      osc.stop(audioContext.currentTime + 0.1);
+
+      statusText.textContent = "Audio Ready";
+      startButton.style.display = "none";
+    }
+
+    startButton.addEventListener("click", startAudio);
+    startButton.addEventListener("touchend", startAudio);
+
+    function startSustainedNote(button, pointerId) {
+      if (!audioContext) {
+        statusText.textContent = "Tap Start Audio first";
+        return;
+      }
+
+      if (activeNotes.has(pointerId)) return;
+
+      const { voice } = getSettingsFromUrl();
+
+      const now = audioContext.currentTime;
+      const freq = parseFloat(button.dataset.note);
+
+      const voiceNode =
+        ORUMI_VOICES.buildVoice(audioContext, voice, freq, now);
+
+      activeNotes.set(pointerId, {
+        button,
+        oscillators: voiceNode.oscillators,
+        gain: voiceNode.gain,
+        pc: button.dataset.pc,
+        name: button.dataset.name,
+        displayName: button.dataset.displayName,
+        midi: parseInt(button.dataset.midi, 10)
+      });
+
+      button.classList.add("active");
+      updateStatus();
+    }
+
+    function stopSustainedNote(pointerId) {
+      const note = activeNotes.get(pointerId);
+
+      if (!note || !audioContext) return;
+
+      ORUMI_VOICES.stopVoice(note, audioContext, 0.12);
+
+      note.button.classList.remove("active");
+      activeNotes.delete(pointerId);
+
+      updateStatus();
+    }
+
+    function stopAllNotes() {
+      Array.from(activeNotes.keys()).forEach(pointerId => {
+        stopSustainedNote(pointerId);
+      });
+    }
+
+    function updateStatus() {
+      const notes = Array.from(activeNotes.values())
+        .sort((a, b) => a.midi - b.midi);
+
+      if (notes.length === 0) {
+        const { system } = getSettingsFromUrl();
+        statusText.textContent = system.label + " Ready";
+        return;
+      }
+
+      if (notes.length >= 3) {
+        statusText.textContent = nameChord(notes) + " Chord";
+      } else {
+        statusText.textContent = notes.map(n => n.displayName).join(" – ");
+      }
+    }
+
+    function nameChord(notes) {
+      const pcs = [];
+      const pcSeen = new Set();
+
+      notes.forEach(note => {
+        if (!pcSeen.has(note.pc)) {
+          pcs.push(note.pc);
+          pcSeen.add(note.pc);
+        }
+      });
+
+      const numbers = pcs.map(pc => pitchClasses[pc].number);
+      const lowestPc = notes[0].pc;
+
+      for (const rootPc of pcs) {
+        const root = pitchClasses[rootPc].number;
+
+        const has = interval =>
+          numbers.includes((root + interval) % 12);
+
+        const majorTriad = has(4) && has(7);
+        const minorTriad = has(3) && has(7);
+        const diminishedTriad = has(3) && has(6);
+
+        const major7 = has(11);
+        const dominant7 = has(10);
+
+        if (majorTriad) {
+          const rootName = getRootName(rootPc, notes);
+          const voicing = getVoicing(rootPc, lowestPc);
+
+          if (major7) return rootName + "Mv" + voicing + "7";
+          if (dominant7) return rootName + "Mv" + voicing + "D7";
+
+          return rootName + "Mv" + voicing;
+        }
+
+        if (minorTriad) {
+          const rootName = getRootName(rootPc, notes);
+          const voicing = getVoicing(rootPc, lowestPc);
+
+          return rootName + "mv" + voicing;
+        }
+
+        if (diminishedTriad) {
+          const rootName = getRootName(rootPc, notes);
+          const voicing = getVoicing(rootPc, lowestPc);
+
+          return rootName + "dimv" + voicing;
+        }
+      }
+
+      return pcs.join(" – ");
+    }
+
+    function getRootName(rootPc, notes) {
+      const matchingRootNotes = notes
+        .filter(note => note.pc === rootPc)
+        .sort((a, b) => a.midi - b.midi);
+
+      if (matchingRootNotes.length > 0) {
+        return matchingRootNotes[0].name;
+      }
+
+      return rootPc;
+    }
+
+    function getVoicing(rootPc, lowestPc) {
+      const root = pitchClasses[rootPc].number;
+      const lowest = pitchClasses[lowestPc].number;
+      const interval = (lowest - root + 12) % 12;
+
+      if (interval === 0) return "1";
+      if (interval === 3 || interval === 4) return "2";
+      if (interval === 6 || interval === 7) return "3";
+      if (interval === 10 || interval === 11) return "4";
+
+      return "1";
+    }
+
+    function attachSquareEvents(button) {
+      button.addEventListener("pointerdown", event => {
+        event.preventDefault();
+
+        if (!audioContext) {
+          statusText.textContent = "Tap Start Audio first";
+          return;
+        }
+
+        button.setPointerCapture(event.pointerId);
+        startSustainedNote(button, event.pointerId);
+      });
+
+      button.addEventListener("pointerup", event => {
+        event.preventDefault();
+        stopSustainedNote(event.pointerId);
+      });
+
+      button.addEventListener("pointercancel", event => {
+        stopSustainedNote(event.pointerId);
+      });
+    }
+
+    document.addEventListener("pointerup", event => {
+      stopSustainedNote(event.pointerId);
+    });
+
+    document.addEventListener("pointercancel", event => {
+      stopSustainedNote(event.pointerId);
+    });
+
+    buildGrid();
+  </script>
+
+</body>
+</html>
