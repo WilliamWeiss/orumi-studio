@@ -2,7 +2,7 @@
 // Central musical catalog for Orumi / Sound Squares.
 // Load before player.html or selection-control.html:
 //
-// <script src="orumi-catalog.js"></script>
+// <script src="js/orumi-catalog.js"></script>
 
 const ORUMI_CATALOG = {
   systems: {

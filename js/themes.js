@@ -2,8 +2,8 @@
 // Orumi visual themes.
 // Load after orumi-catalog.js:
 //
-// <script src="orumi-catalog.js"></script>
-// <script src="themes.js"></script>
+// <script src="js/orumi-catalog.js"></script>
+// <script src="js/themes.js"></script>
 
 const ORUMI_THEMES = {
   applyTint(mode) {
