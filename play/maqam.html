@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Maqam Hijaz Sound Square</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #160f13;
+      color: #f5e8d8;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+      height: 100vh;
+      overflow: hidden;
+      touch-action: none;
+      user-select: none;
+    }
+
+    h1 {
+      margin: 10px 0;
+      font-weight: 500;
+    }
+
+    #startButton {
+      font-size: 18px;
+      padding: 12px 20px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 12px;
+      background: #c58b47;
+      color: #160f13;
+      cursor: pointer;
+    }
+
+    #status {
+      margin-bottom: 10px;
+      color: #d7b98d;
+      font-size: 14px;
+      height: 20px;
+    }
+
+    .grid {
+      display: grid;
+      width: min(90vmin, 420px);
+      height: min(90vmin, 420px);
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(4, 1fr);
+      gap: 2%;
+    }
+
+    .square {
+      border: none;
+      border-radius: 18px;
+      font-size: clamp(15px, 3.5vmin, 26px);
+      font-weight: bold;
+      color: #fff3df;
+      box-shadow: 0 6px 14px rgba(0,0,0,0.35);
+      transition: 0.08s;
+    }
+
+    .back-button {
+      position: fixed;
+      top: 18px;
+      left: 18px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      text-decoration: none;
+      font-family: system-ui, sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: #222;
+      background: rgba(255,255,255,0.82);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+    }
+
+    .square.active {
+      transform: scale(0.9);
+      filter: brightness(1.35);
+      box-shadow: 0 0 24px rgba(219,157,84,0.75);
+    }
+
+    .c  { background: #7a2f2f; }
+    .db { background: #9b5a3c; }
+    .e  { background: #c08a43; }
+    .f  { background: #6f6046; }
+    .g  { background: #3f6359; }
+    .ab { background: #5b4a6b; }
+    .b  { background: #8a5f6a; }
+  </style>
+</head>
+
+<body>
+
+  <a class="back-button" href="index.html">← Back to Menu</a>
+
+  <h1>Maqam Hijaz Square</h1>
+
+  <button id="startButton">Start Audio</button>
+
+  <div id="status">Tap Start Audio</div>
+
+  <div class="grid">
+
+    <button class="square c"
+      data-name="C3"
+      data-note="130.81">
+      C3
+    </button>
+
+    <button class="square db"
+      data-name="Db3"
+      data-note="138.59">
+      Db3
+    </button>
+
+    <button class="square e"
+      data-name="E3"
+      data-note="164.81">
+      E3
+    </button>
+
+    <button class="square f"
+      data-name="F3"
+      data-note="174.61">
+      F3
+    </button>
+
+    <button class="square g"
+      data-name="G3"
+      data-note="196.00">
+      G3
+    </button>
+
+    <button class="square ab"
+      data-name="Ab3"
+      data-note="207.65">
+      Ab3
+    </button>
+
+    <button class="square b"
+      data-name="B3"
+      data-note="246.94">
+      B3
+    </button>
+
+    <button class="square c"
+      data-name="C4"
+      data-note="261.63">
+      C4
+    </button>
+
+    <button class="square db"
+      data-name="Db4"
+      data-note="277.18">
+      Db4
+    </button>
+
+    <button class="square e"
+      data-name="E4"
+      data-note="329.63">
+      E4
+    </button>
+
+    <button class="square f"
+      data-name="F4"
+      data-note="349.23">
+      F4
+    </button>
+
+    <button class="square g"
+      data-name="G4"
+      data-note="392.00">
+      G4
+    </button>
+
+    <button class="square ab"
+      data-name="Ab4"
+      data-note="415.30">
+      Ab4
+    </button>
+
+    <button class="square b"
+      data-name="B4"
+      data-note="493.88">
+      B4
+    </button>
+
+    <button class="square c"
+      data-name="C5"
+      data-note="523.25">
+      C5
+    </button>
+
+    <button class="square db"
+      data-name="Db5"
+      data-note="554.37">
+      Db5
+    </button>
+
+  </div>
+
+  <script>
+
+    let audioContext;
+    let currentFingerButton = null;
+    let droneOsc1 = null;
+    let droneOsc2 = null;
+    let droneGain = null;
+
+    const startButton =
+      document.getElementById("startButton");
+
+    const statusText =
+      document.getElementById("status");
+
+    function startAudio() {
+
+      if (audioContext) return;
+
+      audioContext =
+        new (window.AudioContext ||
+         window.webkitAudioContext)();
+
+      const osc =
+        audioContext.createOscillator();
+
+      const gain =
+        audioContext.createGain();
+
+      osc.frequency.value = 440;
+      gain.gain.value = 0.04;
+
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
+
+      osc.start();
+      osc.stop(audioContext.currentTime + 0.1);
+
+      startDrone();
+
+      statusText.textContent = "Audio Ready";
+
+      startButton.style.display = "none";
+    }
+
+    startButton.addEventListener(
+      "click",
+      startAudio
+    );
+
+    startButton.addEventListener(
+      "touchend",
+      startAudio
+    );
+
+    function startDrone() {
+
+      const now =
+        audioContext.currentTime;
+
+      droneGain =
+        audioContext.createGain();
+
+      droneGain.gain.setValueAtTime(
+        0.0001,
+        now
+      );
+
+      droneGain.gain.exponentialRampToValueAtTime(
+        0.035,
+        now + 1.2
+      );
+
+      const filter =
+        audioContext.createBiquadFilter();
+
+      filter.type = "lowpass";
+
+      filter.frequency.value = 500;
+
+      droneOsc1 =
+        audioContext.createOscillator();
+
+      droneOsc1.type = "sine";
+
+      droneOsc1.frequency.value = 130.81;
+
+      droneOsc2 =
+        audioContext.createOscillator();
+
+      droneOsc2.type = "sine";
+
+      droneOsc2.frequency.value = 196.00;
+
+      droneOsc1.connect(filter);
+      droneOsc2.connect(filter);
+
+      filter.connect(droneGain);
+
+      droneGain.connect(audioContext.destination);
+
+      droneOsc1.start();
+      droneOsc2.start();
+    }
+
+    function playNote(freq) {
+
+      if (!audioContext) {
+
+        statusText.textContent =
+          "Tap Start Audio first";
+
+        return;
+      }
+
+      const now =
+        audioContext.currentTime;
+
+      const gain =
+        audioContext.createGain();
+
+      gain.gain.setValueAtTime(
+        0.0001,
+        now
+      );
+
+      gain.gain.exponentialRampToValueAtTime(
+        0.24,
+        now + 0.02
+      );
+
+      gain.gain.exponentialRampToValueAtTime(
+        0.001,
+        now + 1.2
+      );
+
+      const osc1 =
+        audioContext.createOscillator();
+
+      osc1.type = "sawtooth";
+
+      osc1.frequency.setValueAtTime(
+        freq,
+        now
+      );
+
+      const osc2 =
+        audioContext.createOscillator();
+
+      osc2.type = "triangle";
+
+      osc2.frequency.setValueAtTime(
+        freq * 2,
+        now
+      );
+
+      const osc2Gain =
+        audioContext.createGain();
+
+      osc2Gain.gain.value = 0.08;
+
+      const filter =
+        audioContext.createBiquadFilter();
+
+      filter.type = "lowpass";
+
+      filter.frequency.setValueAtTime(
+        1200,
+        now
+      );
+
+      filter.frequency.exponentialRampToValueAtTime(
+        480,
+        now + 1.0
+      );
+
+      osc1.connect(filter);
+
+      osc2.connect(osc2Gain);
+
+      osc2Gain.connect(filter);
+
+      filter.connect(gain);
+
+      gain.connect(audioContext.destination);
+
+      osc1.start(now);
+      osc2.start(now);
+
+      osc1.stop(now + 1.2);
+      osc2.stop(now + 1.2);
+    }
+
+    function flashButton(button) {
+
+      button.classList.add("active");
+
+      setTimeout(() => {
+
+        button.classList.remove("active");
+
+      }, 150);
+    }
+
+    function triggerButton(button) {
+
+      if (
+        !button ||
+        button === currentFingerButton
+      ) return;
+
+      currentFingerButton = button;
+
+      playNote(
+        parseFloat(button.dataset.note)
+      );
+
+      statusText.textContent =
+        button.dataset.name;
+
+      flashButton(button);
+    }
+
+    function buttonFromPoint(x, y) {
+
+      const element =
+        document.elementFromPoint(x, y);
+
+      if (
+        element &&
+        element.classList.contains("square")
+      ) {
+        return element;
+      }
+
+      return null;
+    }
+
+    document
+      .querySelectorAll(".square")
+      .forEach(button => {
+
+        button.addEventListener(
+          "pointerdown",
+          event => {
+
+            event.preventDefault();
+
+            triggerButton(button);
+          }
+        );
+      });
+
+    document.addEventListener(
+      "pointermove",
+      event => {
+
+        if (
+          event.buttons !== 1 &&
+          event.pointerType === "mouse"
+        ) return;
+
+        const button =
+          buttonFromPoint(
+            event.clientX,
+            event.clientY
+          );
+
+        if (button)
+          triggerButton(button);
+      }
+    );
+
+    document.addEventListener(
+      "pointerup",
+      () => {
+        currentFingerButton = null;
+      }
+    );
+
+    document.addEventListener(
+      "pointercancel",
+      () => {
+        currentFingerButton = null;
+      }
+    );
+
+  </script>
+
+</body>
+</html>

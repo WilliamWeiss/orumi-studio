@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Orumi Chord Factory</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <script src="js/orumi-catalog.js"></script>
+  <script src="js/voices.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #111;
+      color: #f5f0e8;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0;
+      min-height: 100vh;
+      padding: 24px 18px 80px;
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    h1 {
+      margin: 14px 0 6px;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .subtitle {
+      color: #bdb4a6;
+      margin-bottom: 18px;
+      font-size: 14px;
+      text-align: center;
+      line-height: 1.35;
+      max-width: 700px;
+    }
+
+    .top-button {
+      position: fixed;
+      top: 18px;
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      text-decoration: none;
+      display: grid;
+      place-items: center;
+      font-size: 24px;
+      color: #222;
+      background: rgba(255,255,255,0.86);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+      z-index: 1000;
+      transition: 0.12s;
+    }
+
+    .top-button:hover,
+    .top-button:active {
+      transform: scale(0.94);
+      filter: brightness(1.08);
+    }
+
+    .back-button { left: 18px; }
+    .player-button { right: 18px; }
+
+    .factory {
+      width: min(94vmin, 820px);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .section {
+      background: rgba(255,255,255,0.06);
+      border-radius: 18px;
+      padding: 14px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.28);
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 800;
+      margin-bottom: 10px;
+      color: #ddd;
+    }
+
+    .grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .root-grid {
+      grid-template-columns: repeat(6, 1fr);
+    }
+
+    .quality-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .voicing-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+
+    .octave-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .note-octave-row {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .square {
+      border: none;
+      border-radius: 16px;
+      min-height: 58px;
+      font-size: clamp(12px, 2.4vmin, 18px);
+      font-weight: bold;
+      color: white;
+      cursor: pointer;
+      box-shadow: 0 6px 14px rgba(0,0,0,0.35);
+      transition: 0.12s;
+      text-align: center;
+      padding: 6px;
+      line-height: 1.15;
+    }
+
+    .note-square {
+      min-height: 42px;
+      border-radius: 12px;
+      font-size: clamp(9px, 1.6vmin, 13px);
+      padding: 3px;
+    }
+
+    .square.selected,
+    .square.highlighted {
+      outline: 4px solid rgba(255,255,255,1);
+      outline-offset: -4px;
+      filter: brightness(1.45);
+      box-shadow:
+        0 0 36px rgba(255,255,255,0.95),
+        0 0 18px rgba(255,230,150,0.85),
+        0 6px 14px rgba(0,0,0,0.35);
+    }
+
+    .quality-square,
+    .voicing-square,
+    .octave-square {
+      background: #38444a;
+    }
+
+    .result {
+      text-align: center;
+      padding: 18px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.08);
+    }
+
+    #chordName {
+      font-size: 38px;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      margin-bottom: 10px;
+    }
+
+    #noteList,
+    #styleLabel,
+    #keyLabel {
+      font-size: 16px;
+      color: #d8d0c4;
+      margin: 6px 0;
+      line-height: 1.35;
+    }
+
+    .action-row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .action-button {
+      border: none;
+      border-radius: 16px;
+      padding: 14px 18px;
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+      background: white;
+      color: #111;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+    }
+
+    .secondary-button {
+      background: rgba(255,255,255,0.16);
+      color: #fff7ea;
+    }
+
+    .note-chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 14px;
+    }
+
+    .note-chip {
+      border: none;
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 14px;
+      font-weight: 800;
+      background: rgba(255,255,255,0.16);
+      color: #fff7ea;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+    }
+
+    .c  { background: #ff6b6b; }
+    .db { background: linear-gradient(135deg, #ff6b6b, #f7b267); }
+    .d  { background: #f7b267; }
+    .eb { background: linear-gradient(135deg, #f7b267, #ffd93d); color: #222; }
+    .e  { background: #ffd93d; color: #222; }
+    .f  { background: #6bcb77; }
+    .gb { background: linear-gradient(135deg, #6bcb77, #4d96ff); }
+    .g  { background: #4d96ff; }
+    .ab { background: linear-gradient(135deg, #4d96ff, #9d4edd); }
+    .a  { background: #9d4edd; }
+    .bb { background: linear-gradient(135deg, #9d4edd, #ff8fab); }
+    .b  { background: #ff8fab; }
+  </style>
+</head>
+
+<body>
+
+  <a
+    class="top-button back-button"
+    href="index.html"
+    title="Return to Home Screen"
+  >←</a>
+
+  <a
+    class="top-button player-button"
+    id="playerButton"
+    href="player.html"
+    title="Open Note Player"
+  >♫</a>
+
+  <h1>Chord Factory</h1>
+
+  <div class="subtitle">
+    Build triads and extended harmony chords,
+    add or remove notes, hear the result,
+    or send chords to Progression Builder.
+  </div>
+
+  <div class="factory">
+
+    <div class="section">
+      <div class="section-title">Chord Root</div>
+      <div id="keyLabel"></div>
+      <div class="grid root-grid" id="rootGrid"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Quality</div>
+      <div class="grid quality-grid" id="qualityGrid"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Voicing</div>
+      <div class="grid voicing-grid" id="voicingGrid"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Base Octave</div>
+      <div class="grid octave-grid" id="octaveGrid"></div>
+    </div>
+
+    <div class="result">
+
+      <div id="chordName">CMv1</div>
+
+      <div id="noteList">
+        Notes: C3 · E3 · G3
+      </div>
+
+      <div id="styleLabel">
+        Style: Western · Soft Keys
+      </div>
+
+      <div
+        class="note-chip-row"
+        id="selectedNotesRow"
+      ></div>
+
+      <div class="action-row">
+        <button
+          class="action-button"
+          id="playChordButton"
+        >
+          Play Chord
+        </button>
+      </div>
+
+      <div class="action-row">
+        <button
+          class="action-button"
+          id="addProgressionButton"
+        >
+          Add to Progression
+        </button>
+      </div>
+
+      <div class="action-row">
+        <button
+          class="action-button secondary-button"
+          id="clearButton"
+        >
+          Clear Selected Notes
+        </button>
+      </div>
+
+    </div>
+
+    <div class="section">
+
+      <div class="section-title">
+        Add / Remove Notes
+      </div>
+
+      <div id="noteGrid"></div>
+
+    </div>
+
+  </div>
+
+  <script>
+    let audioContext;
+    let activeChordNotes = [];
+
+    const params = new URLSearchParams(window.location.search);
+
+    const editIndex =
+      params.get("editIndex") !== null
+        ? parseInt(params.get("editIndex"), 10)
+        : null;
+
+    const pitchClasses = ORUMI_CATALOG.pitchClasses;
+    const numberToPitchClass = ORUMI_CATALOG.numberToPitchClass;
+    const systems = ORUMI_CATALOG.systems;
+    const voices = ORUMI_CATALOG.voices;
+
+    const rootGrid = document.getElementById("rootGrid");
+    const qualityGrid = document.getElementById("qualityGrid");
+    const voicingGrid = document.getElementById("voicingGrid");
+    const octaveGrid = document.getElementById("octaveGrid");
+    const noteGrid = document.getElementById("noteGrid");
+    const selectedNotesRow = document.getElementById("selectedNotesRow");
+
+    const chordName = document.getElementById("chordName");
+    const noteList = document.getElementById("noteList");
+    const styleLabel = document.getElementById("styleLabel");
+    const keyLabel = document.getElementById("keyLabel");
+
+    const playChordButton =
+      document.getElementById("playChordButton");
+
+    const clearButton =
+      document.getElementById("clearButton");
+
+    const addProgressionButton =
+      document.getElementById("addProgressionButton");
+
+    const playerButton =
+      document.getElementById("playerButton");
+
+    let selectedSystemKey =
+      params.get("system") || "western";
+
+    if (!systems[selectedSystemKey]) {
+      selectedSystemKey = "western";
+    }
+
+    const selectedSystem =
+      systems[selectedSystemKey];
+
+    let selectedVoice =
+      params.get("voice") ||
+      selectedSystem.defaultVoice ||
+      "softKeys";
+
+    if (!voices[selectedVoice]) {
+      selectedVoice =
+        selectedSystem.defaultVoice || "softKeys";
+    }
+
+    let selectedKeyRoot =
+      params.get("root") ||
+      selectedSystem.defaultRoot ||
+      "C";
+
+    if (!pitchClasses[selectedKeyRoot]) {
+      selectedKeyRoot = "C";
+    }
+
+    let selectedRoot =
+      params.get("chordRoot") ||
+      params.get("root") ||
+      selectedKeyRoot;
+
+    if (!pitchClasses[selectedRoot]) {
+      selectedRoot = selectedKeyRoot;
+    }
+
+    let selectedQuality =
+      params.get("chordQuality") ||
+      "major";
+
+    let selectedVoicing =
+      params.get("chordVoicing")
+        ? parseInt(params.get("chordVoicing"), 10)
+        : 1;
+
+    let selectedOctave =
+      params.get("chordOctave")
+        ? parseInt(params.get("chordOctave"), 10)
+        : 3;
+
+    if (![3, 4].includes(selectedOctave)) {
+      selectedOctave = 3;
+    }
+
+    let selectedFamily =
+      params.get("family") ||
+      selectedSystem.defaultFamily ||
+      "diatonic";
+
+    let selectedMode =
+      params.get("scaleMode") ||
+      selectedSystem.defaultMode ||
+      "ionian";
+
+    let selectedOctavesForPlayer =
+      params.get("octaves") ||
+      "3,4";
+
+    let selectedNoteMidis = [];
+
+    const qualities = {
+
+      major: {
+        label: "Major",
+        symbol: "M",
+        intervals: [0,4,7]
+      },
+
+      minor: {
+        label: "Minor",
+        symbol: "m",
+        intervals: [0,3,7]
+      },
+
+      major6: {
+        label: "Major 6",
+        symbol: "6",
+        intervals: [0,4,7,9]
+      },
+
+      minor6: {
+        label: "Minor 6",
+        symbol: "m6",
+        intervals: [0,3,7,9]
+      },
+
+      add9: {
+        label: "Add 9",
+        symbol: "add9",
+        intervals: [0,2,4,7]
+      },
+
+      diminished: {
+        label: "Diminished",
+        symbol: "dim",
+        intervals: [0,3,6]
+      },
+
+      augmented: {
+        label: "Augmented",
+        symbol: "aug",
+        intervals: [0,4,8]
+      },
+
+      sus2: {
+        label: "Sus2",
+        symbol: "sus2",
+        intervals: [0,2,7]
+      },
+
+      sus4: {
+        label: "Sus4",
+        symbol: "sus4",
+        intervals: [0,5,7]
+      },
+
+      dominant7: {
+        label: "Dominant 7",
+        symbol: "7",
+        intervals: [0,4,7,10]
+      },
+
+      major7: {
+        label: "Major 7",
+        symbol: "M7",
+        intervals: [0,4,7,11]
+      },
+
+      minor7: {
+        label: "Minor 7",
+        symbol: "m7",
+        intervals: [0,3,7,10]
+      },
+
+      halfDiminished7: {
+        label: "Half-Dim 7",
+        symbol: "m7b5",
+        intervals: [0,3,6,10]
+      },
+
+      diminished7: {
+        label: "Dim 7",
+        symbol: "dim7",
+        intervals: [0,3,6,9]
+      }
+
+    };
+
+    const voicings = {
+
+      1: {
+        label: "v1 Root",
+        rotation: 0
+      },
+
+      2: {
+        label: "v2 Third",
+        rotation: 1
+      },
+
+      3: {
+        label: "v3 Fifth",
+        rotation: 2
+      },
+
+      4: {
+        label: "v4 Seventh",
+        rotation: 3
+      }
+
+    };
+
+    if (!qualities[selectedQuality]) {
+      selectedQuality = "major";
+    }
+
+    if (!voicings[selectedVoicing]) {
+      selectedVoicing = 1;
+    }
+
+    if (
+      editIndex !== null &&
+      Number.isInteger(editIndex)
+    ) {
+      addProgressionButton.textContent =
+        "Save Changes";
+    }
+
+    function midiToFrequency(midi) {
+      return 440 * Math.pow(2, (midi - 69) / 12);
+    }
+
+    function pcToName(pcNumber) {
+      return numberToPitchClass[
+        ((pcNumber % 12) + 12) % 12
+      ];
+    }
+
+    function midiToDisplayName(midi) {
+      const pcName = pcToName(midi % 12);
+      const octave = Math.floor(midi / 12) - 1;
+      return pcName + octave;
+    }
+
+    function noteNameToMidi(noteName) {
+      const match =
+        noteName.match(/^([A-G][b]?)(-?\d+)$/);
+
+      if (!match) return null;
+
+      const pc = match[1];
+      const octave = parseInt(match[2], 10);
+
+      if (!pitchClasses[pc]) return null;
+
+      return 12 * (octave + 1) +
+        pitchClasses[pc].number;
+    }
+
+    function getChromaticFromRoot(rootName) {
+
+      const rootNumber =
+        pitchClasses[rootName].number;
+
+      const result = [];
+
+      for (let i = 0; i < 12; i++) {
+        result.push(pcToName(rootNumber + i));
+      }
+
+      return result;
+    }
+
+    function buildFactoryMidis() {
+
+      const rootNumber =
+        pitchClasses[selectedRoot].number;
+
+      const quality =
+        qualities[selectedQuality];
+
+      const voicing =
+        voicings[selectedVoicing];
+
+      const baseMidi =
+        12 * (selectedOctave + 1) +
+        rootNumber;
+
+      let midis =
+        quality.intervals.map(
+          interval => baseMidi + interval
+        );
+
+      const maxRotation =
+        quality.intervals.length - 1;
+
+      const rotation =
+        Math.min(voicing.rotation, maxRotation);
+
+      for (let i = 0; i < rotation; i++) {
+        const moved = midis.shift();
+        midis.push(moved + 12);
+      }
+
+      return [...new Set(midis)]
+        .sort((a,b) => a - b);
+    }
+
+    function resetSelectedNotesToFactory() {
+      selectedNoteMidis =
+        buildFactoryMidis();
+    }
+
+    function loadSelectedNotesFromUrlOrFactory() {
+      const highlight = params.get("highlight");
+
+      if (highlight) {
+        selectedNoteMidis =
+          highlight
+            .split(",")
+            .map(note => note.trim())
+            .filter(Boolean)
+            .map(noteNameToMidi)
+            .filter(midi => midi !== null);
+
+        selectedNoteMidis =
+          [...new Set(selectedNoteMidis)]
+            .sort((a,b) => a - b);
+
+        if (selectedNoteMidis.length > 0) {
+          return;
+        }
+      }
+
+      resetSelectedNotesToFactory();
+    }
+
+    function getCurrentNotes() {
+
+      return selectedNoteMidis
+        .slice()
+        .sort((a,b) => a - b)
+        .map(midi => ({
+          midi,
+          displayName:
+            midiToDisplayName(midi),
+          frequency:
+            midiToFrequency(midi)
+        }));
+    }
+
+    function toggleSelectedNote(midi) {
+
+      if (selectedNoteMidis.includes(midi)) {
+
+        selectedNoteMidis =
+          selectedNoteMidis.filter(
+            value => value !== midi
+          );
+
+      } else {
+
+        selectedNoteMidis.push(midi);
+
+      }
+
+      selectedNoteMidis =
+        [...new Set(selectedNoteMidis)]
+          .sort((a,b) => a - b);
+
+      buildAll();
+    }
+
+    function buildRootGrid() {
+
+      rootGrid.innerHTML = "";
+
+      const fullRoots =
+        getChromaticFromRoot(selectedKeyRoot);
+
+      fullRoots.forEach(key => {
+
+        const pitch =
+          pitchClasses[key];
+
+        const button =
+          document.createElement("button");
+
+        button.classList.add(
+          "square",
+          pitch.className
+        );
+
+        if (key === selectedRoot) {
+          button.classList.add("selected");
+        }
+
+        button.textContent =
+          pitch.display;
+
+        button.addEventListener("click", () => {
+
+          selectedRoot = key;
+
+          resetSelectedNotesToFactory();
+
+          buildAll();
+        });
+
+        rootGrid.appendChild(button);
+      });
+    }
+
+    function buildQualityGrid() {
+
+      qualityGrid.innerHTML = "";
+
+      Object.entries(qualities)
+        .forEach(([key, quality]) => {
+
+        const button =
+          document.createElement("button");
+
+        button.classList.add(
+          "square",
+          "quality-square"
+        );
+
+        if (key === selectedQuality) {
+          button.classList.add("selected");
+        }
+
+        button.textContent =
+          quality.label;
+
+        button.addEventListener("click", () => {
+
+          selectedQuality = key;
+          selectedVoicing = 1;
+
+          resetSelectedNotesToFactory();
+
+          buildAll();
+        });
+
+        qualityGrid.appendChild(button);
+      });
+    }
+
+    function buildVoicingGrid() {
+
+      voicingGrid.innerHTML = "";
+
+      const noteCount =
+        qualities[selectedQuality]
+          .intervals.length;
+
+      if (selectedVoicing > noteCount) {
+        selectedVoicing = 1;
+      }
+
+      Object.entries(voicings)
+        .forEach(([key, voicing]) => {
+
+        const voicingNumber =
+          parseInt(key, 10);
+
+        if (voicingNumber > noteCount) {
+          return;
+        }
+
+        const button =
+          document.createElement("button");
+
+        button.classList.add(
+          "square",
+          "voicing-square"
+        );
+
+        if (
+          voicingNumber ===
+          selectedVoicing
+        ) {
+          button.classList.add("selected");
+        }
+
+        button.textContent =
+          voicing.label;
+
+        button.addEventListener("click", () => {
+
+          selectedVoicing =
+            voicingNumber;
+
+          resetSelectedNotesToFactory();
+
+          buildAll();
+        });
+
+        voicingGrid.appendChild(button);
+      });
+    }
+
+    function buildOctaveGrid() {
+
+      octaveGrid.innerHTML = "";
+
+      [3,4].forEach(octave => {
+
+        const button =
+          document.createElement("button");
+
+        button.classList.add(
+          "square",
+          "octave-square"
+        );
+
+        if (octave === selectedOctave) {
+          button.classList.add("selected");
+        }
+
+        button.textContent =
+          "Octave " + octave;
+
+        button.addEventListener("click", () => {
+
+          selectedOctave = octave;
+
+          resetSelectedNotesToFactory();
+
+          buildAll();
+        });
+
+        octaveGrid.appendChild(button);
+      });
+    }
+
+    function buildNoteGrid() {
+
+      noteGrid.innerHTML = "";
+
+      const chromaticNotes =
+        getChromaticFromRoot(selectedKeyRoot);
+
+      [3,4].forEach(octave => {
+
+        const row =
+          document.createElement("div");
+
+        row.classList.add(
+          "note-octave-row"
+        );
+
+        chromaticNotes.forEach(noteName => {
+
+          const pitch =
+            pitchClasses[noteName];
+
+          const midi =
+            12 * (octave + 1) +
+            pitch.number;
+
+          const button =
+            document.createElement("button");
+
+          button.classList.add(
+            "square",
+            "note-square",
+            pitch.className
+          );
+
+          if (
+            selectedNoteMidis.includes(midi)
+          ) {
+            button.classList.add(
+              "highlighted"
+            );
+          }
+
+          button.textContent =
+            pitch.display + octave;
+
+          button.addEventListener("click", () => {
+            toggleSelectedNote(midi);
+          });
+
+          row.appendChild(button);
+        });
+
+        noteGrid.appendChild(row);
+      });
+    }
+
+    function updateResult() {
+
+      const notes =
+        getCurrentNotes();
+
+      chordName.textContent =
+        selectedRoot +
+        qualities[selectedQuality].symbol +
+        "v" +
+        selectedVoicing;
+
+      noteList.textContent =
+        notes.length > 0
+          ? "Notes: " +
+            notes
+              .map(note => note.displayName)
+              .join(" · ")
+          : "Notes: none selected";
+
+      keyLabel.textContent =
+        "Key center: " +
+        pitchClasses[selectedKeyRoot].display +
+        " · " +
+        selectedSystem.label;
+
+      styleLabel.textContent =
+        "Style: " +
+        selectedSystem.label +
+        " · " +
+        voices[selectedVoice].label;
+
+      selectedNotesRow.innerHTML = "";
+
+      notes.forEach(note => {
+
+        const chip =
+          document.createElement("button");
+
+        chip.classList.add(
+          "note-chip"
+        );
+
+        chip.textContent =
+          note.displayName + " ×";
+
+        chip.addEventListener("click", () => {
+          toggleSelectedNote(note.midi);
+        });
+
+        selectedNotesRow.appendChild(chip);
+      });
+
+      playerButton.href =
+        buildPlayerUrl();
+    }
+
+    async function ensureAudio() {
+
+      if (!audioContext) {
+
+        audioContext =
+          new (
+            window.AudioContext ||
+            window.webkitAudioContext
+          )();
+      }
+
+      if (
+        audioContext.state ===
+        "suspended"
+      ) {
+        await audioContext.resume();
+      }
+    }
+
+    function stopActiveChord() {
+
+      if (!audioContext) return;
+
+      activeChordNotes.forEach(note => {
+
+        ORUMI_VOICES.stopVoice(
+          note,
+          audioContext,
+          0.25
+        );
+      });
+
+      activeChordNotes = [];
+    }
+
+    async function playChord() {
+
+      await ensureAudio();
+
+      stopActiveChord();
+
+      const notes =
+        getCurrentNotes();
+
+      const now =
+        audioContext.currentTime;
+
+      activeChordNotes =
+        notes.map(note => {
+
+          const voiceNode =
+            ORUMI_VOICES.buildVoice(
+              audioContext,
+              selectedVoice,
+              note.frequency,
+              now
+            );
+
+          return {
+            voice: selectedVoice,
+            gain: voiceNode.gain,
+            oscillators:
+              voiceNode.oscillators || [],
+            noiseSources:
+              voiceNode.noiseSources || []
+          };
+        });
+
+      setTimeout(() => {
+        stopActiveChord();
+      }, 1800);
+    }
+
+    function addCurrentChordToProgression() {
+
+      const notes =
+        getCurrentNotes();
+
+      const chord = {
+
+        name:
+          selectedRoot +
+          qualities[selectedQuality].symbol +
+          "v" +
+          selectedVoicing,
+
+        root: selectedRoot,
+        quality: selectedQuality,
+        voicing: selectedVoicing,
+        octave: selectedOctave,
+
+        notes:
+          notes.map(
+            note => note.displayName
+          ),
+
+        system: selectedSystemKey,
+        keyRoot: selectedKeyRoot,
+        voice: selectedVoice
+      };
+
+      const progression =
+        JSON.parse(
+          localStorage.getItem(
+            "orumiProgression"
+          ) || "[]"
+        );
+
+      if (
+        editIndex !== null &&
+        Number.isInteger(editIndex) &&
+        progression[editIndex]
+      ) {
+        progression[editIndex] = chord;
+      } else {
+        progression.push(chord);
+      }
+
+      localStorage.setItem(
+        "orumiProgression",
+        JSON.stringify(progression)
+      );
+
+      window.location.href =
+        "progression-builder.html";
+    }
+
+    function buildPlayerUrl() {
+
+      const notes =
+        getCurrentNotes();
+
+      const highlight =
+        notes
+          .map(note => note.displayName)
+          .join(",");
+
+      return (
+        "player.html" +
+        "?system=" +
+        encodeURIComponent(
+          selectedSystemKey
+        ) +
+        "&root=" +
+        encodeURIComponent(
+          selectedKeyRoot
+        ) +
+        "&family=" +
+        encodeURIComponent(
+          selectedFamily
+        ) +
+        "&scaleMode=" +
+        encodeURIComponent(
+          selectedMode
+        ) +
+        "&octaves=" +
+        encodeURIComponent(
+          selectedOctavesForPlayer
+        ) +
+        "&voice=" +
+        encodeURIComponent(
+          selectedVoice
+        ) +
+        "&set=full" +
+        "&chordRoot=" +
+        encodeURIComponent(
+          selectedRoot
+        ) +
+        "&chordQuality=" +
+        encodeURIComponent(
+          selectedQuality
+        ) +
+        "&chordVoicing=" +
+        encodeURIComponent(
+          selectedVoicing
+        ) +
+        "&chordOctave=" +
+        encodeURIComponent(
+          selectedOctave
+        ) +
+        "&highlight=" +
+        encodeURIComponent(
+          highlight
+        )
+      );
+    }
+
+    playChordButton
+      .addEventListener(
+        "click",
+        playChord
+      );
+
+    addProgressionButton
+      .addEventListener(
+        "click",
+        addCurrentChordToProgression
+      );
+
+    clearButton
+      .addEventListener(
+        "click",
+        () => {
+
+        stopActiveChord();
+
+        selectedNoteMidis = [];
+
+        buildAll();
+      });
+
+    function buildAll() {
+
+      buildRootGrid();
+      buildQualityGrid();
+      buildVoicingGrid();
+      buildOctaveGrid();
+      buildNoteGrid();
+      updateResult();
+    }
+
+    window.addEventListener(
+      "beforeunload",
+      stopActiveChord
+    );
+
+    loadSelectedNotesFromUrlOrFactory();
+    buildAll();
+  </script>
+
+</body>
+</html>

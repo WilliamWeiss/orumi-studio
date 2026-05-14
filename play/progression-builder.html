@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Orumi Progression Builder</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <script src="js/orumi-catalog.js"></script>
+  <script src="js/voices.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #111;
+      color: #f5f0e8;
+      margin: 0;
+      min-height: 100vh;
+      padding: 24px 18px 80px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      user-select: none;
+    }
+
+    h1 {
+      margin: 14px 0 6px;
+      text-align: center;
+    }
+
+    .subtitle {
+      color: #bdb4a6;
+      margin-bottom: 18px;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    .top-button {
+      position: fixed;
+      top: 18px;
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      text-decoration: none;
+      display: grid;
+      place-items: center;
+      font-size: 24px;
+      color: #222;
+      background: rgba(255,255,255,0.86);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+      z-index: 1000;
+    }
+
+    .back-button { left: 18px; }
+    .factory-button { right: 18px; }
+
+    .panel {
+      width: min(94vmin, 820px);
+      background: rgba(255,255,255,0.06);
+      border-radius: 18px;
+      padding: 16px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.28);
+    }
+
+    .progression-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .chord-card {
+      display: grid;
+      grid-template-columns: 48px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      background: rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 12px;
+    }
+
+    .index {
+      font-size: 18px;
+      font-weight: 900;
+      opacity: 0.75;
+    }
+
+    .chord-name {
+      font-size: 22px;
+      font-weight: 900;
+    }
+
+    .notes {
+      font-size: 13px;
+      color: #d8d0c4;
+      margin-top: 4px;
+    }
+
+    .small-button {
+      border: none;
+      border-radius: 12px;
+      padding: 9px 12px;
+      font-weight: 800;
+      cursor: pointer;
+      background: rgba(255,255,255,0.16);
+      color: #fff7ea;
+    }
+
+    .action-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .action-button {
+      border: none;
+      border-radius: 16px;
+      padding: 14px 18px;
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+      background: white;
+      color: #111;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+    }
+
+    .secondary {
+      background: rgba(255,255,255,0.16);
+      color: #fff7ea;
+    }
+
+    #emptyState {
+      color: #bdb4a6;
+      text-align: center;
+      padding: 24px 8px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <a
+    class="top-button back-button"
+    href="index.html"
+    title="Return to Home Screen"
+  >←</a>
+
+  <a
+    class="top-button factory-button"
+    href="chord-factory.html"
+    title="Open Chord Factory"
+  >⊞</a>
+
+  <h1>Progression Builder</h1>
+
+  <div class="subtitle">
+    Save chords into a sequence and play them back.
+  </div>
+
+  <div class="panel">
+    <div id="progressionList" class="progression-list"></div>
+
+    <div id="emptyState">
+      No chords yet. Add one from Chord Factory.
+    </div>
+
+    <div class="action-row">
+      <button class="action-button" id="playButton">
+        Play Progression
+      </button>
+
+      <button class="action-button secondary" id="clearButton">
+        Clear Progression
+      </button>
+    </div>
+  </div>
+
+  <script>
+  let audioContext;
+  let activeNotes = [];
+
+  const progressionList =
+    document.getElementById("progressionList");
+
+  const emptyState =
+    document.getElementById("emptyState");
+
+  const playButton =
+    document.getElementById("playButton");
+
+  const clearButton =
+    document.getElementById("clearButton");
+
+  const pitchClasses =
+    ORUMI_CATALOG.pitchClasses;
+
+  function getProgression() {
+    return JSON.parse(
+      localStorage.getItem("orumiProgression") || "[]"
+    );
+  }
+
+  function saveProgression(progression) {
+    localStorage.setItem(
+      "orumiProgression",
+      JSON.stringify(progression)
+    );
+  }
+
+  function noteNameToMidi(noteName) {
+    const match =
+      noteName.match(/^([A-G][b]?)(-?\d+)$/);
+
+    if (!match) return null;
+
+    const pc = match[1];
+    const octave = parseInt(match[2], 10);
+
+    if (!pitchClasses[pc]) return null;
+
+    return 12 * (octave + 1) + pitchClasses[pc].number;
+  }
+
+  function midiToFrequency(midi) {
+    return 440 * Math.pow(2, (midi - 69) / 12);
+  }
+
+  async function ensureAudio() {
+    if (!audioContext) {
+      audioContext =
+        new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    if (audioContext.state === "suspended") {
+      await audioContext.resume();
+    }
+  }
+
+  function stopActiveNotes() {
+    if (!audioContext) return;
+
+    activeNotes.forEach(note => {
+      ORUMI_VOICES.stopVoice(note, audioContext, 0.18);
+    });
+
+    activeNotes = [];
+  }
+
+  function playChord(chord, duration = 950) {
+    stopActiveNotes();
+
+    const now = audioContext.currentTime;
+    const voice = chord.voice || "softKeys";
+
+    activeNotes =
+      chord.notes
+        .map(noteNameToMidi)
+        .filter(midi => midi !== null)
+        .map(midi => {
+          const voiceNode =
+            ORUMI_VOICES.buildVoice(
+              audioContext,
+              voice,
+              midiToFrequency(midi),
+              now
+            );
+
+          return {
+            voice,
+            gain: voiceNode.gain,
+            oscillators: voiceNode.oscillators || [],
+            noiseSources: voiceNode.noiseSources || []
+          };
+        });
+
+    setTimeout(stopActiveNotes, duration);
+  }
+
+  async function playProgression() {
+    await ensureAudio();
+
+    const progression = getProgression();
+
+    if (progression.length === 0) return;
+
+    let delay = 0;
+
+    progression.forEach(chord => {
+      setTimeout(() => {
+        playChord(chord, 900);
+      }, delay);
+
+      delay += 1100;
+    });
+  }
+
+  function removeChord(index) {
+    const progression = getProgression();
+
+    progression.splice(index, 1);
+
+    saveProgression(progression);
+    renderProgression();
+  }
+
+  function moveChord(index, direction) {
+    const progression = getProgression();
+
+    const newIndex = index + direction;
+
+    if (
+      newIndex < 0 ||
+      newIndex >= progression.length
+    ) {
+      return;
+    }
+
+    const moved = progression.splice(index, 1)[0];
+
+    progression.splice(newIndex, 0, moved);
+
+    saveProgression(progression);
+    renderProgression();
+  }
+
+  function editChord(index) {
+    const progression = getProgression();
+    const chord = progression[index];
+
+    if (!chord) return;
+
+    const highlight =
+      encodeURIComponent(chord.notes.join(","));
+
+    const url =
+      "chord-factory.html" +
+      "?editIndex=" + encodeURIComponent(index) +
+      "&system=" + encodeURIComponent(chord.system || "western") +
+      "&root=" + encodeURIComponent(chord.keyRoot || chord.root || "C") +
+      "&voice=" + encodeURIComponent(chord.voice || "softKeys") +
+      "&chordRoot=" + encodeURIComponent(chord.root || "C") +
+      "&chordQuality=" + encodeURIComponent(chord.quality || "major") +
+      "&chordVoicing=" + encodeURIComponent(chord.voicing || 1) +
+      "&chordOctave=" + encodeURIComponent(chord.octave || 3) +
+      "&highlight=" + highlight;
+
+    window.location.href = url;
+  }
+
+  function renderProgression() {
+    const progression = getProgression();
+
+    progressionList.innerHTML = "";
+
+    emptyState.style.display =
+      progression.length === 0 ? "block" : "none";
+
+    progression.forEach((chord, index) => {
+      const card = document.createElement("div");
+      card.classList.add("chord-card");
+
+      if (
+        chord.root &&
+        pitchClasses[chord.root]
+      ) {
+        card.classList.add(
+          pitchClasses[chord.root].className
+        );
+      }
+
+      const number = document.createElement("div");
+      number.classList.add("index");
+      number.textContent = index + 1;
+
+      const main = document.createElement("div");
+
+      const name = document.createElement("div");
+      name.classList.add("chord-name");
+      name.textContent = chord.name;
+
+      const notes = document.createElement("div");
+      notes.classList.add("notes");
+      notes.textContent = chord.notes.join(" · ");
+
+      main.appendChild(name);
+      main.appendChild(notes);
+
+      const controls = document.createElement("div");
+      controls.style.display = "grid";
+      controls.style.gridTemplateColumns = "1fr 1fr";
+      controls.style.gap = "6px";
+
+      const edit = document.createElement("button");
+      edit.classList.add("small-button");
+      edit.textContent = "Edit";
+      edit.addEventListener("click", () => {
+        editChord(index);
+      });
+
+      const remove = document.createElement("button");
+      remove.classList.add("small-button");
+      remove.textContent = "Remove";
+      remove.addEventListener("click", () => {
+        removeChord(index);
+      });
+
+      const up = document.createElement("button");
+      up.classList.add("small-button");
+      up.textContent = "↑";
+      up.disabled = index === 0;
+      up.addEventListener("click", () => {
+        moveChord(index, -1);
+      });
+
+      const down = document.createElement("button");
+      down.classList.add("small-button");
+      down.textContent = "↓";
+      down.disabled = index === progression.length - 1;
+      down.addEventListener("click", () => {
+        moveChord(index, 1);
+      });
+
+      controls.appendChild(edit);
+      controls.appendChild(remove);
+      controls.appendChild(up);
+      controls.appendChild(down);
+
+      card.appendChild(number);
+      card.appendChild(main);
+      card.appendChild(controls);
+
+      progressionList.appendChild(card);
+    });
+  }
+
+  playButton.addEventListener("click", playProgression);
+
+  clearButton.addEventListener("click", () => {
+    saveProgression([]);
+    stopActiveNotes();
+    renderProgression();
+  });
+
+  window.addEventListener("beforeunload", stopActiveNotes);
+
+  renderProgression();
+</script>
+
+</body>
+</html>

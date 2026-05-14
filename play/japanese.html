@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Hirajoshi Sound Square</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #1f1a14;
+      color: #f3eadc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+      height: 100vh;
+      overflow: hidden;
+      touch-action: none;
+      user-select: none;
+    }
+
+    h1 {
+      margin: 10px 0;
+      font-weight: 500;
+    }
+
+    #startButton {
+      font-size: 18px;
+      padding: 12px 20px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 12px;
+      background: #d6c2a1;
+      color: #1f1a14;
+      cursor: pointer;
+    }
+
+    #status {
+      margin-bottom: 10px;
+      color: #c8b99e;
+      font-size: 14px;
+      height: 20px;
+    }
+
+    .grid {
+      display: grid;
+      width: min(90vmin, 420px);
+      height: min(90vmin, 420px);
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(4, 1fr);
+      gap: 2%;
+    }
+
+    .square {
+      border: none;
+      border-radius: 18px;
+      font-size: clamp(14px, 3.4vmin, 24px);
+      font-weight: bold;
+      color: #f7f0e5;
+      box-shadow: 0 6px 14px rgba(0,0,0,0.35);
+      transition: 0.08s;
+    }
+
+    .back-button {
+      position: fixed;
+      top: 18px;
+      left: 18px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      text-decoration: none;
+      font-family: system-ui, sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: #222;
+      background: rgba(255, 255, 255, 0.82);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+    }
+
+    .square.active {
+      transform: scale(0.9);
+      filter: brightness(1.35);
+      box-shadow: 0 0 24px rgba(230, 210, 170, 0.7);
+    }
+
+    .c  { background: #8a5a44; }
+    .d  { background: #a47551; }
+    .eb { background: #6f7059; }
+    .g  { background: #556b5f; }
+    .ab { background: #7a6a53; }
+  </style>
+</head>
+
+<body>
+
+  <a class="back-button" href="index.html">← Back to Menu</a>
+
+  <h1>Hirajōshi Square</h1>
+
+  <button id="startButton">Start Audio</button>
+
+  <div id="status">Tap Start Audio</div>
+
+  <div class="grid">
+
+    <button class="square c"
+      data-name="C3"
+      data-note="130.81">
+      C3
+    </button>
+
+    <button class="square d"
+      data-name="D3"
+      data-note="146.83">
+      D3
+    </button>
+
+    <button class="square eb"
+      data-name="Eb3"
+      data-note="155.56">
+      Eb3
+    </button>
+
+    <button class="square g"
+      data-name="G3"
+      data-note="196.00">
+      G3
+    </button>
+
+    <button class="square ab"
+      data-name="Ab3"
+      data-note="207.65">
+      Ab3
+    </button>
+
+    <button class="square c"
+      data-name="C4"
+      data-note="261.63">
+      C4
+    </button>
+
+    <button class="square d"
+      data-name="D4"
+      data-note="293.66">
+      D4
+    </button>
+
+    <button class="square eb"
+      data-name="Eb4"
+      data-note="311.13">
+      Eb4
+    </button>
+
+    <button class="square g"
+      data-name="G4"
+      data-note="392.00">
+      G4
+    </button>
+
+    <button class="square ab"
+      data-name="Ab4"
+      data-note="415.30">
+      Ab4
+    </button>
+
+    <button class="square c"
+      data-name="C5"
+      data-note="523.25">
+      C5
+    </button>
+
+    <button class="square d"
+      data-name="D5"
+      data-note="587.33">
+      D5
+    </button>
+
+    <button class="square eb"
+      data-name="Eb5"
+      data-note="622.25">
+      Eb5
+    </button>
+
+    <button class="square g"
+      data-name="G5"
+      data-note="783.99">
+      G5
+    </button>
+
+    <button class="square ab"
+      data-name="Ab5"
+      data-note="830.61">
+      Ab5
+    </button>
+
+    <button class="square c"
+      data-name="C6"
+      data-note="1046.50">
+      C6
+    </button>
+
+  </div>
+
+  <script>
+
+    let audioContext;
+    let currentFingerButton = null;
+
+    const startButton =
+      document.getElementById("startButton");
+
+    const statusText =
+      document.getElementById("status");
+
+    function startAudio() {
+
+      if (audioContext) return;
+
+      audioContext =
+        new (window.AudioContext ||
+         window.webkitAudioContext)();
+
+      const osc =
+        audioContext.createOscillator();
+
+      const gain =
+        audioContext.createGain();
+
+      osc.frequency.value = 440;
+      gain.gain.value = 0.04;
+
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
+
+      osc.start();
+      osc.stop(audioContext.currentTime + 0.1);
+
+      statusText.textContent = "Audio Ready";
+
+      startButton.style.display = "none";
+    }
+
+    startButton.addEventListener(
+      "click",
+      startAudio
+    );
+
+    startButton.addEventListener(
+      "touchend",
+      startAudio
+    );
+
+    function playNote(freq) {
+
+      if (!audioContext) {
+
+        statusText.textContent =
+          "Tap Start Audio first";
+
+        return;
+      }
+
+      const now =
+        audioContext.currentTime;
+
+      const gain =
+        audioContext.createGain();
+
+      gain.gain.setValueAtTime(
+        0.0001,
+        now
+      );
+
+      gain.gain.exponentialRampToValueAtTime(
+        0.24,
+        now + 0.02
+      );
+
+      gain.gain.exponentialRampToValueAtTime(
+        0.001,
+        now + 1.25
+      );
+
+      const osc1 =
+        audioContext.createOscillator();
+
+      osc1.type = "triangle";
+
+      osc1.frequency.setValueAtTime(
+        freq,
+        now
+      );
+
+      const osc2 =
+        audioContext.createOscillator();
+
+      osc2.type = "sine";
+
+      osc2.frequency.setValueAtTime(
+        freq * 2,
+        now
+      );
+
+      const osc2Gain =
+        audioContext.createGain();
+
+      osc2Gain.gain.value = 0.12;
+
+      const filter =
+        audioContext.createBiquadFilter();
+
+      filter.type = "lowpass";
+
+      filter.frequency.setValueAtTime(
+        1400,
+        now
+      );
+
+      filter.frequency.exponentialRampToValueAtTime(
+        550,
+        now + 1.0
+      );
+
+      osc1.connect(filter);
+
+      osc2.connect(osc2Gain);
+
+      osc2Gain.connect(filter);
+
+      filter.connect(gain);
+
+      gain.connect(audioContext.destination);
+
+      osc1.start(now);
+      osc2.start(now);
+
+      osc1.stop(now + 1.25);
+      osc2.stop(now + 1.25);
+    }
+
+    function flashButton(button) {
+
+      button.classList.add("active");
+
+      setTimeout(() => {
+
+        button.classList.remove("active");
+
+      }, 150);
+    }
+
+    function triggerButton(button) {
+
+      if (
+        !button ||
+        button === currentFingerButton
+      ) return;
+
+      currentFingerButton = button;
+
+      playNote(
+        parseFloat(button.dataset.note)
+      );
+
+      statusText.textContent =
+        button.dataset.name;
+
+      flashButton(button);
+    }
+
+    function buttonFromPoint(x, y) {
+
+      const element =
+        document.elementFromPoint(x, y);
+
+      if (
+        element &&
+        element.classList.contains("square")
+      ) {
+        return element;
+      }
+
+      return null;
+    }
+
+    document
+      .querySelectorAll(".square")
+      .forEach(button => {
+
+        button.addEventListener(
+          "pointerdown",
+          event => {
+
+            event.preventDefault();
+
+            triggerButton(button);
+          }
+        );
+      });
+
+    document.addEventListener(
+      "pointermove",
+      event => {
+
+        if (
+          event.buttons !== 1 &&
+          event.pointerType === "mouse"
+        ) return;
+
+        const button =
+          buttonFromPoint(
+            event.clientX,
+            event.clientY
+          );
+
+        if (button)
+          triggerButton(button);
+      }
+    );
+
+    document.addEventListener(
+      "pointerup",
+      () => {
+        currentFingerButton = null;
+      }
+    );
+
+    document.addEventListener(
+      "pointercancel",
+      () => {
+        currentFingerButton = null;
+      }
+    );
+
+  </script>
+
+</body>
+</html>

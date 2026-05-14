@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Raga Bhupali Sound Square</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #18120c;
+      color: #f5ead7;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+      height: 100vh;
+      overflow: hidden;
+      touch-action: none;
+      user-select: none;
+    }
+
+    h1 {
+      margin: 10px 0;
+      font-weight: 500;
+    }
+
+    #startButton {
+      font-size: 18px;
+      padding: 12px 20px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 12px;
+      background: #d08a2d;
+      color: #18120c;
+      cursor: pointer;
+    }
+
+    #status {
+      margin-bottom: 10px;
+      color: #d9c3a0;
+      font-size: 14px;
+      height: 20px;
+    }
+
+    .grid {
+      display: grid;
+      width: min(90vmin, 420px);
+      height: min(90vmin, 420px);
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(4, 1fr);
+      gap: 2%;
+    }
+
+    .square {
+      border: none;
+      border-radius: 18px;
+      font-size: clamp(14px, 3.4vmin, 24px);
+      font-weight: bold;
+      color: #fff4df;
+      box-shadow: 0 6px 14px rgba(0,0,0,0.35);
+      transition: 0.08s;
+    }
+
+    .back-button {
+      position: fixed;
+      top: 18px;
+      left: 18px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      text-decoration: none;
+      font-family: system-ui, sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: #222;
+      background: rgba(255,255,255,0.82);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+    }
+
+    .square.active {
+      transform: scale(0.9);
+      filter: brightness(1.35);
+      box-shadow: 0 0 24px rgba(255,190,105,0.75);
+    }
+
+    .sa  { background: #8a3f2d; }
+    .re  { background: #b06f2f; }
+    .ga  { background: #c49a3a; }
+    .pa  { background: #4f6f5d; }
+    .dha { background: #3e536f; }
+  </style>
+</head>
+
+<body>
+
+  <a class="back-button" href="index.html">← Back to Menu</a>
+
+  <h1>Raga Bhupali Square</h1>
+
+  <button id="startButton">Start Audio</button>
+
+  <div id="status">Tap Start Audio</div>
+
+  <div class="grid">
+
+    <button class="square sa"
+      data-name="C3"
+      data-note="130.81">
+      Sa3
+    </button>
+
+    <button class="square re"
+      data-name="D3"
+      data-note="146.83">
+      Re3
+    </button>
+
+    <button class="square ga"
+      data-name="E3"
+      data-note="164.81">
+      Ga3
+    </button>
+
+    <button class="square pa"
+      data-name="G3"
+      data-note="196.00">
+      Pa3
+    </button>
+
+    <button class="square dha"
+      data-name="A3"
+      data-note="220.00">
+      Dha3
+    </button>
+
+    <button class="square sa"
+      data-name="C4"
+      data-note="261.63">
+      Sa4
+    </button>
+
+    <button class="square re"
+      data-name="D4"
+      data-note="293.66">
+      Re4
+    </button>
+
+    <button class="square ga"
+      data-name="E4"
+      data-note="329.63">
+      Ga4
+    </button>
+
+    <button class="square pa"
+      data-name="G4"
+      data-note="392.00">
+      Pa4
+    </button>
+
+    <button class="square dha"
+      data-name="A4"
+      data-note="440.00">
+      Dha4
+    </button>
+
+    <button class="square sa"
+      data-name="C5"
+      data-note="523.25">
+      Sa5
+    </button>
+
+    <button class="square re"
+      data-name="D5"
+      data-note="587.33">
+      Re5
+    </button>
+
+    <button class="square ga"
+      data-name="E5"
+      data-note="659.25">
+      Ga5
+    </button>
+
+    <button class="square pa"
+      data-name="G5"
+      data-note="783.99">
+      Pa5
+    </button>
+
+    <button class="square dha"
+      data-name="A5"
+      data-note="880.00">
+      Dha5
+    </button>
+
+    <button class="square sa"
+      data-name="C6"
+      data-note="1046.50">
+      Sa6
+    </button>
+
+  </div>
+
+  <script>
+
+    let audioContext;
+    let currentFingerButton = null;
+    let droneOsc1 = null;
+    let droneOsc2 = null;
+    let droneGain = null;
+
+    const startButton =
+      document.getElementById("startButton");
+
+    const statusText =
+      document.getElementById("status");
+
+    function startAudio() {
+
+      if (audioContext) return;
+
+      audioContext =
+        new (window.AudioContext ||
+         window.webkitAudioContext)();
+
+      const osc =
+        audioContext.createOscillator();
+
+      const gain =
+        audioContext.createGain();
+
+      osc.frequency.value = 440;
+      gain.gain.value = 0.04;
+
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
+
+      osc.start();
+      osc.stop(audioContext.currentTime + 0.1);
+
+      startDrone();
+
+      statusText.textContent = "Audio Ready";
+
+      startButton.style.display = "none";
+    }
+
+    startButton.addEventListener(
+      "click",
+      startAudio
+    );
+
+    startButton.addEventListener(
+      "touchend",
+      startAudio
+    );
+
+    function startDrone() {
+
+      const now =
+        audioContext.currentTime;
+
+      droneGain =
+        audioContext.createGain();
+
+      droneGain.gain.setValueAtTime(
+        0.0001,
+        now
+      );
+
+      droneGain.gain.exponentialRampToValueAtTime(
+        0.045,
+        now + 1.0
+      );
+
+      const droneFilter =
+        audioContext.createBiquadFilter();
+
+      droneFilter.type = "lowpass";
+
+      droneFilter.frequency.value = 600;
+
+      droneOsc1 =
+        audioContext.createOscillator();
+
+      droneOsc1.type = "sine";
+
+      droneOsc1.frequency.value = 130.81;
+
+      droneOsc2 =
+        audioContext.createOscillator();
+
+      droneOsc2.type = "sine";
+
+      droneOsc2.frequency.value = 196.00;
+
+      droneOsc1.connect(droneFilter);
+      droneOsc2.connect(droneFilter);
+
+      droneFilter.connect(droneGain);
+
+      droneGain.connect(audioContext.destination);
+
+      droneOsc1.start();
+      droneOsc2.start();
+    }
+
+    function playNote(freq) {
+
+      if (!audioContext) {
+
+        statusText.textContent =
+          "Tap Start Audio first";
+
+        return;
+      }
+
+      const now =
+        audioContext.currentTime;
+
+      const gain =
+        audioContext.createGain();
+
+      gain.gain.setValueAtTime(
+        0.0001,
+        now
+      );
+
+      gain.gain.exponentialRampToValueAtTime(
+        0.23,
+        now + 0.025
+      );
+
+      gain.gain.exponentialRampToValueAtTime(
+        0.001,
+        now + 1.35
+      );
+
+      const osc1 =
+        audioContext.createOscillator();
+
+      osc1.type = "triangle";
+
+      osc1.frequency.setValueAtTime(
+        freq,
+        now
+      );
+
+      const osc2 =
+        audioContext.createOscillator();
+
+      osc2.type = "sine";
+
+      osc2.frequency.setValueAtTime(
+        freq * 2,
+        now
+      );
+
+      const osc2Gain =
+        audioContext.createGain();
+
+      osc2Gain.gain.value = 0.12;
+
+      const filter =
+        audioContext.createBiquadFilter();
+
+      filter.type = "lowpass";
+
+      filter.frequency.setValueAtTime(
+        1300,
+        now
+      );
+
+      filter.frequency.exponentialRampToValueAtTime(
+        500,
+        now + 1.1
+      );
+
+      osc1.connect(filter);
+
+      osc2.connect(osc2Gain);
+
+      osc2Gain.connect(filter);
+
+      filter.connect(gain);
+
+      gain.connect(audioContext.destination);
+
+      osc1.start(now);
+      osc2.start(now);
+
+      osc1.stop(now + 1.35);
+      osc2.stop(now + 1.35);
+    }
+
+    function flashButton(button) {
+
+      button.classList.add("active");
+
+      setTimeout(() => {
+
+        button.classList.remove("active");
+
+      }, 150);
+    }
+
+    function triggerButton(button) {
+
+      if (
+        !button ||
+        button === currentFingerButton
+      ) return;
+
+      currentFingerButton = button;
+
+      playNote(
+        parseFloat(button.dataset.note)
+      );
+
+      statusText.textContent =
+        button.dataset.name;
+
+      flashButton(button);
+    }
+
+    function buttonFromPoint(x, y) {
+
+      const element =
+        document.elementFromPoint(x, y);
+
+      if (
+        element &&
+        element.classList.contains("square")
+      ) {
+        return element;
+      }
+
+      return null;
+    }
+
+    document
+      .querySelectorAll(".square")
+      .forEach(button => {
+
+        button.addEventListener(
+          "pointerdown",
+          event => {
+
+            event.preventDefault();
+
+            triggerButton(button);
+          }
+        );
+      });
+
+    document.addEventListener(
+      "pointermove",
+      event => {
+
+        if (
+          event.buttons !== 1 &&
+          event.pointerType === "mouse"
+        ) return;
+
+        const button =
+          buttonFromPoint(
+            event.clientX,
+            event.clientY
+          );
+
+        if (button)
+          triggerButton(button);
+      }
+    );
+
+    document.addEventListener(
+      "pointerup",
+      () => {
+        currentFingerButton = null;
+      }
+    );
+
+    document.addEventListener(
+      "pointercancel",
+      () => {
+        currentFingerButton = null;
+      }
+    );
+
+  </script>
+
+</body>
+</html>
