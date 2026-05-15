@@ -1,168 +1,46 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
-  <title>Orumi Sound Squares</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<script src="js/orumi-catalog.js"></script>
-
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #111;
-      color: #f5f0e8;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      margin: 0;
-      min-height: 100vh;
-      overflow: hidden;
-    }
-
-    h1 {
-      margin: 10px 0 6px 0;
-      font-weight: 500;
-      letter-spacing: 1px;
-    }
-
-    .subtitle {
-      color: #bdb4a6;
-      margin-bottom: 22px;
-      font-size: 14px;
-    }
-
-    .menu-grid {
-      display: grid;
-      width: min(90vmin, 520px);
-      height: min(90vmin, 520px);
-      grid-template-columns: repeat(3, 1fr);
-      grid-template-rows: repeat(3, 1fr);
-      gap: 3%;
-    }
-
-    .tile {
-      text-decoration: none;
-      color: #fff7ea;
-      border-radius: 22px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 8px 18px rgba(0,0,0,0.38);
-      transition: 0.12s;
-      user-select: none;
-    }
-
-    .tile:active,
-    .tile:hover {
-      transform: scale(0.95);
-      filter: brightness(1.18);
-      box-shadow: 0 0 26px rgba(255,255,255,0.25);
-    }
-
-    .abbr {
-      font-size: clamp(28px, 8vmin, 54px);
-      font-weight: bold;
-      letter-spacing: 1px;
-    }
-
-    .label {
-      margin-top: 8px;
-      font-size: clamp(11px, 2.4vmin, 16px);
-      opacity: 0.9;
-    }
-
-    .western  { background: #4d6f91; }
-    .japanese { background: #7a6a53; }
-    .chinese  { background: #8f3f2f; }
-    .indian   { background: #d08a2d; color: #18120c; }
-    .maqam    { background: #5b4a6b; }
-    .celtic   { background: #47624f; }
-    .blues    { background: #3f4e6f; }
-    .african  { background: #8b3e2f; }
-    .andean   { background: #5f6f72; }
-  </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Orumi</title>
+  <link rel="stylesheet" href="/styles.css" />
 </head>
-
 <body>
+  <header class="site-header">
+    <a class="logo" href="/">Orumi</a>
+    <nav>
+      <a href="/studio/">Studio</a>
+      <a href="/language/">Language</a>
+      <a href="/play/">Play</a>
+    </nav>
+  </header>
 
-  <h1>Orumi Sound Squares</h1>
+  <main class="hero">
+    <section>
+      <p class="eyebrow">Orumi Studio</p>
+      <h1>A visual music language made of colored squares.</h1>
+      <p class="lede">
+        Build melodies, rhythms, rests, octaves, volume, and sustain as visible patterns —
+        first on screen, eventually in your hands.
+      </p>
+      <div class="actions">
+        <a class="button" href="/studio/">Enter Orumi Studio</a>
+        <a class="button secondary" href="/language/">Learn the Language</a>
+      </div>
+    </section>
 
-  <div class="subtitle">
-    Choose a musical world
-  </div>
-
-  <div class="menu-grid" id="menuGrid"></div>
-
-  <script>
-    const menuGrid = document.getElementById("menuGrid");
-    const systems = ORUMI_CATALOG.systems;
-
-    const systemOrder = [
-      "western",
-      "japanese",
-      "chinese",
-      "indian",
-      "maqam",
-      "celtic",
-      "blues",
-      "african",
-      "andean"
-    ];
-
-    function buildSystemLink(systemKey, system) {
-      const root = encodeURIComponent(system.defaultRoot || "C");
-      const family = encodeURIComponent(system.defaultFamily);
-      const scaleMode = encodeURIComponent(system.defaultMode);
-      const setView = encodeURIComponent(system.defaultSet || "native");
-      const octaves = encodeURIComponent(
-        (system.defaultOctaves || [2,3,4,5]).join(",")
-      );
-      const voice = encodeURIComponent(system.defaultVoice || "warm");
-
-      return (
-        "player.html" +
-        "?system=" + encodeURIComponent(systemKey) +
-        "&root=" + root +
-        "&family=" + family +
-        "&scaleMode=" + scaleMode +
-        "&set=" + setView +
-        "&octaves=" + octaves +
-        "&voice=" + voice
-      );
-    }
-
-    function buildMenu() {
-      menuGrid.innerHTML = "";
-
-      systemOrder.forEach(systemKey => {
-        const system = systems[systemKey];
-
-        if (!system) return;
-
-        const link = document.createElement("a");
-        link.classList.add("tile");
-        link.classList.add(systemKey);
-        link.href = buildSystemLink(systemKey, system);
-
-        const abbr = document.createElement("div");
-        abbr.classList.add("abbr");
-        abbr.textContent = system.shortLabel || system.label.slice(0, 2).toUpperCase();
-
-        const label = document.createElement("div");
-        label.classList.add("label");
-        label.textContent = system.label;
-
-        link.appendChild(abbr);
-        link.appendChild(label);
-
-        menuGrid.appendChild(link);
-      });
-    }
-
-    buildMenu();
-  </script>
-
+    <section class="grid-demo" aria-label="Orumi square grid">
+      <span class="sq red"></span>
+      <span class="sq orange"></span>
+      <span class="sq yellow"></span>
+      <span class="sq green"></span>
+      <span class="sq blue"></span>
+      <span class="sq purple"></span>
+      <span class="sq white"></span>
+      <span class="sq black"></span>
+      <span class="sq teal"></span>
+    </section>
+  </main>
 </body>
 </html>
