@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Orumi Chord Factory</title>
   <meta charset="utf-8">
+  <title>Orumi Chord Factory</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <script src="js/orumi-catalog.js"></script>
   <script src="js/voices.js"></script>
 
@@ -317,6 +318,15 @@
       <div class="action-row">
         <button
           class="action-button secondary-button"
+          id="openProgressionButton"
+        >
+          Open Progression Builder
+        </button>
+      </div>
+
+      <div class="action-row">
+        <button
+          class="action-button secondary-button"
           id="clearButton"
         >
           Clear Selected Notes
@@ -373,6 +383,9 @@
 
     const addProgressionButton =
       document.getElementById("addProgressionButton");
+
+    const openProgressionButton =
+      document.getElementById("openProgressionButton");
 
     const playerButton =
       document.getElementById("playerButton");
@@ -1125,6 +1138,11 @@
         "progression-builder.html";
     }
 
+    function openProgressionBuilder() {
+      window.location.href =
+        "progression-builder.html";
+    }
+
     function buildPlayerUrl() {
 
       const notes =
@@ -1195,6 +1213,12 @@
       .addEventListener(
         "click",
         addCurrentChordToProgression
+      );
+
+    openProgressionButton
+      .addEventListener(
+        "click",
+        openProgressionBuilder
       );
 
     clearButton

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="utf-8" />
   <title>Orumi Progression Builder</title>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <script src="js/orumi-catalog.js"></script>
   <script src="js/voices.js"></script>
@@ -13,26 +13,29 @@
       font-family: Arial, sans-serif;
       background: #111;
       color: #f5f0e8;
-      margin: 0;
-      min-height: 100vh;
-      padding: 24px 18px 80px;
-      box-sizing: border-box;
       display: flex;
       flex-direction: column;
       align-items: center;
+      margin: 0;
+      min-height: 100vh;
+      padding: 24px 18px 90px;
+      box-sizing: border-box;
       user-select: none;
     }
 
     h1 {
       margin: 14px 0 6px;
+      font-weight: 600;
       text-align: center;
     }
 
     .subtitle {
       color: #bdb4a6;
       margin-bottom: 18px;
-      text-align: center;
       font-size: 14px;
+      text-align: center;
+      line-height: 1.35;
+      max-width: 760px;
     }
 
     .top-button {
@@ -49,67 +52,176 @@
       background: rgba(255,255,255,0.86);
       box-shadow: 0 4px 14px rgba(0,0,0,0.18);
       z-index: 1000;
+      transition: 0.12s;
+    }
+
+    .top-button:hover,
+    .top-button:active {
+      transform: scale(0.94);
+      filter: brightness(1.08);
     }
 
     .back-button { left: 18px; }
-    .factory-button { right: 18px; }
+    .chord-button { right: 18px; }
 
-    .panel {
-      width: min(94vmin, 820px);
+    .builder {
+      width: min(96vw, 1100px);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .section {
       background: rgba(255,255,255,0.06);
       border-radius: 18px;
-      padding: 16px;
+      padding: 14px;
       box-shadow: 0 6px 18px rgba(0,0,0,0.28);
     }
 
-    .progression-list {
+    .section-title {
+      font-size: 15px;
+      font-weight: 800;
+      margin-bottom: 10px;
+      color: #ddd;
+    }
+
+    .progression-strip {
       display: flex;
-      flex-direction: column;
-      gap: 10px;
-      margin-bottom: 16px;
+      align-items: stretch;
+      gap: 16px;
+      overflow-x: auto;
+      padding: 8px 4px 18px;
+      scroll-snap-type: x proximity;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: #bdb4a6;
+      padding: 32px 16px;
+      line-height: 1.5;
     }
 
     .chord-card {
-      display: grid;
-      grid-template-columns: 48px 1fr auto;
-      gap: 10px;
-      align-items: center;
+      flex: 0 0 190px;
+      min-height: 300px;
       background: rgba(255,255,255,0.08);
-      border-radius: 16px;
-      padding: 12px;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 22px;
+      padding: 14px;
+      box-shadow: 0 8px 22px rgba(0,0,0,0.32);
+      scroll-snap-align: start;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
     }
 
-    .index {
-      font-size: 18px;
-      font-weight: 900;
-      opacity: 0.75;
+    .chord-number {
+      color: #a9a093;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
     }
 
     .chord-name {
-      font-size: 22px;
+      font-size: 26px;
       font-weight: 900;
+      letter-spacing: 0.04em;
+      text-align: center;
+      line-height: 1.05;
     }
 
-    .notes {
-      font-size: 13px;
-      color: #d8d0c4;
-      margin-top: 4px;
+    .chord-meta {
+      color: #bdb4a6;
+      font-size: 12px;
+      text-align: center;
+      line-height: 1.35;
+      min-height: 32px;
+    }
+
+    .chord-stack {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      min-height: 150px;
+      width: 100%;
+      padding: 8px 0;
+    }
+
+    .note-block {
+      width: 74px;
+      height: 46px;
+      border: none;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      color: white;
+      font-weight: 900;
+      font-size: 15px;
+      box-shadow:
+        0 7px 14px rgba(0,0,0,0.38),
+        inset 0 1px 0 rgba(255,255,255,0.22);
+      text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+    }
+
+    .note-block.light-text {
+      color: #222;
+      text-shadow: none;
+    }
+
+    .card-actions {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: auto;
+    }
+
+    .card-actions .wide {
+      grid-column: span 2;
+    }
+
+    button,
+    .action-link {
+      font-family: inherit;
     }
 
     .small-button {
       border: none;
       border-radius: 12px;
-      padding: 9px 12px;
+      padding: 9px 8px;
+      font-size: 12px;
       font-weight: 800;
       cursor: pointer;
       background: rgba(255,255,255,0.16);
       color: #fff7ea;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.22);
+      text-align: center;
+      text-decoration: none;
     }
 
-    .action-row {
+    .small-button.primary {
+      background: white;
+      color: #111;
+    }
+
+    .small-button.danger {
+      background: rgba(255,90,90,0.22);
+      color: #ffe5e5;
+    }
+
+    .small-button:disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+
+    .main-actions {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(3, 1fr);
       gap: 12px;
+      margin-top: 4px;
     }
 
     .action-button {
@@ -122,17 +234,63 @@
       background: white;
       color: #111;
       box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+      text-align: center;
+      text-decoration: none;
     }
 
-    .secondary {
+    .action-button.secondary {
       background: rgba(255,255,255,0.16);
       color: #fff7ea;
     }
 
-    #emptyState {
+    .action-button.danger {
+      background: rgba(255,90,90,0.22);
+      color: #ffe5e5;
+    }
+
+    .playback-status {
       color: #bdb4a6;
       text-align: center;
-      padding: 24px 8px;
+      font-size: 13px;
+      line-height: 1.4;
+      min-height: 18px;
+      margin-top: 2px;
+    }
+
+    .c  { background: #ff6b6b; }
+    .db { background: linear-gradient(135deg, #ff6b6b, #f7b267); }
+    .d  { background: #f7b267; }
+    .eb { background: linear-gradient(135deg, #f7b267, #ffd93d); }
+    .e  { background: #ffd93d; }
+    .f  { background: #6bcb77; }
+    .gb { background: linear-gradient(135deg, #6bcb77, #4d96ff); }
+    .g  { background: #4d96ff; }
+    .ab { background: linear-gradient(135deg, #4d96ff, #9d4edd); }
+    .a  { background: #9d4edd; }
+    .bb { background: linear-gradient(135deg, #9d4edd, #ff8fab); }
+    .b  { background: #ff8fab; }
+
+    @media (max-width: 760px) {
+      body {
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+
+      h1 {
+        margin-top: 72px;
+      }
+
+      .main-actions {
+        grid-template-columns: 1fr;
+      }
+
+      .chord-card {
+        flex-basis: 175px;
+      }
+
+      .note-block {
+        width: 68px;
+      }
     }
   </style>
 </head>
@@ -146,305 +304,661 @@
   >←</a>
 
   <a
-    class="top-button factory-button"
+    class="top-button chord-button"
     href="chord-factory.html"
     title="Open Chord Factory"
-  >⊞</a>
+  >＋</a>
 
   <h1>Progression Builder</h1>
 
   <div class="subtitle">
-    Save chords into a sequence and play them back.
+    Build a progression as a left-to-right sequence of vertical chord stacks.
+    Each chord is shown as colored Orumi note blocks, with the lowest note at the bottom.
   </div>
 
-  <div class="panel">
-    <div id="progressionList" class="progression-list"></div>
+  <div class="builder">
 
-    <div id="emptyState">
-      No chords yet. Add one from Chord Factory.
+    <div class="section">
+      <div class="section-title">Chord Progression</div>
+      <div
+        class="progression-strip"
+        id="progressionStrip"
+      ></div>
+      <div
+        class="empty-state"
+        id="emptyState"
+      >
+        No chords in the progression yet.<br>
+        Open Chord Factory, build a chord, and add it to the progression.
+      </div>
     </div>
 
-    <div class="action-row">
-      <button class="action-button" id="playButton">
-        Play Progression
-      </button>
+    <div class="section">
+      <div class="section-title">Playback</div>
 
-      <button class="action-button secondary" id="clearButton">
-        Clear Progression
-      </button>
+      <div class="main-actions">
+        <button
+          class="action-button"
+          id="playProgressionButton"
+        >
+          Play Progression
+        </button>
+
+        <a
+          class="action-button secondary"
+          href="chord-factory.html"
+        >
+          Add a Chord
+        </a>
+
+        <button
+          class="action-button danger"
+          id="clearProgressionButton"
+        >
+          Clear Progression
+        </button>
+      </div>
+
+      <div
+        class="playback-status"
+        id="playbackStatus"
+      ></div>
     </div>
+
   </div>
 
   <script>
-  let audioContext;
-  let activeNotes = [];
+    let audioContext;
+    let activeChordNotes = [];
+    let playbackTimers = [];
 
-  const progressionList =
-    document.getElementById("progressionList");
+    const progressionStrip =
+      document.getElementById("progressionStrip");
 
-  const emptyState =
-    document.getElementById("emptyState");
+    const emptyState =
+      document.getElementById("emptyState");
 
-  const playButton =
-    document.getElementById("playButton");
+    const playProgressionButton =
+      document.getElementById("playProgressionButton");
 
-  const clearButton =
-    document.getElementById("clearButton");
+    const clearProgressionButton =
+      document.getElementById("clearProgressionButton");
 
-  const pitchClasses =
-    ORUMI_CATALOG.pitchClasses;
+    const playbackStatus =
+      document.getElementById("playbackStatus");
 
-  function getProgression() {
-    return JSON.parse(
-      localStorage.getItem("orumiProgression") || "[]"
-    );
-  }
+    const pitchClasses =
+      ORUMI_CATALOG.pitchClasses;
 
-  function saveProgression(progression) {
-    localStorage.setItem(
-      "orumiProgression",
-      JSON.stringify(progression)
-    );
-  }
+    const voices =
+      ORUMI_CATALOG.voices;
 
-  function noteNameToMidi(noteName) {
-    const match =
-      noteName.match(/^([A-G][b]?)(-?\d+)$/);
+    const systems =
+      ORUMI_CATALOG.systems;
 
-    if (!match) return null;
+    const numberToPitchClass =
+      ORUMI_CATALOG.numberToPitchClass;
 
-    const pc = match[1];
-    const octave = parseInt(match[2], 10);
-
-    if (!pitchClasses[pc]) return null;
-
-    return 12 * (octave + 1) + pitchClasses[pc].number;
-  }
-
-  function midiToFrequency(midi) {
-    return 440 * Math.pow(2, (midi - 69) / 12);
-  }
-
-  async function ensureAudio() {
-    if (!audioContext) {
-      audioContext =
-        new (window.AudioContext || window.webkitAudioContext)();
+    function getProgression() {
+      return JSON.parse(
+        localStorage.getItem("orumiProgression") || "[]"
+      );
     }
 
-    if (audioContext.state === "suspended") {
-      await audioContext.resume();
+    function saveProgression(progression) {
+      localStorage.setItem(
+        "orumiProgression",
+        JSON.stringify(progression)
+      );
     }
-  }
 
-  function stopActiveNotes() {
-    if (!audioContext) return;
+    function parseNoteName(noteName) {
+      const match =
+        String(noteName).match(/^([A-G][b]?)(-?\d+)$/);
 
-    activeNotes.forEach(note => {
-      ORUMI_VOICES.stopVoice(note, audioContext, 0.18);
-    });
+      if (!match) {
+        return null;
+      }
 
-    activeNotes = [];
-  }
+      const pitchName = match[1];
+      const octave = parseInt(match[2], 10);
 
-  function playChord(chord, duration = 950) {
-    stopActiveNotes();
+      if (!pitchClasses[pitchName]) {
+        return null;
+      }
 
-    const now = audioContext.currentTime;
-    const voice = chord.voice || "softKeys";
+      const midi =
+        12 * (octave + 1) +
+        pitchClasses[pitchName].number;
 
-    activeNotes =
-      chord.notes
-        .map(noteNameToMidi)
-        .filter(midi => midi !== null)
-        .map(midi => {
+      return {
+        pitchName,
+        octave,
+        midi,
+        displayName: pitchName + octave,
+        frequency: midiToFrequency(midi),
+        className: pitchClasses[pitchName].className,
+        display: pitchClasses[pitchName].display
+      };
+    }
+
+    function midiToFrequency(midi) {
+      return 440 * Math.pow(2, (midi - 69) / 12);
+    }
+
+    function midiToDisplayName(midi) {
+      const pcNumber =
+        ((midi % 12) + 12) % 12;
+
+      const pitchName =
+        numberToPitchClass[pcNumber] || "C";
+
+      const octave =
+        Math.floor(midi / 12) - 1;
+
+      return pitchName + octave;
+    }
+
+    function normalizeChordNotes(chord) {
+      if (!chord || !Array.isArray(chord.notes)) {
+        return [];
+      }
+
+      return chord.notes
+        .map(parseNoteName)
+        .filter(Boolean)
+        .sort((a, b) => b.midi - a.midi);
+    }
+
+    function getChordVoice(chord) {
+      if (
+        chord &&
+        chord.voice &&
+        voices[chord.voice]
+      ) {
+        return chord.voice;
+      }
+
+      return "softKeys";
+    }
+
+    function getChordSystemLabel(chord) {
+      if (
+        chord &&
+        chord.system &&
+        systems[chord.system]
+      ) {
+        return systems[chord.system].label;
+      }
+
+      return "Orumi";
+    }
+
+    function buildChordFactoryEditUrl(chord, index) {
+      const params = new URLSearchParams();
+
+      params.set("editIndex", index);
+
+      if (chord.system) {
+        params.set("system", chord.system);
+      }
+
+      if (chord.keyRoot) {
+        params.set("root", chord.keyRoot);
+      }
+
+      if (chord.voice) {
+        params.set("voice", chord.voice);
+      }
+
+      if (chord.root) {
+        params.set("chordRoot", chord.root);
+      }
+
+      if (chord.quality) {
+        params.set("chordQuality", chord.quality);
+      }
+
+      if (chord.voicing) {
+        params.set("chordVoicing", chord.voicing);
+      }
+
+      if (chord.octave) {
+        params.set("chordOctave", chord.octave);
+      }
+
+      if (Array.isArray(chord.notes)) {
+        params.set("highlight", chord.notes.join(","));
+      }
+
+      return "chord-factory.html?" + params.toString();
+    }
+
+    function createNoteBlock(note) {
+      const block =
+        document.createElement("div");
+
+      block.classList.add(
+        "note-block",
+        note.className
+      );
+
+      if (
+        note.pitchName === "E" ||
+        note.pitchName === "Eb"
+      ) {
+        block.classList.add("light-text");
+      }
+
+      block.textContent =
+        note.displayName;
+
+      block.title =
+        note.displayName;
+
+      return block;
+    }
+
+    function createChordCard(chord, index, total) {
+      const card =
+        document.createElement("article");
+
+      card.classList.add("chord-card");
+
+      const chordNumber =
+        document.createElement("div");
+
+      chordNumber.classList.add("chord-number");
+      chordNumber.textContent =
+        "Chord " + (index + 1);
+
+      const chordName =
+        document.createElement("div");
+
+      chordName.classList.add("chord-name");
+      chordName.textContent =
+        chord.name || "Chord";
+
+      const chordMeta =
+        document.createElement("div");
+
+      chordMeta.classList.add("chord-meta");
+
+      const voiceLabel =
+        voices[getChordVoice(chord)]
+          ? voices[getChordVoice(chord)].label
+          : "Voice";
+
+      chordMeta.textContent =
+        getChordSystemLabel(chord) +
+        " · " +
+        voiceLabel;
+
+      const stack =
+        document.createElement("div");
+
+      stack.classList.add("chord-stack");
+
+      const notes =
+        normalizeChordNotes(chord);
+
+      if (notes.length === 0) {
+        const empty =
+          document.createElement("div");
+
+        empty.classList.add("chord-meta");
+        empty.textContent =
+          "No notes";
+
+        stack.appendChild(empty);
+      } else {
+        notes.forEach(note => {
+          stack.appendChild(
+            createNoteBlock(note)
+          );
+        });
+      }
+
+      const actions =
+        document.createElement("div");
+
+      actions.classList.add("card-actions");
+
+      const playButton =
+        document.createElement("button");
+
+      playButton.classList.add(
+        "small-button",
+        "primary",
+        "wide"
+      );
+
+      playButton.textContent =
+        "Play";
+
+      playButton.addEventListener("click", () => {
+        playSingleChord(chord);
+      });
+
+      const editLink =
+        document.createElement("a");
+
+      editLink.classList.add(
+        "small-button",
+        "wide"
+      );
+
+      editLink.href =
+        buildChordFactoryEditUrl(chord, index);
+
+      editLink.textContent =
+        "Edit";
+
+      const moveLeft =
+        document.createElement("button");
+
+      moveLeft.classList.add("small-button");
+      moveLeft.textContent = "←";
+      moveLeft.title = "Move earlier";
+      moveLeft.disabled = index === 0;
+
+      moveLeft.addEventListener("click", () => {
+        moveChord(index, -1);
+      });
+
+      const moveRight =
+        document.createElement("button");
+
+      moveRight.classList.add("small-button");
+      moveRight.textContent = "→";
+      moveRight.title = "Move later";
+      moveRight.disabled = index === total - 1;
+
+      moveRight.addEventListener("click", () => {
+        moveChord(index, 1);
+      });
+
+      const removeButton =
+        document.createElement("button");
+
+      removeButton.classList.add(
+        "small-button",
+        "danger",
+        "wide"
+      );
+
+      removeButton.textContent =
+        "Remove";
+
+      removeButton.addEventListener("click", () => {
+        removeChord(index);
+      });
+
+      actions.appendChild(playButton);
+      actions.appendChild(editLink);
+      actions.appendChild(moveLeft);
+      actions.appendChild(moveRight);
+      actions.appendChild(removeButton);
+
+      card.appendChild(chordNumber);
+      card.appendChild(chordName);
+      card.appendChild(chordMeta);
+      card.appendChild(stack);
+      card.appendChild(actions);
+
+      return card;
+    }
+
+    function renderProgression() {
+      const progression =
+        getProgression();
+
+      progressionStrip.innerHTML = "";
+
+      if (progression.length === 0) {
+        emptyState.style.display = "block";
+        playbackStatus.textContent = "";
+        return;
+      }
+
+      emptyState.style.display = "none";
+
+      progression.forEach((chord, index) => {
+        progressionStrip.appendChild(
+          createChordCard(
+            chord,
+            index,
+            progression.length
+          )
+        );
+      });
+
+      playbackStatus.textContent =
+        progression.length +
+        " chord" +
+        (progression.length === 1 ? "" : "s") +
+        " in progression";
+    }
+
+    function moveChord(index, direction) {
+      const progression =
+        getProgression();
+
+      const newIndex =
+        index + direction;
+
+      if (
+        newIndex < 0 ||
+        newIndex >= progression.length
+      ) {
+        return;
+      }
+
+      const temp =
+        progression[index];
+
+      progression[index] =
+        progression[newIndex];
+
+      progression[newIndex] =
+        temp;
+
+      saveProgression(progression);
+      renderProgression();
+    }
+
+    function removeChord(index) {
+      const progression =
+        getProgression();
+
+      progression.splice(index, 1);
+
+      saveProgression(progression);
+      renderProgression();
+    }
+
+    function clearProgression() {
+      const progression =
+        getProgression();
+
+      if (progression.length === 0) {
+        return;
+      }
+
+      const confirmed =
+        window.confirm(
+          "Clear the entire progression?"
+        );
+
+      if (!confirmed) {
+        return;
+      }
+
+      stopActiveChord();
+      clearPlaybackTimers();
+
+      saveProgression([]);
+      renderProgression();
+    }
+
+    async function ensureAudio() {
+      if (!audioContext) {
+        audioContext =
+          new (
+            window.AudioContext ||
+            window.webkitAudioContext
+          )();
+      }
+
+      if (audioContext.state === "suspended") {
+        await audioContext.resume();
+      }
+    }
+
+    function stopActiveChord() {
+      if (!audioContext) {
+        return;
+      }
+
+      activeChordNotes.forEach(note => {
+        ORUMI_VOICES.stopVoice(
+          note,
+          audioContext,
+          0.22
+        );
+      });
+
+      activeChordNotes = [];
+    }
+
+    function clearPlaybackTimers() {
+      playbackTimers.forEach(timer => {
+        clearTimeout(timer);
+      });
+
+      playbackTimers = [];
+    }
+
+    async function playSingleChord(chord, duration = 1400) {
+      await ensureAudio();
+
+      stopActiveChord();
+
+      const notes =
+        normalizeChordNotes(chord)
+          .slice()
+          .sort((a, b) => a.midi - b.midi);
+
+      if (notes.length === 0) {
+        return;
+      }
+
+      const voice =
+        getChordVoice(chord);
+
+      const now =
+        audioContext.currentTime;
+
+      activeChordNotes =
+        notes.map(note => {
           const voiceNode =
             ORUMI_VOICES.buildVoice(
               audioContext,
               voice,
-              midiToFrequency(midi),
+              note.frequency,
               now
             );
 
           return {
             voice,
             gain: voiceNode.gain,
-            oscillators: voiceNode.oscillators || [],
-            noiseSources: voiceNode.noiseSources || []
+            oscillators:
+              voiceNode.oscillators || [],
+            noiseSources:
+              voiceNode.noiseSources || []
           };
         });
 
-    setTimeout(stopActiveNotes, duration);
-  }
+      const timer =
+        setTimeout(() => {
+          stopActiveChord();
+        }, duration);
 
-  async function playProgression() {
-    await ensureAudio();
-
-    const progression = getProgression();
-
-    if (progression.length === 0) return;
-
-    let delay = 0;
-
-    progression.forEach(chord => {
-      setTimeout(() => {
-        playChord(chord, 900);
-      }, delay);
-
-      delay += 1100;
-    });
-  }
-
-  function removeChord(index) {
-    const progression = getProgression();
-
-    progression.splice(index, 1);
-
-    saveProgression(progression);
-    renderProgression();
-  }
-
-  function moveChord(index, direction) {
-    const progression = getProgression();
-
-    const newIndex = index + direction;
-
-    if (
-      newIndex < 0 ||
-      newIndex >= progression.length
-    ) {
-      return;
+      playbackTimers.push(timer);
     }
 
-    const moved = progression.splice(index, 1)[0];
+    async function playProgression() {
+      const progression =
+        getProgression();
 
-    progression.splice(newIndex, 0, moved);
-
-    saveProgression(progression);
-    renderProgression();
-  }
-
-  function editChord(index) {
-    const progression = getProgression();
-    const chord = progression[index];
-
-    if (!chord) return;
-
-    const highlight =
-      encodeURIComponent(chord.notes.join(","));
-
-    const url =
-      "chord-factory.html" +
-      "?editIndex=" + encodeURIComponent(index) +
-      "&system=" + encodeURIComponent(chord.system || "western") +
-      "&root=" + encodeURIComponent(chord.keyRoot || chord.root || "C") +
-      "&voice=" + encodeURIComponent(chord.voice || "softKeys") +
-      "&chordRoot=" + encodeURIComponent(chord.root || "C") +
-      "&chordQuality=" + encodeURIComponent(chord.quality || "major") +
-      "&chordVoicing=" + encodeURIComponent(chord.voicing || 1) +
-      "&chordOctave=" + encodeURIComponent(chord.octave || 3) +
-      "&highlight=" + highlight;
-
-    window.location.href = url;
-  }
-
-  function renderProgression() {
-    const progression = getProgression();
-
-    progressionList.innerHTML = "";
-
-    emptyState.style.display =
-      progression.length === 0 ? "block" : "none";
-
-    progression.forEach((chord, index) => {
-      const card = document.createElement("div");
-      card.classList.add("chord-card");
-
-      if (
-        chord.root &&
-        pitchClasses[chord.root]
-      ) {
-        card.classList.add(
-          pitchClasses[chord.root].className
-        );
+      if (progression.length === 0) {
+        playbackStatus.textContent =
+          "No chords to play yet.";
+        return;
       }
 
-      const number = document.createElement("div");
-      number.classList.add("index");
-      number.textContent = index + 1;
+      await ensureAudio();
 
-      const main = document.createElement("div");
+      stopActiveChord();
+      clearPlaybackTimers();
 
-      const name = document.createElement("div");
-      name.classList.add("chord-name");
-      name.textContent = chord.name;
+      const chordDuration = 1500;
+      const gap = 220;
+      const step = chordDuration + gap;
 
-      const notes = document.createElement("div");
-      notes.classList.add("notes");
-      notes.textContent = chord.notes.join(" · ");
+      playbackStatus.textContent =
+        "Playing progression...";
 
-      main.appendChild(name);
-      main.appendChild(notes);
+      progression.forEach((chord, index) => {
+        const timer =
+          setTimeout(() => {
+            playbackStatus.textContent =
+              "Playing chord " +
+              (index + 1) +
+              " of " +
+              progression.length +
+              ": " +
+              (chord.name || "Chord");
 
-      const controls = document.createElement("div");
-      controls.style.display = "grid";
-      controls.style.gridTemplateColumns = "1fr 1fr";
-      controls.style.gap = "6px";
+            playSingleChord(
+              chord,
+              chordDuration
+            );
+          }, index * step);
 
-      const edit = document.createElement("button");
-      edit.classList.add("small-button");
-      edit.textContent = "Edit";
-      edit.addEventListener("click", () => {
-        editChord(index);
+        playbackTimers.push(timer);
       });
 
-      const remove = document.createElement("button");
-      remove.classList.add("small-button");
-      remove.textContent = "Remove";
-      remove.addEventListener("click", () => {
-        removeChord(index);
-      });
+      const doneTimer =
+        setTimeout(() => {
+          stopActiveChord();
+          playbackStatus.textContent =
+            "Progression complete.";
+        }, progression.length * step + 100);
 
-      const up = document.createElement("button");
-      up.classList.add("small-button");
-      up.textContent = "↑";
-      up.disabled = index === 0;
-      up.addEventListener("click", () => {
-        moveChord(index, -1);
-      });
+      playbackTimers.push(doneTimer);
+    }
 
-      const down = document.createElement("button");
-      down.classList.add("small-button");
-      down.textContent = "↓";
-      down.disabled = index === progression.length - 1;
-      down.addEventListener("click", () => {
-        moveChord(index, 1);
-      });
+    playProgressionButton.addEventListener(
+      "click",
+      playProgression
+    );
 
-      controls.appendChild(edit);
-      controls.appendChild(remove);
-      controls.appendChild(up);
-      controls.appendChild(down);
+    clearProgressionButton.addEventListener(
+      "click",
+      clearProgression
+    );
 
-      card.appendChild(number);
-      card.appendChild(main);
-      card.appendChild(controls);
+    window.addEventListener(
+      "beforeunload",
+      () => {
+        stopActiveChord();
+        clearPlaybackTimers();
+      }
+    );
 
-      progressionList.appendChild(card);
-    });
-  }
-
-  playButton.addEventListener("click", playProgression);
-
-  clearButton.addEventListener("click", () => {
-    saveProgression([]);
-    stopActiveNotes();
     renderProgression();
-  });
-
-  window.addEventListener("beforeunload", stopActiveNotes);
-
-  renderProgression();
-</script>
+  </script>
 
 </body>
 </html>
