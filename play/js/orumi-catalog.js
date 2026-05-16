@@ -285,6 +285,12 @@ const ORUMI_CATALOG = {
       defaultSet: "native",
       defaultOctaves: [2,3,4,5],
       theme: "maqam",
+drone: {
+  enabled: true,
+  intervals: [0, 7],
+  octave: 2,
+  voice: "organ"
+},
 
       families: {
 
@@ -337,6 +343,12 @@ const ORUMI_CATALOG = {
       defaultSet: "native",
       defaultOctaves: [2,3,4,5],
       theme: "celtic",
+      drone: {
+  enabled: true,
+  intervals: [0, 7],
+  octave: 2,
+  voice: "organ"
+},
 
       families: {
 

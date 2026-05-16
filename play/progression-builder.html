@@ -219,7 +219,7 @@
 
     .main-actions {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 12px;
       margin-top: 4px;
     }
@@ -248,6 +248,16 @@
       color: #ffe5e5;
     }
 
+    .action-button.drone {
+      background: rgba(255,255,255,0.22);
+      color: #fff7ea;
+    }
+
+    .action-button.drone.active {
+      background: rgba(255, 230, 150, 0.92);
+      color: #111;
+    }
+
     .playback-status {
       color: #bdb4a6;
       text-align: center;
@@ -255,6 +265,15 @@
       line-height: 1.4;
       min-height: 18px;
       margin-top: 2px;
+    }
+
+    .drone-status {
+      color: #d8d0c4;
+      text-align: center;
+      font-size: 13px;
+      line-height: 1.4;
+      margin-top: 10px;
+      min-height: 18px;
     }
 
     .c  { background: #ff6b6b; }
@@ -313,7 +332,7 @@
 
   <div class="subtitle">
     Build a progression as a left-to-right sequence of vertical chord stacks.
-    Each chord is shown as colored Orumi note blocks, with the lowest note at the bottom.
+    If the progression belongs to a drone-supported world, the drone can sound beneath the whole progression.
   </div>
 
   <div class="builder">
@@ -344,6 +363,13 @@
           Play Progression
         </button>
 
+        <button
+          class="action-button drone"
+          id="droneButton"
+        >
+          Start Drone
+        </button>
+
         <a
           class="action-button secondary"
           href="chord-factory.html"
@@ -360,6 +386,11 @@
       </div>
 
       <div
+        class="drone-status"
+        id="droneStatus"
+      ></div>
+
+      <div
         class="playback-status"
         id="playbackStatus"
       ></div>
@@ -371,6 +402,8 @@
     let audioContext;
     let activeChordNotes = [];
     let playbackTimers = [];
+    let droneNotes = [];
+    let droneActive = false;
 
     const progressionStrip =
       document.getElementById("progressionStrip");
@@ -383,6 +416,12 @@
 
     const clearProgressionButton =
       document.getElementById("clearProgressionButton");
+
+    const droneButton =
+      document.getElementById("droneButton");
+
+    const droneStatus =
+      document.getElementById("droneStatus");
 
     const playbackStatus =
       document.getElementById("playbackStatus");
@@ -482,16 +521,150 @@
       return "softKeys";
     }
 
-    function getChordSystemLabel(chord) {
+    function getChordSystem(chord) {
       if (
         chord &&
         chord.system &&
         systems[chord.system]
       ) {
-        return systems[chord.system].label;
+        return systems[chord.system];
+      }
+
+      return null;
+    }
+
+    function getChordSystemKey(chord) {
+      if (
+        chord &&
+        chord.system &&
+        systems[chord.system]
+      ) {
+        return chord.system;
+      }
+
+      return null;
+    }
+
+    function getChordSystemLabel(chord) {
+      const system = getChordSystem(chord);
+
+      if (system) {
+        return system.label;
       }
 
       return "Orumi";
+    }
+
+    function getDroneConfig() {
+      const progression =
+        getProgression();
+
+      if (progression.length === 0) {
+        return null;
+      }
+
+      const firstChord =
+        progression[0];
+
+      const systemKey =
+        getChordSystemKey(firstChord);
+
+      if (!systemKey) {
+        return null;
+      }
+
+      const system =
+        systems[systemKey];
+
+      if (
+        !system ||
+        !system.drone ||
+        !system.drone.enabled
+      ) {
+        return null;
+      }
+
+      return {
+        systemKey,
+        system,
+        config: system.drone,
+        root:
+          firstChord.keyRoot ||
+          firstChord.root ||
+          system.defaultRoot ||
+          "C"
+      };
+    }
+
+    function getDroneMidiNotes() {
+      const drone =
+        getDroneConfig();
+
+      if (!drone) {
+        return [];
+      }
+
+      const root =
+        pitchClasses[drone.root]
+          ? drone.root
+          : drone.system.defaultRoot || "C";
+
+      const rootNumber =
+        pitchClasses[root].number;
+
+      const octave =
+        Number.isInteger(drone.config.octave)
+          ? drone.config.octave
+          : 2;
+
+      const intervals =
+        Array.isArray(drone.config.intervals)
+          ? drone.config.intervals
+          : [0, 7];
+
+      return intervals.map(interval => {
+        const midi =
+          12 * (octave + 1) +
+          rootNumber +
+          interval;
+
+        return {
+          midi,
+          frequency: midiToFrequency(midi),
+          displayName: midiToDisplayName(midi)
+        };
+      });
+    }
+
+    function updateDroneUi() {
+      const drone =
+        getDroneConfig();
+
+      if (!drone) {
+        droneButton.style.display = "none";
+        droneStatus.textContent = "";
+        return;
+      }
+
+      droneButton.style.display = "block";
+
+      const notes =
+        getDroneMidiNotes()
+          .map(note => note.displayName)
+          .join(" · ");
+
+      droneButton.textContent =
+        droneActive ? "Stop Drone" : "Start Drone";
+
+      droneButton.classList.toggle(
+        "active",
+        droneActive
+      );
+
+      droneStatus.textContent =
+        drone.system.label +
+        " drone available: " +
+        notes;
     }
 
     function buildChordFactoryEditUrl(chord, index) {
@@ -718,6 +891,8 @@
       if (progression.length === 0) {
         emptyState.style.display = "block";
         playbackStatus.textContent = "";
+        stopDrone();
+        updateDroneUi();
         return;
       }
 
@@ -738,6 +913,8 @@
         " chord" +
         (progression.length === 1 ? "" : "s") +
         " in progression";
+
+      updateDroneUi();
     }
 
     function moveChord(index, direction) {
@@ -795,6 +972,7 @@
       }
 
       stopActiveChord();
+      stopDrone();
       clearPlaybackTimers();
 
       saveProgression([]);
@@ -837,6 +1015,83 @@
       });
 
       playbackTimers = [];
+    }
+
+    async function startDrone() {
+      const drone =
+        getDroneConfig();
+
+      if (!drone) {
+        return;
+      }
+
+      await ensureAudio();
+
+      stopDrone();
+
+      const voice =
+        drone.config.voice &&
+        voices[drone.config.voice]
+          ? drone.config.voice
+          : "organ";
+
+      const now =
+        audioContext.currentTime;
+
+      const notes =
+        getDroneMidiNotes();
+
+      droneNotes =
+        notes.map(note => {
+          const voiceNode =
+            ORUMI_VOICES.buildVoice(
+              audioContext,
+              voice,
+              note.frequency,
+              now
+            );
+
+          return {
+            voice,
+            gain: voiceNode.gain,
+            oscillators:
+              voiceNode.oscillators || [],
+            noiseSources:
+              voiceNode.noiseSources || []
+          };
+        });
+
+      droneActive = true;
+      updateDroneUi();
+    }
+
+    function stopDrone() {
+      if (!audioContext) {
+        droneNotes = [];
+        droneActive = false;
+        updateDroneUi();
+        return;
+      }
+
+      droneNotes.forEach(note => {
+        ORUMI_VOICES.stopVoice(
+          note,
+          audioContext,
+          0.65
+        );
+      });
+
+      droneNotes = [];
+      droneActive = false;
+      updateDroneUi();
+    }
+
+    async function toggleDrone() {
+      if (droneActive) {
+        stopDrone();
+      } else {
+        await startDrone();
+      }
     }
 
     async function playSingleChord(chord, duration = 1400) {
@@ -902,6 +1157,13 @@
       stopActiveChord();
       clearPlaybackTimers();
 
+      const shouldAutoDrone =
+        getDroneConfig() && !droneActive;
+
+      if (shouldAutoDrone) {
+        await startDrone();
+      }
+
       const chordDuration = 1500;
       const gap = 220;
       const step = chordDuration + gap;
@@ -932,6 +1194,11 @@
       const doneTimer =
         setTimeout(() => {
           stopActiveChord();
+
+          if (shouldAutoDrone) {
+            stopDrone();
+          }
+
           playbackStatus.textContent =
             "Progression complete.";
         }, progression.length * step + 100);
@@ -949,10 +1216,16 @@
       clearProgression
     );
 
+    droneButton.addEventListener(
+      "click",
+      toggleDrone
+    );
+
     window.addEventListener(
       "beforeunload",
       () => {
         stopActiveChord();
+        stopDrone();
         clearPlaybackTimers();
       }
     );
