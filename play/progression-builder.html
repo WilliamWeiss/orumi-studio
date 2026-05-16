@@ -53,6 +53,9 @@
       box-shadow: 0 4px 14px rgba(0,0,0,0.18);
       z-index: 1000;
       transition: 0.12s;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
     }
 
     .top-button:hover,
@@ -62,7 +65,7 @@
     }
 
     .back-button { left: 18px; }
-    .chord-button { right: 18px; }
+    .home-button { right: 18px; }
 
     .builder {
       width: min(96vw, 1100px);
@@ -219,7 +222,7 @@
 
     .main-actions {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
       gap: 12px;
       margin-top: 4px;
     }
@@ -299,10 +302,6 @@
         margin-top: 72px;
       }
 
-      .main-actions {
-        grid-template-columns: 1fr;
-      }
-
       .chord-card {
         flex-basis: 175px;
       }
@@ -316,17 +315,17 @@
 
 <body>
 
-  <a
+  <button
     class="top-button back-button"
-    href="index.html"
-    title="Return to Home Screen"
-  >←</a>
+    id="backButton"
+    title="Go Back"
+  >←</button>
 
   <a
-    class="top-button chord-button"
-    href="chord-factory.html"
-    title="Open Chord Factory"
-  >＋</a>
+    class="top-button home-button"
+    href="index.html"
+    title="Orumi Play Home"
+  >⌂</a>
 
   <h1>Progression Builder</h1>
 
@@ -377,6 +376,13 @@
           Add a Chord
         </a>
 
+        <a
+          class="action-button secondary"
+          href="recording-studio.html"
+        >
+          Open Recording Studio
+        </a>
+
         <button
           class="action-button danger"
           id="clearProgressionButton"
@@ -404,6 +410,9 @@
     let playbackTimers = [];
     let droneNotes = [];
     let droneActive = false;
+
+    const backButton =
+      document.getElementById("backButton");
 
     const progressionStrip =
       document.getElementById("progressionStrip");
@@ -437,6 +446,14 @@
 
     const numberToPitchClass =
       ORUMI_CATALOG.numberToPitchClass;
+
+    backButton.addEventListener("click", () => {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.location.href = "index.html";
+      }
+    });
 
     function getProgression() {
       return JSON.parse(
