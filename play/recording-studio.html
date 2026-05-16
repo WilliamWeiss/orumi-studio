@@ -132,7 +132,7 @@
       gap: 12px;
       overflow-x: auto;
       padding: 8px 4px 14px;
-      min-height: 260px;
+      min-height: 280px;
       scroll-snap-type: x proximity;
     }
 
@@ -170,6 +170,22 @@
       font-size: 12px;
       line-height: 1.35;
       min-height: 32px;
+    }
+
+    .duration-shell {
+      width: 100%;
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.12);
+      overflow: hidden;
+      margin: 0 auto;
+    }
+
+    .duration-bar {
+      height: 100%;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.55);
+      transition: width 0.12s;
     }
 
     .event-notes {
@@ -504,14 +520,18 @@
         pitchClasses[pc].number;
     }
 
+    function createId() {
+      return (
+        "evt_" +
+        Date.now().toString(36) +
+        "_" +
+        Math.random().toString(36).slice(2)
+      );
+    }
+
     function normalizeEvent(event) {
       const normalized = {
-        id:
-          event.id ||
-          "evt_" +
-          Date.now().toString(36) +
-          "_" +
-          Math.random().toString(36).slice(2),
+        id: event.id || createId(),
         type: event.type || "note",
         name: event.name || "",
         start: Number.isFinite(event.start) ? event.start : 0,
@@ -549,24 +569,12 @@
           .filter(Boolean);
 
       normalized.duration =
-        Math.max(0.12, normalized.duration);
+        Math.max(0.18, normalized.duration);
 
       return normalized;
     }
 
-    function sortArrangement() {
-      arrangement.sort((a, b) => {
-        if (a.start !== b.start) {
-          return a.start - b.start;
-        }
-
-        return a.id.localeCompare(b.id);
-      });
-    }
-
     function reflowArrangement() {
-      sortArrangement();
-
       let cursor = 0;
 
       arrangement.forEach(event => {
@@ -704,6 +712,8 @@
       if (!raw) {
         status.textContent =
           "No saved Studio Arrangement found.";
+        arrangement = [];
+        renderTimeline();
         return;
       }
 
@@ -768,6 +778,11 @@
       reflowArrangement();
       saveArrangement(false);
       renderTimeline();
+
+      status.textContent =
+        "Moved " +
+        getEventDisplayName(arrangement[newIndex]) +
+        ".";
     }
 
     function duplicateEvent(index) {
@@ -782,7 +797,6 @@
         normalizeEvent({
           ...source,
           id: null,
-          start: source.start + source.duration + 0.18,
           notes: source.notes.map(note => ({ ...note }))
         });
 
@@ -818,12 +832,18 @@
       event.duration =
         Math.max(
           0.18,
-          event.duration + amount
+          Number(event.duration || 0.8) + amount
         );
 
       reflowArrangement();
       saveArrangement(false);
       renderTimeline();
+
+      status.textContent =
+        getEventDisplayName(event) +
+        " duration is now " +
+        event.duration.toFixed(2) +
+        "s.";
     }
 
     async function playArrangement() {
@@ -991,6 +1011,28 @@
       return chip;
     }
 
+    function createDurationBar(event) {
+      const shell =
+        document.createElement("div");
+
+      shell.classList.add("duration-shell");
+
+      const bar =
+        document.createElement("div");
+
+      bar.classList.add("duration-bar");
+
+      bar.style.width =
+        Math.min(
+          100,
+          Math.max(18, event.duration * 42)
+        ) + "%";
+
+      shell.appendChild(bar);
+
+      return shell;
+    }
+
     function createEventCard(event, index) {
       const card =
         document.createElement("article");
@@ -1019,6 +1061,9 @@
       meta.classList.add("event-meta");
       meta.textContent =
         getEventMeta(event);
+
+      const durationBar =
+        createDurationBar(event);
 
       const notes =
         document.createElement("div");
@@ -1124,6 +1169,7 @@
       card.appendChild(type);
       card.appendChild(name);
       card.appendChild(meta);
+      card.appendChild(durationBar);
       card.appendChild(notes);
       card.appendChild(actions);
 
@@ -1148,8 +1194,6 @@
           "No events in arrangement yet.";
         return;
       }
-
-      sortArrangement();
 
       arrangement.forEach((event, index) => {
         timeline.appendChild(
