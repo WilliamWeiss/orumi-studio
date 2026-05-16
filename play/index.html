@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="utf-8">
   <title>Orumi Sound Squares</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -17,7 +18,8 @@
       justify-content: center;
       margin: 0;
       min-height: 100vh;
-      overflow: hidden;
+      padding: 24px 16px;
+      box-sizing: border-box;
     }
 
     h1 {
@@ -34,16 +36,15 @@
       text-align: center;
     }
 
-.menu-grid {
-  display: grid;
-  width: min(82vmin, 460px);
-  height: min(82vmin, 460px);
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(3, 1fr);
-  gap: 3%;
-}
+    .menu-grid {
+      display: grid;
+      width: min(88vmin, 520px);
+      grid-template-columns: repeat(3, 1fr);
+      gap: 3%;
+    }
 
     .tile {
+      aspect-ratio: 1 / 1;
       text-decoration: none;
       color: #fff7ea;
       border-radius: 22px;
@@ -87,7 +88,19 @@
     .blues    { background: #3f4e6f; }
     .african  { background: #8b3e2f; }
     .andean   { background: #5f6f72; }
-    .chordfactory { background: #5b4f7a;}
+    .chordfactory { background: #5b4f7a; }
+    .recordingstudio { background: #6a4f2f; }
+
+    @media (max-width: 520px) {
+      .menu-grid {
+        width: min(92vw, 420px);
+        gap: 10px;
+      }
+
+      .tile {
+        border-radius: 18px;
+      }
+    }
   </style>
 </head>
 
@@ -105,18 +118,18 @@
     const menuGrid = document.getElementById("menuGrid");
     const systems = ORUMI_CATALOG.systems;
 
-const systemOrder = [
-  "western",
-  "japanese",
-  "chinese",
-  "indian",
-  "maqam",
-  "celtic",
-  "blues",
-  "andean",
-  "chordfactory",
-  "recordingstudio"
-];
+    const systemOrder = [
+      "western",
+      "japanese",
+      "chinese",
+      "indian",
+      "maqam",
+      "celtic",
+      "blues",
+      "andean",
+      "chordfactory",
+      "recordingstudio"
+    ];
 
     function buildSystemLink(systemKey, system) {
       const root = encodeURIComponent(system.defaultRoot || "C");
@@ -142,86 +155,71 @@ const systemOrder = [
       );
     }
 
-function buildMenu() {
-  menuGrid.innerHTML = "";
-
-  systemOrder.forEach(systemKey => {
-
-    // Special tile: Chord Factory
-
-    if (systemKey === "chordfactory") {
-
+    function createTile(className, href, abbrText, labelText) {
       const link = document.createElement("a");
 
-      link.classList.add("tile", "chordfactory");
-
-      link.href = "chord-factory.html";
+      link.classList.add("tile", className);
+      link.href = href;
 
       const abbr = document.createElement("div");
       abbr.classList.add("abbr");
-      abbr.textContent = "CF";
+      abbr.textContent = abbrText;
 
       const label = document.createElement("div");
       label.classList.add("label");
-      label.textContent = "Chord Factory";
+      label.textContent = labelText;
 
       link.appendChild(abbr);
       link.appendChild(label);
 
-      menuGrid.appendChild(link);
-
-      return;
-
+      return link;
     }
 
+    function buildMenu() {
+      menuGrid.innerHTML = "";
 
-    const system = systems[systemKey];
+      systemOrder.forEach(systemKey => {
 
-    if (!system) return;
+        if (systemKey === "chordfactory") {
+          menuGrid.appendChild(
+            createTile(
+              "chordfactory",
+              "chord-factory.html",
+              "CF",
+              "Chord Factory"
+            )
+          );
 
-    const link = document.createElement("a");
-        link.classList.add("tile", systemKey);
-        link.href = buildSystemLink(systemKey, system);
+          return;
+        }
 
-        const abbr = document.createElement("div");
-        abbr.classList.add("abbr");
-        abbr.textContent =
-          system.shortLabel ||
-          system.label.slice(0, 2).toUpperCase();
+        if (systemKey === "recordingstudio") {
+          menuGrid.appendChild(
+            createTile(
+              "recordingstudio",
+              "recording-studio.html",
+              "RS",
+              "Recording Studio"
+            )
+          );
 
-        const label = document.createElement("div");
-        label.classList.add("label");
-        label.textContent = system.label;
+          return;
+        }
 
-        link.appendChild(abbr);
-        link.appendChild(label);
+        const system = systems[systemKey];
 
-        menuGrid.appendChild(link);
+        if (!system) return;
+
+        menuGrid.appendChild(
+          createTile(
+            systemKey,
+            buildSystemLink(systemKey, system),
+            system.shortLabel || system.label.slice(0, 2).toUpperCase(),
+            system.label
+          )
+        );
       });
     }
-
-    
-    if (systemKey === "recordingstudio") {
-  const link = document.createElement("a");
-
-  link.classList.add("tile", "chordfactory");
-  link.href = "recording-studio.html";
-
-  const abbr = document.createElement("div");
-  abbr.classList.add("abbr");
-  abbr.textContent = "RS";
-
-  const label = document.createElement("div");
-  label.classList.add("label");
-  label.textContent = "Recording Studio";
-
-  link.appendChild(abbr);
-  link.appendChild(label);
-
-  menuGrid.appendChild(link);
-
-  return;
-}
 
     buildMenu();
   </script>
