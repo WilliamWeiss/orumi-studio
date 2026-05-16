@@ -274,6 +274,9 @@
     let audioContext;
     let audioReady = false;
 
+    let droneActive = false;
+    let droneNotes = [];
+
     const playChordButton = document.getElementById("playChordButton");
     const clearChordButton = document.getElementById("clearChordButton");
     const startAudioButton = document.getElementById("startAudioButton");
@@ -393,6 +396,16 @@
       return 440 * Math.pow(2, (midi - 69) / 12);
     }
 
+    function midiToDisplayName(midi) {
+      const pc =
+        numberToPitchClass[((midi % 12) + 12) % 12];
+
+      const octave =
+        Math.floor(midi / 12) - 1;
+
+      return pc + octave;
+    }
+
     async function ensureAudio() {
       if (!audioContext) {
         audioContext =
@@ -409,9 +422,151 @@
       startAudioButton.classList.add("ready");
     }
 
+    function getDroneConfig() {
+      const { system, root } = getSettingsFromUrl();
+
+      if (
+        !system ||
+        !system.drone ||
+        !system.drone.enabled
+      ) {
+        return null;
+      }
+
+      return {
+        system,
+        root,
+        config: system.drone
+      };
+    }
+
+    function getDroneMidiNotes() {
+      const drone =
+        getDroneConfig();
+
+      if (!drone) {
+        return [];
+      }
+
+      const root =
+        pitchClasses[drone.root]
+          ? drone.root
+          : drone.system.defaultRoot || "C";
+
+      const rootNumber =
+        pitchClasses[root].number;
+
+      const octave =
+        Number.isInteger(drone.config.octave)
+          ? drone.config.octave
+          : 2;
+
+      const intervals =
+        Array.isArray(drone.config.intervals)
+          ? drone.config.intervals
+          : [0, 7];
+
+      return intervals.map(interval => {
+        const midi =
+          12 * (octave + 1) +
+          rootNumber +
+          interval;
+
+        return {
+          midi,
+          frequency: midiToFrequency(midi),
+          displayName: midiToDisplayName(midi)
+        };
+      });
+    }
+
+    async function startDroneIfAvailable() {
+      const drone =
+        getDroneConfig();
+
+      if (!drone || droneActive) {
+        return false;
+      }
+
+      await ensureAudio();
+
+      stopDrone();
+
+      const voice =
+        drone.config.voice &&
+        ORUMI_CATALOG.voices[drone.config.voice]
+          ? drone.config.voice
+          : "organ";
+
+      const now =
+        audioContext.currentTime;
+
+      const notes =
+        getDroneMidiNotes();
+
+      droneNotes =
+        notes.map(note => {
+          const voiceNode =
+            ORUMI_VOICES.buildVoice(
+              audioContext,
+              voice,
+              note.frequency,
+              now
+            );
+
+          return {
+            voice,
+            gain: voiceNode.gain,
+            oscillators:
+              voiceNode.oscillators || [],
+            noiseSources:
+              voiceNode.noiseSources || []
+          };
+        });
+
+      droneActive = true;
+      return true;
+    }
+
+    function stopDrone() {
+      if (!audioContext) {
+        droneNotes = [];
+        droneActive = false;
+        return;
+      }
+
+      droneNotes.forEach(note => {
+        ORUMI_VOICES.stopVoice(
+          note,
+          audioContext,
+          0.65
+        );
+      });
+
+      droneNotes = [];
+      droneActive = false;
+    }
+
     async function beginSound() {
       await ensureAudio();
+
+      const droneStarted =
+        await startDroneIfAvailable();
+
       updateHighlightDisplay();
+
+      if (droneStarted) {
+        const { system } = getSettingsFromUrl();
+        const droneNotesLabel =
+          getDroneMidiNotes()
+            .map(note => note.displayName)
+            .join(" · ");
+
+        statusText.textContent =
+          system.label +
+          " drone active: " +
+          droneNotesLabel;
+      }
     }
 
     startAudioButton.addEventListener("click", beginSound);
@@ -554,10 +709,15 @@
         return;
       }
 
+      const droneText =
+        droneActive && getDroneConfig()
+          ? " · Drone active"
+          : "";
+
       statusText.textContent =
         highlighted.length > 0
-          ? "Selected: " + highlighted.join(" · ")
-          : "Tap a square to play";
+          ? "Selected: " + highlighted.join(" · ") + droneText
+          : "Tap a square to play" + droneText;
     }
 
     function toggleHighlight(button) {
@@ -640,7 +800,8 @@
         " · " +
         highlightedButtons
           .map(button => button.dataset.displayName)
-          .join(" · ");
+          .join(" · ") +
+        (droneActive ? " · Drone active" : "");
     }
 
     playChordButton.addEventListener("click", playHighlightedChord);
@@ -674,14 +835,19 @@
       recentNotes.push(note);
       recentNotes.sort((a, b) => a.midi - b.midi);
 
+      const droneText =
+        droneActive ? " · Drone active" : "";
+
       if (recentNotes.length >= 3) {
         statusText.textContent =
           nameChord(recentNotes) +
           " · " +
-          recentNotes.map(n => n.displayName).join(" · ");
+          recentNotes.map(n => n.displayName).join(" · ") +
+          droneText;
       } else {
         statusText.textContent =
-          recentNotes.map(n => n.displayName).join(" · ");
+          recentNotes.map(n => n.displayName).join(" · ") +
+          droneText;
       }
     }
 
@@ -857,6 +1023,11 @@
 
     document.addEventListener("pointercancel", event => {
       stopHeldNote(event.pointerId);
+    });
+
+    window.addEventListener("beforeunload", () => {
+      stopAllNotes();
+      stopDrone();
     });
 
     refreshNavLinks();
