@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Orumi Recording Studio</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <script src="js/orumi-catalog.js"></script>
+  <script src="js/themes.js"></script>
+  <script src="js/voices.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #111;
+      color: #f5f0e8;
+      margin: 0;
+      min-height: 100vh;
+      padding: 24px 18px 80px;
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    h1 {
+      text-align: center;
+      margin: 14px 0 6px;
+      font-weight: 600;
+    }
+
+    .subtitle {
+      color: #bdb4a6;
+      text-align: center;
+      max-width: 820px;
+      margin: 0 auto 18px;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .top-button {
+      position: fixed;
+      top: 18px;
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      text-decoration: none;
+      display: grid;
+      place-items: center;
+      font-size: 24px;
+      color: #222;
+      background: rgba(255,255,255,0.86);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+      z-index: 1000;
+      transition: 0.12s;
+    }
+
+    .top-button:hover,
+    .top-button:active {
+      transform: scale(0.94);
+      filter: brightness(1.08);
+    }
+
+    .back-button { left: 18px; }
+    .player-button { right: 18px; }
+
+    .studio {
+      width: min(96vw, 1100px);
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .section {
+      background: rgba(255,255,255,0.06);
+      border-radius: 18px;
+      padding: 14px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.28);
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 800;
+      margin-bottom: 10px;
+      color: #ddd;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .control-button,
+    .control-link {
+      border: none;
+      border-radius: 14px;
+      padding: 13px 14px;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      background: white;
+      color: #111;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.32);
+      text-align: center;
+      text-decoration: none;
+      font-family: inherit;
+    }
+
+    .control-button.secondary,
+    .control-link.secondary {
+      background: rgba(255,255,255,0.16);
+      color: #fff7ea;
+    }
+
+    .control-button.danger {
+      background: rgba(255,90,90,0.22);
+      color: #ffe5e5;
+    }
+
+    .control-button.recording {
+      background: rgba(255,80,80,0.92);
+      color: #111;
+    }
+
+    .status {
+      color: #bdb4a6;
+      text-align: center;
+      font-size: 14px;
+      line-height: 1.4;
+      min-height: 20px;
+      margin-top: 10px;
+    }
+
+    .setting-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    select {
+      width: 100%;
+      border: none;
+      border-radius: 12px;
+      padding: 12px;
+      background: rgba(255,255,255,0.14);
+      color: #f5f0e8;
+      font-weight: 700;
+    }
+
+    option {
+      color: #111;
+    }
+
+    .grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .octave-row {
+      display: grid;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .square {
+      border: none;
+      border-radius: 16px;
+      aspect-ratio: 1 / 1;
+      width: 100%;
+      min-width: 0;
+      font-size: clamp(8px, 1.4vmin, 14px);
+      font-weight: bold;
+      color: white;
+      cursor: pointer;
+      padding: 4px;
+      text-align: center;
+      box-shadow: 0 6px 14px rgba(0,0,0,0.35);
+    }
+
+    .square.active {
+      transform: scale(0.9);
+      filter: brightness(1.65);
+    }
+
+    .root {
+      outline: 3px solid rgba(255,255,255,1);
+      outline-offset: -5px;
+    }
+
+    .timeline {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding: 8px 4px 12px;
+      min-height: 92px;
+    }
+
+    .event-card {
+      flex: 0 0 auto;
+      min-width: 82px;
+      border-radius: 14px;
+      padding: 10px;
+      background: rgba(255,255,255,0.12);
+      box-shadow: 0 5px 12px rgba(0,0,0,0.25);
+      text-align: center;
+    }
+
+    .event-time {
+      color: #bdb4a6;
+      font-size: 11px;
+      margin-bottom: 6px;
+    }
+
+    .event-notes {
+      display: flex;
+      flex-direction: column-reverse;
+      align-items: center;
+      gap: 5px;
+      min-height: 44px;
+    }
+
+    .note-chip {
+      width: 52px;
+      min-height: 30px;
+      border-radius: 9px;
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      font-weight: 900;
+      color: white;
+      box-shadow:
+        0 4px 10px rgba(0,0,0,0.35),
+        inset 0 1px 0 rgba(255,255,255,0.2);
+    }
+
+    .note-chip.light-text {
+      color: #222;
+    }
+
+    .c  { background: #ff6b6b; }
+    .db { background: linear-gradient(135deg, #ff6b6b, #f7b267); }
+    .d  { background: #f7b267; }
+    .eb { background: linear-gradient(135deg, #f7b267, #ffd93d); color: #222; }
+    .e  { background: #ffd93d; color: #222; }
+    .f  { background: #6bcb77; }
+    .gb { background: linear-gradient(135deg, #6bcb77, #4d96ff); }
+    .g  { background: #4d96ff; }
+    .ab { background: linear-gradient(135deg, #4d96ff, #9d4edd); }
+    .a  { background: #9d4edd; }
+    .bb { background: linear-gradient(135deg, #9d4edd, #ff8fab); }
+    .b  { background: #ff8fab; }
+
+    @media (max-width: 760px) {
+      h1 {
+        margin-top: 72px;
+      }
+
+      .controls,
+      .setting-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <a
+    class="top-button back-button"
+    href="index.html"
+    title="Return to Home Screen"
+  >←</a>
+
+  <a
+    class="top-button player-button"
+    href="player.html"
+    title="Open Player"
+  >□</a>
+
+  <h1>Recording Studio</h1>
+
+  <div class="subtitle">
+    Record Orumi notes, import chord progressions, play them back, save locally,
+    and export the result as a MIDI file.
+  </div>
+
+  <div class="studio">
+
+    <div class="section">
+      <div class="section-title">Studio Controls</div>
+
+      <div class="controls">
+        <button class="control-button" id="beginSoundButton">
+          Begin Sound
+        </button>
+
+        <button class="control-button" id="recordButton">
+          Start Recording
+        </button>
+
+        <button class="control-button secondary" id="playRecordingButton">
+          Play Recording
+        </button>
+
+        <button class="control-button secondary" id="importProgressionButton">
+          Add Current Progression
+        </button>
+
+        <button class="control-button secondary" id="saveButton">
+          Save
+        </button>
+
+        <button class="control-button secondary" id="loadButton">
+          Load
+        </button>
+
+        <button class="control-button secondary" id="exportMidiButton">
+          Export MIDI
+        </button>
+
+        <button class="control-button danger" id="clearButton">
+          Clear
+        </button>
+      </div>
+
+      <div class="status" id="status">
+        Press Begin Sound first.
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Sound Setup</div>
+
+      <div class="setting-row">
+        <select id="systemSelect"></select>
+        <select id="rootSelect"></select>
+        <select id="voiceSelect"></select>
+        <select id="octaveSelect"></select>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Playable Notes</div>
+      <div class="grid" id="noteGrid"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Recording Timeline</div>
+      <div class="timeline" id="timeline"></div>
+      <div class="status" id="timelineStatus">
+        No events recorded yet.
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    let audioContext;
+    let audioReady = false;
+    let isRecording = false;
+    let recordingStartTime = 0;
+    let events = [];
+    let activeHeldNotes = new Map();
+    let playbackTimers = [];
+
+    const beginSoundButton =
+      document.getElementById("beginSoundButton");
+
+    const recordButton =
+      document.getElementById("recordButton");
+
+    const playRecordingButton =
+      document.getElementById("playRecordingButton");
+
+    const importProgressionButton =
+      document.getElementById("importProgressionButton");
+
+    const saveButton =
+      document.getElementById("saveButton");
+
+    const loadButton =
+      document.getElementById("loadButton");
+
+    const exportMidiButton =
+      document.getElementById("exportMidiButton");
+
+    const clearButton =
+      document.getElementById("clearButton");
+
+    const status =
+      document.getElementById("status");
+
+    const timelineStatus =
+      document.getElementById("timelineStatus");
+
+    const systemSelect =
+      document.getElementById("systemSelect");
+
+    const rootSelect =
+      document.getElementById("rootSelect");
+
+    const voiceSelect =
+      document.getElementById("voiceSelect");
+
+    const octaveSelect =
+      document.getElementById("octaveSelect");
+
+    const noteGrid =
+      document.getElementById("noteGrid");
+
+    const timeline =
+      document.getElementById("timeline");
+
+    const pitchClasses =
+      ORUMI_CATALOG.pitchClasses;
+
+    const numberToPitchClass =
+      ORUMI_CATALOG.numberToPitchClass;
+
+    const systems =
+      ORUMI_CATALOG.systems;
+
+    const voices =
+      ORUMI_CATALOG.voices;
+
+    function nowSeconds() {
+      return audioContext
+        ? audioContext.currentTime
+        : performance.now() / 1000;
+    }
+
+    async function ensureAudio() {
+      if (!audioContext) {
+        audioContext =
+          new (
+            window.AudioContext ||
+            window.webkitAudioContext
+          )();
+      }
+
+      if (audioContext.state === "suspended") {
+        await audioContext.resume();
+      }
+
+      audioReady = true;
+      beginSoundButton.textContent = "Sound Ready";
+      beginSoundButton.disabled = true;
+      status.textContent = "Sound is ready.";
+    }
+
+    function requireAudio() {
+      if (!audioReady) {
+        status.textContent = "Press Begin Sound first.";
+        return false;
+      }
+
+      return true;
+    }
+
+    function pcToName(pcNumber) {
+      return numberToPitchClass[
+        ((pcNumber % 12) + 12) % 12
+      ];
+    }
+
+    function midiToFrequency(midi) {
+      return 440 * Math.pow(2, (midi - 69) / 12);
+    }
+
+    function midiToDisplayName(midi) {
+      const pc =
+        pcToName(midi % 12);
+
+      const octave =
+        Math.floor(midi / 12) - 1;
+
+      return pc + octave;
+    }
+
+    function noteNameToMidi(noteName) {
+      const match =
+        String(noteName).match(/^([A-G][b]?)(-?\d+)$/);
+
+      if (!match) {
+        return null;
+      }
+
+      const pc =
+        match[1];
+
+      const octave =
+        parseInt(match[2], 10);
+
+      if (!pitchClasses[pc]) {
+        return null;
+      }
+
+      return 12 * (octave + 1) +
+        pitchClasses[pc].number;
+    }
+
+    function getCurrentSystemKey() {
+      return systemSelect.value || "western";
+    }
+
+    function getCurrentSystem() {
+      return systems[getCurrentSystemKey()] || systems.western;
+    }
+
+    function getCurrentRoot() {
+      return rootSelect.value || getCurrentSystem().defaultRoot || "C";
+    }
+
+    function getCurrentVoice() {
+      return voiceSelect.value || getCurrentSystem().defaultVoice || "softKeys";
+    }
+
+    function getCurrentOctave() {
+      return parseInt(octaveSelect.value, 10) || 3;
+    }
+
+    function getDefaultMode(system) {
+      const family =
+        system.families[system.defaultFamily];
+
+      if (!family) {
+        return null;
+      }
+
+      return family.modes[system.defaultMode] ||
+        family.modes[Object.keys(family.modes)[0]];
+    }
+
+    function getPlayableIntervals() {
+      const system =
+        getCurrentSystem();
+
+      const mode =
+        getDefaultMode(system);
+
+      if (
+        mode &&
+        Array.isArray(mode.formula)
+      ) {
+        return mode.formula;
+      }
+
+      return [0,2,4,5,7,9,11];
+    }
+
+    function populateSelects() {
+      Object.entries(systems).forEach(([key, system]) => {
+        const option =
+          document.createElement("option");
+
+        option.value = key;
+        option.textContent = system.label;
+
+        systemSelect.appendChild(option);
+      });
+
+      Object.entries(pitchClasses).forEach(([key, pitch]) => {
+        const option =
+          document.createElement("option");
+
+        option.value = key;
+        option.textContent = pitch.display;
+
+        rootSelect.appendChild(option);
+      });
+
+      Object.entries(voices).forEach(([key, voice]) => {
+        const option =
+          document.createElement("option");
+
+        option.value = key;
+        option.textContent = voice.label;
+
+        voiceSelect.appendChild(option);
+      });
+
+      [2,3,4,5].forEach(octave => {
+        const option =
+          document.createElement("option");
+
+        option.value = octave;
+        option.textContent = "Octave " + octave;
+
+        octaveSelect.appendChild(option);
+      });
+
+      const defaultSystem =
+        systems.western;
+
+      systemSelect.value = "western";
+      rootSelect.value = defaultSystem.defaultRoot || "C";
+      voiceSelect.value = defaultSystem.defaultVoice || "softKeys";
+      octaveSelect.value = 3;
+    }
+
+    function updateDefaultsForSystem() {
+      const system =
+        getCurrentSystem();
+
+      rootSelect.value =
+        system.defaultRoot || "C";
+
+      voiceSelect.value =
+        system.defaultVoice || "softKeys";
+
+      octaveSelect.value =
+        Array.isArray(system.defaultOctaves)
+          ? system.defaultOctaves[1] || system.defaultOctaves[0] || 3
+          : 3;
+
+      buildNoteGrid();
+    }
+
+    function buildNoteGrid() {
+      noteGrid.innerHTML = "";
+
+      const root =
+        getCurrentRoot();
+
+      const rootNumber =
+        pitchClasses[root].number;
+
+      const octave =
+        getCurrentOctave();
+
+      const intervals =
+        getPlayableIntervals();
+
+      const row =
+        document.createElement("div");
+
+      row.classList.add("octave-row");
+
+      const buttons = [];
+
+      intervals.forEach(interval => {
+        const midi =
+          12 * (octave + 1) +
+          rootNumber +
+          interval;
+
+        const pc =
+          pcToName(midi % 12);
+
+        const pitch =
+          pitchClasses[pc];
+
+        const button =
+          document.createElement("button");
+
+        button.classList.add(
+          "square",
+          pitch.className
+        );
+
+        if (interval % 12 === 0) {
+          button.classList.add("root");
+        }
+
+        button.dataset.midi = midi;
+        button.dataset.displayName =
+          midiToDisplayName(midi);
+
+        button.textContent =
+          midiToDisplayName(midi);
+
+        attachNoteEvents(button);
+
+        buttons.push(button);
+      });
+
+      row.style.gridTemplateColumns =
+        `repeat(${buttons.length}, minmax(0, 1fr))`;
+
+      buttons.forEach(button => {
+        row.appendChild(button);
+      });
+
+      noteGrid.appendChild(row);
+    }
+
+    function attachNoteEvents(button) {
+      button.addEventListener("pointerdown", async event => {
+        event.preventDefault();
+
+        if (!requireAudio()) {
+          return;
+        }
+
+        await ensureAudio();
+
+        const midi =
+          parseInt(button.dataset.midi, 10);
+
+        const displayName =
+          button.dataset.displayName;
+
+        const voice =
+          getCurrentVoice();
+
+        const startTime =
+          nowSeconds();
+
+        const voiceNode =
+          ORUMI_VOICES.buildVoice(
+            audioContext,
+            voice,
+            midiToFrequency(midi),
+            startTime
+          );
+
+        button.classList.add("active");
+
+        const noteObject = {
+          voice,
+          button,
+          midi,
+          displayName,
+          startedAt: startTime,
+          gain: voiceNode.gain,
+          oscillators:
+            voiceNode.oscillators || [],
+          noiseSources:
+            voiceNode.noiseSources || []
+        };
+
+        activeHeldNotes.set(
+          event.pointerId,
+          noteObject
+        );
+      });
+
+      button.addEventListener("pointerup", event => {
+        stopHeldNote(event.pointerId);
+      });
+
+      button.addEventListener("pointercancel", event => {
+        stopHeldNote(event.pointerId);
+      });
+
+      button.addEventListener("pointerleave", event => {
+        stopHeldNote(event.pointerId);
+      });
+    }
+
+    function stopHeldNote(pointerId) {
+      const note =
+        activeHeldNotes.get(pointerId);
+
+      if (!note || !audioContext) {
+        return;
+      }
+
+      const endTime =
+        nowSeconds();
+
+      ORUMI_VOICES.stopVoice(
+        note,
+        audioContext,
+        0.12
+      );
+
+      note.button.classList.remove("active");
+
+      if (isRecording) {
+        const start =
+          note.startedAt - recordingStartTime;
+
+        const duration =
+          Math.max(0.18, endTime - note.startedAt);
+
+        events.push({
+          type: "note",
+          start,
+          duration,
+          notes: [{
+            midi: note.midi,
+            name: note.displayName
+          }],
+          voice: note.voice,
+          system: getCurrentSystemKey()
+        });
+
+        renderTimeline();
+      }
+
+      status.textContent =
+        "Played " + note.displayName;
+
+      activeHeldNotes.delete(pointerId);
+    }
+
+    function stopAllNotes() {
+      Array.from(activeHeldNotes.keys()).forEach(pointerId => {
+        stopHeldNote(pointerId);
+      });
+    }
+
+    function toggleRecording() {
+      if (!requireAudio()) {
+        return;
+      }
+
+      if (!isRecording) {
+        isRecording = true;
+        recordingStartTime = nowSeconds();
+        recordButton.textContent = "Stop Recording";
+        recordButton.classList.add("recording");
+        status.textContent = "Recording...";
+      } else {
+        isRecording = false;
+        recordButton.textContent = "Start Recording";
+        recordButton.classList.remove("recording");
+        status.textContent = "Recording stopped.";
+        renderTimeline();
+      }
+    }
+
+    function getRecordingLength() {
+      if (events.length === 0) {
+        return 0;
+      }
+
+      return Math.max(
+        ...events.map(event => event.start + event.duration)
+      );
+    }
+
+    function importCurrentProgression() {
+      const progression =
+        JSON.parse(
+          localStorage.getItem("orumiProgression") || "[]"
+        );
+
+      if (progression.length === 0) {
+        status.textContent =
+          "No chord progression found.";
+        return;
+      }
+
+      const baseStart =
+        getRecordingLength();
+
+      const chordDuration =
+        1.5;
+
+      const gap =
+        0.22;
+
+      progression.forEach((chord, index) => {
+        const noteList =
+          Array.isArray(chord.notes)
+            ? chord.notes
+            : [];
+
+        const midiNotes =
+          noteList
+            .map(noteName => ({
+              midi: noteNameToMidi(noteName),
+              name: noteName
+            }))
+            .filter(note => note.midi !== null);
+
+        if (midiNotes.length === 0) {
+          return;
+        }
+
+        events.push({
+          type: "chord",
+          name: chord.name || "Chord",
+          start: baseStart + index * (chordDuration + gap),
+          duration: chordDuration,
+          notes: midiNotes,
+          voice: chord.voice || getCurrentVoice(),
+          system: chord.system || getCurrentSystemKey()
+        });
+      });
+
+      renderTimeline();
+
+      status.textContent =
+        "Current progression added to recording.";
+    }
+
+    async function playRecording() {
+      if (!requireAudio()) {
+        return;
+      }
+
+      if (events.length === 0) {
+        status.textContent =
+          "Nothing recorded yet.";
+        return;
+      }
+
+      await ensureAudio();
+      clearPlaybackTimers();
+
+      status.textContent =
+        "Playing recording...";
+
+      events.forEach(event => {
+        const timer =
+          setTimeout(() => {
+            playEvent(event);
+          }, event.start * 1000);
+
+        playbackTimers.push(timer);
+      });
+
+      const doneTimer =
+        setTimeout(() => {
+          status.textContent =
+            "Playback complete.";
+        }, (getRecordingLength() + 0.2) * 1000);
+
+      playbackTimers.push(doneTimer);
+    }
+
+    function playEvent(event) {
+      const now =
+        audioContext.currentTime;
+
+      const voice =
+        event.voice &&
+        voices[event.voice]
+          ? event.voice
+          : getCurrentVoice();
+
+      const playedNotes =
+        event.notes.map(note => {
+          const voiceNode =
+            ORUMI_VOICES.buildVoice(
+              audioContext,
+              voice,
+              midiToFrequency(note.midi),
+              now
+            );
+
+          return {
+            voice,
+            gain: voiceNode.gain,
+            oscillators:
+              voiceNode.oscillators || [],
+            noiseSources:
+              voiceNode.noiseSources || []
+          };
+        });
+
+      setTimeout(() => {
+        playedNotes.forEach(note => {
+          ORUMI_VOICES.stopVoice(
+            note,
+            audioContext,
+            0.18
+          );
+        });
+      }, event.duration * 1000);
+
+      status.textContent =
+        event.type === "chord"
+          ? "Playing " + (event.name || "Chord")
+          : "Playing " + event.notes.map(note => note.name).join(" · ");
+    }
+
+    function clearPlaybackTimers() {
+      playbackTimers.forEach(timer => {
+        clearTimeout(timer);
+      });
+
+      playbackTimers = [];
+    }
+
+    function renderTimeline() {
+      timeline.innerHTML = "";
+
+      const sorted =
+        events
+          .slice()
+          .sort((a, b) => a.start - b.start);
+
+      if (sorted.length === 0) {
+        timelineStatus.textContent =
+          "No events recorded yet.";
+        return;
+      }
+
+      sorted.forEach(event => {
+        const card =
+          document.createElement("div");
+
+        card.classList.add("event-card");
+
+        const time =
+          document.createElement("div");
+
+        time.classList.add("event-time");
+        time.textContent =
+          event.start.toFixed(2) + "s";
+
+        const notes =
+          document.createElement("div");
+
+        notes.classList.add("event-notes");
+
+        event.notes.forEach(note => {
+          const chip =
+            document.createElement("div");
+
+          const pc =
+            pcToName(note.midi % 12);
+
+          const pitch =
+            pitchClasses[pc];
+
+          chip.classList.add(
+            "note-chip",
+            pitch.className
+          );
+
+          if (pc === "E" || pc === "Eb") {
+            chip.classList.add("light-text");
+          }
+
+          chip.textContent =
+            note.name || midiToDisplayName(note.midi);
+
+          notes.appendChild(chip);
+        });
+
+        card.appendChild(time);
+        card.appendChild(notes);
+
+        timeline.appendChild(card);
+      });
+
+      timelineStatus.textContent =
+        sorted.length +
+        " event" +
+        (sorted.length === 1 ? "" : "s") +
+        " · " +
+        getRecordingLength().toFixed(2) +
+        " seconds";
+    }
+
+    function saveRecording() {
+      localStorage.setItem(
+        "orumiRecordingStudio",
+        JSON.stringify(events)
+      );
+
+      status.textContent =
+        "Recording saved locally.";
+    }
+
+    function loadRecording() {
+      events =
+        JSON.parse(
+          localStorage.getItem("orumiRecordingStudio") || "[]"
+        );
+
+      renderTimeline();
+
+      status.textContent =
+        "Recording loaded.";
+    }
+
+    function clearRecording() {
+      const confirmed =
+        window.confirm("Clear this recording?");
+
+      if (!confirmed) {
+        return;
+      }
+
+      clearPlaybackTimers();
+      stopAllNotes();
+      events = [];
+      renderTimeline();
+      status.textContent = "Recording cleared.";
+    }
+
+    function exportMidi() {
+      if (events.length === 0) {
+        status.textContent =
+          "Nothing to export.";
+        return;
+      }
+
+      const bytes =
+        buildMidiFile(events);
+
+      const blob =
+        new Blob(
+          [new Uint8Array(bytes)],
+          { type: "audio/midi" }
+        );
+
+      const url =
+        URL.createObjectURL(blob);
+
+      const link =
+        document.createElement("a");
+
+      link.href = url;
+      link.download = "orumi-recording.mid";
+      link.click();
+
+      URL.revokeObjectURL(url);
+
+      status.textContent =
+        "MIDI file exported.";
+    }
+
+    function buildMidiFile(sourceEvents) {
+      const ticksPerBeat = 480;
+      const bpm = 120;
+      const secondsPerBeat = 60 / bpm;
+
+      const midiEvents = [];
+
+      sourceEvents.forEach(event => {
+        const startTick =
+          Math.round(
+            (event.start / secondsPerBeat) * ticksPerBeat
+          );
+
+        const durationTick =
+          Math.max(
+            60,
+            Math.round(
+              (event.duration / secondsPerBeat) * ticksPerBeat
+            )
+          );
+
+        event.notes.forEach(note => {
+          midiEvents.push({
+            tick: startTick,
+            type: "on",
+            note: note.midi,
+            velocity: 92
+          });
+
+          midiEvents.push({
+            tick: startTick + durationTick,
+            type: "off",
+            note: note.midi,
+            velocity: 0
+          });
+        });
+      });
+
+      midiEvents.sort((a, b) => {
+        if (a.tick !== b.tick) {
+          return a.tick - b.tick;
+        }
+
+        if (a.type === b.type) {
+          return 0;
+        }
+
+        return a.type === "off" ? -1 : 1;
+      });
+
+      const track = [];
+
+      // Tempo meta event: 120 bpm = 500000 microseconds per quarter note
+      track.push(
+        0x00,
+        0xff,
+        0x51,
+        0x03,
+        0x07,
+        0xa1,
+        0x20
+      );
+
+      let lastTick = 0;
+
+      midiEvents.forEach(event => {
+        const delta =
+          event.tick - lastTick;
+
+        track.push(...writeVarLen(delta));
+
+        if (event.type === "on") {
+          track.push(
+            0x90,
+            clampMidi(event.note),
+            event.velocity
+          );
+        } else {
+          track.push(
+            0x80,
+            clampMidi(event.note),
+            0x00
+          );
+        }
+
+        lastTick = event.tick;
+      });
+
+      track.push(
+        0x00,
+        0xff,
+        0x2f,
+        0x00
+      );
+
+      const header = [
+        ...ascii("MThd"),
+        0x00, 0x00, 0x00, 0x06,
+        0x00, 0x00,
+        0x00, 0x01,
+        (ticksPerBeat >> 8) & 0xff,
+        ticksPerBeat & 0xff
+      ];
+
+      const trackHeader = [
+        ...ascii("MTrk"),
+        ...u32(track.length)
+      ];
+
+      return [
+        ...header,
+        ...trackHeader,
+        ...track
+      ];
+    }
+
+    function clampMidi(value) {
+      return Math.max(
+        0,
+        Math.min(127, value)
+      );
+    }
+
+    function ascii(text) {
+      return text
+        .split("")
+        .map(char => char.charCodeAt(0));
+    }
+
+    function u32(value) {
+      return [
+        (value >> 24) & 0xff,
+        (value >> 16) & 0xff,
+        (value >> 8) & 0xff,
+        value & 0xff
+      ];
+    }
+
+    function writeVarLen(value) {
+      let buffer =
+        value & 0x7f;
+
+      const bytes = [];
+
+      while ((value >>= 7)) {
+        buffer <<= 8;
+        buffer |= ((value & 0x7f) | 0x80);
+      }
+
+      while (true) {
+        bytes.push(buffer & 0xff);
+
+        if (buffer & 0x80) {
+          buffer >>= 8;
+        } else {
+          break;
+        }
+      }
+
+      return bytes;
+    }
+
+    beginSoundButton.addEventListener("click", ensureAudio);
+    recordButton.addEventListener("click", toggleRecording);
+    playRecordingButton.addEventListener("click", playRecording);
+    importProgressionButton.addEventListener("click", importCurrentProgression);
+    saveButton.addEventListener("click", saveRecording);
+    loadButton.addEventListener("click", loadRecording);
+    exportMidiButton.addEventListener("click", exportMidi);
+    clearButton.addEventListener("click", clearRecording);
+
+    systemSelect.addEventListener("change", updateDefaultsForSystem);
+    rootSelect.addEventListener("change", buildNoteGrid);
+    voiceSelect.addEventListener("change", buildNoteGrid);
+    octaveSelect.addEventListener("change", buildNoteGrid);
+
+    document.addEventListener("pointerup", event => {
+      stopHeldNote(event.pointerId);
+    });
+
+    document.addEventListener("pointercancel", event => {
+      stopHeldNote(event.pointerId);
+    });
+
+    window.addEventListener("beforeunload", () => {
+      clearPlaybackTimers();
+      stopAllNotes();
+    });
+
+    populateSelects();
+    buildNoteGrid();
+    renderTimeline();
+  </script>
+
+</body>
+</html>

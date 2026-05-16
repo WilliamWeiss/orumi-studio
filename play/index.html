@@ -114,7 +114,8 @@ const systemOrder = [
   "celtic",
   "blues",
   "andean",
-  "chordfactory"
+  "chordfactory",
+  "recordingstudio"
 ];
 
     function buildSystemLink(systemKey, system) {
@@ -170,7 +171,9 @@ function buildMenu() {
       menuGrid.appendChild(link);
 
       return;
+
     }
+
 
     const system = systems[systemKey];
 
@@ -196,6 +199,29 @@ function buildMenu() {
         menuGrid.appendChild(link);
       });
     }
+
+    
+    if (systemKey === "recordingstudio") {
+  const link = document.createElement("a");
+
+  link.classList.add("tile", "chordfactory");
+  link.href = "recording-studio.html";
+
+  const abbr = document.createElement("div");
+  abbr.classList.add("abbr");
+  abbr.textContent = "RS";
+
+  const label = document.createElement("div");
+  label.classList.add("label");
+  label.textContent = "Recording Studio";
+
+  link.appendChild(abbr);
+  link.appendChild(label);
+
+  menuGrid.appendChild(link);
+
+  return;
+}
 
     buildMenu();
   </script>
