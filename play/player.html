@@ -1,6 +1,7 @@
 ﻿<!DOCTYPE html>
 <html>
 <head>
+  <meta charset="utf-8">
   <title>Orumi Player</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -64,6 +65,29 @@
       color: black;
     }
 
+    #startAudioButton {
+      font-size: 16px;
+      padding: 10px 18px;
+      margin: 4px 0 8px;
+      border: none;
+      border-radius: 999px;
+      background: var(--button-bg, white);
+      color: var(--button-text, black);
+      cursor: pointer;
+      font-weight: 800;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.28);
+    }
+
+    #startAudioButton.ready {
+      background: rgba(255,255,255,0.16);
+      color: var(--text-color, white);
+      cursor: default;
+    }
+
+    #startAudioButton:disabled {
+      opacity: 0.82;
+    }
+
     #playChordButton {
       display: none;
       font-size: 18px;
@@ -76,6 +100,20 @@
       cursor: pointer;
       font-weight: 700;
       box-shadow: 0 6px 18px rgba(0,0,0,0.28);
+    }
+
+    #clearChordButton {
+      display: none;
+      font-size: 15px;
+      padding: 10px 16px;
+      margin: 0 0 6px;
+      border: none;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.16);
+      color: var(--text-color, white);
+      cursor: pointer;
+      font-weight: 700;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.2);
     }
 
     #status {
@@ -223,486 +261,542 @@
     <button id="fullButton" class="view-toggle">Full</button>
   </div>
 
-  <button id="playChordButton">Play Highlighted Chord</button>
-<button id="clearChordButton">Clear Chord</button>
+  <button id="startAudioButton">Begin Sound</button>
 
-  <div id="status">Ready</div>
+  <button id="playChordButton">Play Highlighted Chord</button>
+  <button id="clearChordButton">Clear Chord</button>
+
+  <div id="status">Press Begin Sound first</div>
 
   <div id="grid" class="grid"></div>
 
   <script>
-  let audioContext;
+    let audioContext;
+    let audioReady = false;
 
-  const playChordButton = document.getElementById("playChordButton");
-  const clearChordButton = document.getElementById("clearChordButton");
-  const statusText = document.getElementById("status");
-  const gridLabel = document.getElementById("gridLabel");
-  const grid = document.getElementById("grid");
-  const pageTitle = document.getElementById("pageTitle");
-  const settingsButton = document.getElementById("settingsButton");
-  const chordButton = document.getElementById("chordButton");
-  const nativeButton = document.getElementById("nativeButton");
-  const fullButton = document.getElementById("fullButton");
+    const playChordButton = document.getElementById("playChordButton");
+    const clearChordButton = document.getElementById("clearChordButton");
+    const startAudioButton = document.getElementById("startAudioButton");
+    const statusText = document.getElementById("status");
+    const gridLabel = document.getElementById("gridLabel");
+    const grid = document.getElementById("grid");
+    const pageTitle = document.getElementById("pageTitle");
+    const settingsButton = document.getElementById("settingsButton");
+    const chordButton = document.getElementById("chordButton");
+    const nativeButton = document.getElementById("nativeButton");
+    const fullButton = document.getElementById("fullButton");
 
-  const activeNotes = new Map();
-  let recentNotes = [];
+    const activeNotes = new Map();
+    let recentNotes = [];
 
-  const pitchClasses = ORUMI_CATALOG.pitchClasses;
-  const numberToPitchClass = ORUMI_CATALOG.numberToPitchClass;
+    const pitchClasses = ORUMI_CATALOG.pitchClasses;
+    const numberToPitchClass = ORUMI_CATALOG.numberToPitchClass;
 
-  function refreshNavLinks() {
-    settingsButton.href = "selection-control.html" + window.location.search;
-    chordButton.href = "chord-factory.html" + window.location.search;
-  }
-
-  function getUrlParams() {
-    return new URLSearchParams(window.location.search);
-  }
-
-  function getSystem(systemKey) {
-    return ORUMI_CATALOG.systems[systemKey] ||
-      ORUMI_CATALOG.systems.western;
-  }
-
-  function getFamily(system, familyKey) {
-    return system.families[familyKey] ||
-      system.families[system.defaultFamily];
-  }
-
-  function getMode(family, modeKey) {
-    return family.modes[modeKey] ||
-      family.modes[Object.keys(family.modes)[0]];
-  }
-
-  function getSettingsFromUrl() {
-    const params = getUrlParams();
-
-    const systemKey = params.get("system") || "western";
-    const system = getSystem(systemKey);
-
-    const root = params.get("root") || system.defaultRoot || "C";
-    const familyKey = params.get("family") || system.defaultFamily;
-    const modeKey = params.get("scaleMode") || system.defaultMode;
-    const setView = params.get("set") || system.defaultSet || "native";
-    const requestedVoice = params.get("voice") || system.defaultVoice || "warm";
-    const octavesParam = params.get("octaves");
-
-    const family = getFamily(system, familyKey);
-    const mode = getMode(family, modeKey);
-
-    let octaves = octavesParam
-      ? octavesParam
-          .split(",")
-          .map(value => parseInt(value, 10))
-          .filter(value => value >= 1 && value <= 6)
-      : [...(system.defaultOctaves || [2,3,4,5])];
-
-    if (octaves.length === 0) {
-      octaves = [2,3,4,5];
+    function refreshNavLinks() {
+      settingsButton.href = "selection-control.html" + window.location.search;
+      chordButton.href = "chord-factory.html" + window.location.search;
     }
 
-    return {
-      systemKey,
-      system,
-      root: pitchClasses[root] ? root : "C",
-      family,
-      mode,
-      setView: setView === "full" ? "full" : "native",
-      voice: ORUMI_CATALOG.voices[requestedVoice]
-        ? requestedVoice
-        : system.defaultVoice || "warm",
-      octaves: [...new Set(octaves)].sort((a,b) => a - b)
-    };
-  }
-
-  function getHighlightedNotes() {
-    const params = getUrlParams();
-
-    return params.get("highlight")
-      ? params.get("highlight")
-          .split(",")
-          .map(note => note.trim())
-          .filter(Boolean)
-      : [];
-  }
-
-  function setHighlightedNotes(notes) {
-    const params = getUrlParams();
-
-    if (notes.length > 0) {
-      params.set("highlight", notes.join(","));
-    } else {
-      params.delete("highlight");
+    function getUrlParams() {
+      return new URLSearchParams(window.location.search);
     }
 
-    history.replaceState({}, "", "?" + params.toString());
-    refreshNavLinks();
-  }
-
-  function midiToPc(midi) {
-    return numberToPitchClass[midi % 12];
-  }
-
-  function midiToOctave(midi) {
-    return Math.floor(midi / 12) - 1;
-  }
-
-  function midiToFrequency(midi) {
-    return 440 * Math.pow(2, (midi - 69) / 12);
-  }
-
-  async function ensureAudio() {
-    if (!audioContext) {
-      audioContext =
-        new (window.AudioContext || window.webkitAudioContext)();
+    function getSystem(systemKey) {
+      return ORUMI_CATALOG.systems[systemKey] ||
+        ORUMI_CATALOG.systems.western;
     }
 
-    if (audioContext.state === "suspended") {
-      await audioContext.resume();
+    function getFamily(system, familyKey) {
+      return system.families[familyKey] ||
+        system.families[system.defaultFamily];
     }
-  }
 
-  function updateViewButtons() {
-    const { setView } = getSettingsFromUrl();
+    function getMode(family, modeKey) {
+      return family.modes[modeKey] ||
+        family.modes[Object.keys(family.modes)[0]];
+    }
 
-    nativeButton.classList.toggle("active", setView === "native");
-    fullButton.classList.toggle("active", setView === "full");
-  }
+    function getSettingsFromUrl() {
+      const params = getUrlParams();
 
-  function setViewMode(nextView) {
-    const params = getUrlParams();
-    params.set("set", nextView);
+      const systemKey = params.get("system") || "western";
+      const system = getSystem(systemKey);
 
-    history.replaceState({}, "", "?" + params.toString());
+      const root = params.get("root") || system.defaultRoot || "C";
+      const familyKey = params.get("family") || system.defaultFamily;
+      const modeKey = params.get("scaleMode") || system.defaultMode;
+      const setView = params.get("set") || system.defaultSet || "native";
+      const requestedVoice = params.get("voice") || system.defaultVoice || "warm";
+      const octavesParam = params.get("octaves");
 
-    refreshNavLinks();
-    buildGrid();
-  }
+      const family = getFamily(system, familyKey);
+      const mode = getMode(family, modeKey);
 
-  nativeButton.addEventListener("click", () => {
-    setViewMode("native");
-  });
+      let octaves = octavesParam
+        ? octavesParam
+            .split(",")
+            .map(value => parseInt(value, 10))
+            .filter(value => value >= 1 && value <= 6)
+        : [...(system.defaultOctaves || [2,3,4,5])];
 
-  fullButton.addEventListener("click", () => {
-    setViewMode("full");
-  });
-
-  function buildGrid() {
-    stopAllNotes();
-
-    const { system, root, family, mode, setView, voice, octaves } =
-      getSettingsFromUrl();
-
-    ORUMI_THEMES.apply(system, mode);
-    updateViewButtons();
-
-    const rootNumber = pitchClasses[root].number;
-    const nativeFormula = mode.formula;
-    const finalInterval = nativeFormula[nativeFormula.length - 1];
-    const highlightedNotes = getHighlightedNotes();
-
-    grid.innerHTML = "";
-
-    [...octaves].reverse().forEach(octave => {
-      const row = document.createElement("div");
-      row.classList.add("octave-row");
-
-      const startMidi = 12 * (octave + 1) + rootNumber;
-      const endMidi = startMidi + finalInterval;
-      const buttonsForRow = [];
-
-      for (let midi = startMidi; midi <= endMidi; midi++) {
-        const pc = midiToPc(midi);
-        const pitch = pitchClasses[pc];
-        const noteOctave = midiToOctave(midi);
-        const intervalFromRoot = (midi - startMidi) % 12;
-        const isNative = nativeFormula.includes(intervalFromRoot);
-
-        if (setView === "native" && !isNative) {
-          continue;
-        }
-
-        const button = document.createElement("button");
-
-        button.classList.add(
-          "square",
-          pitch.className,
-          isNative ? "native" : "outside"
-        );
-
-        if (intervalFromRoot === 0) {
-          button.classList.add("root");
-        }
-
-        button.dataset.displayName = pitch.display + noteOctave;
-        button.dataset.note = midiToFrequency(midi).toFixed(2);
-        button.dataset.pc = pc;
-        button.dataset.midi = midi;
-
-        button.textContent = pitch.display + noteOctave;
-
-        if (highlightedNotes.includes(button.dataset.displayName)) {
-          button.classList.add("highlighted");
-        }
-
-        attachSquareEvents(button);
-        buttonsForRow.push(button);
+      if (octaves.length === 0) {
+        octaves = [2,3,4,5];
       }
 
-      row.style.gridTemplateColumns =
-        `repeat(${buttonsForRow.length}, minmax(0, 1fr))`;
+      return {
+        systemKey,
+        system,
+        root: pitchClasses[root] ? root : "C",
+        family,
+        mode,
+        setView: setView === "full" ? "full" : "native",
+        voice: ORUMI_CATALOG.voices[requestedVoice]
+          ? requestedVoice
+          : system.defaultVoice || "warm",
+        octaves: [...new Set(octaves)].sort((a,b) => a - b)
+      };
+    }
 
-      buttonsForRow.forEach(button => row.appendChild(button));
-      grid.appendChild(row);
+    function getHighlightedNotes() {
+      const params = getUrlParams();
+
+      return params.get("highlight")
+        ? params.get("highlight")
+            .split(",")
+            .map(note => note.trim())
+            .filter(Boolean)
+        : [];
+    }
+
+    function setHighlightedNotes(notes) {
+      const params = getUrlParams();
+
+      if (notes.length > 0) {
+        params.set("highlight", notes.join(","));
+      } else {
+        params.delete("highlight");
+      }
+
+      history.replaceState({}, "", "?" + params.toString());
+      refreshNavLinks();
+    }
+
+    function midiToPc(midi) {
+      return numberToPitchClass[midi % 12];
+    }
+
+    function midiToOctave(midi) {
+      return Math.floor(midi / 12) - 1;
+    }
+
+    function midiToFrequency(midi) {
+      return 440 * Math.pow(2, (midi - 69) / 12);
+    }
+
+    async function ensureAudio() {
+      if (!audioContext) {
+        audioContext =
+          new (window.AudioContext || window.webkitAudioContext)();
+      }
+
+      if (audioContext.state === "suspended") {
+        await audioContext.resume();
+      }
+
+      audioReady = true;
+      startAudioButton.textContent = "Sound Ready";
+      startAudioButton.disabled = true;
+      startAudioButton.classList.add("ready");
+    }
+
+    async function beginSound() {
+      await ensureAudio();
+      updateHighlightDisplay();
+    }
+
+    startAudioButton.addEventListener("click", beginSound);
+
+    function requireAudioReady() {
+      if (!audioReady) {
+        statusText.textContent = "Press Begin Sound first";
+        return false;
+      }
+
+      return true;
+    }
+
+    function updateViewButtons() {
+      const { setView } = getSettingsFromUrl();
+
+      nativeButton.classList.toggle("active", setView === "native");
+      fullButton.classList.toggle("active", setView === "full");
+    }
+
+    function setViewMode(nextView) {
+      const params = getUrlParams();
+      params.set("set", nextView);
+
+      history.replaceState({}, "", "?" + params.toString());
+
+      refreshNavLinks();
+      buildGrid();
+    }
+
+    nativeButton.addEventListener("click", () => {
+      setViewMode("native");
     });
 
-    pageTitle.textContent = system.label + " Sound Square";
+    fullButton.addEventListener("click", () => {
+      setViewMode("full");
+    });
 
-    gridLabel.textContent =
-      pitchClasses[root].display +
-      " · " +
-      family.label +
-      " · " +
-      mode.label +
-      " · " +
-      (setView === "native" ? "Native Only" : "Full Set") +
-      " · Octaves " +
-      octaves.join(", ") +
-      " · " +
-      ORUMI_CATALOG.voices[voice].label;
+    function buildGrid() {
+      stopAllNotes();
 
-    updateHighlightDisplay();
-    refreshNavLinks();
-  }
+      const { system, root, family, mode, setView, voice, octaves } =
+        getSettingsFromUrl();
 
-  function updateHighlightDisplay() {
-    const highlighted = getHighlightedNotes();
+      ORUMI_THEMES.apply(system, mode);
+      updateViewButtons();
 
-    playChordButton.style.display =
-      highlighted.length > 0 ? "inline-block" : "none";
+      const rootNumber = pitchClasses[root].number;
+      const nativeFormula = mode.formula;
+      const finalInterval = nativeFormula[nativeFormula.length - 1];
+      const highlightedNotes = getHighlightedNotes();
+
+      grid.innerHTML = "";
+
+      [...octaves].reverse().forEach(octave => {
+        const row = document.createElement("div");
+        row.classList.add("octave-row");
+
+        const startMidi = 12 * (octave + 1) + rootNumber;
+        const endMidi = startMidi + finalInterval;
+        const buttonsForRow = [];
+
+        for (let midi = startMidi; midi <= endMidi; midi++) {
+          const pc = midiToPc(midi);
+          const pitch = pitchClasses[pc];
+          const noteOctave = midiToOctave(midi);
+          const intervalFromRoot = (midi - startMidi) % 12;
+          const isNative = nativeFormula.includes(intervalFromRoot);
+
+          if (setView === "native" && !isNative) {
+            continue;
+          }
+
+          const button = document.createElement("button");
+
+          button.classList.add(
+            "square",
+            pitch.className,
+            isNative ? "native" : "outside"
+          );
+
+          if (intervalFromRoot === 0) {
+            button.classList.add("root");
+          }
+
+          button.dataset.displayName = pitch.display + noteOctave;
+          button.dataset.note = midiToFrequency(midi).toFixed(2);
+          button.dataset.pc = pc;
+          button.dataset.midi = midi;
+
+          button.textContent = pitch.display + noteOctave;
+
+          if (highlightedNotes.includes(button.dataset.displayName)) {
+            button.classList.add("highlighted");
+          }
+
+          attachSquareEvents(button);
+          buttonsForRow.push(button);
+        }
+
+        row.style.gridTemplateColumns =
+          `repeat(${buttonsForRow.length}, minmax(0, 1fr))`;
+
+        buttonsForRow.forEach(button => row.appendChild(button));
+        grid.appendChild(row);
+      });
+
+      pageTitle.textContent = system.label + " Sound Square";
+
+      gridLabel.textContent =
+        pitchClasses[root].display +
+        " · " +
+        family.label +
+        " · " +
+        mode.label +
+        " · " +
+        (setView === "native" ? "Native Only" : "Full Set") +
+        " · Octaves " +
+        octaves.join(", ") +
+        " · " +
+        ORUMI_CATALOG.voices[voice].label;
+
+      updateHighlightDisplay();
+      refreshNavLinks();
+    }
+
+    function updateHighlightDisplay() {
+      const highlighted = getHighlightedNotes();
+
+      playChordButton.style.display =
+        highlighted.length > 0 ? "inline-block" : "none";
+
+      if (clearChordButton) {
+        clearChordButton.style.display =
+          highlighted.length > 0 ? "inline-block" : "none";
+      }
+
+      if (!audioReady) {
+        statusText.textContent = "Press Begin Sound first";
+        return;
+      }
+
+      statusText.textContent =
+        highlighted.length > 0
+          ? "Selected: " + highlighted.join(" · ")
+          : "Tap a square to play";
+    }
+
+    function toggleHighlight(button) {
+      const note = button.dataset.displayName;
+      let highlighted = getHighlightedNotes();
+
+      if (highlighted.includes(note)) {
+        highlighted = highlighted.filter(value => value !== note);
+        button.classList.remove("highlighted");
+      } else {
+        highlighted.push(note);
+        button.classList.add("highlighted");
+      }
+
+      setHighlightedNotes(highlighted);
+      updateHighlightDisplay();
+    }
+
+    function clearHighlightedChord() {
+      document.querySelectorAll(".square.highlighted").forEach(button => {
+        button.classList.remove("highlighted");
+      });
+
+      setHighlightedNotes([]);
+      recentNotes = [];
+      updateHighlightDisplay();
+    }
 
     if (clearChordButton) {
-      clearChordButton.style.display =
-        highlighted.length > 0 ? "inline-block" : "none";
+      clearChordButton.addEventListener("click", clearHighlightedChord);
     }
 
-    statusText.textContent =
-      highlighted.length > 0
-        ? "Selected: " + highlighted.join(" · ")
-        : "Tap a square to play";
-  }
-
-  function toggleHighlight(button) {
-    const note = button.dataset.displayName;
-    let highlighted = getHighlightedNotes();
-
-    if (highlighted.includes(note)) {
-      highlighted = highlighted.filter(value => value !== note);
-      button.classList.remove("highlighted");
-    } else {
-      highlighted.push(note);
-      button.classList.add("highlighted");
-    }
-
-    setHighlightedNotes(highlighted);
-    updateHighlightDisplay();
-  }
-
-  function clearHighlightedChord() {
-    document.querySelectorAll(".square.highlighted").forEach(button => {
-      button.classList.remove("highlighted");
-    });
-
-    setHighlightedNotes([]);
-    recentNotes = [];
-    updateHighlightDisplay();
-  }
-
-  if (clearChordButton) {
-    clearChordButton.addEventListener("click", clearHighlightedChord);
-  }
-
-async function playHighlightedChord() {
-  await ensureAudio();
-
-  const { voice } = getSettingsFromUrl();
-
-  const highlightedButtons =
-    Array.from(document.querySelectorAll(".square.highlighted"));
-
-  if (highlightedButtons.length === 0) {
-    return;
-  }
-
-  const now = audioContext.currentTime;
-  const playedNotes = [];
-
-  highlightedButtons.forEach(button => {
-    const freq = parseFloat(button.dataset.note);
-
-    const voiceNode =
-      ORUMI_VOICES.buildVoice(audioContext, voice, freq, now);
-
-    playedNotes.push({
-      voice,
-      gain: voiceNode.gain,
-      oscillators: voiceNode.oscillators || [],
-      noiseSources: voiceNode.noiseSources || []
-    });
-
-    button.classList.add("active");
-
-    setTimeout(() => {
-      button.classList.remove("active");
-    }, 180);
-  });
-
-  setTimeout(() => {
-    playedNotes.forEach(note => {
-      ORUMI_VOICES.stopVoice(note, audioContext, 0.25);
-    });
-  }, 1800);
-
-  statusText.textContent =
-    nameChordFromButtons(highlightedButtons) +
-    " · " +
-    highlightedButtons
-      .map(button => button.dataset.displayName)
-      .join(" · ");
-}
-
-  playChordButton.addEventListener("click", playHighlightedChord);
-
-  function nameChordFromButtons(buttons) {
-    const notes = buttons
-      .map(button => ({
-        pc: button.dataset.pc,
-        midi: parseInt(button.dataset.midi, 10),
-        displayName: button.dataset.displayName
-      }))
-      .sort((a, b) => a.midi - b.midi);
-
-    return nameChord(notes);
-  }
-
-  function trackRecentNote(button) {
-    const nowMs = Date.now();
-
-    const note = {
-      pc: button.dataset.pc,
-      midi: parseInt(button.dataset.midi, 10),
-      displayName: button.dataset.displayName,
-      time: nowMs
-    };
-
-    recentNotes = recentNotes
-      .filter(existing => nowMs - existing.time < 1400)
-      .filter(existing => existing.midi !== note.midi);
-
-    recentNotes.push(note);
-    recentNotes.sort((a, b) => a.midi - b.midi);
-
-    if (recentNotes.length >= 3) {
-      statusText.textContent =
-        nameChord(recentNotes) +
-        " · " +
-        recentNotes.map(n => n.displayName).join(" · ");
-    } else {
-      statusText.textContent =
-        recentNotes.map(n => n.displayName).join(" · ");
-    }
-  }
-
-  function nameChord(notes) {
-    const pcs = [];
-    const pcSeen = new Set();
-
-    notes.forEach(note => {
-      if (!pcSeen.has(note.pc)) {
-        pcs.push(note.pc);
-        pcSeen.add(note.pc);
-      }
-    });
-
-    const numbers = pcs.map(pc => pitchClasses[pc].number);
-    const lowestPc = notes[0].pc;
-
-    for (const rootPc of pcs) {
-      const root = pitchClasses[rootPc].number;
-
-      const has = interval =>
-        numbers.includes((root + interval) % 12);
-
-      const voicing = getVoicing(rootPc, lowestPc);
-
-      const majorTriad = has(4) && has(7);
-      const minorTriad = has(3) && has(7);
-      const diminishedTriad = has(3) && has(6);
-      const augmentedTriad = has(4) && has(8);
-      const sus2 = has(2) && has(7);
-      const sus4 = has(5) && has(7);
-
-      const major7 = has(11);
-      const flat7 = has(10);
-      const diminished7 = has(9);
-
-      if (majorTriad && major7) return rootPc + "M7v" + voicing;
-      if (majorTriad && flat7) return rootPc + "7v" + voicing;
-      if (minorTriad && flat7) return rootPc + "m7v" + voicing;
-      if (diminishedTriad && diminished7) return rootPc + "dim7v" + voicing;
-      if (diminishedTriad && flat7) return rootPc + "m7b5v" + voicing;
-
-      if (majorTriad) return rootPc + "Mv" + voicing;
-      if (minorTriad) return rootPc + "mv" + voicing;
-      if (diminishedTriad) return rootPc + "dimv" + voicing;
-      if (augmentedTriad) return rootPc + "augv" + voicing;
-      if (sus2) return rootPc + "sus2v" + voicing;
-      if (sus4) return rootPc + "sus4v" + voicing;
-    }
-
-    return pcs.join(" – ");
-  }
-
-  function getVoicing(rootPc, lowestPc) {
-    const root = pitchClasses[rootPc].number;
-    const lowest = pitchClasses[lowestPc].number;
-    const interval = (lowest - root + 12) % 12;
-
-    if (interval === 0) return "1";
-    if (interval === 3 || interval === 4) return "2";
-    if (interval === 6 || interval === 7 || interval === 8) return "3";
-    if (interval === 9 || interval === 10 || interval === 11) return "4";
-
-    return "1";
-  }
-
-  function attachSquareEvents(button) {
-    const sustainedVoices = [
-      "pure",
-      "organ",
-      "choir",
-      "synth",
-      "softKeys"
-    ];
-
-    button.addEventListener("pointerdown", async event => {
-      event.preventDefault();
-
-      if (event.shiftKey) {
-        toggleHighlight(button);
+    async function playHighlightedChord() {
+      if (!requireAudioReady()) {
         return;
       }
 
       await ensureAudio();
 
       const { voice } = getSettingsFromUrl();
-      const freq = parseFloat(button.dataset.note);
+
+      const highlightedButtons =
+        Array.from(document.querySelectorAll(".square.highlighted"));
+
+      if (highlightedButtons.length === 0) {
+        return;
+      }
+
       const now = audioContext.currentTime;
+      const playedNotes = [];
 
-      button.classList.add("active");
+      highlightedButtons.forEach(button => {
+        const freq = parseFloat(button.dataset.note);
 
-      if (sustainedVoices.includes(voice)) {
         const voiceNode =
+          ORUMI_VOICES.buildVoice(audioContext, voice, freq, now);
+
+        playedNotes.push({
+          voice,
+          gain: voiceNode.gain,
+          oscillators: voiceNode.oscillators || [],
+          noiseSources: voiceNode.noiseSources || []
+        });
+
+        button.classList.add("active");
+
+        setTimeout(() => {
+          button.classList.remove("active");
+        }, 180);
+      });
+
+      setTimeout(() => {
+        playedNotes.forEach(note => {
+          ORUMI_VOICES.stopVoice(note, audioContext, 0.25);
+        });
+      }, 1800);
+
+      statusText.textContent =
+        nameChordFromButtons(highlightedButtons) +
+        " · " +
+        highlightedButtons
+          .map(button => button.dataset.displayName)
+          .join(" · ");
+    }
+
+    playChordButton.addEventListener("click", playHighlightedChord);
+
+    function nameChordFromButtons(buttons) {
+      const notes = buttons
+        .map(button => ({
+          pc: button.dataset.pc,
+          midi: parseInt(button.dataset.midi, 10),
+          displayName: button.dataset.displayName
+        }))
+        .sort((a, b) => a.midi - b.midi);
+
+      return nameChord(notes);
+    }
+
+    function trackRecentNote(button) {
+      const nowMs = Date.now();
+
+      const note = {
+        pc: button.dataset.pc,
+        midi: parseInt(button.dataset.midi, 10),
+        displayName: button.dataset.displayName,
+        time: nowMs
+      };
+
+      recentNotes = recentNotes
+        .filter(existing => nowMs - existing.time < 1400)
+        .filter(existing => existing.midi !== note.midi);
+
+      recentNotes.push(note);
+      recentNotes.sort((a, b) => a.midi - b.midi);
+
+      if (recentNotes.length >= 3) {
+        statusText.textContent =
+          nameChord(recentNotes) +
+          " · " +
+          recentNotes.map(n => n.displayName).join(" · ");
+      } else {
+        statusText.textContent =
+          recentNotes.map(n => n.displayName).join(" · ");
+      }
+    }
+
+    function nameChord(notes) {
+      const pcs = [];
+      const pcSeen = new Set();
+
+      notes.forEach(note => {
+        if (!pcSeen.has(note.pc)) {
+          pcs.push(note.pc);
+          pcSeen.add(note.pc);
+        }
+      });
+
+      const numbers = pcs.map(pc => pitchClasses[pc].number);
+      const lowestPc = notes[0].pc;
+
+      for (const rootPc of pcs) {
+        const root = pitchClasses[rootPc].number;
+
+        const has = interval =>
+          numbers.includes((root + interval) % 12);
+
+        const voicing = getVoicing(rootPc, lowestPc);
+
+        const majorTriad = has(4) && has(7);
+        const minorTriad = has(3) && has(7);
+        const diminishedTriad = has(3) && has(6);
+        const augmentedTriad = has(4) && has(8);
+        const sus2 = has(2) && has(7);
+        const sus4 = has(5) && has(7);
+
+        const major7 = has(11);
+        const flat7 = has(10);
+        const diminished7 = has(9);
+
+        if (majorTriad && major7) return rootPc + "M7v" + voicing;
+        if (majorTriad && flat7) return rootPc + "7v" + voicing;
+        if (minorTriad && flat7) return rootPc + "m7v" + voicing;
+        if (diminishedTriad && diminished7) return rootPc + "dim7v" + voicing;
+        if (diminishedTriad && flat7) return rootPc + "m7b5v" + voicing;
+
+        if (majorTriad) return rootPc + "Mv" + voicing;
+        if (minorTriad) return rootPc + "mv" + voicing;
+        if (diminishedTriad) return rootPc + "dimv" + voicing;
+        if (augmentedTriad) return rootPc + "augv" + voicing;
+        if (sus2) return rootPc + "sus2v" + voicing;
+        if (sus4) return rootPc + "sus4v" + voicing;
+      }
+
+      return pcs.join(" – ");
+    }
+
+    function getVoicing(rootPc, lowestPc) {
+      const root = pitchClasses[rootPc].number;
+      const lowest = pitchClasses[lowestPc].number;
+      const interval = (lowest - root + 12) % 12;
+
+      if (interval === 0) return "1";
+      if (interval === 3 || interval === 4) return "2";
+      if (interval === 6 || interval === 7 || interval === 8) return "3";
+      if (interval === 9 || interval === 10 || interval === 11) return "4";
+
+      return "1";
+    }
+
+    function attachSquareEvents(button) {
+      const sustainedVoices = [
+        "pure",
+        "organ",
+        "choir",
+        "synth",
+        "softKeys"
+      ];
+
+      button.addEventListener("pointerdown", async event => {
+        event.preventDefault();
+
+        if (event.shiftKey) {
+          toggleHighlight(button);
+          return;
+        }
+
+        if (!requireAudioReady()) {
+          return;
+        }
+
+        await ensureAudio();
+
+        const { voice } = getSettingsFromUrl();
+        const freq = parseFloat(button.dataset.note);
+        const now = audioContext.currentTime;
+
+        button.classList.add("active");
+
+        if (sustainedVoices.includes(voice)) {
+          const voiceNode =
+            ORUMI_VOICES.buildVoice(
+              audioContext,
+              voice,
+              freq,
+              now
+            );
+
+          activeNotes.set(event.pointerId, {
+            voice,
+            button,
+            gain: voiceNode.gain,
+            oscillators: voiceNode.oscillators || [],
+            noiseSources: voiceNode.noiseSources || [],
+            pc: button.dataset.pc,
+            midi: parseInt(button.dataset.midi, 10),
+            displayName: button.dataset.displayName
+          });
+        } else {
           ORUMI_VOICES.buildVoice(
             audioContext,
             voice,
@@ -710,82 +804,64 @@ async function playHighlightedChord() {
             now
           );
 
-        activeNotes.set(event.pointerId, {
-          voice,
-          button,
-          gain: voiceNode.gain,
-          oscillators: voiceNode.oscillators || [],
-          noiseSources: voiceNode.noiseSources || [],
-          pc: button.dataset.pc,
-          midi: parseInt(button.dataset.midi, 10),
-          displayName: button.dataset.displayName
-        });
-      } else {
-        ORUMI_VOICES.buildVoice(
-          audioContext,
-          voice,
-          freq,
-          now
-        );
+          trackRecentNote(button);
 
-        trackRecentNote(button);
+          setTimeout(() => {
+            button.classList.remove("active");
+          }, 180);
+        }
+      });
 
-        setTimeout(() => {
-          button.classList.remove("active");
-        }, 180);
-      }
-    });
+      button.addEventListener("pointerup", event => {
+        stopHeldNote(event.pointerId);
+      });
 
-    button.addEventListener("pointerup", event => {
-      stopHeldNote(event.pointerId);
-    });
+      button.addEventListener("pointercancel", event => {
+        stopHeldNote(event.pointerId);
+      });
 
-    button.addEventListener("pointercancel", event => {
-      stopHeldNote(event.pointerId);
-    });
+      button.addEventListener("pointerleave", event => {
+        stopHeldNote(event.pointerId);
+      });
 
-    button.addEventListener("pointerleave", event => {
-      stopHeldNote(event.pointerId);
-    });
-
-    button.addEventListener("dblclick", event => {
-      event.preventDefault();
-      toggleHighlight(button);
-    });
-  }
-
-  function stopHeldNote(pointerId) {
-    const note = activeNotes.get(pointerId);
-
-    if (!note || !audioContext) {
-      return;
+      button.addEventListener("dblclick", event => {
+        event.preventDefault();
+        toggleHighlight(button);
+      });
     }
 
-    ORUMI_VOICES.stopVoice(note, audioContext, 0.12);
+    function stopHeldNote(pointerId) {
+      const note = activeNotes.get(pointerId);
 
-    trackRecentNote(note.button);
+      if (!note || !audioContext) {
+        return;
+      }
 
-    note.button.classList.remove("active");
-    activeNotes.delete(pointerId);
-  }
+      ORUMI_VOICES.stopVoice(note, audioContext, 0.12);
 
-  function stopAllNotes() {
-    Array.from(activeNotes.keys()).forEach(pointerId => {
-      stopHeldNote(pointerId);
+      trackRecentNote(note.button);
+
+      note.button.classList.remove("active");
+      activeNotes.delete(pointerId);
+    }
+
+    function stopAllNotes() {
+      Array.from(activeNotes.keys()).forEach(pointerId => {
+        stopHeldNote(pointerId);
+      });
+    }
+
+    document.addEventListener("pointerup", event => {
+      stopHeldNote(event.pointerId);
     });
-  }
 
-  document.addEventListener("pointerup", event => {
-    stopHeldNote(event.pointerId);
-  });
+    document.addEventListener("pointercancel", event => {
+      stopHeldNote(event.pointerId);
+    });
 
-  document.addEventListener("pointercancel", event => {
-    stopHeldNote(event.pointerId);
-  });
-
-  refreshNavLinks();
-  buildGrid();
-</script>
+    refreshNavLinks();
+    buildGrid();
+  </script>
 
 </body>
 </html>
