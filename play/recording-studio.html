@@ -30,7 +30,7 @@
     .subtitle {
       color: #bdb4a6;
       text-align: center;
-      max-width: 820px;
+      max-width: 860px;
       margin: 0 auto 18px;
       font-size: 14px;
       line-height: 1.4;
@@ -61,9 +61,10 @@
 
     .back-button { left: 18px; }
     .player-button { right: 18px; }
+    .progression-button { right: 76px; }
 
     .studio {
-      width: min(96vw, 1100px);
+      width: min(96vw, 1180px);
       margin: 0 auto;
       display: flex;
       flex-direction: column;
@@ -117,11 +118,6 @@
       color: #ffe5e5;
     }
 
-    .control-button.recording {
-      background: rgba(255,80,80,0.92);
-      color: #111;
-    }
-
     .status {
       color: #bdb4a6;
       text-align: center;
@@ -131,111 +127,136 @@
       margin-top: 10px;
     }
 
-    .setting-row {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
-    }
-
-    select {
-      width: 100%;
-      border: none;
-      border-radius: 12px;
-      padding: 12px;
-      background: rgba(255,255,255,0.14);
-      color: #f5f0e8;
-      font-weight: 700;
-    }
-
-    option {
-      color: #111;
-    }
-
-    .grid {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .octave-row {
-      display: grid;
-      gap: 10px;
-      justify-content: center;
-    }
-
-    .square {
-      border: none;
-      border-radius: 16px;
-      aspect-ratio: 1 / 1;
-      width: 100%;
-      min-width: 0;
-      font-size: clamp(8px, 1.4vmin, 14px);
-      font-weight: bold;
-      color: white;
-      cursor: pointer;
-      padding: 4px;
-      text-align: center;
-      box-shadow: 0 6px 14px rgba(0,0,0,0.35);
-    }
-
-    .square.active {
-      transform: scale(0.9);
-      filter: brightness(1.65);
-    }
-
-    .root {
-      outline: 3px solid rgba(255,255,255,1);
-      outline-offset: -5px;
-    }
-
     .timeline {
       display: flex;
-      gap: 10px;
+      gap: 12px;
       overflow-x: auto;
-      padding: 8px 4px 12px;
-      min-height: 92px;
+      padding: 8px 4px 14px;
+      min-height: 260px;
+      scroll-snap-type: x proximity;
     }
 
     .event-card {
-      flex: 0 0 auto;
-      min-width: 82px;
-      border-radius: 14px;
-      padding: 10px;
-      background: rgba(255,255,255,0.12);
-      box-shadow: 0 5px 12px rgba(0,0,0,0.25);
+      flex: 0 0 170px;
+      border-radius: 18px;
+      padding: 12px;
+      background: rgba(255,255,255,0.10);
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: 0 7px 18px rgba(0,0,0,0.30);
       text-align: center;
+      scroll-snap-align: start;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
     }
 
-    .event-time {
-      color: #bdb4a6;
+    .event-type {
+      color: #a9a093;
       font-size: 11px;
-      margin-bottom: 6px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .event-name {
+      font-size: 20px;
+      font-weight: 900;
+      line-height: 1.1;
+      min-height: 22px;
+    }
+
+    .event-meta {
+      color: #bdb4a6;
+      font-size: 12px;
+      line-height: 1.35;
+      min-height: 32px;
     }
 
     .event-notes {
       display: flex;
       flex-direction: column-reverse;
       align-items: center;
-      gap: 5px;
-      min-height: 44px;
+      justify-content: center;
+      gap: 6px;
+      min-height: 86px;
+      padding: 5px 0;
     }
 
     .note-chip {
-      width: 52px;
-      min-height: 30px;
-      border-radius: 9px;
+      width: 64px;
+      min-height: 34px;
+      border-radius: 10px;
       display: grid;
       place-items: center;
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 900;
       color: white;
       box-shadow:
         0 4px 10px rgba(0,0,0,0.35),
         inset 0 1px 0 rgba(255,255,255,0.2);
+      text-shadow: 0 1px 2px rgba(0,0,0,0.35);
     }
 
     .note-chip.light-text {
       color: #222;
+      text-shadow: none;
+    }
+
+    .event-actions {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 7px;
+      margin-top: auto;
+    }
+
+    .event-actions .wide {
+      grid-column: span 2;
+    }
+
+    .small-button {
+      border: none;
+      border-radius: 10px;
+      padding: 8px 7px;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      background: rgba(255,255,255,0.16);
+      color: #fff7ea;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.22);
+      text-align: center;
+      text-decoration: none;
+      font-family: inherit;
+    }
+
+    .small-button.primary {
+      background: white;
+      color: #111;
+    }
+
+    .small-button.danger {
+      background: rgba(255,90,90,0.22);
+      color: #ffe5e5;
+    }
+
+    .small-button:disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+
+    .empty-state {
+      width: 100%;
+      text-align: center;
+      color: #bdb4a6;
+      padding: 34px 16px;
+      line-height: 1.5;
+    }
+
+    .help-text {
+      color: #bdb4a6;
+      font-size: 13px;
+      line-height: 1.45;
+      margin-top: 10px;
+      text-align: center;
     }
 
     .c  { background: #ff6b6b; }
@@ -256,9 +277,12 @@
         margin-top: 72px;
       }
 
-      .controls,
-      .setting-row {
+      .controls {
         grid-template-columns: 1fr;
+      }
+
+      .event-card {
+        flex-basis: 155px;
       }
     }
   </style>
@@ -273,6 +297,12 @@
   >←</a>
 
   <a
+    class="top-button progression-button"
+    href="progression-builder.html"
+    title="Open Progression Builder"
+  >≡</a>
+
+  <a
     class="top-button player-button"
     href="player.html"
     title="Open Player"
@@ -281,75 +311,72 @@
   <h1>Recording Studio</h1>
 
   <div class="subtitle">
-    Record Orumi notes, import chord progressions, play them back, save locally,
-    and export the result as a MIDI file.
+    Combine live note takes and chord progressions into one editable Orumi arrangement.
+    Move events, duplicate them, adjust durations, save locally, and export MIDI.
   </div>
 
   <div class="studio">
 
     <div class="section">
-      <div class="section-title">Studio Controls</div>
+      <div class="section-title">Sources & Playback</div>
 
       <div class="controls">
         <button class="control-button" id="beginSoundButton">
           Begin Sound
         </button>
 
-        <button class="control-button" id="recordButton">
-          Start Recording
+        <button class="control-button secondary" id="loadPlayerTakeButton">
+          Load Player Take
         </button>
 
-        <button class="control-button secondary" id="playRecordingButton">
-          Play Recording
-        </button>
-
-        <button class="control-button secondary" id="importProgressionButton">
+        <button class="control-button secondary" id="addProgressionButton">
           Add Current Progression
         </button>
 
-        <button class="control-button secondary" id="saveButton">
-          Save
+        <button class="control-button" id="playArrangementButton">
+          Play Arrangement
+        </button>
+      </div>
+
+      <div class="status" id="status">
+        Load a Player take, add a chord progression, or load a saved arrangement.
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Arrangement</div>
+
+      <div class="controls">
+        <button class="control-button secondary" id="saveArrangementButton">
+          Save Arrangement
         </button>
 
-        <button class="control-button secondary" id="loadButton">
-          Load
+        <button class="control-button secondary" id="loadArrangementButton">
+          Load Arrangement
         </button>
 
         <button class="control-button secondary" id="exportMidiButton">
           Export MIDI
         </button>
 
-        <button class="control-button danger" id="clearButton">
-          Clear
+        <button class="control-button danger" id="clearArrangementButton">
+          Clear Arrangement
         </button>
       </div>
 
-      <div class="status" id="status">
-        Press Begin Sound first.
+      <div class="help-text">
+        Player Take, Chord Progression, and Studio Arrangement stay separate.
+        The arrangement is the combined editable timeline.
       </div>
     </div>
 
     <div class="section">
-      <div class="section-title">Sound Setup</div>
+      <div class="section-title">Studio Timeline</div>
 
-      <div class="setting-row">
-        <select id="systemSelect"></select>
-        <select id="rootSelect"></select>
-        <select id="voiceSelect"></select>
-        <select id="octaveSelect"></select>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="section-title">Playable Notes</div>
-      <div class="grid" id="noteGrid"></div>
-    </div>
-
-    <div class="section">
-      <div class="section-title">Recording Timeline</div>
       <div class="timeline" id="timeline"></div>
+
       <div class="status" id="timelineStatus">
-        No events recorded yet.
+        No events in arrangement yet.
       </div>
     </div>
 
@@ -358,56 +385,39 @@
   <script>
     let audioContext;
     let audioReady = false;
-    let isRecording = false;
-    let recordingStartTime = 0;
-    let events = [];
-    let activeHeldNotes = new Map();
+    let arrangement = [];
     let playbackTimers = [];
+    let activePlaybackNotes = [];
 
     const beginSoundButton =
       document.getElementById("beginSoundButton");
 
-    const recordButton =
-      document.getElementById("recordButton");
+    const loadPlayerTakeButton =
+      document.getElementById("loadPlayerTakeButton");
 
-    const playRecordingButton =
-      document.getElementById("playRecordingButton");
+    const addProgressionButton =
+      document.getElementById("addProgressionButton");
 
-    const importProgressionButton =
-      document.getElementById("importProgressionButton");
+    const playArrangementButton =
+      document.getElementById("playArrangementButton");
 
-    const saveButton =
-      document.getElementById("saveButton");
+    const saveArrangementButton =
+      document.getElementById("saveArrangementButton");
 
-    const loadButton =
-      document.getElementById("loadButton");
+    const loadArrangementButton =
+      document.getElementById("loadArrangementButton");
 
     const exportMidiButton =
       document.getElementById("exportMidiButton");
 
-    const clearButton =
-      document.getElementById("clearButton");
+    const clearArrangementButton =
+      document.getElementById("clearArrangementButton");
 
     const status =
       document.getElementById("status");
 
     const timelineStatus =
       document.getElementById("timelineStatus");
-
-    const systemSelect =
-      document.getElementById("systemSelect");
-
-    const rootSelect =
-      document.getElementById("rootSelect");
-
-    const voiceSelect =
-      document.getElementById("voiceSelect");
-
-    const octaveSelect =
-      document.getElementById("octaveSelect");
-
-    const noteGrid =
-      document.getElementById("noteGrid");
 
     const timeline =
       document.getElementById("timeline");
@@ -423,12 +433,6 @@
 
     const voices =
       ORUMI_CATALOG.voices;
-
-    function nowSeconds() {
-      return audioContext
-        ? audioContext.currentTime
-        : performance.now() / 1000;
-    }
 
     async function ensureAudio() {
       if (!audioContext) {
@@ -500,358 +504,143 @@
         pitchClasses[pc].number;
     }
 
-    function getCurrentSystemKey() {
-      return systemSelect.value || "western";
+    function normalizeEvent(event) {
+      const normalized = {
+        id:
+          event.id ||
+          "evt_" +
+          Date.now().toString(36) +
+          "_" +
+          Math.random().toString(36).slice(2),
+        type: event.type || "note",
+        name: event.name || "",
+        start: Number.isFinite(event.start) ? event.start : 0,
+        duration: Number.isFinite(event.duration) ? event.duration : 0.8,
+        notes: Array.isArray(event.notes) ? event.notes : [],
+        voice: event.voice || "softKeys",
+        system: event.system || "western",
+        root: event.root || "",
+        family: event.family || "",
+        mode: event.mode || "",
+        setView: event.setView || ""
+      };
+
+      normalized.notes =
+        normalized.notes
+          .map(note => {
+            const midi =
+              Number.isFinite(note.midi)
+                ? note.midi
+                : note.name
+                  ? noteNameToMidi(note.name)
+                  : null;
+
+            if (midi === null) {
+              return null;
+            }
+
+            return {
+              midi,
+              name:
+                note.name ||
+                midiToDisplayName(midi)
+            };
+          })
+          .filter(Boolean);
+
+      normalized.duration =
+        Math.max(0.12, normalized.duration);
+
+      return normalized;
     }
 
-    function getCurrentSystem() {
-      return systems[getCurrentSystemKey()] || systems.western;
-    }
-
-    function getCurrentRoot() {
-      return rootSelect.value || getCurrentSystem().defaultRoot || "C";
-    }
-
-    function getCurrentVoice() {
-      return voiceSelect.value || getCurrentSystem().defaultVoice || "softKeys";
-    }
-
-    function getCurrentOctave() {
-      return parseInt(octaveSelect.value, 10) || 3;
-    }
-
-    function getDefaultMode(system) {
-      const family =
-        system.families[system.defaultFamily];
-
-      if (!family) {
-        return null;
-      }
-
-      return family.modes[system.defaultMode] ||
-        family.modes[Object.keys(family.modes)[0]];
-    }
-
-    function getPlayableIntervals() {
-      const system =
-        getCurrentSystem();
-
-      const mode =
-        getDefaultMode(system);
-
-      if (
-        mode &&
-        Array.isArray(mode.formula)
-      ) {
-        return mode.formula;
-      }
-
-      return [0,2,4,5,7,9,11];
-    }
-
-    function populateSelects() {
-      Object.entries(systems).forEach(([key, system]) => {
-        const option =
-          document.createElement("option");
-
-        option.value = key;
-        option.textContent = system.label;
-
-        systemSelect.appendChild(option);
-      });
-
-      Object.entries(pitchClasses).forEach(([key, pitch]) => {
-        const option =
-          document.createElement("option");
-
-        option.value = key;
-        option.textContent = pitch.display;
-
-        rootSelect.appendChild(option);
-      });
-
-      Object.entries(voices).forEach(([key, voice]) => {
-        const option =
-          document.createElement("option");
-
-        option.value = key;
-        option.textContent = voice.label;
-
-        voiceSelect.appendChild(option);
-      });
-
-      [2,3,4,5].forEach(octave => {
-        const option =
-          document.createElement("option");
-
-        option.value = octave;
-        option.textContent = "Octave " + octave;
-
-        octaveSelect.appendChild(option);
-      });
-
-      const defaultSystem =
-        systems.western;
-
-      systemSelect.value = "western";
-      rootSelect.value = defaultSystem.defaultRoot || "C";
-      voiceSelect.value = defaultSystem.defaultVoice || "softKeys";
-      octaveSelect.value = 3;
-    }
-
-    function updateDefaultsForSystem() {
-      const system =
-        getCurrentSystem();
-
-      rootSelect.value =
-        system.defaultRoot || "C";
-
-      voiceSelect.value =
-        system.defaultVoice || "softKeys";
-
-      octaveSelect.value =
-        Array.isArray(system.defaultOctaves)
-          ? system.defaultOctaves[1] || system.defaultOctaves[0] || 3
-          : 3;
-
-      buildNoteGrid();
-    }
-
-    function buildNoteGrid() {
-      noteGrid.innerHTML = "";
-
-      const root =
-        getCurrentRoot();
-
-      const rootNumber =
-        pitchClasses[root].number;
-
-      const octave =
-        getCurrentOctave();
-
-      const intervals =
-        getPlayableIntervals();
-
-      const row =
-        document.createElement("div");
-
-      row.classList.add("octave-row");
-
-      const buttons = [];
-
-      intervals.forEach(interval => {
-        const midi =
-          12 * (octave + 1) +
-          rootNumber +
-          interval;
-
-        const pc =
-          pcToName(midi % 12);
-
-        const pitch =
-          pitchClasses[pc];
-
-        const button =
-          document.createElement("button");
-
-        button.classList.add(
-          "square",
-          pitch.className
-        );
-
-        if (interval % 12 === 0) {
-          button.classList.add("root");
+    function sortArrangement() {
+      arrangement.sort((a, b) => {
+        if (a.start !== b.start) {
+          return a.start - b.start;
         }
 
-        button.dataset.midi = midi;
-        button.dataset.displayName =
-          midiToDisplayName(midi);
-
-        button.textContent =
-          midiToDisplayName(midi);
-
-        attachNoteEvents(button);
-
-        buttons.push(button);
-      });
-
-      row.style.gridTemplateColumns =
-        `repeat(${buttons.length}, minmax(0, 1fr))`;
-
-      buttons.forEach(button => {
-        row.appendChild(button);
-      });
-
-      noteGrid.appendChild(row);
-    }
-
-    function attachNoteEvents(button) {
-      button.addEventListener("pointerdown", async event => {
-        event.preventDefault();
-
-        if (!requireAudio()) {
-          return;
-        }
-
-        await ensureAudio();
-
-        const midi =
-          parseInt(button.dataset.midi, 10);
-
-        const displayName =
-          button.dataset.displayName;
-
-        const voice =
-          getCurrentVoice();
-
-        const startTime =
-          nowSeconds();
-
-        const voiceNode =
-          ORUMI_VOICES.buildVoice(
-            audioContext,
-            voice,
-            midiToFrequency(midi),
-            startTime
-          );
-
-        button.classList.add("active");
-
-        const noteObject = {
-          voice,
-          button,
-          midi,
-          displayName,
-          startedAt: startTime,
-          gain: voiceNode.gain,
-          oscillators:
-            voiceNode.oscillators || [],
-          noiseSources:
-            voiceNode.noiseSources || []
-        };
-
-        activeHeldNotes.set(
-          event.pointerId,
-          noteObject
-        );
-      });
-
-      button.addEventListener("pointerup", event => {
-        stopHeldNote(event.pointerId);
-      });
-
-      button.addEventListener("pointercancel", event => {
-        stopHeldNote(event.pointerId);
-      });
-
-      button.addEventListener("pointerleave", event => {
-        stopHeldNote(event.pointerId);
+        return a.id.localeCompare(b.id);
       });
     }
 
-    function stopHeldNote(pointerId) {
-      const note =
-        activeHeldNotes.get(pointerId);
+    function reflowArrangement() {
+      sortArrangement();
 
-      if (!note || !audioContext) {
-        return;
-      }
+      let cursor = 0;
 
-      const endTime =
-        nowSeconds();
-
-      ORUMI_VOICES.stopVoice(
-        note,
-        audioContext,
-        0.12
-      );
-
-      note.button.classList.remove("active");
-
-      if (isRecording) {
-        const start =
-          note.startedAt - recordingStartTime;
-
-        const duration =
-          Math.max(0.18, endTime - note.startedAt);
-
-        events.push({
-          type: "note",
-          start,
-          duration,
-          notes: [{
-            midi: note.midi,
-            name: note.displayName
-          }],
-          voice: note.voice,
-          system: getCurrentSystemKey()
-        });
-
-        renderTimeline();
-      }
-
-      status.textContent =
-        "Played " + note.displayName;
-
-      activeHeldNotes.delete(pointerId);
-    }
-
-    function stopAllNotes() {
-      Array.from(activeHeldNotes.keys()).forEach(pointerId => {
-        stopHeldNote(pointerId);
+      arrangement.forEach(event => {
+        event.start = cursor;
+        cursor += event.duration + 0.18;
       });
     }
 
-    function toggleRecording() {
-      if (!requireAudio()) {
-        return;
-      }
-
-      if (!isRecording) {
-        isRecording = true;
-        recordingStartTime = nowSeconds();
-        recordButton.textContent = "Stop Recording";
-        recordButton.classList.add("recording");
-        status.textContent = "Recording...";
-      } else {
-        isRecording = false;
-        recordButton.textContent = "Start Recording";
-        recordButton.classList.remove("recording");
-        status.textContent = "Recording stopped.";
-        renderTimeline();
-      }
-    }
-
-    function getRecordingLength() {
-      if (events.length === 0) {
+    function getArrangementLength() {
+      if (arrangement.length === 0) {
         return 0;
       }
 
       return Math.max(
-        ...events.map(event => event.start + event.duration)
+        ...arrangement.map(event => event.start + event.duration)
       );
     }
 
-    function importCurrentProgression() {
+    function loadPlayerTake() {
+      const raw =
+        localStorage.getItem("orumiCurrentRecording");
+
+      if (!raw) {
+        status.textContent =
+          "No Player take found. Record something in Player first.";
+        return;
+      }
+
+      const take =
+        JSON.parse(raw);
+
+      if (!Array.isArray(take) || take.length === 0) {
+        status.textContent =
+          "Player take is empty.";
+        return;
+      }
+
+      arrangement =
+        take
+          .map(normalizeEvent)
+          .filter(event => event.notes.length > 0);
+
+      reflowArrangement();
+      saveArrangement(false);
+      renderTimeline();
+
+      status.textContent =
+        "Loaded Player take into Studio Arrangement.";
+    }
+
+    function addCurrentProgression() {
       const progression =
         JSON.parse(
           localStorage.getItem("orumiProgression") || "[]"
         );
 
-      if (progression.length === 0) {
+      if (!Array.isArray(progression) || progression.length === 0) {
         status.textContent =
           "No chord progression found.";
         return;
       }
 
-      const baseStart =
-        getRecordingLength();
+      const startOffset =
+        getArrangementLength() > 0
+          ? getArrangementLength() + 0.35
+          : 0;
 
       const chordDuration =
         1.5;
 
       const gap =
         0.22;
+
+      const newEvents = [];
 
       progression.forEach((chord, index) => {
         const noteList =
@@ -871,41 +660,192 @@
           return;
         }
 
-        events.push({
-          type: "chord",
-          name: chord.name || "Chord",
-          start: baseStart + index * (chordDuration + gap),
-          duration: chordDuration,
-          notes: midiNotes,
-          voice: chord.voice || getCurrentVoice(),
-          system: chord.system || getCurrentSystemKey()
-        });
+        newEvents.push(
+          normalizeEvent({
+            type: "chord",
+            name: chord.name || "Chord",
+            start: startOffset + index * (chordDuration + gap),
+            duration: chordDuration,
+            notes: midiNotes,
+            voice: chord.voice || "softKeys",
+            system: chord.system || "western",
+            root: chord.keyRoot || chord.root || "",
+            family: "",
+            mode: ""
+          })
+        );
       });
 
+      arrangement.push(...newEvents);
+      reflowArrangement();
+      saveArrangement(false);
       renderTimeline();
 
       status.textContent =
-        "Current progression added to recording.";
+        "Added current chord progression to Studio Arrangement.";
     }
 
-    async function playRecording() {
+    function saveArrangement(showMessage = true) {
+      localStorage.setItem(
+        "orumiStudioArrangement",
+        JSON.stringify(arrangement)
+      );
+
+      if (showMessage) {
+        status.textContent =
+          "Studio Arrangement saved.";
+      }
+    }
+
+    function loadArrangement() {
+      const raw =
+        localStorage.getItem("orumiStudioArrangement");
+
+      if (!raw) {
+        status.textContent =
+          "No saved Studio Arrangement found.";
+        return;
+      }
+
+      const saved =
+        JSON.parse(raw);
+
+      arrangement =
+        Array.isArray(saved)
+          ? saved.map(normalizeEvent)
+          : [];
+
+      reflowArrangement();
+      renderTimeline();
+
+      status.textContent =
+        "Studio Arrangement loaded.";
+    }
+
+    function clearArrangement() {
+      if (arrangement.length === 0) {
+        return;
+      }
+
+      const confirmed =
+        window.confirm("Clear the Studio Arrangement?");
+
+      if (!confirmed) {
+        return;
+      }
+
+      clearPlaybackTimers();
+      stopActivePlaybackNotes();
+
+      arrangement = [];
+      saveArrangement(false);
+      renderTimeline();
+
+      status.textContent =
+        "Studio Arrangement cleared.";
+    }
+
+    function moveEvent(index, direction) {
+      const newIndex =
+        index + direction;
+
+      if (
+        newIndex < 0 ||
+        newIndex >= arrangement.length
+      ) {
+        return;
+      }
+
+      const temp =
+        arrangement[index];
+
+      arrangement[index] =
+        arrangement[newIndex];
+
+      arrangement[newIndex] =
+        temp;
+
+      reflowArrangement();
+      saveArrangement(false);
+      renderTimeline();
+    }
+
+    function duplicateEvent(index) {
+      const source =
+        arrangement[index];
+
+      if (!source) {
+        return;
+      }
+
+      const copy =
+        normalizeEvent({
+          ...source,
+          id: null,
+          start: source.start + source.duration + 0.18,
+          notes: source.notes.map(note => ({ ...note }))
+        });
+
+      arrangement.splice(index + 1, 0, copy);
+
+      reflowArrangement();
+      saveArrangement(false);
+      renderTimeline();
+
+      status.textContent =
+        "Event duplicated.";
+    }
+
+    function deleteEvent(index) {
+      arrangement.splice(index, 1);
+
+      reflowArrangement();
+      saveArrangement(false);
+      renderTimeline();
+
+      status.textContent =
+        "Event deleted.";
+    }
+
+    function adjustDuration(index, amount) {
+      const event =
+        arrangement[index];
+
+      if (!event) {
+        return;
+      }
+
+      event.duration =
+        Math.max(
+          0.18,
+          event.duration + amount
+        );
+
+      reflowArrangement();
+      saveArrangement(false);
+      renderTimeline();
+    }
+
+    async function playArrangement() {
       if (!requireAudio()) {
         return;
       }
 
-      if (events.length === 0) {
+      if (arrangement.length === 0) {
         status.textContent =
-          "Nothing recorded yet.";
+          "Nothing in the arrangement yet.";
         return;
       }
 
       await ensureAudio();
+
       clearPlaybackTimers();
+      stopActivePlaybackNotes();
 
       status.textContent =
-        "Playing recording...";
+        "Playing Studio Arrangement...";
 
-      events.forEach(event => {
+      arrangement.forEach(event => {
         const timer =
           setTimeout(() => {
             playEvent(event);
@@ -916,24 +856,28 @@
 
       const doneTimer =
         setTimeout(() => {
+          stopActivePlaybackNotes();
           status.textContent =
-            "Playback complete.";
-        }, (getRecordingLength() + 0.2) * 1000);
+            "Arrangement playback complete.";
+        }, (getArrangementLength() + 0.25) * 1000);
 
       playbackTimers.push(doneTimer);
     }
 
-    function playEvent(event) {
+    async function playEvent(event) {
+      await ensureAudio();
+
+      stopActivePlaybackNotes();
+
       const now =
         audioContext.currentTime;
 
       const voice =
-        event.voice &&
-        voices[event.voice]
+        event.voice && voices[event.voice]
           ? event.voice
-          : getCurrentVoice();
+          : "softKeys";
 
-      const playedNotes =
+      activePlaybackNotes =
         event.notes.map(note => {
           const voiceNode =
             ORUMI_VOICES.buildVoice(
@@ -953,20 +897,33 @@
           };
         });
 
-      setTimeout(() => {
-        playedNotes.forEach(note => {
-          ORUMI_VOICES.stopVoice(
-            note,
-            audioContext,
-            0.18
-          );
-        });
-      }, event.duration * 1000);
+      const timer =
+        setTimeout(() => {
+          stopActivePlaybackNotes();
+        }, event.duration * 1000);
+
+      playbackTimers.push(timer);
 
       status.textContent =
-        event.type === "chord"
-          ? "Playing " + (event.name || "Chord")
-          : "Playing " + event.notes.map(note => note.name).join(" · ");
+        "Playing " +
+        getEventDisplayName(event);
+    }
+
+    function stopActivePlaybackNotes() {
+      if (!audioContext) {
+        activePlaybackNotes = [];
+        return;
+      }
+
+      activePlaybackNotes.forEach(note => {
+        ORUMI_VOICES.stopVoice(
+          note,
+          audioContext,
+          0.18
+        );
+      });
+
+      activePlaybackNotes = [];
     }
 
     function clearPlaybackTimers() {
@@ -977,124 +934,247 @@
       playbackTimers = [];
     }
 
+    function getEventDisplayName(event) {
+      if (event.type === "chord") {
+        return event.name || "Chord";
+      }
+
+      if (event.notes.length === 1) {
+        return event.notes[0].name ||
+          midiToDisplayName(event.notes[0].midi);
+      }
+
+      return event.notes
+        .map(note => note.name || midiToDisplayName(note.midi))
+        .join(" · ");
+    }
+
+    function getEventMeta(event) {
+      const pieces = [];
+
+      if (event.system && systems[event.system]) {
+        pieces.push(systems[event.system].label);
+      }
+
+      if (event.voice && voices[event.voice]) {
+        pieces.push(voices[event.voice].label);
+      }
+
+      pieces.push(event.duration.toFixed(2) + "s");
+
+      return pieces.join(" · ");
+    }
+
+    function createNoteChip(note) {
+      const chip =
+        document.createElement("div");
+
+      const pc =
+        pcToName(note.midi % 12);
+
+      const pitch =
+        pitchClasses[pc];
+
+      chip.classList.add(
+        "note-chip",
+        pitch.className
+      );
+
+      if (pc === "E" || pc === "Eb") {
+        chip.classList.add("light-text");
+      }
+
+      chip.textContent =
+        note.name ||
+        midiToDisplayName(note.midi);
+
+      return chip;
+    }
+
+    function createEventCard(event, index) {
+      const card =
+        document.createElement("article");
+
+      card.classList.add("event-card");
+
+      const type =
+        document.createElement("div");
+
+      type.classList.add("event-type");
+      type.textContent =
+        event.type === "chord"
+          ? "Chord"
+          : "Note";
+
+      const name =
+        document.createElement("div");
+
+      name.classList.add("event-name");
+      name.textContent =
+        getEventDisplayName(event);
+
+      const meta =
+        document.createElement("div");
+
+      meta.classList.add("event-meta");
+      meta.textContent =
+        getEventMeta(event);
+
+      const notes =
+        document.createElement("div");
+
+      notes.classList.add("event-notes");
+
+      event.notes.forEach(note => {
+        notes.appendChild(
+          createNoteChip(note)
+        );
+      });
+
+      const actions =
+        document.createElement("div");
+
+      actions.classList.add("event-actions");
+
+      const playButton =
+        document.createElement("button");
+
+      playButton.classList.add(
+        "small-button",
+        "primary",
+        "wide"
+      );
+
+      playButton.textContent = "Play";
+      playButton.addEventListener("click", () => {
+        playEvent(event);
+      });
+
+      const moveLeft =
+        document.createElement("button");
+
+      moveLeft.classList.add("small-button");
+      moveLeft.textContent = "←";
+      moveLeft.title = "Move earlier";
+      moveLeft.disabled = index === 0;
+      moveLeft.addEventListener("click", () => {
+        moveEvent(index, -1);
+      });
+
+      const moveRight =
+        document.createElement("button");
+
+      moveRight.classList.add("small-button");
+      moveRight.textContent = "→";
+      moveRight.title = "Move later";
+      moveRight.disabled =
+        index === arrangement.length - 1;
+      moveRight.addEventListener("click", () => {
+        moveEvent(index, 1);
+      });
+
+      const shorter =
+        document.createElement("button");
+
+      shorter.classList.add("small-button");
+      shorter.textContent = "Shorter";
+      shorter.addEventListener("click", () => {
+        adjustDuration(index, -0.25);
+      });
+
+      const longer =
+        document.createElement("button");
+
+      longer.classList.add("small-button");
+      longer.textContent = "Longer";
+      longer.addEventListener("click", () => {
+        adjustDuration(index, 0.25);
+      });
+
+      const duplicate =
+        document.createElement("button");
+
+      duplicate.classList.add("small-button");
+      duplicate.textContent = "Copy";
+      duplicate.addEventListener("click", () => {
+        duplicateEvent(index);
+      });
+
+      const remove =
+        document.createElement("button");
+
+      remove.classList.add(
+        "small-button",
+        "danger"
+      );
+
+      remove.textContent = "Delete";
+      remove.addEventListener("click", () => {
+        deleteEvent(index);
+      });
+
+      actions.appendChild(playButton);
+      actions.appendChild(moveLeft);
+      actions.appendChild(moveRight);
+      actions.appendChild(shorter);
+      actions.appendChild(longer);
+      actions.appendChild(duplicate);
+      actions.appendChild(remove);
+
+      card.appendChild(type);
+      card.appendChild(name);
+      card.appendChild(meta);
+      card.appendChild(notes);
+      card.appendChild(actions);
+
+      return card;
+    }
+
     function renderTimeline() {
       timeline.innerHTML = "";
 
-      const sorted =
-        events
-          .slice()
-          .sort((a, b) => a.start - b.start);
+      if (arrangement.length === 0) {
+        const empty =
+          document.createElement("div");
 
-      if (sorted.length === 0) {
+        empty.classList.add("empty-state");
+        empty.innerHTML =
+          "No events in the Studio Arrangement yet.<br>" +
+          "Load a Player take or add the current chord progression.";
+
+        timeline.appendChild(empty);
+
         timelineStatus.textContent =
-          "No events recorded yet.";
+          "No events in arrangement yet.";
         return;
       }
 
-      sorted.forEach(event => {
-        const card =
-          document.createElement("div");
+      sortArrangement();
 
-        card.classList.add("event-card");
-
-        const time =
-          document.createElement("div");
-
-        time.classList.add("event-time");
-        time.textContent =
-          event.start.toFixed(2) + "s";
-
-        const notes =
-          document.createElement("div");
-
-        notes.classList.add("event-notes");
-
-        event.notes.forEach(note => {
-          const chip =
-            document.createElement("div");
-
-          const pc =
-            pcToName(note.midi % 12);
-
-          const pitch =
-            pitchClasses[pc];
-
-          chip.classList.add(
-            "note-chip",
-            pitch.className
-          );
-
-          if (pc === "E" || pc === "Eb") {
-            chip.classList.add("light-text");
-          }
-
-          chip.textContent =
-            note.name || midiToDisplayName(note.midi);
-
-          notes.appendChild(chip);
-        });
-
-        card.appendChild(time);
-        card.appendChild(notes);
-
-        timeline.appendChild(card);
+      arrangement.forEach((event, index) => {
+        timeline.appendChild(
+          createEventCard(event, index)
+        );
       });
 
       timelineStatus.textContent =
-        sorted.length +
+        arrangement.length +
         " event" +
-        (sorted.length === 1 ? "" : "s") +
+        (arrangement.length === 1 ? "" : "s") +
         " · " +
-        getRecordingLength().toFixed(2) +
+        getArrangementLength().toFixed(2) +
         " seconds";
     }
 
-    function saveRecording() {
-      localStorage.setItem(
-        "orumiRecordingStudio",
-        JSON.stringify(events)
-      );
-
-      status.textContent =
-        "Recording saved locally.";
-    }
-
-    function loadRecording() {
-      events =
-        JSON.parse(
-          localStorage.getItem("orumiRecordingStudio") || "[]"
-        );
-
-      renderTimeline();
-
-      status.textContent =
-        "Recording loaded.";
-    }
-
-    function clearRecording() {
-      const confirmed =
-        window.confirm("Clear this recording?");
-
-      if (!confirmed) {
-        return;
-      }
-
-      clearPlaybackTimers();
-      stopAllNotes();
-      events = [];
-      renderTimeline();
-      status.textContent = "Recording cleared.";
-    }
-
     function exportMidi() {
-      if (events.length === 0) {
+      if (arrangement.length === 0) {
         status.textContent =
           "Nothing to export.";
         return;
       }
 
       const bytes =
-        buildMidiFile(events);
+        buildMidiFile(arrangement);
 
       const blob =
         new Blob(
@@ -1109,7 +1189,7 @@
         document.createElement("a");
 
       link.href = url;
-      link.download = "orumi-recording.mid";
+      link.download = "orumi-arrangement.mid";
       link.click();
 
       URL.revokeObjectURL(url);
@@ -1170,7 +1250,6 @@
 
       const track = [];
 
-      // Tempo meta event: 120 bpm = 500000 microseconds per quarter note
       track.push(
         0x00,
         0xff,
@@ -1281,34 +1360,21 @@
     }
 
     beginSoundButton.addEventListener("click", ensureAudio);
-    recordButton.addEventListener("click", toggleRecording);
-    playRecordingButton.addEventListener("click", playRecording);
-    importProgressionButton.addEventListener("click", importCurrentProgression);
-    saveButton.addEventListener("click", saveRecording);
-    loadButton.addEventListener("click", loadRecording);
+    loadPlayerTakeButton.addEventListener("click", loadPlayerTake);
+    addProgressionButton.addEventListener("click", addCurrentProgression);
+    playArrangementButton.addEventListener("click", playArrangement);
+    saveArrangementButton.addEventListener("click", () => saveArrangement(true));
+    loadArrangementButton.addEventListener("click", loadArrangement);
     exportMidiButton.addEventListener("click", exportMidi);
-    clearButton.addEventListener("click", clearRecording);
-
-    systemSelect.addEventListener("change", updateDefaultsForSystem);
-    rootSelect.addEventListener("change", buildNoteGrid);
-    voiceSelect.addEventListener("change", buildNoteGrid);
-    octaveSelect.addEventListener("change", buildNoteGrid);
-
-    document.addEventListener("pointerup", event => {
-      stopHeldNote(event.pointerId);
-    });
-
-    document.addEventListener("pointercancel", event => {
-      stopHeldNote(event.pointerId);
-    });
+    clearArrangementButton.addEventListener("click", clearArrangement);
 
     window.addEventListener("beforeunload", () => {
       clearPlaybackTimers();
-      stopAllNotes();
+      stopActivePlaybackNotes();
+      saveArrangement(false);
     });
 
-    populateSelects();
-    buildNoteGrid();
+    loadArrangement();
     renderTimeline();
   </script>
 
