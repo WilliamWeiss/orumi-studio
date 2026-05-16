@@ -43,13 +43,18 @@
       line-height: 1.35;
     }
 
-    .view-toggle-row {
+    .view-toggle-row,
+    .recording-row {
       display: flex;
       gap: 10px;
       margin-bottom: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
     }
 
-    .view-toggle {
+    .view-toggle,
+    .record-button,
+    .studio-link {
       border: none;
       border-radius: 999px;
       padding: 8px 14px;
@@ -58,11 +63,24 @@
       cursor: pointer;
       background: rgba(255,255,255,0.14);
       color: white;
+      text-decoration: none;
+      font-family: inherit;
     }
 
     .view-toggle.active {
       background: white;
       color: black;
+    }
+
+    .record-button.recording {
+      background: rgba(255,80,80,0.92);
+      color: #111;
+    }
+
+    .studio-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
 
     #startAudioButton {
@@ -263,6 +281,18 @@
 
   <button id="startAudioButton">Begin Sound</button>
 
+  <div class="recording-row">
+    <button id="recordButton" class="record-button">Start Recording</button>
+    <button id="clearRecordingButton" class="record-button">Clear Take</button>
+    <a
+      id="recordingStudioLink"
+      class="studio-link"
+      href="recording-studio.html"
+    >
+      Open Recording Studio
+    </a>
+  </div>
+
   <button id="playChordButton">Play Highlighted Chord</button>
   <button id="clearChordButton">Clear Chord</button>
 
@@ -277,9 +307,16 @@
     let droneActive = false;
     let droneNotes = [];
 
+    let isRecording = false;
+    let recordingStartTime = 0;
+    let recordedEvents = [];
+
     const playChordButton = document.getElementById("playChordButton");
     const clearChordButton = document.getElementById("clearChordButton");
     const startAudioButton = document.getElementById("startAudioButton");
+    const recordButton = document.getElementById("recordButton");
+    const clearRecordingButton = document.getElementById("clearRecordingButton");
+    const recordingStudioLink = document.getElementById("recordingStudioLink");
     const statusText = document.getElementById("status");
     const gridLabel = document.getElementById("gridLabel");
     const grid = document.getElementById("grid");
@@ -298,6 +335,7 @@
     function refreshNavLinks() {
       settingsButton.href = "selection-control.html" + window.location.search;
       chordButton.href = "chord-factory.html" + window.location.search;
+      recordingStudioLink.href = "recording-studio.html" + window.location.search;
     }
 
     function getUrlParams() {
@@ -404,6 +442,12 @@
         Math.floor(midi / 12) - 1;
 
       return pc + octave;
+    }
+
+    function nowSeconds() {
+      return audioContext
+        ? audioContext.currentTime
+        : performance.now() / 1000;
     }
 
     async function ensureAudio() {
@@ -714,10 +758,123 @@
           ? " · Drone active"
           : "";
 
+      const recordingText =
+        isRecording
+          ? " · Recording"
+          : "";
+
       statusText.textContent =
         highlighted.length > 0
-          ? "Selected: " + highlighted.join(" · ") + droneText
-          : "Tap a square to play" + droneText;
+          ? "Selected: " + highlighted.join(" · ") + droneText + recordingText
+          : "Tap a square to play" + droneText + recordingText;
+    }
+
+    function toggleRecording() {
+      if (!requireAudioReady()) {
+        return;
+      }
+
+      if (!isRecording) {
+        recordedEvents = [];
+        localStorage.setItem(
+          "orumiCurrentRecording",
+          JSON.stringify(recordedEvents)
+        );
+
+        recordingStartTime = nowSeconds();
+        isRecording = true;
+
+        recordButton.textContent = "Stop Recording";
+        recordButton.classList.add("recording");
+
+        statusText.textContent = "Recording...";
+      } else {
+        isRecording = false;
+
+        recordButton.textContent = "Start Recording";
+        recordButton.classList.remove("recording");
+
+        saveCurrentRecording();
+
+        statusText.textContent =
+          recordedEvents.length +
+          " event" +
+          (recordedEvents.length === 1 ? "" : "s") +
+          " recorded. Open Recording Studio to review.";
+      }
+    }
+
+    function clearCurrentRecording() {
+      recordedEvents = [];
+      localStorage.setItem(
+        "orumiCurrentRecording",
+        JSON.stringify(recordedEvents)
+      );
+
+      isRecording = false;
+      recordButton.textContent = "Start Recording";
+      recordButton.classList.remove("recording");
+
+      statusText.textContent = "Current take cleared.";
+    }
+
+    function saveCurrentRecording() {
+      localStorage.setItem(
+        "orumiCurrentRecording",
+        JSON.stringify(recordedEvents)
+      );
+    }
+
+    function recordSingleNote(button, startedAt, endedAt, voice) {
+      if (!isRecording) {
+        return;
+      }
+
+      const { systemKey, root, family, mode, setView } =
+        getSettingsFromUrl();
+
+      const start =
+        Math.max(0, startedAt - recordingStartTime);
+
+      const duration =
+        Math.max(0.18, endedAt - startedAt);
+
+      const midi =
+        parseInt(button.dataset.midi, 10);
+
+      const displayName =
+        button.dataset.displayName;
+
+      recordedEvents.push({
+        type: "note",
+        start,
+        duration,
+        notes: [{
+          midi,
+          name: displayName
+        }],
+        voice,
+        system: systemKey,
+        root,
+        family: family.label,
+        mode: mode.label,
+        setView
+      });
+
+      saveCurrentRecording();
+    }
+
+    function recordFixedNote(button, startedAt, duration, voice) {
+      if (!isRecording) {
+        return;
+      }
+
+      recordSingleNote(
+        button,
+        startedAt,
+        startedAt + duration,
+        voice
+      );
     }
 
     function toggleHighlight(button) {
@@ -757,7 +914,8 @@
 
       await ensureAudio();
 
-      const { voice } = getSettingsFromUrl();
+      const { voice, systemKey, root, family, mode, setView } =
+        getSettingsFromUrl();
 
       const highlightedButtons =
         Array.from(document.querySelectorAll(".square.highlighted"));
@@ -795,13 +953,35 @@
         });
       }, 1800);
 
+      if (isRecording) {
+        recordedEvents.push({
+          type: "chord",
+          name: nameChordFromButtons(highlightedButtons),
+          start: Math.max(0, now - recordingStartTime),
+          duration: 1.8,
+          notes: highlightedButtons.map(button => ({
+            midi: parseInt(button.dataset.midi, 10),
+            name: button.dataset.displayName
+          })),
+          voice,
+          system: systemKey,
+          root,
+          family: family.label,
+          mode: mode.label,
+          setView
+        });
+
+        saveCurrentRecording();
+      }
+
       statusText.textContent =
         nameChordFromButtons(highlightedButtons) +
         " · " +
         highlightedButtons
           .map(button => button.dataset.displayName)
           .join(" · ") +
-        (droneActive ? " · Drone active" : "");
+        (droneActive ? " · Drone active" : "") +
+        (isRecording ? " · Recording" : "");
     }
 
     playChordButton.addEventListener("click", playHighlightedChord);
@@ -838,16 +1018,21 @@
       const droneText =
         droneActive ? " · Drone active" : "";
 
+      const recordingText =
+        isRecording ? " · Recording" : "";
+
       if (recentNotes.length >= 3) {
         statusText.textContent =
           nameChord(recentNotes) +
           " · " +
           recentNotes.map(n => n.displayName).join(" · ") +
-          droneText;
+          droneText +
+          recordingText;
       } else {
         statusText.textContent =
           recentNotes.map(n => n.displayName).join(" · ") +
-          droneText;
+          droneText +
+          recordingText;
       }
     }
 
@@ -943,31 +1128,37 @@
 
         button.classList.add("active");
 
-        if (sustainedVoices.includes(voice)) {
-          const voiceNode =
-            ORUMI_VOICES.buildVoice(
-              audioContext,
-              voice,
-              freq,
-              now
-            );
-
-          activeNotes.set(event.pointerId, {
-            voice,
-            button,
-            gain: voiceNode.gain,
-            oscillators: voiceNode.oscillators || [],
-            noiseSources: voiceNode.noiseSources || [],
-            pc: button.dataset.pc,
-            midi: parseInt(button.dataset.midi, 10),
-            displayName: button.dataset.displayName
-          });
-        } else {
+        const voiceNode =
           ORUMI_VOICES.buildVoice(
             audioContext,
             voice,
             freq,
             now
+          );
+
+        const noteRecord = {
+          voice,
+          button,
+          startedAt: now,
+          gain: voiceNode.gain,
+          oscillators: voiceNode.oscillators || [],
+          noiseSources: voiceNode.noiseSources || [],
+          pc: button.dataset.pc,
+          midi: parseInt(button.dataset.midi, 10),
+          displayName: button.dataset.displayName
+        };
+
+        if (sustainedVoices.includes(voice)) {
+          activeNotes.set(event.pointerId, noteRecord);
+        } else {
+          const autoDuration =
+            voiceNode.autoStopSeconds || 0.9;
+
+          recordFixedNote(
+            button,
+            now,
+            Math.min(autoDuration, 1.2),
+            voice
           );
 
           trackRecentNote(button);
@@ -1003,7 +1194,17 @@
         return;
       }
 
+      const endedAt =
+        audioContext.currentTime;
+
       ORUMI_VOICES.stopVoice(note, audioContext, 0.12);
+
+      recordSingleNote(
+        note.button,
+        note.startedAt,
+        endedAt,
+        note.voice
+      );
 
       trackRecentNote(note.button);
 
@@ -1017,6 +1218,9 @@
       });
     }
 
+    recordButton.addEventListener("click", toggleRecording);
+    clearRecordingButton.addEventListener("click", clearCurrentRecording);
+
     document.addEventListener("pointerup", event => {
       stopHeldNote(event.pointerId);
     });
@@ -1028,6 +1232,7 @@
     window.addEventListener("beforeunload", () => {
       stopAllNotes();
       stopDrone();
+      saveCurrentRecording();
     });
 
     refreshNavLinks();
