@@ -62,7 +62,6 @@
     }
 
     .back-button { left: 18px; }
-    .chord-button { right: 18px; }
 
     .start-audio-button {
       border: none;
@@ -282,13 +281,6 @@
     title="Return to Home Screen"
   >←</a>
 
-  <a
-    class="top-button chord-button"
-    id="chordFactoryButton"
-    href="chord-factory.html"
-    title="Open Chord Factory"
-  >＋</a>
-
   <h1>Orumi Player</h1>
 
   <div class="subtitle">
@@ -368,6 +360,7 @@
     let audioContext;
     let audioReady = false;
     let activeNotes = [];
+    let activeStopTimer = null;
 
     const params =
       new URLSearchParams(window.location.search);
@@ -416,9 +409,6 @@
 
     const audioStatus =
       document.getElementById("audioStatus");
-
-    const chordFactoryButton =
-      document.getElementById("chordFactoryButton");
 
     const openChordFactoryButton =
       document.getElementById("openChordFactoryButton");
@@ -657,6 +647,11 @@
     }
 
     function stopActiveNotes() {
+      if (activeStopTimer) {
+        clearTimeout(activeStopTimer);
+        activeStopTimer = null;
+      }
+
       if (!audioContext) {
         activeNotes = [];
         return;
@@ -707,9 +702,10 @@
       audioStatus.textContent =
         "Playing " + note.displayName;
 
-      setTimeout(() => {
-        stopActiveNotes();
-      }, 950);
+      activeStopTimer =
+        setTimeout(() => {
+          stopActiveNotes();
+        }, 950);
     }
 
     function updateChordFactoryLinks() {
@@ -728,7 +724,6 @@
         "&voice=" +
         encodeURIComponent(selectedVoice);
 
-      chordFactoryButton.href = base;
       openChordFactoryButton.href = base;
     }
 
