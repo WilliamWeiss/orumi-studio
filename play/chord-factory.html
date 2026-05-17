@@ -53,6 +53,9 @@
       box-shadow: 0 4px 14px rgba(0,0,0,0.18);
       z-index: 1000;
       transition: 0.12s;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
     }
 
     .top-button:hover,
@@ -62,7 +65,8 @@
     }
 
     .back-button { left: 18px; }
-    .player-button { right: 18px; }
+    .home-button { right: 18px; }
+    .player-button { right: 76px; }
 
     .factory {
       width: min(94vmin, 820px);
@@ -231,16 +235,38 @@
     .a  { background: #9d4edd; }
     .bb { background: linear-gradient(135deg, #9d4edd, #ff8fab); }
     .b  { background: #ff8fab; }
+
+    @media (max-width: 760px) {
+      h1 {
+        margin-top: 72px;
+      }
+
+      .root-grid,
+      .quality-grid,
+      .voicing-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .note-octave-row {
+        grid-template-columns: repeat(6, 1fr);
+      }
+    }
   </style>
 </head>
 
 <body>
 
-  <a
+  <button
     class="top-button back-button"
+    id="backButton"
+    title="Go Back"
+  >←</button>
+
+  <a
+    class="top-button home-button"
     href="index.html"
-    title="Return to Home Screen"
-  >←</a>
+    title="Orumi Play Home"
+  >⌂</a>
 
   <a
     class="top-button player-button"
@@ -350,6 +376,17 @@
   <script>
     let audioContext;
     let activeChordNotes = [];
+
+    const backButton =
+      document.getElementById("backButton");
+
+    backButton.addEventListener("click", () => {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.location.href = "index.html";
+      }
+    });
 
     const params = new URLSearchParams(window.location.search);
 
