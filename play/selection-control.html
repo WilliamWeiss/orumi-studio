@@ -1,6 +1,7 @@
 ﻿<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="utf-8">
   <title>Orumi Selection Control</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -10,31 +11,27 @@
     body {
       font-family: Arial, sans-serif;
       background: #111;
-      color: white;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
+      color: #f5f0e8;
       margin: 0;
       min-height: 100vh;
-      padding: 24px 18px 120px;
+      padding: 24px 18px 80px;
       box-sizing: border-box;
-      overflow-y: auto;
-      touch-action: manipulation;
       user-select: none;
     }
 
     h1 {
-      margin: 10px 0 6px;
-      font-weight: 600;
       text-align: center;
+      margin: 14px 0 6px;
+      font-weight: 600;
     }
 
     .subtitle {
-      color: #ccc;
-      margin-bottom: 18px;
-      font-size: 15px;
+      color: #bdb4a6;
       text-align: center;
+      max-width: 760px;
+      margin: 0 auto 18px;
+      font-size: 14px;
+      line-height: 1.4;
     }
 
     .top-button {
@@ -50,9 +47,11 @@
       color: #222;
       background: rgba(255,255,255,0.86);
       box-shadow: 0 4px 14px rgba(0,0,0,0.18);
-      backdrop-filter: blur(8px);
       z-index: 1000;
       transition: 0.12s;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
     }
 
     .top-button:hover,
@@ -62,61 +61,30 @@
     }
 
     .back-button { left: 18px; }
-    .player-button { right: 18px; }
+    .home-button { right: 18px; }
+    .player-button { right: 76px; }
+    .chord-button { right: 134px; }
 
-    .accordion {
-      width: min(92vmin, 720px);
+    .control-panel {
+      width: min(96vw, 920px);
+      margin: 0 auto;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 16px;
     }
 
-    .panel {
-      border-radius: 18px;
+    .section {
       background: rgba(255,255,255,0.06);
+      border-radius: 18px;
+      padding: 14px;
       box-shadow: 0 6px 18px rgba(0,0,0,0.28);
-      overflow: hidden;
     }
 
-    .panel-header {
-      width: 100%;
-      border: none;
-      background: rgba(255,255,255,0.08);
-      color: white;
-      padding: 14px 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      cursor: pointer;
-      font-weight: 800;
+    .section-title {
       font-size: 15px;
-      text-align: left;
-    }
-
-    .panel-current {
-      color: #ccc;
-      font-weight: 700;
-      font-size: 13px;
-      margin-left: 10px;
-      text-align: right;
-    }
-
-    .panel-arrow {
-      margin-left: 10px;
-      transition: 0.15s;
-    }
-
-    .panel.open .panel-arrow {
-      transform: rotate(180deg);
-    }
-
-    .panel-content {
-      display: none;
-      padding: 12px;
-    }
-
-    .panel.open .panel-content {
-      display: block;
+      font-weight: 800;
+      margin-bottom: 10px;
+      color: #ddd;
     }
 
     .grid {
@@ -124,97 +92,95 @@
       gap: 10px;
     }
 
-    .system-grid,
+    .system-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+
+    .root-grid {
+      grid-template-columns: repeat(6, 1fr);
+    }
+
     .family-grid,
     .mode-grid,
     .voice-grid {
       grid-template-columns: repeat(3, 1fr);
     }
 
-    .key-grid {
-      grid-template-columns: repeat(6, 1fr);
-    }
-
-    .tone-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
-
+    .set-grid,
     .octave-grid {
-      grid-template-columns: repeat(6, 1fr);
+      grid-template-columns: repeat(4, 1fr);
     }
 
     .square {
       border: none;
       border-radius: 16px;
-      min-height: 72px;
-      font-size: clamp(11px, 2.2vmin, 18px);
+      min-height: 58px;
+      font-size: clamp(12px, 2.2vmin, 17px);
       font-weight: bold;
       color: white;
-      background: #333;
+      cursor: pointer;
       box-shadow: 0 6px 14px rgba(0,0,0,0.35);
       transition: 0.12s;
-      cursor: pointer;
       text-align: center;
       padding: 6px;
       line-height: 1.15;
+      font-family: inherit;
+    }
+
+    .square:hover,
+    .square:active {
+      transform: scale(0.96);
+      filter: brightness(1.12);
     }
 
     .square.selected {
-      transform: scale(0.94);
-      outline: 4px solid rgba(255,255,255,0.98);
-      outline-offset: -5px;
-      filter: brightness(1.3);
+      outline: 4px solid rgba(255,255,255,1);
+      outline-offset: -4px;
+      filter: brightness(1.42);
       box-shadow:
-        0 0 28px rgba(255,255,255,0.9),
+        0 0 36px rgba(255,255,255,0.88),
+        0 0 18px rgba(255,230,150,0.65),
         0 6px 14px rgba(0,0,0,0.35);
     }
 
-    .system-square { background: #2f3542; }
-    .family-square { background: #3a4658; }
-    .mode-square { background: #3b3b50; }
-    .tone-square { background: #2c2c2c; }
-    .voice-square { background: #38444a; }
-    .octave-square { background: #3b3b3b; }
-
-    .apply-bar {
-      position: sticky;
-      bottom: 0;
-      width: 100%;
-      max-width: 720px;
-      padding: 12px 12px 16px;
-      background: linear-gradient(
-        to top,
-        rgba(17,17,17,0.98),
-        rgba(17,17,17,0.86)
-      );
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
-      z-index: 900;
-      margin-top: 18px;
+    .control-square {
+      background: #38444a;
     }
 
-    #selectionLabel {
-      color: #ccc;
-      font-size: 15px;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      min-height: 22px;
+    .summary {
       text-align: center;
-      line-height: 1.35;
+      color: #d8d0c4;
+      font-size: 15px;
+      line-height: 1.45;
+      padding: 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.05);
     }
 
-    #enterButton {
-      padding: 12px 22px;
+    .action-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .action-button {
       border: none;
-      border-radius: 14px;
-      font-size: 17px;
+      border-radius: 16px;
+      padding: 14px 18px;
+      font-size: 16px;
       font-weight: 800;
       cursor: pointer;
       background: white;
       color: #111;
       box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+      text-align: center;
+      text-decoration: none;
+      font-family: inherit;
+    }
+
+    .action-button.secondary {
+      background: rgba(255,255,255,0.16);
+      color: #fff7ea;
     }
 
     .c  { background: #ff6b6b; }
@@ -229,387 +195,470 @@
     .a  { background: #9d4edd; }
     .bb { background: linear-gradient(135deg, #9d4edd, #ff8fab); }
     .b  { background: #ff8fab; }
+
+    @media (max-width: 760px) {
+      h1 {
+        margin-top: 72px;
+      }
+
+      .system-grid,
+      .family-grid,
+      .mode-grid,
+      .voice-grid,
+      .set-grid,
+      .octave-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .root-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .action-row {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 
 <body>
 
-  <a
+  <button
     class="top-button back-button"
+    id="backButton"
+    title="Go Back"
+  >←</button>
+
+  <a
+    class="top-button home-button"
     href="index.html"
-    title="Return to Home Screen"
-  >←</a>
+    title="Orumi Play Home"
+  >⌂</a>
 
   <a
     class="top-button player-button"
     id="playerButton"
     href="player.html"
-    title="Open Note Player"
-  >♫</a>
+    title="Open Player"
+  >□</a>
 
-  <h1>Orumi Selection Control</h1>
+  <a
+    class="top-button chord-button"
+    id="chordButton"
+    href="chord-factory.html"
+    title="Open Chord Factory"
+  >⊞</a>
+
+  <h1>Selection Control</h1>
 
   <div class="subtitle">
-    Adjust the musical world, scale, display, octaves, and voice.
+    Choose the musical world, key center, scale family, mode, octave range,
+    voice, and note set for the Orumi Player.
   </div>
 
-  <div class="accordion">
+  <div class="control-panel">
 
-    <div class="panel open" id="systemPanel">
-      <button class="panel-header" data-panel="systemPanel">
-        <span>System</span>
-        <span>
-          <span class="panel-current" id="systemCurrent"></span>
-          <span class="panel-arrow">⌄</span>
-        </span>
-      </button>
-      <div class="panel-content">
-        <div class="grid system-grid" id="systemGrid"></div>
+    <div class="section">
+      <div class="section-title">Sound System</div>
+      <div class="grid system-grid" id="systemGrid"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Key Center</div>
+      <div class="grid root-grid" id="rootGrid"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Note Family</div>
+      <div class="grid family-grid" id="familyGrid"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Mode / Scale</div>
+      <div class="grid mode-grid" id="modeGrid"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Note Set</div>
+      <div class="grid set-grid" id="setGrid"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Octaves</div>
+      <div class="grid octave-grid" id="octaveGrid"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Voice</div>
+      <div class="grid voice-grid" id="voiceGrid"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Current Selection</div>
+
+      <div class="summary" id="summary">
+        Selection loading...
+      </div>
+
+      <div class="action-row" style="margin-top: 14px;">
+        <a
+          class="action-button"
+          id="openPlayerButton"
+          href="player.html"
+        >
+          Open Player
+        </a>
+
+        <a
+          class="action-button secondary"
+          id="openChordFactoryButton"
+          href="chord-factory.html"
+        >
+          Open Chord Factory
+        </a>
+
+        <button
+          class="action-button secondary"
+          id="resetButton"
+        >
+          Reset to Defaults
+        </button>
       </div>
     </div>
 
-    <div class="panel" id="rootPanel">
-      <button class="panel-header" data-panel="rootPanel">
-        <span>Root</span>
-        <span>
-          <span class="panel-current" id="rootCurrent"></span>
-          <span class="panel-arrow">⌄</span>
-        </span>
-      </button>
-      <div class="panel-content">
-        <div class="grid key-grid" id="keyGrid"></div>
-      </div>
-    </div>
-
-    <div class="panel" id="familyPanel">
-      <button class="panel-header" data-panel="familyPanel">
-        <span>Scale Family</span>
-        <span>
-          <span class="panel-current" id="familyCurrent"></span>
-          <span class="panel-arrow">⌄</span>
-        </span>
-      </button>
-      <div class="panel-content">
-        <div class="grid family-grid" id="familyGrid"></div>
-      </div>
-    </div>
-
-    <div class="panel" id="modePanel">
-      <button class="panel-header" data-panel="modePanel">
-        <span>Specific Mode</span>
-        <span>
-          <span class="panel-current" id="modeCurrent"></span>
-          <span class="panel-arrow">⌄</span>
-        </span>
-      </button>
-      <div class="panel-content">
-        <div class="grid mode-grid" id="modeGrid"></div>
-      </div>
-    </div>
-
-    <div class="panel" id="tonePanel">
-      <button class="panel-header" data-panel="tonePanel">
-        <span>Tone Display</span>
-        <span>
-          <span class="panel-current" id="toneCurrent"></span>
-          <span class="panel-arrow">⌄</span>
-        </span>
-      </button>
-      <div class="panel-content">
-        <div class="grid tone-grid" id="toneGrid">
-          <button class="square tone-square" data-set="native">Native Only</button>
-          <button class="square tone-square" data-set="full">Full Set</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="panel" id="octavePanel">
-      <button class="panel-header" data-panel="octavePanel">
-        <span>Visible Octaves</span>
-        <span>
-          <span class="panel-current" id="octaveCurrent"></span>
-          <span class="panel-arrow">⌄</span>
-        </span>
-      </button>
-      <div class="panel-content">
-        <div class="grid octave-grid" id="octaveGrid">
-          <button class="square octave-square" data-octave="1">1</button>
-          <button class="square octave-square" data-octave="2">2</button>
-          <button class="square octave-square" data-octave="3">3</button>
-          <button class="square octave-square" data-octave="4">4</button>
-          <button class="square octave-square" data-octave="5">5</button>
-          <button class="square octave-square" data-octave="6">6</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="panel" id="voicePanel">
-      <button class="panel-header" data-panel="voicePanel">
-        <span>Voice</span>
-        <span>
-          <span class="panel-current" id="voiceCurrent"></span>
-          <span class="panel-arrow">⌄</span>
-        </span>
-      </button>
-      <div class="panel-content">
-        <div class="grid voice-grid" id="voiceGrid"></div>
-      </div>
-    </div>
-
-  </div>
-
-  <div class="apply-bar">
-    <div id="selectionLabel"></div>
-    <button id="enterButton">Enter Grid</button>
   </div>
 
   <script>
-    const catalog = ORUMI_CATALOG;
-    const systems = catalog.systems;
-    const pitchClasses = catalog.pitchClasses;
-    const voices = catalog.voices;
+    const backButton =
+      document.getElementById("backButton");
 
-    const params = new URLSearchParams(window.location.search);
+    const playerButton =
+      document.getElementById("playerButton");
 
-    const playerButton = document.getElementById("playerButton");
-    const systemGrid = document.getElementById("systemGrid");
-    const keyGrid = document.getElementById("keyGrid");
-    const familyGrid = document.getElementById("familyGrid");
-    const modeGrid = document.getElementById("modeGrid");
-    const voiceGrid = document.getElementById("voiceGrid");
-    const selectionLabel = document.getElementById("selectionLabel");
-    const enterButton = document.getElementById("enterButton");
+    const chordButton =
+      document.getElementById("chordButton");
 
-    const systemCurrent = document.getElementById("systemCurrent");
-    const rootCurrent = document.getElementById("rootCurrent");
-    const familyCurrent = document.getElementById("familyCurrent");
-    const modeCurrent = document.getElementById("modeCurrent");
-    const toneCurrent = document.getElementById("toneCurrent");
-    const octaveCurrent = document.getElementById("octaveCurrent");
-    const voiceCurrent = document.getElementById("voiceCurrent");
+    const openPlayerButton =
+      document.getElementById("openPlayerButton");
+
+    const openChordFactoryButton =
+      document.getElementById("openChordFactoryButton");
+
+    const resetButton =
+      document.getElementById("resetButton");
+
+    const systemGrid =
+      document.getElementById("systemGrid");
+
+    const rootGrid =
+      document.getElementById("rootGrid");
+
+    const familyGrid =
+      document.getElementById("familyGrid");
+
+    const modeGrid =
+      document.getElementById("modeGrid");
+
+    const setGrid =
+      document.getElementById("setGrid");
+
+    const octaveGrid =
+      document.getElementById("octaveGrid");
+
+    const voiceGrid =
+      document.getElementById("voiceGrid");
+
+    const summary =
+      document.getElementById("summary");
+
+    const systems =
+      ORUMI_CATALOG.systems;
+
+    const voices =
+      ORUMI_CATALOG.voices;
+
+    const pitchClasses =
+      ORUMI_CATALOG.pitchClasses;
+
+    const numberToPitchClass =
+      ORUMI_CATALOG.numberToPitchClass;
+
+    const params =
+      new URLSearchParams(window.location.search);
 
     let selectedSystemKey =
       params.get("system") || "western";
 
-    let startingSystem =
-      systems[selectedSystemKey] || systems.western;
+    if (!systems[selectedSystemKey]) {
+      selectedSystemKey = "western";
+    }
 
-    selectedSystemKey =
-      systems[selectedSystemKey] ? selectedSystemKey : "western";
+    let selectedSystem =
+      systems[selectedSystemKey];
 
     let selectedRoot =
       params.get("root") ||
-      startingSystem.defaultRoot ||
+      selectedSystem.defaultRoot ||
       "C";
 
-    let selectedFamilyKey =
-      params.get("family") ||
-      params.get("architecture") ||
-      startingSystem.defaultFamily;
+    if (!pitchClasses[selectedRoot]) {
+      selectedRoot = "C";
+    }
 
-    let selectedModeKey =
+    let selectedFamily =
+      params.get("family") ||
+      selectedSystem.defaultFamily ||
+      Object.keys(selectedSystem.families || {})[0];
+
+    let selectedMode =
       params.get("scaleMode") ||
-      params.get("mode") ||
-      startingSystem.defaultMode;
+      selectedSystem.defaultMode;
 
     let selectedSet =
       params.get("set") ||
-      startingSystem.defaultSet ||
+      selectedSystem.defaultSet ||
       "native";
 
-    let selectedOctaves =
-      params.get("octaves")
-        ? params.get("octaves")
-            .split(",")
-            .map(value => parseInt(value, 10))
-            .filter(value => value >= 1 && value <= 6)
-        : [...(startingSystem.defaultOctaves || [2,3,4,5])];
-
-    if (selectedOctaves.length === 0) {
-      selectedOctaves =
-        [...(startingSystem.defaultOctaves || [2,3,4,5])];
+    if (!["native", "full"].includes(selectedSet)) {
+      selectedSet = "native";
     }
 
     let selectedVoice =
       params.get("voice") ||
-      startingSystem.defaultVoice ||
-      "warm";
+      selectedSystem.defaultVoice ||
+      "softKeys";
 
     if (!voices[selectedVoice]) {
-      selectedVoice = startingSystem.defaultVoice || "warm";
+      selectedVoice =
+        selectedSystem.defaultVoice || "softKeys";
     }
 
-    document.querySelectorAll(".panel-header").forEach(header => {
-      header.addEventListener("click", () => {
-        const panel = document.getElementById(header.dataset.panel);
-        panel.classList.toggle("open");
-      });
+    let selectedOctaves =
+      parseOctaves(
+        params.get("octaves") ||
+        (selectedSystem.defaultOctaves || [2,3,4,5]).join(",")
+      );
+
+    backButton.addEventListener("click", () => {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.location.href = "index.html";
+      }
     });
 
-    function currentSystem() {
-      return systems[selectedSystemKey] || systems.western;
+    resetButton.addEventListener("click", () => {
+      selectedSystemKey = "western";
+      selectedSystem = systems[selectedSystemKey];
+      selectedRoot = selectedSystem.defaultRoot || "C";
+      selectedFamily = selectedSystem.defaultFamily || "diatonic";
+      selectedMode = selectedSystem.defaultMode || "ionian";
+      selectedSet = selectedSystem.defaultSet || "native";
+      selectedVoice = selectedSystem.defaultVoice || "softKeys";
+      selectedOctaves = [...(selectedSystem.defaultOctaves || [2,3,4,5])];
+
+      buildAll();
+    });
+
+    function parseOctaves(value) {
+      const parsed =
+        String(value)
+          .split(",")
+          .map(item => parseInt(item.trim(), 10))
+          .filter(item => Number.isInteger(item));
+
+      const valid =
+        parsed.filter(item => [2,3,4,5].includes(item));
+
+      return valid.length > 0
+        ? [...new Set(valid)].sort((a,b) => a - b)
+        : [2,3,4,5];
     }
 
-    function currentFamily() {
-      const system = currentSystem();
-
-      return system.families[selectedFamilyKey] ||
-        system.families[system.defaultFamily];
+    function pcToName(pcNumber) {
+      return numberToPitchClass[
+        ((pcNumber % 12) + 12) % 12
+      ];
     }
 
-    function currentMode() {
-      const family = currentFamily();
+    function getChromaticFromRoot(rootName) {
+      const rootNumber =
+        pitchClasses[rootName].number;
 
-      return family.modes[selectedModeKey] ||
-        family.modes[Object.keys(family.modes)[0]];
+      const result = [];
+
+      for (let i = 0; i < 12; i++) {
+        result.push(pcToName(rootNumber + i));
+      }
+
+      return result;
     }
 
-    function validateCurrentSelections() {
-      const system = currentSystem();
-
-      if (!pitchClasses[selectedRoot]) {
-        selectedRoot = system.defaultRoot || "C";
-      }
-
-      if (!system.families[selectedFamilyKey]) {
-        selectedFamilyKey = system.defaultFamily;
-      }
-
-      const family = currentFamily();
-
-      if (!family.modes[selectedModeKey]) {
-        selectedModeKey =
-          system.defaultMode &&
-          family.modes[system.defaultMode]
-            ? system.defaultMode
-            : Object.keys(family.modes)[0];
-      }
-
-      if (selectedSet !== "native" && selectedSet !== "full") {
-        selectedSet = system.defaultSet || "native";
-      }
-
-      selectedOctaves = selectedOctaves
-        .filter(value => value >= 1 && value <= 6)
-        .sort((a, b) => a - b);
-
-      if (selectedOctaves.length === 0) {
-        selectedOctaves =
-          [...(system.defaultOctaves || [2,3,4,5])];
-      }
-
-      if (!voices[selectedVoice]) {
-        selectedVoice = system.defaultVoice || "warm";
-      }
+    function getFamilies() {
+      return selectedSystem.families || {};
     }
 
-    function buildPlayerUrl() {
-      validateCurrentSelections();
+    function getCurrentFamily() {
+      const families = getFamilies();
 
-      const system = encodeURIComponent(selectedSystemKey);
-      const root = encodeURIComponent(selectedRoot);
-      const family = encodeURIComponent(selectedFamilyKey);
-      const scaleMode = encodeURIComponent(selectedModeKey);
-      const setView = encodeURIComponent(selectedSet);
-      const octaves = encodeURIComponent(selectedOctaves.join(","));
-      const voice = encodeURIComponent(selectedVoice);
+      if (!families[selectedFamily]) {
+        selectedFamily =
+          selectedSystem.defaultFamily ||
+          Object.keys(families)[0];
+      }
 
-      return (
-        "player.html" +
-        "?system=" + system +
-        "&root=" + root +
-        "&family=" + family +
-        "&scaleMode=" + scaleMode +
-        "&set=" + setView +
-        "&octaves=" + octaves +
-        "&voice=" + voice
-      );
+      return families[selectedFamily];
     }
 
-    function refreshPlayerLink() {
-      playerButton.href = buildPlayerUrl();
+    function getModes() {
+      const family =
+        getCurrentFamily();
+
+      return family && family.modes
+        ? family.modes
+        : {};
+    }
+
+    function getCurrentMode() {
+      const modes =
+        getModes();
+
+      if (!modes[selectedMode]) {
+        selectedMode =
+          selectedSystem.defaultMode ||
+          Object.keys(modes)[0];
+      }
+
+      return modes[selectedMode];
+    }
+
+    function makeButton(label, classNames, isSelected, onClick) {
+      const button =
+        document.createElement("button");
+
+      button.classList.add("square");
+
+      classNames.forEach(className => {
+        button.classList.add(className);
+      });
+
+      if (isSelected) {
+        button.classList.add("selected");
+      }
+
+      button.textContent = label;
+
+      button.addEventListener("click", onClick);
+
+      return button;
     }
 
     function buildSystemGrid() {
       systemGrid.innerHTML = "";
 
       Object.entries(systems).forEach(([key, system]) => {
-        const button = document.createElement("button");
+        const button =
+          makeButton(
+            system.label || key,
+            ["control-square"],
+            key === selectedSystemKey,
+            () => {
+              selectedSystemKey = key;
+              selectedSystem = systems[selectedSystemKey];
 
-        button.classList.add("square", "system-square");
+              selectedRoot =
+                selectedSystem.defaultRoot || "C";
 
-        if (key === selectedSystemKey) {
-          button.classList.add("selected");
-        }
+              selectedFamily =
+                selectedSystem.defaultFamily ||
+                Object.keys(selectedSystem.families || {})[0];
 
-        button.textContent = system.label;
+              selectedMode =
+                selectedSystem.defaultMode ||
+                Object.keys(getModes())[0];
 
-        button.addEventListener("click", () => {
-          selectedSystemKey = key;
+              selectedSet =
+                selectedSystem.defaultSet || "native";
 
-          const newSystem = currentSystem();
+              selectedVoice =
+                selectedSystem.defaultVoice || "softKeys";
 
-          selectedRoot = newSystem.defaultRoot || "C";
-          selectedFamilyKey = newSystem.defaultFamily;
-          selectedModeKey = newSystem.defaultMode;
-          selectedSet = newSystem.defaultSet || "native";
-          selectedOctaves =
-            [...(newSystem.defaultOctaves || [2,3,4,5])];
-          selectedVoice = newSystem.defaultVoice || "warm";
+              if (!voices[selectedVoice]) {
+                selectedVoice = "softKeys";
+              }
 
-          buildAll();
-        });
+              selectedOctaves =
+                [...(selectedSystem.defaultOctaves || [2,3,4,5])];
+
+              buildAll();
+            }
+          );
 
         systemGrid.appendChild(button);
       });
     }
 
-    function buildKeyGrid() {
-      keyGrid.innerHTML = "";
+    function buildRootGrid() {
+      rootGrid.innerHTML = "";
 
-      Object.entries(pitchClasses).forEach(([key, pitch]) => {
-        const button = document.createElement("button");
+      const roots =
+        getChromaticFromRoot(selectedRoot);
 
-        button.classList.add("square", pitch.className);
+      roots.forEach(root => {
+        const pitch =
+          pitchClasses[root];
 
-        if (key === selectedRoot) {
-          button.classList.add("selected");
-        }
+        const button =
+          makeButton(
+            pitch.display,
+            [pitch.className],
+            root === selectedRoot,
+            () => {
+              selectedRoot = root;
+              buildAll();
+            }
+          );
 
-        button.textContent = pitch.display;
-
-        button.addEventListener("click", () => {
-          selectedRoot = key;
-          buildKeyGrid();
-          updateDisplay();
-        });
-
-        keyGrid.appendChild(button);
+        rootGrid.appendChild(button);
       });
     }
 
     function buildFamilyGrid() {
       familyGrid.innerHTML = "";
 
-      Object.entries(currentSystem().families).forEach(([key, family]) => {
-        const button = document.createElement("button");
+      const families =
+        getFamilies();
 
-        button.classList.add("square", "family-square");
+      const entries =
+        Object.entries(families);
 
-        if (key === selectedFamilyKey) {
-          button.classList.add("selected");
-        }
+      if (entries.length === 0) {
+        return;
+      }
 
-        button.textContent = family.label;
+      if (!families[selectedFamily]) {
+        selectedFamily = entries[0][0];
+      }
 
-        button.addEventListener("click", () => {
-          selectedFamilyKey = key;
-          selectedModeKey = Object.keys(currentFamily().modes)[0];
+      entries.forEach(([key, family]) => {
+        const button =
+          makeButton(
+            family.label || key,
+            ["control-square"],
+            key === selectedFamily,
+            () => {
+              selectedFamily = key;
 
-          buildFamilyGrid();
-          buildModeGrid();
-          updateDisplay();
-        });
+              const modes =
+                getModes();
+
+              selectedMode =
+                Object.keys(modes)[0] ||
+                selectedMode;
+
+              buildAll();
+            }
+          );
 
         familyGrid.appendChild(button);
       });
@@ -618,24 +667,94 @@
     function buildModeGrid() {
       modeGrid.innerHTML = "";
 
-      Object.entries(currentFamily().modes).forEach(([key, mode]) => {
-        const button = document.createElement("button");
+      const modes =
+        getModes();
 
-        button.classList.add("square", "mode-square");
+      const entries =
+        Object.entries(modes);
 
-        if (key === selectedModeKey) {
-          button.classList.add("selected");
-        }
+      if (entries.length === 0) {
+        return;
+      }
 
-        button.textContent = mode.shortLabel || mode.label;
+      if (!modes[selectedMode]) {
+        selectedMode = entries[0][0];
+      }
 
-        button.addEventListener("click", () => {
-          selectedModeKey = key;
-          buildModeGrid();
-          updateDisplay();
-        });
+      entries.forEach(([key, mode]) => {
+        const button =
+          makeButton(
+            mode.label || key,
+            ["control-square"],
+            key === selectedMode,
+            () => {
+              selectedMode = key;
+              buildAll();
+            }
+          );
 
         modeGrid.appendChild(button);
+      });
+    }
+
+    function buildSetGrid() {
+      setGrid.innerHTML = "";
+
+      [
+        {
+          key: "native",
+          label: "Native Only"
+        },
+        {
+          key: "full",
+          label: "Full Set"
+        }
+      ].forEach(item => {
+        const button =
+          makeButton(
+            item.label,
+            ["control-square"],
+            item.key === selectedSet,
+            () => {
+              selectedSet = item.key;
+              buildAll();
+            }
+          );
+
+        setGrid.appendChild(button);
+      });
+    }
+
+    function buildOctaveGrid() {
+      octaveGrid.innerHTML = "";
+
+      [2,3,4,5].forEach(octave => {
+        const button =
+          makeButton(
+            "Octave " + octave,
+            ["control-square"],
+            selectedOctaves.includes(octave),
+            () => {
+              if (selectedOctaves.includes(octave)) {
+                if (selectedOctaves.length > 1) {
+                  selectedOctaves =
+                    selectedOctaves.filter(
+                      item => item !== octave
+                    );
+                }
+              } else {
+                selectedOctaves.push(octave);
+              }
+
+              selectedOctaves =
+                [...new Set(selectedOctaves)]
+                  .sort((a,b) => a - b);
+
+              buildAll();
+            }
+          );
+
+        octaveGrid.appendChild(button);
       });
     }
 
@@ -643,128 +762,86 @@
       voiceGrid.innerHTML = "";
 
       Object.entries(voices).forEach(([key, voice]) => {
-        const button = document.createElement("button");
-
-        button.classList.add("square", "voice-square");
-
-        if (key === selectedVoice) {
-          button.classList.add("selected");
-        }
-
-        button.textContent = voice.label;
-
-        button.addEventListener("click", () => {
-          selectedVoice = key;
-          buildVoiceGrid();
-          updateDisplay();
-        });
+        const button =
+          makeButton(
+            voice.label || key,
+            ["control-square"],
+            key === selectedVoice,
+            () => {
+              selectedVoice = key;
+              buildAll();
+            }
+          );
 
         voiceGrid.appendChild(button);
       });
     }
 
-    function updateToneButtons() {
-      document.querySelectorAll(".tone-square").forEach(button => {
-        button.classList.toggle(
-          "selected",
-          button.dataset.set === selectedSet
-        );
-      });
+    function buildUrl(pageName) {
+      const urlParams =
+        new URLSearchParams();
+
+      urlParams.set("system", selectedSystemKey);
+      urlParams.set("root", selectedRoot);
+      urlParams.set("family", selectedFamily);
+      urlParams.set("scaleMode", selectedMode);
+      urlParams.set("set", selectedSet);
+      urlParams.set("octaves", selectedOctaves.join(","));
+      urlParams.set("voice", selectedVoice);
+
+      return pageName + "?" + urlParams.toString();
     }
 
-    function updateOctaveButtons() {
-      document.querySelectorAll(".octave-square").forEach(button => {
-        const octave = parseInt(button.dataset.octave, 10);
+    function updateSummaryAndLinks() {
+      const family =
+        getCurrentFamily();
 
-        button.classList.toggle(
-          "selected",
-          selectedOctaves.includes(octave)
-        );
-      });
-    }
+      const mode =
+        getCurrentMode();
 
-    document.querySelectorAll(".tone-square").forEach(button => {
-      button.addEventListener("click", () => {
-        selectedSet = button.dataset.set;
-        updateToneButtons();
-        updateDisplay();
-      });
-    });
+      const voice =
+        voices[selectedVoice];
 
-    document.querySelectorAll(".octave-square").forEach(button => {
-      button.addEventListener("click", () => {
-        const octave = parseInt(button.dataset.octave, 10);
-
-        if (selectedOctaves.includes(octave)) {
-          selectedOctaves =
-            selectedOctaves.filter(o => o !== octave);
-        } else {
-          selectedOctaves.push(octave);
-        }
-
-        selectedOctaves.sort((a,b) => a - b);
-
-        if (selectedOctaves.length === 0) {
-          selectedOctaves =
-            [...(currentSystem().defaultOctaves || [2,3,4,5])];
-        }
-
-        updateOctaveButtons();
-        updateDisplay();
-      });
-    });
-
-    function updateDisplay() {
-      validateCurrentSelections();
-
-      const system = currentSystem();
-      const family = currentFamily();
-      const mode = currentMode();
-      const pitch = pitchClasses[selectedRoot];
-      const voice = voices[selectedVoice];
-
-      systemCurrent.textContent = system.label;
-      rootCurrent.textContent = pitch.display;
-      familyCurrent.textContent = family.label;
-      modeCurrent.textContent = mode.label;
-      toneCurrent.textContent =
-        selectedSet === "native" ? "Native Only" : "Full Set";
-      octaveCurrent.textContent = selectedOctaves.join(",");
-      voiceCurrent.textContent = voice.label;
-
-      selectionLabel.textContent =
-        system.label +
+      summary.textContent =
+        selectedSystem.label +
         " · " +
-        pitch.display +
+        pitchClasses[selectedRoot].display +
         " · " +
-        family.label +
+        (family ? family.label : selectedFamily) +
         " · " +
-        mode.label +
+        (mode ? mode.label : selectedMode) +
         " · " +
         (selectedSet === "native" ? "Native Only" : "Full Set") +
         " · Octaves " +
-        selectedOctaves.join(",") +
+        selectedOctaves.join(", ") +
         " · " +
-        voice.label;
+        (voice ? voice.label : selectedVoice);
 
-      refreshPlayerLink();
+      const playerUrl =
+        buildUrl("player.html");
+
+      const chordUrl =
+        buildUrl("chord-factory.html");
+
+      playerButton.href = playerUrl;
+      openPlayerButton.href = playerUrl;
+
+      chordButton.href = chordUrl;
+      openChordFactoryButton.href = chordUrl;
     }
 
-    enterButton.addEventListener("click", () => {
-      window.location.href = buildPlayerUrl();
-    });
-
     function buildAll() {
-      validateCurrentSelections();
+      getCurrentFamily();
+      getCurrentMode();
 
       buildSystemGrid();
-      buildKeyGrid();
+      buildRootGrid();
       buildFamilyGrid();
       buildModeGrid();
-      updateToneButtons();
-      updateOctaveButtons();
+      buildSetGrid();
+      buildOctaveGrid();
       buildVoiceGrid();
-      updateDisplay();
+      updateSummaryAndLinks();
     }
 
     buildAll();
