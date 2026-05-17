@@ -160,6 +160,9 @@
       box-shadow: 0 4px 14px rgba(0,0,0,0.18);
       z-index: 1000;
       transition: 0.12s;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
     }
 
     .top-button:hover,
@@ -169,8 +172,9 @@
     }
 
     .back-button { left: 18px; }
-    .settings-button { right: 18px; }
-    .chord-button { right: 76px; }
+    .home-button { right: 18px; }
+    .settings-button { right: 76px; }
+    .chord-button { right: 134px; }
 
     .grid {
       width: min(92vmin, 760px);
@@ -245,16 +249,28 @@
     .a  { background: #9d4edd; }
     .bb { background: linear-gradient(135deg, #9d4edd, #ff8fab); }
     .b  { background: #ff8fab; }
+
+    @media (max-width: 760px) {
+      h1 {
+        margin-top: 72px;
+      }
+    }
   </style>
 </head>
 
 <body>
 
-  <a
+  <button
     class="top-button back-button"
+    id="backButton"
+    title="Go Back"
+  >←</button>
+
+  <a
+    class="top-button home-button"
     href="index.html"
-    title="Return to Home Screen"
-  >←</a>
+    title="Orumi Play Home"
+  >⌂</a>
 
   <a
     class="top-button chord-button"
@@ -311,6 +327,7 @@
     let recordingStartTime = 0;
     let recordedEvents = [];
 
+    const backButton = document.getElementById("backButton");
     const playChordButton = document.getElementById("playChordButton");
     const clearChordButton = document.getElementById("clearChordButton");
     const startAudioButton = document.getElementById("startAudioButton");
@@ -331,6 +348,14 @@
 
     const pitchClasses = ORUMI_CATALOG.pitchClasses;
     const numberToPitchClass = ORUMI_CATALOG.numberToPitchClass;
+
+    backButton.addEventListener("click", () => {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.location.href = "index.html";
+      }
+    });
 
     function refreshNavLinks() {
       settingsButton.href = "selection-control.html" + window.location.search;
