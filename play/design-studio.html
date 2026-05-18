@@ -1582,6 +1582,7 @@
         (project.context.set === "full" ? "Full Palette" : "Native Palette");
 
       undoButton.disabled = historyStack.length === 0;
+      redoButton.disabled = redoStack.length === 0;
     }
 
     function clearBlockSelection() {
@@ -2231,14 +2232,42 @@
       const block = project.blocks.find(item => item.id === blockId);
       if (!block) return;
 
-      dragState = {
-        source: "existing",
-        item: { ...block },
-        blockId,
-        currentTarget: null
-      };
+      const selectedBlocks = getSelectedBlocks();
+      const shouldDragGroup =
+        selectedBlockIds.has(blockId) &&
+        selectedBlocks.length > 1;
 
-      createGhost(block.type === "rest" ? "Rest" : block.name, block);
+      if (shouldDragGroup) {
+        dragState = {
+          source: "group",
+          item: { ...block },
+          blockId,
+          anchorBlockId: blockId,
+          groupBlockIds: selectedBlocks.map(item => item.id),
+          groupBlocks: selectedBlocks.map(item => ({ ...item })),
+          currentTarget: null
+        };
+
+        createGhost(
+          selectedBlocks.length +
+            " block" +
+            (selectedBlocks.length === 1 ? "" : "s"),
+          {
+            type: "group",
+            midi: block.midi
+          }
+        );
+      } else {
+        dragState = {
+          source: "existing",
+          item: { ...block },
+          blockId,
+          currentTarget: null
+        };
+
+        createGhost(block.type === "rest" ? "Rest" : block.name, block);
+      }
+
       moveGhost(event.clientX, event.clientY);
       trashCan.classList.add("visible");
 
@@ -2332,10 +2361,31 @@
     function dropOnTrash() {
       if (!dragState) return;
 
-      if (dragState.source === "existing" && dragState.blockId) {
+      if (
+        dragState.source === "group" &&
+        Array.isArray(dragState.groupBlockIds) &&
+        dragState.groupBlockIds.length > 0
+      ) {
+        saveHistory();
+
+        const deleteIds = new Set(dragState.groupBlockIds);
+
+        project.blocks = project.blocks.filter(block => !deleteIds.has(block.id));
+        clearBlockSelection();
+
+        localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+        render();
+
+        status.textContent =
+          deleteIds.size +
+          " selected block" +
+          (deleteIds.size === 1 ? "" : "s") +
+          " deleted. Undo is available.";
+      } else if (dragState.source === "existing" && dragState.blockId) {
         saveHistory();
         project.blocks = project.blocks.filter(block => block.id !== dragState.blockId);
         selectedBlockId = null;
+        selectedBlockIds.delete(dragState.blockId);
         localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
         render();
         status.textContent = "Block deleted. Undo is available.";
@@ -2441,6 +2491,12 @@
       }
 
       const target = dragState.currentTarget;
+
+      if (dragState.source === "group") {
+        completeGroupDrop(target);
+        return;
+      }
+
       const movingExisting = dragState.source === "existing";
       const movingItem = { ...dragState.item };
       const originalBlockId = dragState.blockId;
@@ -2512,8 +2568,129 @@
       render();
     }
 
+    function completeGroupDrop(target) {
+      if (
+        !dragState ||
+        !Array.isArray(dragState.groupBlocks) ||
+        dragState.groupBlocks.length === 0
+      ) {
+        status.textContent = "No selected phrase to move.";
+        return;
+      }
+
+      const groupBlocks = dragState.groupBlocks.map(block => ({ ...block }));
+      const anchorBlock =
+        groupBlocks.find(block => block.id === dragState.anchorBlockId) ||
+        groupBlocks[0];
+
+      if (!anchorBlock) {
+        status.textContent = "No selected phrase to move.";
+        return;
+      }
+
+      saveHistory();
+
+      const deltaBeats =
+        snapBeat(Number(target.startBeat || 0)) -
+        Number(anchorBlock.startBeat || 0);
+
+      const selectedIds = new Set(groupBlocks.map(block => block.id));
+      const laneIds = new Set(groupBlocks.map(block => block.laneId));
+      const moveAllToTargetLane = laneIds.size === 1;
+
+      const removeTargetId =
+        target.mode === "replace" &&
+        target.blockId &&
+        !selectedIds.has(target.blockId)
+          ? target.blockId
+          : null;
+
+      const movedBlocks = groupBlocks.map(block => ({
+        ...block,
+        laneId: moveAllToTargetLane
+          ? target.laneId
+          : block.laneId,
+        startBeat: snapBeat(Number(block.startBeat || 0) + deltaBeats)
+      }));
+
+      project.blocks = project.blocks.filter(block =>
+        !selectedIds.has(block.id) &&
+        block.id !== removeTargetId
+      );
+
+      project.blocks.push(...movedBlocks);
+
+      selectedBlockIds = new Set(movedBlocks.map(block => block.id));
+      selectedBlockId = movedBlocks[0]?.id || null;
+
+      const selectedLane =
+        movedBlocks.find(block => block.id === selectedBlockId);
+
+      if (selectedLane) {
+        selectedLaneId = selectedLane.laneId;
+      }
+
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+      render();
+
+      status.textContent =
+        movedBlocks.length +
+        " selected block" +
+        (movedBlocks.length === 1 ? "" : "s") +
+        " moved as a group.";
+    }
+
     function completeDropIntoNewLane(event, insertIndex) {
       if (!dragState) return;
+
+      if (dragState.source === "group") {
+        saveHistory();
+
+        const groupBlocks = Array.isArray(dragState.groupBlocks)
+          ? dragState.groupBlocks.map(block => ({ ...block }))
+          : [];
+
+        if (groupBlocks.length === 0) {
+          status.textContent = "No selected phrase to move.";
+          return;
+        }
+
+        const newLane = {
+          id: createId("lane"),
+          name: "Part " + (project.lanes.length + 1),
+          role: "custom part",
+          voice: null
+        };
+
+        project.lanes.splice(insertIndex, 0, newLane);
+
+        const selectedIds = new Set(groupBlocks.map(block => block.id));
+        const minStart = Math.min(...groupBlocks.map(block => Number(block.startBeat || 0)));
+
+        project.blocks = project.blocks.filter(block => !selectedIds.has(block.id));
+
+        const movedBlocks = groupBlocks.map(block => ({
+          ...block,
+          laneId: newLane.id,
+          startBeat: snapBeat(Number(block.startBeat || 0) - minStart)
+        }));
+
+        project.blocks.push(...movedBlocks);
+
+        selectedBlockIds = new Set(movedBlocks.map(block => block.id));
+        selectedBlockId = movedBlocks[0]?.id || null;
+        selectedLaneId = newLane.id;
+
+        localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+        render();
+
+        status.textContent =
+          movedBlocks.length +
+          " selected block" +
+          (movedBlocks.length === 1 ? "" : "s") +
+          " moved into new lane.";
+        return;
+      }
 
       const movingExisting = dragState.source === "existing";
       const movingItem = { ...dragState.item };
