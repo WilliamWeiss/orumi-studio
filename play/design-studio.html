@@ -543,6 +543,14 @@
       background: rgba(255,255,255,0.08);
       margin-bottom: 10px;
       text-align: center;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .button-icon {
+      display: inline-block;
+      min-width: 1.25em;
+      margin-right: 0.35em;
+      font-weight: 900;
     }
 
     .c  { background: #ff6b6b; }
@@ -651,7 +659,7 @@
       <div class="section">
         <div class="section-title">Current Design</div>
         <div class="project-name" id="projectNameLabel">
-          Untitled Design
+          File loaded: Untitled Design
         </div>
 
         <div class="controls">
@@ -736,7 +744,19 @@
           </button>
 
           <button class="control-button" id="playButton">
-            Play
+            ▶ Play
+          </button>
+
+          <button class="control-button secondary" id="stopPlaybackButton">
+            ■ Stop
+          </button>
+
+          <button class="control-button secondary" id="copySelectionButton">
+            Copy Selection
+          </button>
+
+          <button class="control-button secondary" id="pasteSelectionButton">
+            Paste at End
           </button>
 
           <button class="control-button danger" id="clearButton">
@@ -756,24 +776,24 @@
 
         <div class="toolbar">
           <button class="control-button secondary" id="importChordButton">
-            Import Chord
+            ⤓ Import Chord
           </button>
 
           <button class="control-button secondary" id="importRecordingButton">
-            Import Recording
+            ⤓ Import Recording
           </button>
 
           <button class="control-button secondary" id="importProgressionButton">
-            Import Progression
+            ⤓ Import Progression
           </button>
 
           <button class="control-button secondary" id="exportMidiButton">
-            Export MIDI
+            ⇩ Export MIDI
           </button>
 
 
           <button class="control-button secondary" id="resetViewButton">
-            Reset View
+            ⏮ Jump to Start
           </button>
         </div>
 
@@ -820,9 +840,11 @@
     let intensityState = null;
     let ghost = null;
     let selectedBlockId = null;
+    let selectedBlockIds = new Set();
     let selectedLaneId = "lead";
     let currentProjectId = null;
     let pendingChordChecked = false;
+    let blockClipboard = [];
 
     const BEAT_WIDTH = 72;
     const MIN_DURATION = 0.25;
@@ -862,6 +884,9 @@
     const addLaneButton = document.getElementById("addLaneButton");
     const undoButton = document.getElementById("undoButton");
     const playButton = document.getElementById("playButton");
+    const stopPlaybackButton = document.getElementById("stopPlaybackButton");
+    const copySelectionButton = document.getElementById("copySelectionButton");
+    const pasteSelectionButton = document.getElementById("pasteSelectionButton");
     const clearButton = document.getElementById("clearButton");
     const importChordButton = document.getElementById("importChordButton");
     const importRecordingButton = document.getElementById("importRecordingButton");
@@ -1053,7 +1078,7 @@
       project = JSON.parse(JSON.stringify(chosen.project));
       normalizeProject();
 
-      selectedBlockId = null;
+      clearBlockSelection();
       selectedLaneId = project.lanes[0]?.id || "lead";
 
       saveCurrentProjectId();
@@ -1101,7 +1126,7 @@
 
       project = createDefaultProject(name || "Untitled Design");
       currentProjectId = null;
-      selectedBlockId = null;
+      clearBlockSelection();
       selectedLaneId = "lead";
       historyStack = [];
 
@@ -1113,10 +1138,12 @@
     }
 
     function renderProjectName() {
+      const name = project.title || "Untitled Design";
+
       projectNameLabel.textContent =
         currentProjectId
-          ? project.title || "Untitled Design"
-          : (project.title || "Untitled Design") + " · unsaved";
+          ? "File loaded: " + name
+          : "File loaded: " + name + " · unsaved";
     }
 
     function saveHistory() {
@@ -1142,7 +1169,7 @@
       currentProjectId = snapshot.currentProjectId || currentProjectId;
 
       normalizeProject();
-      selectedBlockId = null;
+      clearBlockSelection();
 
       localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
 
@@ -1229,7 +1256,7 @@
       saveHistory();
 
       project.blocks = [];
-      selectedBlockId = null;
+      clearBlockSelection();
 
       localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
 
@@ -1520,6 +1547,42 @@
       undoButton.disabled = historyStack.length === 0;
     }
 
+    function clearBlockSelection() {
+      selectedBlockIds.clear();
+      selectedBlockId = null;
+    }
+
+    function selectBlock(blockId, laneId, additive = false) {
+      if (additive) {
+        if (selectedBlockIds.has(blockId)) {
+          selectedBlockIds.delete(blockId);
+
+          if (selectedBlockId === blockId) {
+            selectedBlockId = selectedBlockIds.values().next().value || null;
+          }
+        } else {
+          selectedBlockIds.add(blockId);
+          selectedBlockId = blockId;
+        }
+      } else {
+        selectedBlockIds.clear();
+        selectedBlockIds.add(blockId);
+        selectedBlockId = blockId;
+      }
+
+      selectedLaneId = laneId || selectedLaneId;
+    }
+
+    function getSelectedBlocks() {
+      const ids = new Set(selectedBlockIds);
+
+      if (selectedBlockId) {
+        ids.add(selectedBlockId);
+      }
+
+      return project.blocks.filter(block => ids.has(block.id));
+    }
+
     function renderLanes() {
       lanesContainer.innerHTML = "";
 
@@ -1544,7 +1607,7 @@
 
         label.addEventListener("click", () => {
           selectedLaneId = lane.id;
-          selectedBlockId = null;
+          clearBlockSelection();
           render();
         });
 
@@ -1638,7 +1701,7 @@
         }
       }
 
-      if (block.id === selectedBlockId) {
+      if (block.id === selectedBlockId || selectedBlockIds.has(block.id)) {
         element.classList.add("selected");
       }
 
@@ -1660,8 +1723,7 @@
 
       element.addEventListener("click", event => {
         event.stopPropagation();
-        selectedBlockId = block.id;
-        selectedLaneId = block.laneId;
+        selectBlock(block.id, block.laneId, event.shiftKey);
         render();
       });
 
@@ -1670,25 +1732,26 @@
           return;
         }
 
+        if (event.shiftKey) {
+          return;
+        }
+
         event.preventDefault();
-        selectedBlockId = block.id;
-        selectedLaneId = block.laneId;
+        selectBlock(block.id, block.laneId, false);
         beginExistingBlockDrag(event, block.id);
       });
 
       resizeHandle.addEventListener("pointerdown", event => {
         event.stopPropagation();
         event.preventDefault();
-        selectedBlockId = block.id;
-        selectedLaneId = block.laneId;
+        selectBlock(block.id, block.laneId, false);
         beginResize(event, block.id);
       });
 
       intensityHandle.addEventListener("pointerdown", event => {
         event.stopPropagation();
         event.preventDefault();
-        selectedBlockId = block.id;
-        selectedLaneId = block.laneId;
+        selectBlock(block.id, block.laneId, false);
         beginIntensityResize(event, block.id);
       });
 
@@ -1705,9 +1768,34 @@
 
       blockInspector.innerHTML = "";
 
+      const selectedBlocks = getSelectedBlocks();
+
       if (!block) {
         blockInspector.innerHTML =
-          "<div class='inspector-empty'>Select a note or rest block to edit it.</div>";
+          "<div class='inspector-empty'>Select a note or rest block to edit it. Shift-click blocks to build a phrase selection.</div>";
+        return;
+      }
+
+      if (selectedBlocks.length > 1) {
+        const info = document.createElement("div");
+        info.classList.add("inspector-empty");
+        info.textContent = selectedBlocks.length + " blocks selected.";
+        blockInspector.appendChild(info);
+
+        const copySelectionButton = document.createElement("button");
+        copySelectionButton.classList.add("control-button", "secondary");
+        copySelectionButton.style.marginTop = "12px";
+        copySelectionButton.textContent = "Copy Selection";
+        copySelectionButton.addEventListener("click", copySelectionToClipboard);
+        blockInspector.appendChild(copySelectionButton);
+
+        const pasteSelectionButton = document.createElement("button");
+        pasteSelectionButton.classList.add("control-button", "secondary");
+        pasteSelectionButton.style.marginTop = "8px";
+        pasteSelectionButton.textContent = "Paste at End";
+        pasteSelectionButton.addEventListener("click", pasteClipboardAtEnd);
+        blockInspector.appendChild(pasteSelectionButton);
+
         return;
       }
 
@@ -1884,6 +1972,72 @@
       localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
       render();
       status.textContent = "Block copied.";
+    }
+
+    function copySelectionToClipboard() {
+      const selectedBlocks = getSelectedBlocks();
+
+      if (selectedBlocks.length === 0) {
+        status.textContent = "Select one or more blocks to copy.";
+        return;
+      }
+
+      const minStart = Math.min(...selectedBlocks.map(block => Number(block.startBeat || 0)));
+
+      blockClipboard = selectedBlocks.map(block => ({
+        ...block,
+        relativeStartBeat: Number(block.startBeat || 0) - minStart
+      }));
+
+      status.textContent =
+        selectedBlocks.length +
+        " block" +
+        (selectedBlocks.length === 1 ? "" : "s") +
+        " copied to phrase clipboard.";
+    }
+
+    function pasteClipboardAtEnd() {
+      if (!blockClipboard || blockClipboard.length === 0) {
+        status.textContent = "Copy a block or selection first.";
+        return;
+      }
+
+      saveHistory();
+
+      const pasteStart = getProjectLength() + 0.5;
+      const newIds = [];
+
+      blockClipboard.forEach(item => {
+        const copy = {
+          ...item,
+          id: createId(item.type === "rest" ? "rest" : "note"),
+          startBeat: snapBeat(pasteStart + Number(item.relativeStartBeat || 0)),
+          source: item.source || "manual",
+          sourceId: item.sourceId || null
+        };
+
+        delete copy.relativeStartBeat;
+
+        project.blocks.push(copy);
+        newIds.push(copy.id);
+      });
+
+      selectedBlockIds = new Set(newIds);
+      selectedBlockId = newIds[0] || null;
+
+      const firstBlock = project.blocks.find(block => block.id === selectedBlockId);
+      if (firstBlock) {
+        selectedLaneId = firstBlock.laneId;
+      }
+
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+      render();
+
+      status.textContent =
+        newIds.length +
+        " copied block" +
+        (newIds.length === 1 ? "" : "s") +
+        " pasted at end.";
     }
 
     function renderLaneInspector() {
@@ -2683,38 +2837,127 @@
         return;
       }
 
+      const answer = window.prompt(
+        "Import recording how?\n\n" +
+        "A = Append after current design\n" +
+        "O = Overlay at start\n" +
+        "N = New track / new lane\n" +
+        "C = Cancel",
+        "A"
+      );
+
+      if (!answer) {
+        status.textContent = "Import cancelled.";
+        return;
+      }
+
+      const normalizedAnswer = answer.trim().toLowerCase();
+      let importMode = "append";
+
+      if (normalizedAnswer === "o" || normalizedAnswer === "overlay") {
+        importMode = "overlay";
+      } else if (normalizedAnswer === "n" || normalizedAnswer === "new" || normalizedAnswer === "new track" || normalizedAnswer === "new lane") {
+        importMode = "new";
+      } else if (normalizedAnswer === "a" || normalizedAnswer === "append") {
+        importMode = "append";
+      } else {
+        status.textContent = "Import cancelled.";
+        return;
+      }
+
+      const parsedEvents = events
+        .map(event => {
+          const rawNotes = Array.isArray(event.notes) ? event.notes : [];
+
+          const parsedNotes = rawNotes
+            .map(note => {
+              const midi = Number.isFinite(note.midi)
+                ? note.midi
+                : note.name
+                  ? noteNameToMidi(note.name)
+                  : null;
+
+              return {
+                ...note,
+                midi,
+                name: note.name || (midi !== null ? midiToDisplayName(midi) : "")
+              };
+            })
+            .filter(note => note.midi !== null)
+            .sort((a, b) => a.midi - b.midi);
+
+          return {
+            event,
+            notes: parsedNotes
+          };
+        })
+        .filter(item => item.notes.length > 0);
+
+      if (parsedEvents.length === 0) {
+        status.textContent = "Recording had no usable notes.";
+        return;
+      }
+
       saveHistory();
 
       const importId = "recording_" + new Date().toISOString();
+      const offsetBeat =
+        importMode === "append" && project.blocks.length > 0
+          ? getProjectLength() + 0.5
+          : 0;
 
-      events.forEach(event => {
-        const rawNotes = Array.isArray(event.notes) ? event.notes : [];
+      let newRecordingLanes = [];
 
-        const parsedNotes = rawNotes
-          .map(note => {
-            const midi = Number.isFinite(note.midi)
-              ? note.midi
-              : note.name
-                ? noteNameToMidi(note.name)
-                : null;
+      if (importMode === "new") {
+        const maxNotesAtOnce = Math.max(
+          1,
+          ...parsedEvents.map(item => item.notes.length)
+        );
 
-            return {
-              ...note,
-              midi,
-              name: note.name || (midi !== null ? midiToDisplayName(midi) : "")
-            };
-          })
-          .filter(note => note.midi !== null)
-          .sort((a, b) => a.midi - b.midi);
+        const laneNameMap = [
+          "Recording Bass",
+          "Recording Baritone",
+          "Recording Lead",
+          "Recording Tenor"
+        ];
 
-        if (parsedNotes.length === 0) {
-          return;
+        const laneRoleMap = [
+          "recorded low voice",
+          "recorded inner voice",
+          "recorded melody",
+          "recorded upper voice"
+        ];
+
+        for (let index = 0; index < maxNotesAtOnce; index++) {
+          const lane = {
+            id: createId("lane"),
+            name: maxNotesAtOnce === 1
+              ? "Imported Recording"
+              : laneNameMap[index] || "Recording Part " + (index + 1),
+            role: maxNotesAtOnce === 1
+              ? "recorded take"
+              : laneRoleMap[index] || "recorded part",
+            voice: null
+          };
+
+          project.lanes.push(lane);
+          newRecordingLanes.push(lane);
         }
+      }
 
-        parsedNotes.forEach((note, index) => {
-          const laneId = parsedNotes.length === 1
-            ? chooseLaneForEvent(event)
-            : getLaneIdForChordNoteIndex(index, parsedNotes.length);
+      let importedNoteCount = 0;
+
+      parsedEvents.forEach(item => {
+        item.notes.forEach((note, index) => {
+          let laneId;
+
+          if (importMode === "new") {
+            laneId = newRecordingLanes[index]?.id || newRecordingLanes[0].id;
+          } else {
+            laneId = item.notes.length === 1
+              ? chooseLaneForEvent(item.event)
+              : getLaneIdForChordNoteIndex(index, item.notes.length);
+          }
 
           project.blocks.push({
             id: createId("note"),
@@ -2722,25 +2965,50 @@
             laneId,
             midi: note.midi,
             name: note.name || midiToDisplayName(note.midi),
-            startBeat: Number(event.start || 0),
-            durationBeats: Math.max(MIN_DURATION, Number(event.duration || 1)),
-            velocity: 86,
-            voice: event.voice || null,
-            system: event.system || project.context.system,
+            startBeat: offsetBeat + Number(item.event.start || 0),
+            durationBeats: Math.max(MIN_DURATION, Number(item.event.duration || 1)),
+            velocity: Number.isFinite(item.event.velocity) ? item.event.velocity : 86,
+            voice: item.event.voice || null,
+            system: item.event.system || project.context.system,
             source: "recording",
             sourceId: importId
           });
+
+          importedNoteCount += 1;
         });
       });
 
+      if (importMode === "new" && newRecordingLanes.length > 0) {
+        selectedLaneId = newRecordingLanes[0].id;
+      }
+
       localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
       render();
+
+      const modeLabel =
+        importMode === "append"
+          ? "appended"
+          : importMode === "overlay"
+            ? "overlaid"
+            : "imported into new " + (newRecordingLanes.length === 1 ? "lane" : "lanes");
+
+      const detailText =
+        importMode === "append"
+          ? " after beat " + offsetBeat.toFixed(2)
+          : importMode === "overlay"
+            ? " at the start"
+            : " into " + newRecordingLanes.length + " new " + (newRecordingLanes.length === 1 ? "lane" : "lanes");
+
       status.textContent =
-        events.length +
-        " recorded event" +
-        (events.length === 1 ? "" : "s") +
-        " imported.";
+        importedNoteCount +
+        " recorded note" +
+        (importedNoteCount === 1 ? "" : "s") +
+        " " +
+        modeLabel +
+        detailText +
+        ".";
     }
+
 
     function importProgression() {
       const raw = localStorage.getItem("orumiProgression");
@@ -3215,6 +3483,7 @@
 
     function resetView() {
       document.querySelector(".timeline-shell").scrollLeft = 0;
+      status.textContent = "Jumped to start.";
     }
 
     function escapeHtml(text) {
@@ -3234,6 +3503,12 @@
     addLaneButton.addEventListener("click", addLane);
     undoButton.addEventListener("click", undo);
     playButton.addEventListener("click", playProject);
+    stopPlaybackButton.addEventListener("click", () => {
+      stopPlayback();
+      status.textContent = "Playback stopped.";
+    });
+    copySelectionButton.addEventListener("click", copySelectionToClipboard);
+    pasteSelectionButton.addEventListener("click", pasteClipboardAtEnd);
     clearButton.addEventListener("click", clearProject);
     importChordButton.addEventListener("click", () => importPendingChordFromStorage(false));
     importRecordingButton.addEventListener("click", importRecording);
