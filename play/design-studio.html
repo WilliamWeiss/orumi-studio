@@ -736,7 +736,7 @@
 
         <div class="controls">
           <button class="control-button secondary" id="addLaneButton">
-            Add Lane
+            ＋ Add Lane
           </button>
 
           <button class="control-button secondary" id="undoButton">
@@ -756,15 +756,15 @@
           </button>
 
           <button class="control-button secondary" id="copySelectionButton">
-            Copy Selection
+            ⧉ Copy Selection
           </button>
 
           <button class="control-button secondary" id="pasteSelectionButton">
-            Paste at End
+            ⧆ Paste at End
           </button>
 
           <button class="control-button danger" id="clearButton">
-            Clear
+            🗑 Clear Design
           </button>
         </div>
 
@@ -1823,14 +1823,14 @@
         const copySelectionButton = document.createElement("button");
         copySelectionButton.classList.add("control-button", "secondary");
         copySelectionButton.style.marginTop = "12px";
-        copySelectionButton.textContent = "Copy Selection";
+        copySelectionButton.textContent = "⧉ Copy Selection";
         copySelectionButton.addEventListener("click", copySelectionToClipboard);
         blockInspector.appendChild(copySelectionButton);
 
         const pasteSelectionButton = document.createElement("button");
         pasteSelectionButton.classList.add("control-button", "secondary");
         pasteSelectionButton.style.marginTop = "8px";
-        pasteSelectionButton.textContent = "Paste at End";
+        pasteSelectionButton.textContent = "⧆ Paste at End";
         pasteSelectionButton.addEventListener("click", pasteClipboardAtEnd);
         blockInspector.appendChild(pasteSelectionButton);
 
@@ -1962,7 +1962,7 @@
       const copyButton = document.createElement("button");
       copyButton.classList.add("control-button", "secondary");
       copyButton.style.marginTop = "12px";
-      copyButton.textContent = block.type === "rest" ? "Copy Rest" : "Copy Note";
+      copyButton.textContent = block.type === "rest" ? "⧉ Copy Rest" : "⧉ Copy Note";
 
       copyButton.addEventListener("click", copySelectedBlock);
       blockInspector.appendChild(copyButton);
@@ -1970,7 +1970,7 @@
       const deleteButton = document.createElement("button");
       deleteButton.classList.add("control-button", "danger");
       deleteButton.style.marginTop = "8px";
-      deleteButton.textContent = "Delete Block";
+      deleteButton.textContent = "🗑 Delete Block";
 
       deleteButton.addEventListener("click", () => {
         saveHistory();
@@ -2153,7 +2153,7 @@
       const duplicateLaneButton = document.createElement("button");
       duplicateLaneButton.classList.add("control-button", "secondary");
       duplicateLaneButton.style.marginTop = "12px";
-      duplicateLaneButton.textContent = "Duplicate Lane";
+      duplicateLaneButton.textContent = "⧉ Duplicate Lane";
 
       duplicateLaneButton.addEventListener("click", duplicateSelectedLane);
       laneInspector.appendChild(duplicateLaneButton);
@@ -2161,7 +2161,7 @@
       const deleteLaneButton = document.createElement("button");
       deleteLaneButton.classList.add("control-button", "danger");
       deleteLaneButton.style.marginTop = "8px";
-      deleteLaneButton.textContent = "Delete Empty Lane";
+      deleteLaneButton.textContent = "🗑 Delete Empty Lane";
       deleteLaneButton.disabled =
         project.blocks.some(block => block.laneId === lane.id) ||
         project.lanes.length <= 1;
@@ -3053,9 +3053,9 @@
 
       const answer = window.prompt(
         "Import recording how?\n\n" +
-        "A = Append after current design\n" +
-        "O = Overlay at start\n" +
-        "N = New track / new lane\n" +
+        "A = ⏭ Append after current design\n" +
+        "O = ◫ Overlay at start\n" +
+        "N = ＋ New track / new lane\n" +
         "C = Cancel",
         "A"
       );
@@ -3246,7 +3246,7 @@
 
       if (existingProgressionBlocks) {
         const answer = window.prompt(
-          "Progression blocks already exist in this design.\n\nType:\nA = Add another copy\nR = Replace previous progression import\nC = Cancel",
+          "Progression blocks already exist in this design.\n\nType:\nA = ⏭ Add another copy\nR = Replace previous progression import\nC = Cancel",
           "A"
         );
 
@@ -3267,7 +3267,7 @@
         }
       } else {
         const answer = window.prompt(
-          "Import current progression?\n\nType:\nA = Add to current design\nC = Cancel",
+          "Import current progression?\n\nType:\nA = ⏭ Add to current design\nC = Cancel",
           "A"
         );
 
