@@ -791,6 +791,9 @@
             ⇩ Export MIDI
           </button>
 
+          <button class="control-button secondary" id="undoToolbarButton">
+            ↶ Undo Last
+          </button>
 
           <button class="control-button secondary" id="resetViewButton">
             ⏮ Jump to Start
@@ -892,6 +895,7 @@
     const importRecordingButton = document.getElementById("importRecordingButton");
     const importProgressionButton = document.getElementById("importProgressionButton");
     const exportMidiButton = document.getElementById("exportMidiButton");
+    const undoToolbarButton = document.getElementById("undoToolbarButton");
     const resetViewButton = document.getElementById("resetViewButton");
     const paletteOctaveSelect = document.getElementById("paletteOctaveSelect");
 
@@ -1545,6 +1549,9 @@
         (project.context.set === "full" ? "Full Palette" : "Native Palette");
 
       undoButton.disabled = historyStack.length === 0;
+      if (undoToolbarButton) {
+        undoToolbarButton.disabled = historyStack.length === 0;
+      }
     }
 
     function clearBlockSelection() {
@@ -3514,6 +3521,7 @@
     importRecordingButton.addEventListener("click", importRecording);
     importProgressionButton.addEventListener("click", importProgression);
     exportMidiButton.addEventListener("click", exportMidi);
+    undoToolbarButton.addEventListener("click", undo);
     resetViewButton.addEventListener("click", resetView);
 
     window.addEventListener("beforeunload", () => {
