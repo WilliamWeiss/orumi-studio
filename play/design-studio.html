@@ -511,6 +511,17 @@
       padding: 12px 4px;
     }
 
+    .project-name {
+      color: #fff7ea;
+      font-size: 13px;
+      line-height: 1.35;
+      padding: 10px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.08);
+      margin-bottom: 10px;
+      text-align: center;
+    }
+
     .c  { background: #ff6b6b; }
     .db { background: linear-gradient(135deg, #ff6b6b, #f7b267); }
     .d  { background: #f7b267; }
@@ -588,12 +599,37 @@
   <h1>Design Studio</h1>
 
   <div class="subtitle">
-    Arrange Orumi blocks by part. The project can be key-aware while remaining chromatic and editable.
+    Arrange Orumi blocks by part. Save named designs, import recordings, and bring in chord progressions as editable blocks.
   </div>
 
   <div class="studio">
 
     <aside class="panel">
+
+      <div class="section">
+        <div class="section-title">Current Design</div>
+        <div class="project-name" id="projectNameLabel">
+          Untitled Design
+        </div>
+
+        <div class="controls">
+          <button class="control-button" id="saveButton">
+            Save
+          </button>
+
+          <button class="control-button secondary" id="saveAsButton">
+            Save As
+          </button>
+
+          <button class="control-button secondary" id="loadProjectButton">
+            Load Project
+          </button>
+
+          <button class="control-button secondary" id="newDesignButton">
+            New Design
+          </button>
+        </div>
+      </div>
 
       <div class="section">
         <div class="section-title">Project Context</div>
@@ -648,14 +684,6 @@
 
           <button class="control-button" id="playButton">
             Play
-          </button>
-
-          <button class="control-button secondary" id="saveButton">
-            Save
-          </button>
-
-          <button class="control-button secondary" id="loadButton">
-            Load
           </button>
 
           <button class="control-button danger" id="clearButton">
@@ -735,11 +763,16 @@
     let ghost = null;
     let selectedBlockId = null;
     let selectedLaneId = "lead";
+    let currentProjectId = null;
 
     const BEAT_WIDTH = 72;
     const MIN_DURATION = 0.25;
     const MAX_HISTORY = 60;
     const DEFAULT_DURATION = 1;
+
+    const STORAGE_LIBRARY = "orumiDesignStudioProjects";
+    const STORAGE_CURRENT_ID = "orumiDesignStudioCurrentProjectId";
+    const STORAGE_LEGACY = "orumiDesignStudioProject";
 
     const backButton = document.getElementById("backButton");
     const paletteGrid = document.getElementById("paletteGrid");
@@ -748,6 +781,7 @@
     const trashCan = document.getElementById("trashCan");
     const status = document.getElementById("status");
     const projectStatus = document.getElementById("projectStatus");
+    const projectNameLabel = document.getElementById("projectNameLabel");
 
     const systemSelect = document.getElementById("systemSelect");
     const rootSelect = document.getElementById("rootSelect");
@@ -760,11 +794,14 @@
     const blockInspector = document.getElementById("blockInspector");
     const laneInspector = document.getElementById("laneInspector");
 
+    const saveButton = document.getElementById("saveButton");
+    const saveAsButton = document.getElementById("saveAsButton");
+    const loadProjectButton = document.getElementById("loadProjectButton");
+    const newDesignButton = document.getElementById("newDesignButton");
+
     const addLaneButton = document.getElementById("addLaneButton");
     const undoButton = document.getElementById("undoButton");
     const playButton = document.getElementById("playButton");
-    const saveButton = document.getElementById("saveButton");
-    const loadButton = document.getElementById("loadButton");
     const clearButton = document.getElementById("clearButton");
     const importRecordingButton = document.getElementById("importRecordingButton");
     const importProgressionButton = document.getElementById("importProgressionButton");
@@ -786,9 +823,9 @@
       }
     });
 
-    function createDefaultProject() {
+    function createDefaultProject(name = "Untitled Design") {
       return {
-        title: "Untitled Orumi Piece",
+        title: name,
         tempo: 120,
         context: {
           system: "western",
@@ -818,8 +855,212 @@
       );
     }
 
+    function getProjectLibrary() {
+      return JSON.parse(
+        localStorage.getItem(STORAGE_LIBRARY) || "{}"
+      );
+    }
+
+    function setProjectLibrary(library) {
+      localStorage.setItem(
+        STORAGE_LIBRARY,
+        JSON.stringify(library)
+      );
+    }
+
+    function saveCurrentProjectId() {
+      if (currentProjectId) {
+        localStorage.setItem(STORAGE_CURRENT_ID, currentProjectId);
+      } else {
+        localStorage.removeItem(STORAGE_CURRENT_ID);
+      }
+    }
+
+    function saveProject(showMessage = true) {
+      if (!currentProjectId) {
+        saveProjectAs();
+        return;
+      }
+
+      normalizeProject();
+
+      const library = getProjectLibrary();
+
+      library[currentProjectId] = {
+        id: currentProjectId,
+        name: project.title || "Untitled Design",
+        updatedAt: new Date().toISOString(),
+        project: JSON.parse(JSON.stringify(project))
+      };
+
+      setProjectLibrary(library);
+      saveCurrentProjectId();
+
+      localStorage.setItem(
+        STORAGE_LEGACY,
+        JSON.stringify(project)
+      );
+
+      if (showMessage) {
+        status.textContent = "Saved “" + project.title + ".”";
+      }
+
+      renderProjectName();
+    }
+
+    function saveProjectAs() {
+      const defaultName =
+        project.title && project.title !== "Untitled Design"
+          ? project.title + " Copy"
+          : "Untitled Design";
+
+      const name = window.prompt("Save design as:", defaultName);
+
+      if (!name) {
+        status.textContent = "Save As cancelled.";
+        return;
+      }
+
+      currentProjectId = createId("design");
+      project.title = name.trim() || "Untitled Design";
+
+      normalizeProject();
+
+      const library = getProjectLibrary();
+
+      library[currentProjectId] = {
+        id: currentProjectId,
+        name: project.title,
+        updatedAt: new Date().toISOString(),
+        project: JSON.parse(JSON.stringify(project))
+      };
+
+      setProjectLibrary(library);
+      saveCurrentProjectId();
+
+      localStorage.setItem(
+        STORAGE_LEGACY,
+        JSON.stringify(project)
+      );
+
+      renderProjectName();
+      status.textContent = "Saved as “" + project.title + ".”";
+    }
+
+    function loadProjectPicker() {
+      const library = getProjectLibrary();
+      const projects = Object.values(library)
+        .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+
+      if (projects.length === 0) {
+        status.textContent = "No saved Design Studio projects found.";
+        return;
+      }
+
+      const listText = projects
+        .map((item, index) => {
+          const date = item.updatedAt
+            ? new Date(item.updatedAt).toLocaleString()
+            : "unknown date";
+
+          return (index + 1) + ". " + item.name + " — " + date;
+        })
+        .join("\n");
+
+      const answer = window.prompt(
+        "Load which design?\n\n" + listText + "\n\nEnter a number:",
+        "1"
+      );
+
+      if (!answer) {
+        status.textContent = "Load cancelled.";
+        return;
+      }
+
+      const index = parseInt(answer, 10) - 1;
+
+      if (!projects[index]) {
+        status.textContent = "No project loaded.";
+        return;
+      }
+
+      const chosen = projects[index];
+
+      currentProjectId = chosen.id;
+      project = JSON.parse(JSON.stringify(chosen.project));
+      normalizeProject();
+
+      selectedBlockId = null;
+      selectedLaneId = project.lanes[0]?.id || "lead";
+
+      saveCurrentProjectId();
+      render();
+
+      status.textContent = "Loaded “" + chosen.name + ".”";
+    }
+
+    function loadStartupProject() {
+      const library = getProjectLibrary();
+      const currentId = localStorage.getItem(STORAGE_CURRENT_ID);
+
+      if (currentId && library[currentId]) {
+        currentProjectId = currentId;
+        project = JSON.parse(JSON.stringify(library[currentId].project));
+        normalizeProject();
+        return;
+      }
+
+      const legacy = localStorage.getItem(STORAGE_LEGACY);
+
+      if (legacy) {
+        project = JSON.parse(legacy);
+        normalizeProject();
+        currentProjectId = null;
+        return;
+      }
+
+      project = createDefaultProject();
+      currentProjectId = null;
+      normalizeProject();
+    }
+
+    function newDesign() {
+      const confirmed =
+        window.confirm("Start a new blank Design? Your saved projects will remain available.");
+
+      if (!confirmed) {
+        return;
+      }
+
+      saveHistory();
+
+      const name = window.prompt("Name the new design:", "Untitled Design");
+
+      project = createDefaultProject(name || "Untitled Design");
+      currentProjectId = null;
+      selectedBlockId = null;
+      selectedLaneId = "lead";
+      historyStack = [];
+
+      saveCurrentProjectId();
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+
+      render();
+      status.textContent = "New design started. Use Save As to keep it.";
+    }
+
+    function renderProjectName() {
+      projectNameLabel.textContent =
+        currentProjectId
+          ? project.title || "Untitled Design"
+          : (project.title || "Untitled Design") + " · unsaved";
+    }
+
     function saveHistory() {
-      historyStack.push(JSON.stringify(project));
+      historyStack.push(JSON.stringify({
+        project,
+        currentProjectId
+      }));
 
       if (historyStack.length > MAX_HISTORY) {
         historyStack.shift();
@@ -832,41 +1073,25 @@
         return;
       }
 
-      project = JSON.parse(historyStack.pop());
+      const snapshot = JSON.parse(historyStack.pop());
+
+      project = snapshot.project;
+      currentProjectId = snapshot.currentProjectId || currentProjectId;
+
       normalizeProject();
       selectedBlockId = null;
-      saveProject(false);
+
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+
       render();
       status.textContent = "Undid last action.";
     }
 
-    function saveProject(showMessage = true) {
-      localStorage.setItem(
-        "orumiDesignStudioProject",
-        JSON.stringify(project)
-      );
-
-      if (showMessage) {
-        status.textContent = "Design saved.";
-      }
-    }
-
-    function loadProject() {
-      const raw = localStorage.getItem("orumiDesignStudioProject");
-
-      if (!raw) {
-        status.textContent = "No saved Design Studio project found.";
-        return;
-      }
-
-      project = JSON.parse(raw);
-      normalizeProject();
-      selectedBlockId = null;
-      render();
-      status.textContent = "Design loaded.";
-    }
-
     function normalizeProject() {
+      if (!project.title) {
+        project.title = "Untitled Design";
+      }
+
       if (!project.context) {
         project.context = createDefaultProject().context;
       }
@@ -923,21 +1148,25 @@
         durationBeats: Math.max(MIN_DURATION, Number(block.durationBeats || 1)),
         velocity: Math.max(20, Math.min(127, Number(block.velocity || 82))),
         voice: block.voice === undefined ? null : block.voice,
-        system: block.system || project.context.system
+        system: block.system || project.context.system,
+        source: block.source || null,
+        sourceId: block.sourceId || null
       }));
     }
 
     function clearProject() {
-      const confirmed = window.confirm("Clear Design Studio?");
+      const confirmed = window.confirm("Clear this design canvas?");
       if (!confirmed) return;
 
       saveHistory();
-      project = createDefaultProject();
+
+      project.blocks = [];
       selectedBlockId = null;
-      selectedLaneId = "lead";
-      saveProject(false);
+
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+
       render();
-      status.textContent = "Design cleared.";
+      status.textContent = "Design canvas cleared. Saved projects remain available.";
     }
 
     function pcToName(pcNumber) {
@@ -1097,7 +1326,8 @@
       project.context.voice = projectVoiceSelect.value;
       project.tempo = Math.max(40, Math.min(240, Number(tempoInput.value || 120)));
 
-      saveProject(false);
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+
       render();
       status.textContent = "Project context updated.";
     }
@@ -1191,6 +1421,7 @@
 
     function render() {
       normalizeProject();
+      renderProjectName();
       populateContextControls();
       createPalette();
       renderRuler();
@@ -1420,7 +1651,7 @@
           saveHistory();
           block.midi = parseInt(noteSelect.value, 10);
           block.name = midiToDisplayName(block.midi);
-          saveProject(false);
+          localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
           render();
         });
 
@@ -1449,7 +1680,7 @@
         voiceSelect.addEventListener("change", () => {
           saveHistory();
           block.voice = voiceSelect.value || null;
-          saveProject(false);
+          localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
           render();
         });
 
@@ -1477,7 +1708,7 @@
         saveHistory();
         block.laneId = laneSelect.value;
         selectedLaneId = block.laneId;
-        saveProject(false);
+        localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
         render();
       });
 
@@ -1498,7 +1729,7 @@
       durationInput.addEventListener("change", () => {
         saveHistory();
         block.durationBeats = Math.max(MIN_DURATION, Number(durationInput.value || 1));
-        saveProject(false);
+        localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
         render();
       });
 
@@ -1519,7 +1750,7 @@
       velocityInput.addEventListener("change", () => {
         saveHistory();
         block.velocity = Math.max(20, Math.min(127, Number(velocityInput.value || 82)));
-        saveProject(false);
+        localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
         render();
       });
 
@@ -1539,7 +1770,7 @@
         saveHistory();
         project.blocks = project.blocks.filter(item => item.id !== block.id);
         selectedBlockId = null;
-        saveProject(false);
+        localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
         render();
         status.textContent = "Block deleted. Undo is available.";
       });
@@ -1568,7 +1799,7 @@
       nameInput.addEventListener("change", () => {
         saveHistory();
         lane.name = nameInput.value || "Part";
-        saveProject(false);
+        localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
         render();
       });
 
@@ -1584,7 +1815,7 @@
       roleInput.addEventListener("change", () => {
         saveHistory();
         lane.role = roleInput.value || "part";
-        saveProject(false);
+        localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
         render();
       });
 
@@ -1613,7 +1844,7 @@
       voiceSelect.addEventListener("change", () => {
         saveHistory();
         lane.voice = voiceSelect.value || null;
-        saveProject(false);
+        localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
         render();
       });
 
@@ -1636,7 +1867,7 @@
         saveHistory();
         project.lanes = project.lanes.filter(item => item.id !== lane.id);
         selectedLaneId = project.lanes[0].id;
-        saveProject(false);
+        localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
         render();
       });
 
@@ -1798,7 +2029,7 @@
         saveHistory();
         project.blocks = project.blocks.filter(block => block.id !== dragState.blockId);
         selectedBlockId = null;
-        saveProject(false);
+        localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
         render();
         status.textContent = "Block deleted. Undo is available.";
       }
@@ -1947,7 +2178,7 @@
             : "Block inserted.";
       }
 
-      saveProject(false);
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
       render();
     }
 
@@ -1981,7 +2212,7 @@
       selectedBlockId = block.id;
       selectedLaneId = newLane.id;
 
-      saveProject(false);
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
       render();
       status.textContent = "New lane added.";
     }
@@ -1997,7 +2228,9 @@
           velocity: 0,
           name: "Rest",
           voice: null,
-          system: project.context.system
+          system: project.context.system,
+          source: "manual",
+          sourceId: null
         };
       }
 
@@ -2013,7 +2246,9 @@
         durationBeats: Math.max(MIN_DURATION, durationBeats),
         velocity: Math.max(20, Math.min(127, velocity || item.velocity || 82)),
         voice: item.voice === undefined ? null : item.voice,
-        system: item.system || project.context.system
+        system: item.system || project.context.system,
+        source: item.source || "manual",
+        sourceId: item.sourceId || null
       };
     }
 
@@ -2074,7 +2309,7 @@
 
     function finishResize() {
       resizeState = null;
-      saveProject(false);
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
 
       window.removeEventListener("pointermove", handleGlobalPointerMove);
       window.removeEventListener("pointerup", handleGlobalPointerUp);
@@ -2114,7 +2349,7 @@
 
     function finishIntensityResize() {
       intensityState = null;
-      saveProject(false);
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
 
       window.removeEventListener("pointermove", handleGlobalPointerMove);
       window.removeEventListener("pointerup", handleGlobalPointerUp);
@@ -2134,7 +2369,7 @@
       selectedLaneId = lane.id;
       selectedBlockId = null;
 
-      saveProject(false);
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
       render();
       status.textContent = "Lane added.";
     }
@@ -2154,14 +2389,16 @@
         velocity: 0,
         name: "Rest",
         voice: null,
-        system: project.context.system
+        system: project.context.system,
+        source: "manual",
+        sourceId: null
       };
 
       project.blocks.push(block);
       selectedBlockId = block.id;
       selectedLaneId = lead.id;
 
-      saveProject(false);
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
       render();
       status.textContent = "Rest added.";
     }
@@ -2192,6 +2429,8 @@
 
       saveHistory();
 
+      const importId = "recording_" + new Date().toISOString();
+
       events.forEach(event => {
         const laneId = chooseLaneForEvent(event);
 
@@ -2215,13 +2454,15 @@
               durationBeats: Math.max(MIN_DURATION, Number(event.duration || 1)),
               velocity: 86,
               voice: event.voice || null,
-              system: event.system || project.context.system
+              system: event.system || project.context.system,
+              source: "recording",
+              sourceId: importId
             });
           });
         }
       });
 
-      saveProject(false);
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
       render();
       status.textContent = "Recording imported.";
     }
@@ -2241,9 +2482,66 @@
         return;
       }
 
+      const existingProgressionBlocks =
+        project.blocks.some(block => block.source === "progression");
+
+      let mode = "add";
+
+      if (existingProgressionBlocks) {
+        const answer = window.prompt(
+          "Progression blocks already exist in this design.\n\nType:\nA = Add another copy\nR = Replace previous progression import\nC = Cancel",
+          "A"
+        );
+
+        if (!answer) {
+          status.textContent = "Import cancelled.";
+          return;
+        }
+
+        const normalized = answer.trim().toLowerCase();
+
+        if (normalized === "r" || normalized === "replace") {
+          mode = "replace";
+        } else if (normalized === "a" || normalized === "add") {
+          mode = "add";
+        } else {
+          status.textContent = "Import cancelled.";
+          return;
+        }
+      } else {
+        const answer = window.prompt(
+          "Import current progression?\n\nType:\nA = Add to current design\nC = Cancel",
+          "A"
+        );
+
+        if (!answer || answer.trim().toLowerCase().startsWith("c")) {
+          status.textContent = "Import cancelled.";
+          return;
+        }
+
+        mode = "add";
+      }
+
       saveHistory();
 
       let cursor = getProjectLength() > 8 ? getProjectLength() + 0.5 : 0;
+      const importId = "progression_current";
+
+      if (mode === "replace") {
+        const previousBlocks = project.blocks.filter(
+          block => block.source === "progression"
+        );
+
+        if (previousBlocks.length > 0) {
+          cursor = Math.min(...previousBlocks.map(block => block.startBeat));
+        } else {
+          cursor = 0;
+        }
+
+        project.blocks = project.blocks.filter(
+          block => block.source !== "progression"
+        );
+      }
 
       progression.forEach(chord => {
         const notes = Array.isArray(chord.notes) ? chord.notes : [];
@@ -2264,16 +2562,22 @@
             durationBeats: 1.5,
             velocity: 86,
             voice: chord.voice || null,
-            system: chord.system || project.context.system
+            system: chord.system || project.context.system,
+            source: "progression",
+            sourceId: importId
           });
         });
 
         cursor += 1.75;
       });
 
-      saveProject(false);
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
       render();
-      status.textContent = "Progression imported as editable note blocks.";
+
+      status.textContent =
+        mode === "replace"
+          ? "Previous progression import replaced."
+          : "Progression imported as editable note blocks.";
     }
 
     function chooseLaneForEvent(event) {
@@ -2412,11 +2716,14 @@
         .replaceAll("'", "&#039;");
     }
 
+    saveButton.addEventListener("click", () => saveProject(true));
+    saveAsButton.addEventListener("click", saveProjectAs);
+    loadProjectButton.addEventListener("click", loadProjectPicker);
+    newDesignButton.addEventListener("click", newDesign);
+
     addLaneButton.addEventListener("click", addLane);
     undoButton.addEventListener("click", undo);
     playButton.addEventListener("click", playProject);
-    saveButton.addEventListener("click", () => saveProject(true));
-    loadButton.addEventListener("click", loadProject);
     clearButton.addEventListener("click", clearProject);
     importRecordingButton.addEventListener("click", importRecording);
     importProgressionButton.addEventListener("click", importProgression);
@@ -2425,10 +2732,10 @@
 
     window.addEventListener("beforeunload", () => {
       stopPlayback();
-      saveProject(false);
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
     });
 
-    normalizeProject();
+    loadStartupProject();
     render();
   </script>
 
