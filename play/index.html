@@ -38,9 +38,10 @@
 
     .menu-grid {
       display: grid;
-      width: min(88vmin, 520px);
-      grid-template-columns: repeat(3, 1fr);
-      gap: 3%;
+      width: min(92vmin, 640px);
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      gap: 14px;
     }
 
     .tile {
@@ -66,7 +67,7 @@
     }
 
     .abbr {
-      font-size: clamp(24px, 7vmin, 48px);
+      font-size: clamp(22px, 5.8vmin, 44px);
       font-weight: bold;
       letter-spacing: 1px;
       line-height: 1;
@@ -74,9 +75,10 @@
 
     .label {
       margin-top: 8px;
-      font-size: clamp(11px, 2.2vmin, 15px);
+      font-size: clamp(10px, 1.9vmin, 14px);
       opacity: 0.9;
       line-height: 1.1;
+      padding: 0 6px;
     }
 
     .western  { background: #4d6f91; }
@@ -88,12 +90,16 @@
     .blues    { background: #3f4e6f; }
     .african  { background: #8b3e2f; }
     .andean   { background: #5f6f72; }
+
     .chordfactory { background: #5b4f7a; }
     .recordingstudio { background: #6a4f2f; }
+    .designstudio { background: #2f665f; }
 
-    @media (max-width: 520px) {
+    @media (max-width: 620px) {
       .menu-grid {
-        width: min(92vw, 420px);
+        width: min(94vw, 460px);
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-rows: auto;
         gap: 10px;
       }
 
@@ -109,7 +115,7 @@
   <h1>Orumi Sound Squares</h1>
 
   <div class="subtitle">
-    Choose a musical world
+    Choose a musical world or studio
   </div>
 
   <div class="menu-grid" id="menuGrid"></div>
@@ -123,12 +129,16 @@
       "japanese",
       "chinese",
       "indian",
+
       "maqam",
       "celtic",
       "blues",
+      "african",
+
       "andean",
       "chordfactory",
-      "recordingstudio"
+      "recordingstudio",
+      "designstudio"
     ];
 
     function buildSystemLink(systemKey, system) {
@@ -206,9 +216,24 @@
           return;
         }
 
+        if (systemKey === "designstudio") {
+          menuGrid.appendChild(
+            createTile(
+              "designstudio",
+              "design-studio.html",
+              "DS",
+              "Design Studio"
+            )
+          );
+
+          return;
+        }
+
         const system = systems[systemKey];
 
-        if (!system) return;
+        if (!system) {
+          return;
+        }
 
         menuGrid.appendChild(
           createTile(
