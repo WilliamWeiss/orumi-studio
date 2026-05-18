@@ -17,8 +17,6 @@
       --muted: #bdb4a6;
       --beat-width: 72px;
       --lane-height: 92px;
-      --block-min-height: 28px;
-      --block-max-height: 74px;
     }
 
     body {
@@ -42,7 +40,7 @@
     .subtitle {
       color: var(--muted);
       text-align: center;
-      max-width: 920px;
+      max-width: 980px;
       margin: 0 auto 18px;
       font-size: 14px;
       line-height: 1.4;
@@ -80,10 +78,10 @@
     .recording-button { right: 134px; }
 
     .studio {
-      width: min(98vw, 1280px);
+      width: min(98vw, 1380px);
       margin: 0 auto;
       display: grid;
-      grid-template-columns: 220px 1fr;
+      grid-template-columns: 260px 1fr 260px;
       gap: 16px;
       align-items: start;
     }
@@ -95,6 +93,14 @@
       box-shadow: 0 6px 18px rgba(0,0,0,0.28);
     }
 
+    .section {
+      margin-bottom: 18px;
+    }
+
+    .section:last-child {
+      margin-bottom: 0;
+    }
+
     .section-title {
       font-size: 15px;
       font-weight: 800;
@@ -104,13 +110,13 @@
 
     .palette-grid {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(3, 1fr);
       gap: 8px;
     }
 
     .palette-item {
       border: none;
-      min-height: 48px;
+      min-height: 46px;
       border-radius: 14px;
       color: white;
       font-weight: 900;
@@ -122,6 +128,17 @@
 
     .palette-item:active {
       cursor: grabbing;
+    }
+
+    .palette-item.outside {
+      filter: brightness(0.66) saturate(0.7);
+      opacity: 0.82;
+    }
+
+    .palette-item.native {
+      box-shadow:
+        0 0 18px rgba(255,255,255,0.55),
+        0 6px 14px rgba(0,0,0,0.35);
     }
 
     .rest-palette {
@@ -159,6 +176,11 @@
       color: #ffe5e5;
     }
 
+    .control-button:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+
     .status {
       color: var(--muted);
       text-align: center;
@@ -190,7 +212,7 @@
 
     .timeline {
       position: relative;
-      min-width: 960px;
+      min-width: 1040px;
       padding: 14px 14px 18px;
     }
 
@@ -243,6 +265,13 @@
       box-sizing: border-box;
       font-weight: 900;
       color: #fff7ea;
+      cursor: pointer;
+    }
+
+    .lane-label.selected {
+      outline: 3px solid rgba(255,255,255,0.85);
+      outline-offset: -3px;
+      box-shadow: 0 0 20px rgba(255,255,255,0.45);
     }
 
     .lane-role {
@@ -327,6 +356,17 @@
       text-shadow: none;
     }
 
+    .orumi-block.outside {
+      filter: brightness(0.72) saturate(0.75);
+    }
+
+    .orumi-block.native {
+      box-shadow:
+        0 0 20px rgba(255,255,255,0.40),
+        0 7px 14px rgba(0,0,0,0.40),
+        inset 0 1px 0 rgba(255,255,255,0.22);
+    }
+
     .orumi-block.light-text {
       color: #222;
       text-shadow: none;
@@ -339,6 +379,7 @@
       box-shadow:
         0 0 30px rgba(255,255,255,0.85),
         0 7px 14px rgba(0,0,0,0.40);
+      z-index: 30;
     }
 
     .drop-indicator {
@@ -431,6 +472,45 @@
       color: #111;
     }
 
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      margin: 9px 0 5px;
+    }
+
+    select,
+    input {
+      width: 100%;
+      border: none;
+      border-radius: 11px;
+      padding: 9px 10px;
+      box-sizing: border-box;
+      background: rgba(255,255,255,0.14);
+      color: #f5f0e8;
+      font-weight: 700;
+      font-family: inherit;
+    }
+
+    option {
+      color: #111;
+    }
+
+    .mini-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .inspector-empty {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+      text-align: center;
+      padding: 12px 4px;
+    }
+
     .c  { background: #ff6b6b; }
     .db { background: linear-gradient(135deg, #ff6b6b, #f7b267); }
     .d  { background: #f7b267; }
@@ -444,7 +524,7 @@
     .bb { background: linear-gradient(135deg, #9d4edd, #ff8fab); }
     .b  { background: #ff8fab; }
 
-    @media (max-width: 900px) {
+    @media (max-width: 1100px) {
       h1 {
         margin-top: 72px;
       }
@@ -454,7 +534,7 @@
       }
 
       .palette-grid {
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(6, 1fr);
       }
 
       .controls {
@@ -469,6 +549,12 @@
 
       .recording-button { right: 120px; }
       .player-button { right: 69px; }
+    }
+
+    @media (max-width: 620px) {
+      .palette-grid {
+        grid-template-columns: repeat(4, 1fr);
+      }
     }
   </style>
 </head>
@@ -502,44 +588,84 @@
   <h1>Design Studio</h1>
 
   <div class="subtitle">
-    Arrange Orumi blocks by part. Drag notes or rests into lanes, replace or insert with glow feedback,
-    stretch duration sideways, stretch intensity upward, throw blocks away, and undo your last action.
+    Arrange Orumi blocks by part. The project can be key-aware while remaining chromatic and editable.
   </div>
 
   <div class="studio">
 
     <aside class="panel">
-      <div class="section-title">Note Palette</div>
-      <div class="palette-grid" id="paletteGrid"></div>
 
-      <div class="controls">
-        <button class="control-button secondary" id="addLaneButton">
-          Add Lane
-        </button>
+      <div class="section">
+        <div class="section-title">Project Context</div>
 
-        <button class="control-button secondary" id="undoButton">
-          ↶ Undo
-        </button>
+        <label for="systemSelect">System</label>
+        <select id="systemSelect"></select>
 
-        <button class="control-button" id="playButton">
-          Play
-        </button>
+        <label for="rootSelect">Key Center</label>
+        <select id="rootSelect"></select>
 
-        <button class="control-button secondary" id="saveButton">
-          Save
-        </button>
+        <label for="familySelect">Family</label>
+        <select id="familySelect"></select>
 
-        <button class="control-button secondary" id="loadButton">
-          Load
-        </button>
+        <label for="modeSelect">Mode / Scale</label>
+        <select id="modeSelect"></select>
 
-        <button class="control-button danger" id="clearButton">
-          Clear
-        </button>
+        <div class="mini-row">
+          <div>
+            <label for="setSelect">Palette</label>
+            <select id="setSelect">
+              <option value="full">Full</option>
+              <option value="native">Native</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="tempoInput">Tempo</label>
+            <input id="tempoInput" type="number" min="40" max="240" step="1">
+          </div>
+        </div>
+
+        <label for="projectVoiceSelect">Default Voice</label>
+        <select id="projectVoiceSelect"></select>
       </div>
 
-      <div class="status" id="status">
-        Drag a note into a lane.
+      <div class="section">
+        <div class="section-title">Note Palette</div>
+        <div class="palette-grid" id="paletteGrid"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Actions</div>
+
+        <div class="controls">
+          <button class="control-button secondary" id="addLaneButton">
+            Add Lane
+          </button>
+
+          <button class="control-button secondary" id="undoButton">
+            ↶ Undo
+          </button>
+
+          <button class="control-button" id="playButton">
+            Play
+          </button>
+
+          <button class="control-button secondary" id="saveButton">
+            Save
+          </button>
+
+          <button class="control-button secondary" id="loadButton">
+            Load
+          </button>
+
+          <button class="control-button danger" id="clearButton">
+            Clear
+          </button>
+        </div>
+
+        <div class="status" id="status">
+          Drag a note into a lane.
+        </div>
       </div>
     </aside>
 
@@ -582,6 +708,18 @@
       </div>
     </main>
 
+    <aside class="panel">
+      <div class="section">
+        <div class="section-title">Selected Block</div>
+        <div id="blockInspector"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Selected Lane</div>
+        <div id="laneInspector"></div>
+      </div>
+    </aside>
+
   </div>
 
   <div class="trash" id="trashCan" title="Drop here to delete">🗑</div>
@@ -595,6 +733,8 @@
     let resizeState = null;
     let intensityState = null;
     let ghost = null;
+    let selectedBlockId = null;
+    let selectedLaneId = "lead";
 
     const BEAT_WIDTH = 72;
     const MIN_DURATION = 0.25;
@@ -608,6 +748,17 @@
     const trashCan = document.getElementById("trashCan");
     const status = document.getElementById("status");
     const projectStatus = document.getElementById("projectStatus");
+
+    const systemSelect = document.getElementById("systemSelect");
+    const rootSelect = document.getElementById("rootSelect");
+    const familySelect = document.getElementById("familySelect");
+    const modeSelect = document.getElementById("modeSelect");
+    const setSelect = document.getElementById("setSelect");
+    const tempoInput = document.getElementById("tempoInput");
+    const projectVoiceSelect = document.getElementById("projectVoiceSelect");
+
+    const blockInspector = document.getElementById("blockInspector");
+    const laneInspector = document.getElementById("laneInspector");
 
     const addLaneButton = document.getElementById("addLaneButton");
     const undoButton = document.getElementById("undoButton");
@@ -623,6 +774,7 @@
     const pitchClasses = ORUMI_CATALOG.pitchClasses;
     const numberToPitchClass = ORUMI_CATALOG.numberToPitchClass;
     const voices = ORUMI_CATALOG.voices;
+    const systems = ORUMI_CATALOG.systems;
 
     let project = createDefaultProject();
 
@@ -638,6 +790,14 @@
       return {
         title: "Untitled Orumi Piece",
         tempo: 120,
+        context: {
+          system: "western",
+          root: "C",
+          family: "diatonic",
+          mode: "ionian",
+          set: "full",
+          voice: "softKeys"
+        },
         lanes: [
           { id: "tenor", name: "Tenor", role: "upper harmony", voice: "softKeys" },
           { id: "lead", name: "Lead", role: "melody", voice: "softKeys" },
@@ -673,6 +833,8 @@
       }
 
       project = JSON.parse(historyStack.pop());
+      normalizeProject();
+      selectedBlockId = null;
       saveProject(false);
       render();
       status.textContent = "Undid last action.";
@@ -699,11 +861,50 @@
 
       project = JSON.parse(raw);
       normalizeProject();
+      selectedBlockId = null;
       render();
       status.textContent = "Design loaded.";
     }
 
     function normalizeProject() {
+      if (!project.context) {
+        project.context = createDefaultProject().context;
+      }
+
+      project.context.system = systems[project.context.system]
+        ? project.context.system
+        : "western";
+
+      const system = systems[project.context.system];
+
+      project.context.root = pitchClasses[project.context.root]
+        ? project.context.root
+        : system.defaultRoot || "C";
+
+      project.context.family =
+        system.families && system.families[project.context.family]
+          ? project.context.family
+          : system.defaultFamily || Object.keys(system.families || {})[0];
+
+      const family = system.families[project.context.family];
+
+      project.context.mode =
+        family && family.modes && family.modes[project.context.mode]
+          ? project.context.mode
+          : system.defaultMode || Object.keys(family.modes || {})[0];
+
+      project.context.set =
+        ["full", "native"].includes(project.context.set)
+          ? project.context.set
+          : "full";
+
+      project.context.voice =
+        voices[project.context.voice]
+          ? project.context.voice
+          : "softKeys";
+
+      project.tempo = Number(project.tempo || 120);
+
       if (!project.lanes || !Array.isArray(project.lanes)) {
         project.lanes = createDefaultProject().lanes;
       }
@@ -721,8 +922,8 @@
         startBeat: Number.isFinite(block.startBeat) ? block.startBeat : 0,
         durationBeats: Math.max(MIN_DURATION, Number(block.durationBeats || 1)),
         velocity: Math.max(20, Math.min(127, Number(block.velocity || 82))),
-        voice: block.voice || "softKeys",
-        system: block.system || "western"
+        voice: block.voice === undefined ? null : block.voice,
+        system: block.system || project.context.system
       }));
     }
 
@@ -732,6 +933,8 @@
 
       saveHistory();
       project = createDefaultProject();
+      selectedBlockId = null;
+      selectedLaneId = "lead";
       saveProject(false);
       render();
       status.textContent = "Design cleared.";
@@ -768,19 +971,162 @@
       return pitchClasses[pc] ? pitchClasses[pc].className : "c";
     }
 
+    function getCurrentSystem() {
+      return systems[project.context.system] || systems.western;
+    }
+
+    function getCurrentFamily() {
+      const system = getCurrentSystem();
+      return system.families[project.context.family] ||
+        system.families[system.defaultFamily];
+    }
+
+    function getCurrentMode() {
+      const system = getCurrentSystem();
+      const family = getCurrentFamily();
+      return family.modes[project.context.mode] ||
+        family.modes[system.defaultMode] ||
+        family.modes[Object.keys(family.modes)[0]];
+    }
+
+    function getNativePitchNumbers() {
+      const rootNumber = pitchClasses[project.context.root].number;
+      const mode = getCurrentMode();
+
+      if (!mode || !Array.isArray(mode.formula)) {
+        return new Set([0,2,4,5,7,9,11].map(i => (rootNumber + i) % 12));
+      }
+
+      return new Set(
+        mode.formula.map(interval => (rootNumber + interval) % 12)
+      );
+    }
+
+    function isNativeMidi(midi) {
+      const pcNumber = ((midi % 12) + 12) % 12;
+      return getNativePitchNumbers().has(pcNumber);
+    }
+
+    function populateContextControls() {
+      systemSelect.innerHTML = "";
+      Object.entries(systems).forEach(([key, system]) => {
+        const option = document.createElement("option");
+        option.value = key;
+        option.textContent = system.label || key;
+        systemSelect.appendChild(option);
+      });
+
+      rootSelect.innerHTML = "";
+      Object.entries(pitchClasses).forEach(([key, pitch]) => {
+        const option = document.createElement("option");
+        option.value = key;
+        option.textContent = pitch.display;
+        rootSelect.appendChild(option);
+      });
+
+      projectVoiceSelect.innerHTML = "";
+      Object.entries(voices).forEach(([key, voice]) => {
+        const option = document.createElement("option");
+        option.value = key;
+        option.textContent = voice.label || key;
+        projectVoiceSelect.appendChild(option);
+      });
+
+      refreshFamilyModeControls();
+
+      systemSelect.value = project.context.system;
+      rootSelect.value = project.context.root;
+      familySelect.value = project.context.family;
+      modeSelect.value = project.context.mode;
+      setSelect.value = project.context.set;
+      tempoInput.value = project.tempo;
+      projectVoiceSelect.value = project.context.voice;
+    }
+
+    function refreshFamilyModeControls() {
+      const system = getCurrentSystem();
+
+      familySelect.innerHTML = "";
+
+      Object.entries(system.families || {}).forEach(([key, family]) => {
+        const option = document.createElement("option");
+        option.value = key;
+        option.textContent = family.label || key;
+        familySelect.appendChild(option);
+      });
+
+      if (!system.families[project.context.family]) {
+        project.context.family =
+          system.defaultFamily || Object.keys(system.families || {})[0];
+      }
+
+      const family = getCurrentFamily();
+
+      modeSelect.innerHTML = "";
+
+      Object.entries(family.modes || {}).forEach(([key, mode]) => {
+        const option = document.createElement("option");
+        option.value = key;
+        option.textContent = mode.label || key;
+        modeSelect.appendChild(option);
+      });
+
+      if (!family.modes[project.context.mode]) {
+        project.context.mode =
+          system.defaultMode || Object.keys(family.modes || {})[0];
+      }
+    }
+
+    function handleContextChange() {
+      saveHistory();
+
+      project.context.system = systemSelect.value;
+      const system = getCurrentSystem();
+
+      if (!system.families[project.context.family]) {
+        project.context.family =
+          system.defaultFamily || Object.keys(system.families || {})[0];
+      }
+
+      refreshFamilyModeControls();
+
+      project.context.root = rootSelect.value;
+      project.context.family = familySelect.value;
+      project.context.mode = modeSelect.value;
+      project.context.set = setSelect.value;
+      project.context.voice = projectVoiceSelect.value;
+      project.tempo = Math.max(40, Math.min(240, Number(tempoInput.value || 120)));
+
+      saveProject(false);
+      render();
+      status.textContent = "Project context updated.";
+    }
+
+    systemSelect.addEventListener("change", handleContextChange);
+    rootSelect.addEventListener("change", handleContextChange);
+    familySelect.addEventListener("change", handleContextChange);
+    modeSelect.addEventListener("change", handleContextChange);
+    setSelect.addEventListener("change", handleContextChange);
+    tempoInput.addEventListener("change", handleContextChange);
+    projectVoiceSelect.addEventListener("change", handleContextChange);
+
     function createPalette() {
       paletteGrid.innerHTML = "";
 
-      const notes = [
-        { name: "C4", midi: 60 },
-        { name: "D4", midi: 62 },
-        { name: "E4", midi: 64 },
-        { name: "F4", midi: 65 },
-        { name: "G4", midi: 67 },
-        { name: "A4", midi: 69 },
-        { name: "B4", midi: 71 },
-        { name: "Rest", type: "rest" }
-      ];
+      const rootNumber = pitchClasses[project.context.root].number;
+      const notes = [];
+
+      for (let i = 0; i < 12; i++) {
+        const pc = pcToName(rootNumber + i);
+        const midi = 12 * (4 + 1) + pitchClasses[pc].number;
+        notes.push({
+          name: pc + "4",
+          midi,
+          pc
+        });
+      }
+
+      notes.push({ name: "Rest", type: "rest" });
 
       notes.forEach(item => {
         const button = document.createElement("button");
@@ -791,6 +1137,17 @@
           button.textContent = "Rest";
         } else {
           button.classList.add(midiToClassName(item.midi));
+
+          if (isNativeMidi(item.midi)) {
+            button.classList.add("native");
+          } else {
+            button.classList.add("outside");
+          }
+
+          if (project.context.set === "native" && !isNativeMidi(item.midi)) {
+            button.style.display = "none";
+          }
+
           button.textContent = item.name;
         }
 
@@ -833,8 +1190,12 @@
     }
 
     function render() {
+      normalizeProject();
+      populateContextControls();
+      createPalette();
       renderRuler();
       renderLanes();
+      renderInspectors();
 
       projectStatus.textContent =
         project.lanes.length +
@@ -843,7 +1204,15 @@
         " · " +
         project.blocks.length +
         " block" +
-        (project.blocks.length === 1 ? "" : "s");
+        (project.blocks.length === 1 ? "" : "s") +
+        " · " +
+        getCurrentSystem().label +
+        " · " +
+        project.context.root +
+        " · " +
+        getCurrentMode().label +
+        " · " +
+        (project.context.set === "full" ? "Full Palette" : "Native Palette");
 
       undoButton.disabled = historyStack.length === 0;
     }
@@ -861,9 +1230,20 @@
 
         const label = document.createElement("div");
         label.classList.add("lane-label");
+
+        if (lane.id === selectedLaneId) {
+          label.classList.add("selected");
+        }
+
         label.innerHTML =
           "<div>" + escapeHtml(lane.name) + "</div>" +
           "<div class='lane-role'>" + escapeHtml(lane.role || "part") + "</div>";
+
+        label.addEventListener("click", () => {
+          selectedLaneId = lane.id;
+          selectedBlockId = null;
+          render();
+        });
 
         const track = document.createElement("div");
         track.classList.add("lane-track");
@@ -940,12 +1320,23 @@
         element.textContent = "Rest";
       } else {
         element.classList.add(midiToClassName(block.midi));
+
+        if (isNativeMidi(block.midi)) {
+          element.classList.add("native");
+        } else {
+          element.classList.add("outside");
+        }
+
         element.textContent = block.name || midiToDisplayName(block.midi);
 
         const pc = pcToName(block.midi % 12);
         if (pc === "E" || pc === "Eb") {
           element.classList.add("light-text");
         }
+      }
+
+      if (block.id === selectedBlockId) {
+        element.classList.add("selected");
       }
 
       element.style.left = block.startBeat * BEAT_WIDTH + "px";
@@ -959,7 +1350,17 @@
       intensityHandle.classList.add("intensity-handle");
 
       element.appendChild(resizeHandle);
-      element.appendChild(intensityHandle);
+
+      if (block.type !== "rest") {
+        element.appendChild(intensityHandle);
+      }
+
+      element.addEventListener("click", event => {
+        event.stopPropagation();
+        selectedBlockId = block.id;
+        selectedLaneId = block.laneId;
+        render();
+      });
 
       element.addEventListener("pointerdown", event => {
         if (event.target === resizeHandle || event.target === intensityHandle) {
@@ -967,22 +1368,302 @@
         }
 
         event.preventDefault();
+        selectedBlockId = block.id;
+        selectedLaneId = block.laneId;
         beginExistingBlockDrag(event, block.id);
       });
 
       resizeHandle.addEventListener("pointerdown", event => {
         event.stopPropagation();
         event.preventDefault();
+        selectedBlockId = block.id;
+        selectedLaneId = block.laneId;
         beginResize(event, block.id);
       });
 
       intensityHandle.addEventListener("pointerdown", event => {
         event.stopPropagation();
         event.preventDefault();
+        selectedBlockId = block.id;
+        selectedLaneId = block.laneId;
         beginIntensityResize(event, block.id);
       });
 
       return element;
+    }
+
+    function renderInspectors() {
+      renderBlockInspector();
+      renderLaneInspector();
+    }
+
+    function renderBlockInspector() {
+      const block = project.blocks.find(item => item.id === selectedBlockId);
+
+      blockInspector.innerHTML = "";
+
+      if (!block) {
+        blockInspector.innerHTML =
+          "<div class='inspector-empty'>Select a note or rest block to edit it.</div>";
+        return;
+      }
+
+      if (block.type === "note") {
+        const noteLabel = document.createElement("label");
+        noteLabel.textContent = "Note";
+        blockInspector.appendChild(noteLabel);
+
+        const noteSelect = document.createElement("select");
+        buildNoteOptions(noteSelect, block.midi);
+
+        noteSelect.addEventListener("change", () => {
+          saveHistory();
+          block.midi = parseInt(noteSelect.value, 10);
+          block.name = midiToDisplayName(block.midi);
+          saveProject(false);
+          render();
+        });
+
+        blockInspector.appendChild(noteSelect);
+
+        const voiceLabel = document.createElement("label");
+        voiceLabel.textContent = "Voice Override";
+        blockInspector.appendChild(voiceLabel);
+
+        const voiceSelect = document.createElement("select");
+
+        const inheritOption = document.createElement("option");
+        inheritOption.value = "";
+        inheritOption.textContent = "Use Lane / Project Voice";
+        voiceSelect.appendChild(inheritOption);
+
+        Object.entries(voices).forEach(([key, voice]) => {
+          const option = document.createElement("option");
+          option.value = key;
+          option.textContent = voice.label || key;
+          voiceSelect.appendChild(option);
+        });
+
+        voiceSelect.value = block.voice || "";
+
+        voiceSelect.addEventListener("change", () => {
+          saveHistory();
+          block.voice = voiceSelect.value || null;
+          saveProject(false);
+          render();
+        });
+
+        blockInspector.appendChild(voiceSelect);
+      } else {
+        blockInspector.innerHTML =
+          "<div class='inspector-empty'>Rest block selected.</div>";
+      }
+
+      const laneLabel = document.createElement("label");
+      laneLabel.textContent = "Lane";
+      blockInspector.appendChild(laneLabel);
+
+      const laneSelect = document.createElement("select");
+      project.lanes.forEach(lane => {
+        const option = document.createElement("option");
+        option.value = lane.id;
+        option.textContent = lane.name;
+        laneSelect.appendChild(option);
+      });
+
+      laneSelect.value = block.laneId;
+
+      laneSelect.addEventListener("change", () => {
+        saveHistory();
+        block.laneId = laneSelect.value;
+        selectedLaneId = block.laneId;
+        saveProject(false);
+        render();
+      });
+
+      blockInspector.appendChild(laneSelect);
+
+      const durationVelocityRow = document.createElement("div");
+      durationVelocityRow.classList.add("mini-row");
+
+      const durationWrap = document.createElement("div");
+      const durationLabel = document.createElement("label");
+      durationLabel.textContent = "Duration";
+      const durationInput = document.createElement("input");
+      durationInput.type = "number";
+      durationInput.min = "0.25";
+      durationInput.step = "0.25";
+      durationInput.value = block.durationBeats;
+
+      durationInput.addEventListener("change", () => {
+        saveHistory();
+        block.durationBeats = Math.max(MIN_DURATION, Number(durationInput.value || 1));
+        saveProject(false);
+        render();
+      });
+
+      durationWrap.appendChild(durationLabel);
+      durationWrap.appendChild(durationInput);
+
+      const velocityWrap = document.createElement("div");
+      const velocityLabel = document.createElement("label");
+      velocityLabel.textContent = "Intensity";
+      const velocityInput = document.createElement("input");
+      velocityInput.type = "number";
+      velocityInput.min = "20";
+      velocityInput.max = "127";
+      velocityInput.step = "1";
+      velocityInput.value = block.velocity || 82;
+      velocityInput.disabled = block.type === "rest";
+
+      velocityInput.addEventListener("change", () => {
+        saveHistory();
+        block.velocity = Math.max(20, Math.min(127, Number(velocityInput.value || 82)));
+        saveProject(false);
+        render();
+      });
+
+      velocityWrap.appendChild(velocityLabel);
+      velocityWrap.appendChild(velocityInput);
+
+      durationVelocityRow.appendChild(durationWrap);
+      durationVelocityRow.appendChild(velocityWrap);
+      blockInspector.appendChild(durationVelocityRow);
+
+      const deleteButton = document.createElement("button");
+      deleteButton.classList.add("control-button", "danger");
+      deleteButton.style.marginTop = "12px";
+      deleteButton.textContent = "Delete Block";
+
+      deleteButton.addEventListener("click", () => {
+        saveHistory();
+        project.blocks = project.blocks.filter(item => item.id !== block.id);
+        selectedBlockId = null;
+        saveProject(false);
+        render();
+        status.textContent = "Block deleted. Undo is available.";
+      });
+
+      blockInspector.appendChild(deleteButton);
+    }
+
+    function renderLaneInspector() {
+      const lane = project.lanes.find(item => item.id === selectedLaneId);
+
+      laneInspector.innerHTML = "";
+
+      if (!lane) {
+        laneInspector.innerHTML =
+          "<div class='inspector-empty'>Select a lane to edit part settings.</div>";
+        return;
+      }
+
+      const nameLabel = document.createElement("label");
+      nameLabel.textContent = "Lane Name";
+      laneInspector.appendChild(nameLabel);
+
+      const nameInput = document.createElement("input");
+      nameInput.value = lane.name || "";
+
+      nameInput.addEventListener("change", () => {
+        saveHistory();
+        lane.name = nameInput.value || "Part";
+        saveProject(false);
+        render();
+      });
+
+      laneInspector.appendChild(nameInput);
+
+      const roleLabel = document.createElement("label");
+      roleLabel.textContent = "Role";
+      laneInspector.appendChild(roleLabel);
+
+      const roleInput = document.createElement("input");
+      roleInput.value = lane.role || "";
+
+      roleInput.addEventListener("change", () => {
+        saveHistory();
+        lane.role = roleInput.value || "part";
+        saveProject(false);
+        render();
+      });
+
+      laneInspector.appendChild(roleInput);
+
+      const voiceLabel = document.createElement("label");
+      voiceLabel.textContent = "Lane Voice";
+      laneInspector.appendChild(voiceLabel);
+
+      const voiceSelect = document.createElement("select");
+
+      const inheritOption = document.createElement("option");
+      inheritOption.value = "";
+      inheritOption.textContent = "Use Project Voice";
+      voiceSelect.appendChild(inheritOption);
+
+      Object.entries(voices).forEach(([key, voice]) => {
+        const option = document.createElement("option");
+        option.value = key;
+        option.textContent = voice.label || key;
+        voiceSelect.appendChild(option);
+      });
+
+      voiceSelect.value = lane.voice || "";
+
+      voiceSelect.addEventListener("change", () => {
+        saveHistory();
+        lane.voice = voiceSelect.value || null;
+        saveProject(false);
+        render();
+      });
+
+      laneInspector.appendChild(voiceSelect);
+
+      const deleteLaneButton = document.createElement("button");
+      deleteLaneButton.classList.add("control-button", "danger");
+      deleteLaneButton.style.marginTop = "12px";
+      deleteLaneButton.textContent = "Delete Empty Lane";
+      deleteLaneButton.disabled =
+        project.blocks.some(block => block.laneId === lane.id) ||
+        project.lanes.length <= 1;
+
+      deleteLaneButton.addEventListener("click", () => {
+        if (project.blocks.some(block => block.laneId === lane.id)) {
+          status.textContent = "Lane must be empty before deletion.";
+          return;
+        }
+
+        saveHistory();
+        project.lanes = project.lanes.filter(item => item.id !== lane.id);
+        selectedLaneId = project.lanes[0].id;
+        saveProject(false);
+        render();
+      });
+
+      laneInspector.appendChild(deleteLaneButton);
+    }
+
+    function buildNoteOptions(select, currentMidi) {
+      select.innerHTML = "";
+
+      const rootNumber = pitchClasses[project.context.root].number;
+
+      for (let octave = 2; octave <= 5; octave++) {
+        for (let i = 0; i < 12; i++) {
+          const pc = pcToName(rootNumber + i);
+          const midi = 12 * (octave + 1) + pitchClasses[pc].number;
+
+          const option = document.createElement("option");
+          option.value = midi;
+          option.textContent =
+            midiToDisplayName(midi) +
+            (isNativeMidi(midi) ? " · native" : " · outside");
+
+          select.appendChild(option);
+        }
+      }
+
+      select.value = currentMidi;
     }
 
     function velocityToHeight(velocity) {
@@ -990,13 +1671,6 @@
       const max = 74;
       const normalized = (Math.max(20, Math.min(127, velocity)) - 20) / 107;
       return Math.round(min + normalized * (max - min));
-    }
-
-    function heightToVelocity(height) {
-      const min = 28;
-      const max = 74;
-      const normalized = (Math.max(min, Math.min(max, height)) - min) / (max - min);
-      return Math.round(20 + normalized * 107);
     }
 
     function beginPaletteDrag(event, item) {
@@ -1123,6 +1797,7 @@
       if (dragState.source === "existing" && dragState.blockId) {
         saveHistory();
         project.blocks = project.blocks.filter(block => block.id !== dragState.blockId);
+        selectedBlockId = null;
         saveProject(false);
         render();
         status.textContent = "Block deleted. Undo is available.";
@@ -1249,6 +1924,8 @@
 
           project.blocks = project.blocks.filter(block => block.id !== existing.id);
           project.blocks.push(replacement);
+          selectedBlockId = replacement.id;
+          selectedLaneId = replacement.laneId;
           status.textContent = "Block replaced.";
         }
       } else {
@@ -1261,6 +1938,9 @@
         );
 
         project.blocks.push(block);
+        selectedBlockId = block.id;
+        selectedLaneId = block.laneId;
+
         status.textContent =
           target.mode === "append"
             ? "Block added to end of lane."
@@ -1280,7 +1960,7 @@
         id: createId("lane"),
         name: "Part " + (project.lanes.length + 1),
         role: "custom part",
-        voice: "softKeys"
+        voice: null
       };
 
       project.lanes.splice(insertIndex, 0, newLane);
@@ -1298,6 +1978,8 @@
       );
 
       project.blocks.push(block);
+      selectedBlockId = block.id;
+      selectedLaneId = newLane.id;
 
       saveProject(false);
       render();
@@ -1314,8 +1996,8 @@
           durationBeats: Math.max(MIN_DURATION, durationBeats),
           velocity: 0,
           name: "Rest",
-          voice: "silent",
-          system: "orumi"
+          voice: null,
+          system: project.context.system
         };
       }
 
@@ -1330,8 +2012,8 @@
         startBeat: snapBeat(startBeat),
         durationBeats: Math.max(MIN_DURATION, durationBeats),
         velocity: Math.max(20, Math.min(127, velocity || item.velocity || 82)),
-        voice: item.voice || "softKeys",
-        system: item.system || "western"
+        voice: item.voice === undefined ? null : item.voice,
+        system: item.system || project.context.system
       };
     }
 
@@ -1441,12 +2123,16 @@
     function addLane() {
       saveHistory();
 
-      project.lanes.push({
+      const lane = {
         id: createId("lane"),
         name: "Part " + (project.lanes.length + 1),
         role: "custom part",
-        voice: "softKeys"
-      });
+        voice: null
+      };
+
+      project.lanes.push(lane);
+      selectedLaneId = lane.id;
+      selectedBlockId = null;
 
       saveProject(false);
       render();
@@ -1459,7 +2145,7 @@
 
       saveHistory();
 
-      project.blocks.push({
+      const block = {
         id: createId("rest"),
         type: "rest",
         laneId: lead.id,
@@ -1467,9 +2153,13 @@
         durationBeats: 1,
         velocity: 0,
         name: "Rest",
-        voice: "silent",
-        system: "orumi"
-      });
+        voice: null,
+        system: project.context.system
+      };
+
+      project.blocks.push(block);
+      selectedBlockId = block.id;
+      selectedLaneId = lead.id;
 
       saveProject(false);
       render();
@@ -1524,8 +2214,8 @@
               startBeat: Number(event.start || 0),
               durationBeats: Math.max(MIN_DURATION, Number(event.duration || 1)),
               velocity: 86,
-              voice: event.voice || "softKeys",
-              system: event.system || "western"
+              voice: event.voice || null,
+              system: event.system || project.context.system
             });
           });
         }
@@ -1573,8 +2263,8 @@
             startBeat: cursor,
             durationBeats: 1.5,
             velocity: 86,
-            voice: chord.voice || project.lanes[index].voice || "softKeys",
-            system: chord.system || "western"
+            voice: chord.voice || null,
+            system: chord.system || project.context.system
           });
         });
 
@@ -1587,7 +2277,6 @@
     }
 
     function chooseLaneForEvent(event) {
-      if (event.system === "bass") return "bass";
       return project.lanes.find(lane => lane.id === "lead")?.id || project.lanes[0].id;
     }
 
@@ -1597,7 +2286,7 @@
           id: createId("lane"),
           name: "Part " + (project.lanes.length + 1),
           role: "auto-created",
-          voice: "softKeys"
+          voice: null
         });
       }
     }
@@ -1605,6 +2294,24 @@
     function laneIdForChordIndex(index, fallbackLaneId) {
       ensureLaneForChordIndex(index);
       return project.lanes[index]?.id || fallbackLaneId;
+    }
+
+    function getEffectiveVoice(block) {
+      if (block.voice && voices[block.voice]) {
+        return block.voice;
+      }
+
+      const lane = project.lanes.find(item => item.id === block.laneId);
+
+      if (lane && lane.voice && voices[lane.voice]) {
+        return lane.voice;
+      }
+
+      if (project.context.voice && voices[project.context.voice]) {
+        return project.context.voice;
+      }
+
+      return "softKeys";
     }
 
     async function ensureAudio() {
@@ -1653,7 +2360,7 @@
 
         const timer = setTimeout(() => {
           const now = audioContext.currentTime;
-          const voice = voices[block.voice] ? block.voice : "softKeys";
+          const voice = getEffectiveVoice(block);
 
           const voiceNode = ORUMI_VOICES.buildVoice(
             audioContext,
@@ -1721,8 +2428,7 @@
       saveProject(false);
     });
 
-    createPalette();
-    loadProject();
+    normalizeProject();
     render();
   </script>
 
