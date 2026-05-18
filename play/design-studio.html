@@ -743,6 +743,10 @@
             ↶ Undo
           </button>
 
+          <button class="control-button secondary" id="redoButton">
+            ↷ Redo
+          </button>
+
           <button class="control-button" id="playButton">
             ▶ Play
           </button>
@@ -791,9 +795,6 @@
             ⇩ Export MIDI
           </button>
 
-          <button class="control-button secondary" id="undoToolbarButton">
-            ↶ Undo Last
-          </button>
 
           <button class="control-button secondary" id="resetViewButton">
             ⏮ Jump to Start
@@ -838,6 +839,7 @@
     let playbackTimers = [];
     let activeNotes = [];
     let historyStack = [];
+    let redoStack = [];
     let dragState = null;
     let resizeState = null;
     let intensityState = null;
@@ -886,6 +888,7 @@
 
     const addLaneButton = document.getElementById("addLaneButton");
     const undoButton = document.getElementById("undoButton");
+    const redoButton = document.getElementById("redoButton");
     const playButton = document.getElementById("playButton");
     const stopPlaybackButton = document.getElementById("stopPlaybackButton");
     const copySelectionButton = document.getElementById("copySelectionButton");
@@ -895,7 +898,6 @@
     const importRecordingButton = document.getElementById("importRecordingButton");
     const importProgressionButton = document.getElementById("importProgressionButton");
     const exportMidiButton = document.getElementById("exportMidiButton");
-    const undoToolbarButton = document.getElementById("undoToolbarButton");
     const resetViewButton = document.getElementById("resetViewButton");
     const paletteOctaveSelect = document.getElementById("paletteOctaveSelect");
 
@@ -1133,6 +1135,7 @@
       clearBlockSelection();
       selectedLaneId = "lead";
       historyStack = [];
+      redoStack = [];
 
       saveCurrentProjectId();
       localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
@@ -1159,16 +1162,11 @@
       if (historyStack.length > MAX_HISTORY) {
         historyStack.shift();
       }
+
+      redoStack = [];
     }
 
-    function undo() {
-      if (historyStack.length === 0) {
-        status.textContent = "Nothing to undo.";
-        return;
-      }
-
-      const snapshot = JSON.parse(historyStack.pop());
-
+    function restoreSnapshot(snapshot) {
       project = snapshot.project;
       currentProjectId = snapshot.currentProjectId || currentProjectId;
 
@@ -1178,7 +1176,42 @@
       localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
 
       render();
+    }
+
+    function undo() {
+      if (historyStack.length === 0) {
+        status.textContent = "Nothing to undo.";
+        return;
+      }
+
+      redoStack.push(JSON.stringify({
+        project,
+        currentProjectId
+      }));
+
+      const snapshot = JSON.parse(historyStack.pop());
+      restoreSnapshot(snapshot);
       status.textContent = "Undid last action.";
+    }
+
+    function redo() {
+      if (redoStack.length === 0) {
+        status.textContent = "Nothing to redo.";
+        return;
+      }
+
+      historyStack.push(JSON.stringify({
+        project,
+        currentProjectId
+      }));
+
+      if (historyStack.length > MAX_HISTORY) {
+        historyStack.shift();
+      }
+
+      const snapshot = JSON.parse(redoStack.pop());
+      restoreSnapshot(snapshot);
+      status.textContent = "Redid last action.";
     }
 
     function normalizeProject() {
@@ -1549,9 +1582,6 @@
         (project.context.set === "full" ? "Full Palette" : "Native Palette");
 
       undoButton.disabled = historyStack.length === 0;
-      if (undoToolbarButton) {
-        undoToolbarButton.disabled = historyStack.length === 0;
-      }
     }
 
     function clearBlockSelection() {
@@ -3509,6 +3539,7 @@
 
     addLaneButton.addEventListener("click", addLane);
     undoButton.addEventListener("click", undo);
+    redoButton.addEventListener("click", redo);
     playButton.addEventListener("click", playProject);
     stopPlaybackButton.addEventListener("click", () => {
       stopPlayback();
@@ -3521,7 +3552,6 @@
     importRecordingButton.addEventListener("click", importRecording);
     importProgressionButton.addEventListener("click", importProgression);
     exportMidiButton.addEventListener("click", exportMidi);
-    undoToolbarButton.addEventListener("click", undo);
     resetViewButton.addEventListener("click", resetView);
 
     window.addEventListener("beforeunload", () => {
