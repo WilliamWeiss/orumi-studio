@@ -824,12 +824,20 @@
             ⇩ Export MIDI
           </button>
 
+          <button class="control-button secondary" id="importMidiButton">
+            ⤓ Import MIDI
+          </button>
+
           <button class="control-button secondary" id="insertMeasuresButton">
             ＋ Insert Measures
           </button>
 
           <button class="control-button secondary" id="resetViewButton">
             ⏮ Jump to Start
+          </button>
+
+          <button class="control-button secondary" id="jumpToEndButton">
+            ⏭ Jump to End
           </button>
         </div>
 
@@ -865,6 +873,7 @@
   </div>
 
   <div class="trash" id="trashCan" title="Drop here to delete">🗑</div>
+  <input id="midiFileInput" type="file" accept=".mid,.midi,audio/midi" hidden>
 
   <script>
     let audioContext;
@@ -932,8 +941,11 @@
     const importRecordingButton = document.getElementById("importRecordingButton");
     const importProgressionButton = document.getElementById("importProgressionButton");
     const exportMidiButton = document.getElementById("exportMidiButton");
+    const importMidiButton = document.getElementById("importMidiButton");
     const insertMeasuresButton = document.getElementById("insertMeasuresButton");
     const resetViewButton = document.getElementById("resetViewButton");
+    const jumpToEndButton = document.getElementById("jumpToEndButton");
+    const midiFileInput = document.getElementById("midiFileInput");
     const paletteOctaveSelect = document.getElementById("paletteOctaveSelect");
 
     const pitchClasses = ORUMI_CATALOG.pitchClasses;
@@ -3522,6 +3534,426 @@
             : "Progression imported as editable note blocks.";
     }
 
+    function beginMidiImport() {
+      midiFileInput.value = "";
+      midiFileInput.click();
+    }
+
+    async function handleMidiFileSelected(event) {
+      const file = event.target.files && event.target.files[0];
+
+      if (!file) {
+        return;
+      }
+
+      try {
+        const buffer = await file.arrayBuffer();
+        const parsedMidi = parseMidiFile(buffer);
+
+        if (!parsedMidi.tracks || parsedMidi.tracks.length === 0) {
+          status.textContent = "MIDI file had no usable note tracks.";
+          return;
+        }
+
+        importParsedMidi(parsedMidi, file.name || "Imported MIDI");
+      } catch (error) {
+        console.error(error);
+        status.textContent = "Could not import MIDI file.";
+      }
+    }
+
+    function importParsedMidi(parsedMidi, fileName) {
+      const totalNotes = parsedMidi.tracks.reduce(
+        (sum, track) => sum + track.notes.length,
+        0
+      );
+
+      if (totalNotes === 0) {
+        status.textContent = "MIDI file had no note events to import.";
+        return;
+      }
+
+      const answer = window.prompt(
+        "Import MIDI how?\n\n" +
+        "N = ＋ New lanes from MIDI tracks\n" +
+        "A = ⏭ Append after current design\n" +
+        "O = ◫ Overlay at start\n" +
+        "I = 📍 Insert at selected measure\n" +
+        "C = Cancel",
+        "N"
+      );
+
+      if (!answer) {
+        status.textContent = "MIDI import cancelled.";
+        return;
+      }
+
+      const normalized = answer.trim().toLowerCase();
+      let importMode = "new";
+
+      if (normalized === "a" || normalized === "append") {
+        importMode = "append";
+      } else if (normalized === "o" || normalized === "overlay") {
+        importMode = "overlay";
+      } else if (normalized === "i" || normalized === "insert" || normalized === "selected" || normalized === "selected measure") {
+        importMode = "insert";
+      } else if (normalized === "n" || normalized === "new" || normalized === "new lanes" || normalized === "new lane") {
+        importMode = "new";
+      } else {
+        status.textContent = "MIDI import cancelled.";
+        return;
+      }
+
+      saveHistory();
+
+      const importId =
+        "midi_" +
+        Date.now().toString(36) +
+        "_" +
+        Math.random().toString(36).slice(2);
+
+      const offsetBeat =
+        importMode === "append" && project.blocks.length > 0
+          ? getProjectLength() + 0.5
+          : importMode === "insert"
+            ? selectedInsertBeat
+            : 0;
+
+      const importedLaneIds = [];
+      const sourceLabel = fileName.replace(/\.[^.]+$/, "") || "MIDI";
+
+      if (importMode === "new") {
+        parsedMidi.tracks.forEach((track, index) => {
+          const lane = {
+            id: createId("lane"),
+            name: track.name || sourceLabel + " Track " + (index + 1),
+            role: "imported MIDI",
+            voice: null
+          };
+
+          project.lanes.push(lane);
+          importedLaneIds[index] = lane.id;
+        });
+      } else {
+        parsedMidi.tracks.forEach((track, index) => {
+          ensureLaneForChordIndex(index);
+          importedLaneIds[index] = project.lanes[index]?.id || project.lanes[0].id;
+        });
+      }
+
+      let importedNoteCount = 0;
+
+      parsedMidi.tracks.forEach((track, trackIndex) => {
+        const laneId = importedLaneIds[trackIndex] || project.lanes[0]?.id;
+
+        if (!laneId) {
+          return;
+        }
+
+        track.notes.forEach(note => {
+          project.blocks.push({
+            id: createId("note"),
+            type: "note",
+            laneId,
+            midi: Math.max(0, Math.min(127, Math.round(note.midi))),
+            name: midiToDisplayName(note.midi),
+            startBeat: snapBeat(offsetBeat + Number(note.startBeat || 0)),
+            durationBeats: Math.max(MIN_DURATION, snapBeat(Number(note.durationBeats || MIN_DURATION))),
+            velocity: Math.max(20, Math.min(127, Math.round(note.velocity || 86))),
+            voice: null,
+            system: project.context.system,
+            source: "midi",
+            sourceId: importId
+          });
+
+          importedNoteCount += 1;
+        });
+      });
+
+      if (importMode === "new" && importedLaneIds.length > 0) {
+        selectedLaneId = importedLaneIds[0];
+      }
+
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+      render();
+
+      const modeText =
+        importMode === "new"
+          ? "into " + importedLaneIds.length + " new lane" + (importedLaneIds.length === 1 ? "" : "s")
+          : importMode === "append"
+            ? "after beat " + offsetBeat.toFixed(2)
+            : importMode === "insert"
+              ? "at selected measure M" + getSelectedInsertMeasure()
+              : "at the start";
+
+      status.textContent =
+        "Imported " +
+        importedNoteCount +
+        " MIDI note" +
+        (importedNoteCount === 1 ? "" : "s") +
+        " from " +
+        (fileName || "MIDI file") +
+        " " +
+        modeText +
+        ".";
+    }
+
+    function parseMidiFile(buffer) {
+      const bytes = new Uint8Array(buffer);
+      let pos = 0;
+
+      function readUint8() {
+        if (pos >= bytes.length) {
+          throw new Error("Unexpected end of MIDI file.");
+        }
+
+        return bytes[pos++];
+      }
+
+      function readUint16At() {
+        return (readUint8() << 8) | readUint8();
+      }
+
+      function readUint32At() {
+        return (
+          (readUint8() << 24) |
+          (readUint8() << 16) |
+          (readUint8() << 8) |
+          readUint8()
+        ) >>> 0;
+      }
+
+      function readAsciiAt(length) {
+        let text = "";
+
+        for (let i = 0; i < length; i++) {
+          text += String.fromCharCode(readUint8());
+        }
+
+        return text;
+      }
+
+      function readVarLengthAt(endPos) {
+        let value = 0;
+        let byte;
+
+        do {
+          if (pos >= endPos) {
+            throw new Error("Unexpected end of variable length value.");
+          }
+
+          byte = readUint8();
+          value = (value << 7) | (byte & 0x7f);
+        } while (byte & 0x80);
+
+        return value;
+      }
+
+      const headerId = readAsciiAt(4);
+      if (headerId !== "MThd") {
+        throw new Error("Not a standard MIDI file.");
+      }
+
+      const headerLength = readUint32At();
+      const headerStart = pos;
+      const format = readUint16At();
+      const trackCount = readUint16At();
+      const division = readUint16At();
+      pos = headerStart + headerLength;
+
+      if (division & 0x8000) {
+        throw new Error("SMPTE-time MIDI files are not supported yet.");
+      }
+
+      const ticksPerBeat = division || 480;
+      const parsedTracks = [];
+      let tempoBpm = null;
+
+      for (let trackIndex = 0; trackIndex < trackCount; trackIndex++) {
+        const chunkId = readAsciiAt(4);
+        const chunkLength = readUint32At();
+        const trackEnd = pos + chunkLength;
+
+        if (chunkId !== "MTrk") {
+          pos = trackEnd;
+          continue;
+        }
+
+        const track = parseMidiTrack(bytes, pos, trackEnd, ticksPerBeat);
+        pos = trackEnd;
+
+        if (track.tempoBpm && !tempoBpm) {
+          tempoBpm = track.tempoBpm;
+        }
+
+        if (track.notes.length > 0) {
+          parsedTracks.push({
+            name: track.name || "MIDI Track " + (parsedTracks.length + 1),
+            notes: track.notes.sort((a, b) => a.startBeat - b.startBeat)
+          });
+        }
+      }
+
+      if (format > 1 && parsedTracks.length === 0) {
+        throw new Error("Unsupported MIDI format.");
+      }
+
+      return {
+        ticksPerBeat,
+        tempoBpm,
+        tracks: parsedTracks
+      };
+    }
+
+    function parseMidiTrack(bytes, startPos, endPos, ticksPerBeat) {
+      let pos = startPos;
+      let absoluteTick = 0;
+      let runningStatus = null;
+      let trackName = "";
+      let tempoBpm = null;
+      const openNotes = {};
+      const notes = [];
+
+      function readUint8Local() {
+        if (pos >= endPos) {
+          throw new Error("Unexpected end of MIDI track.");
+        }
+
+        return bytes[pos++];
+      }
+
+      function readVarLengthLocal() {
+        let value = 0;
+        let byte;
+
+        do {
+          byte = readUint8Local();
+          value = (value << 7) | (byte & 0x7f);
+        } while (byte & 0x80);
+
+        return value;
+      }
+
+      function readTextLocal(length) {
+        let text = "";
+
+        for (let i = 0; i < length && pos < endPos; i++) {
+          text += String.fromCharCode(readUint8Local());
+        }
+
+        return text;
+      }
+
+      function dataLengthForStatus(status) {
+        const type = status & 0xf0;
+        return type === 0xc0 || type === 0xd0 ? 1 : 2;
+      }
+
+      while (pos < endPos) {
+        absoluteTick += readVarLengthLocal();
+
+        let statusByte = readUint8Local();
+
+        if (statusByte === 0xff) {
+          const metaType = readUint8Local();
+          const length = readVarLengthLocal();
+
+          if (metaType === 0x03) {
+            trackName = readTextLocal(length).trim() || trackName;
+          } else if (metaType === 0x51 && length === 3) {
+            const microsPerQuarter =
+              (readUint8Local() << 16) |
+              (readUint8Local() << 8) |
+              readUint8Local();
+
+            if (microsPerQuarter > 0 && !tempoBpm) {
+              tempoBpm = Math.round(60000000 / microsPerQuarter);
+            }
+          } else {
+            pos += length;
+          }
+
+          runningStatus = null;
+          continue;
+        }
+
+        if (statusByte === 0xf0 || statusByte === 0xf7) {
+          const length = readVarLengthLocal();
+          pos += length;
+          runningStatus = null;
+          continue;
+        }
+
+        let status = statusByte;
+        let firstData = null;
+
+        if (statusByte < 0x80) {
+          if (runningStatus === null) {
+            throw new Error("Missing MIDI running status.");
+          }
+
+          status = runningStatus;
+          firstData = statusByte;
+        } else {
+          runningStatus = statusByte;
+        }
+
+        const eventType = status & 0xf0;
+        const channel = status & 0x0f;
+        const dataLength = dataLengthForStatus(status);
+        const data1 = firstData !== null ? firstData : readUint8Local();
+        const data2 = dataLength > 1 ? readUint8Local() : 0;
+
+        if (eventType === 0x90 && data2 > 0) {
+          const key = channel + ":" + data1;
+
+          if (!openNotes[key]) {
+            openNotes[key] = [];
+          }
+
+          openNotes[key].push({
+            tick: absoluteTick,
+            velocity: data2
+          });
+        } else if (eventType === 0x80 || (eventType === 0x90 && data2 === 0)) {
+          const key = channel + ":" + data1;
+          const stack = openNotes[key];
+
+          if (stack && stack.length > 0) {
+            const started = stack.shift();
+            const durationTicks = Math.max(1, absoluteTick - started.tick);
+
+            notes.push({
+              midi: data1,
+              startBeat: started.tick / ticksPerBeat,
+              durationBeats: durationTicks / ticksPerBeat,
+              velocity: started.velocity
+            });
+          }
+        }
+      }
+
+      Object.entries(openNotes).forEach(([key, stack]) => {
+        const midi = Number(key.split(":")[1]);
+
+        stack.forEach(started => {
+          notes.push({
+            midi,
+            startBeat: started.tick / ticksPerBeat,
+            durationBeats: MIN_DURATION,
+            velocity: started.velocity
+          });
+        });
+      });
+
+      return {
+        name: trackName,
+        tempoBpm,
+        notes
+      };
+    }
+
+
     function exportMidi() {
       normalizeProject();
 
@@ -3878,6 +4310,16 @@
       status.textContent = "Jumped to start.";
     }
 
+    function jumpToEnd() {
+      const shell = document.querySelector(".timeline-shell");
+      const endBeat = getProjectLength();
+      shell.scrollLeft = Math.max(
+        0,
+        endBeat * BEAT_WIDTH - shell.clientWidth + 180
+      );
+      status.textContent = "Jumped to end.";
+    }
+
     function escapeHtml(text) {
       return String(text)
         .replaceAll("&", "&amp;")
@@ -3907,8 +4349,11 @@
     importRecordingButton.addEventListener("click", importRecording);
     importProgressionButton.addEventListener("click", importProgression);
     exportMidiButton.addEventListener("click", exportMidi);
+    importMidiButton.addEventListener("click", beginMidiImport);
+    midiFileInput.addEventListener("change", handleMidiFileSelected);
     insertMeasuresButton.addEventListener("click", insertMeasuresAtSelectedPoint);
     resetViewButton.addEventListener("click", resetView);
+    jumpToEndButton.addEventListener("click", jumpToEnd);
 
     window.addEventListener("beforeunload", () => {
       stopPlayback();
