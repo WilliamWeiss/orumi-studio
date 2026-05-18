@@ -44,8 +44,7 @@
       line-height: 1.35;
     }
 
-    .view-toggle-row,
-    .recording-row {
+    .view-toggle-row {
       display: flex;
       gap: 10px;
       margin-bottom: 10px;
@@ -54,7 +53,6 @@
     }
 
     .view-toggle,
-    .record-button,
     .studio-link {
       border: none;
       border-radius: 999px;
@@ -73,15 +71,82 @@
       color: black;
     }
 
-    .record-button.recording {
-      background: rgba(255,80,80,0.92);
-      color: #111;
-    }
-
     .studio-link {
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      min-height: 48px;
+      box-sizing: border-box;
+    }
+
+    .transport-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .transport-button {
+      min-width: 68px;
+      height: 48px;
+      border: none;
+      border-radius: 16px;
+      display: grid;
+      grid-template-rows: 20px 14px;
+      place-items: center;
+      gap: 2px;
+      background: rgba(255,255,255,0.14);
+      color: white;
+      cursor: pointer;
+      text-decoration: none;
+      font-family: inherit;
+      box-shadow: 0 5px 14px rgba(0,0,0,0.22);
+      padding: 6px 10px;
+    }
+
+    .transport-button:hover:not(:disabled),
+    .transport-button:active:not(:disabled) {
+      transform: scale(0.94);
+      filter: brightness(1.15);
+    }
+
+    .transport-button:disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+
+    .transport-icon {
+      font-size: 22px;
+      line-height: 1;
+      font-weight: 900;
+    }
+
+    .transport-label {
+      font-size: 11px;
+      line-height: 1;
+      font-weight: 800;
+    }
+
+    .record-transport .transport-icon {
+      color: #ff5a5a;
+    }
+
+    .record-transport.recording {
+      background: rgba(255,80,80,0.92);
+      color: #111;
+      box-shadow:
+        0 0 18px rgba(255,80,80,0.72),
+        0 5px 14px rgba(0,0,0,0.22);
+    }
+
+    .record-transport.recording .transport-icon {
+      color: #111;
+    }
+
+    .play-transport .transport-icon {
+      font-size: 24px;
     }
 
     #startAudioButton {
@@ -333,9 +398,48 @@
 
   <button id="startAudioButton">Begin Sound</button>
 
-  <div class="recording-row">
-    <button id="recordButton" class="record-button">Start Recording</button>
-    <button id="clearRecordingButton" class="record-button">Clear Take</button>
+  <div class="transport-row">
+    <button
+      id="recordButton"
+      class="transport-button record-transport"
+      title="Record"
+      aria-label="Record"
+    >
+      <span class="transport-icon">●</span>
+      <span class="transport-label">Record</span>
+    </button>
+
+    <button
+      id="stopRecordingButton"
+      class="transport-button stop-transport"
+      title="Stop"
+      aria-label="Stop"
+      disabled
+    >
+      <span class="transport-icon">■</span>
+      <span class="transport-label">Stop</span>
+    </button>
+
+    <button
+      id="clearRecordingButton"
+      class="transport-button"
+      title="Clear"
+      aria-label="Clear"
+    >
+      <span class="transport-icon">⌫</span>
+      <span class="transport-label">Clear</span>
+    </button>
+
+    <button
+      id="playRecordingButton"
+      class="transport-button play-transport"
+      title="Play Take"
+      aria-label="Play Take"
+    >
+      <span class="transport-icon">▶</span>
+      <span class="transport-label">Play</span>
+    </button>
+
     <a
       id="recordingStudioLink"
       class="studio-link"
@@ -368,7 +472,9 @@
     const clearChordButton = document.getElementById("clearChordButton");
     const startAudioButton = document.getElementById("startAudioButton");
     const recordButton = document.getElementById("recordButton");
+    const stopRecordingButton = document.getElementById("stopRecordingButton");
     const clearRecordingButton = document.getElementById("clearRecordingButton");
+    const playRecordingButton = document.getElementById("playRecordingButton");
     const recordingStudioLink = document.getElementById("recordingStudioLink");
     const statusText = document.getElementById("status");
     const gridLabel = document.getElementById("gridLabel");
@@ -830,39 +936,47 @@
           : "Tap a square to play" + droneText + recordingText;
     }
 
-    function toggleRecording() {
+    function startRecording() {
       if (!requireAudioReady()) {
         return;
       }
 
+      recordedEvents = [];
+      localStorage.setItem(
+        "orumiCurrentRecording",
+        JSON.stringify(recordedEvents)
+      );
+
+      recordingStartTime = nowSeconds();
+      isRecording = true;
+
+      recordButton.classList.add("recording");
+      recordButton.disabled = true;
+
+      stopRecordingButton.disabled = false;
+
+      statusText.textContent = "Recording...";
+    }
+
+    function stopRecording() {
       if (!isRecording) {
-        recordedEvents = [];
-        localStorage.setItem(
-          "orumiCurrentRecording",
-          JSON.stringify(recordedEvents)
-        );
-
-        recordingStartTime = nowSeconds();
-        isRecording = true;
-
-        recordButton.textContent = "Stop Recording";
-        recordButton.classList.add("recording");
-
-        statusText.textContent = "Recording...";
-      } else {
-        isRecording = false;
-
-        recordButton.textContent = "Start Recording";
-        recordButton.classList.remove("recording");
-
-        saveCurrentRecording();
-
-        statusText.textContent =
-          recordedEvents.length +
-          " event" +
-          (recordedEvents.length === 1 ? "" : "s") +
-          " recorded. Open Design Studio and choose Import Recording.";
+        return;
       }
+
+      isRecording = false;
+
+      recordButton.classList.remove("recording");
+      recordButton.disabled = false;
+
+      stopRecordingButton.disabled = true;
+
+      saveCurrentRecording();
+
+      statusText.textContent =
+        recordedEvents.length +
+        " event" +
+        (recordedEvents.length === 1 ? "" : "s") +
+        " recorded. Open Design Studio and choose Import Recording.";
     }
 
     function clearCurrentRecording() {
@@ -873,8 +987,11 @@
       );
 
       isRecording = false;
-      recordButton.textContent = "Start Recording";
+
       recordButton.classList.remove("recording");
+      recordButton.disabled = false;
+
+      stopRecordingButton.disabled = true;
 
       statusText.textContent = "Current take cleared.";
     }
@@ -884,6 +1001,97 @@
         "orumiCurrentRecording",
         JSON.stringify(recordedEvents)
       );
+    }
+
+    async function playCurrentRecording() {
+      if (!requireAudioReady()) {
+        return;
+      }
+
+      await ensureAudio();
+
+      const raw = localStorage.getItem("orumiCurrentRecording");
+
+      if (!raw) {
+        statusText.textContent = "No recorded take to play.";
+        return;
+      }
+
+      let events;
+
+      try {
+        events = JSON.parse(raw);
+      } catch (error) {
+        statusText.textContent = "Recorded take could not be read.";
+        return;
+      }
+
+      if (!Array.isArray(events) || events.length === 0) {
+        statusText.textContent = "Recorded take is empty.";
+        return;
+      }
+
+      const { voice } = getSettingsFromUrl();
+
+      statusText.textContent = "Playing recorded take...";
+
+      let latestEndMs = 0;
+
+      events.forEach(event => {
+        const startMs = Math.max(0, Number(event.start || 0)) * 1000;
+        const durationMs = Math.max(180, Number(event.duration || 0.8) * 1000);
+
+        latestEndMs = Math.max(latestEndMs, startMs + durationMs);
+
+        setTimeout(() => {
+          if (!event.notes || event.notes.length === 0) {
+            return;
+          }
+
+          const now = audioContext.currentTime;
+          const playedNotes = [];
+
+          event.notes.forEach(note => {
+            const midi = Number(note.midi);
+
+            if (!Number.isFinite(midi)) {
+              return;
+            }
+
+            const eventVoice =
+              event.voice && ORUMI_CATALOG.voices[event.voice]
+                ? event.voice
+                : voice;
+
+            const voiceNode =
+              ORUMI_VOICES.buildVoice(
+                audioContext,
+                eventVoice,
+                midiToFrequency(midi),
+                now
+              );
+
+            playedNotes.push({
+              voice: eventVoice,
+              gain: voiceNode.gain,
+              oscillators: voiceNode.oscillators || [],
+              noiseSources: voiceNode.noiseSources || []
+            });
+          });
+
+          setTimeout(() => {
+            playedNotes.forEach(note => {
+              ORUMI_VOICES.stopVoice(note, audioContext, 0.2);
+            });
+          }, durationMs);
+        }, startMs);
+      });
+
+      setTimeout(() => {
+        if (!isRecording) {
+          statusText.textContent = "Playback complete.";
+        }
+      }, latestEndMs + 250);
     }
 
     function recordSingleNote(button, startedAt, endedAt, voice) {
@@ -1279,8 +1487,10 @@
       });
     }
 
-    recordButton.addEventListener("click", toggleRecording);
+    recordButton.addEventListener("click", startRecording);
+    stopRecordingButton.addEventListener("click", stopRecording);
     clearRecordingButton.addEventListener("click", clearCurrentRecording);
+    playRecordingButton.addEventListener("click", playCurrentRecording);
 
     document.addEventListener("pointerup", event => {
       stopHeldNote(event.pointerId);

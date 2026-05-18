@@ -709,6 +709,17 @@
 
       <div class="section">
         <div class="section-title">Note Palette</div>
+
+        <label for="paletteOctaveSelect">Palette Octave</label>
+        <select id="paletteOctaveSelect">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+        </select>
+
         <div class="palette-grid" id="paletteGrid"></div>
       </div>
 
@@ -756,9 +767,10 @@
             Import Progression
           </button>
 
-          <button class="control-button secondary" id="addRestButton">
-            Add Rest to Lead
+          <button class="control-button secondary" id="exportMidiButton">
+            Export MIDI
           </button>
+
 
           <button class="control-button secondary" id="resetViewButton">
             Reset View
@@ -854,8 +866,9 @@
     const importChordButton = document.getElementById("importChordButton");
     const importRecordingButton = document.getElementById("importRecordingButton");
     const importProgressionButton = document.getElementById("importProgressionButton");
-    const addRestButton = document.getElementById("addRestButton");
+    const exportMidiButton = document.getElementById("exportMidiButton");
     const resetViewButton = document.getElementById("resetViewButton");
+    const paletteOctaveSelect = document.getElementById("paletteOctaveSelect");
 
     const pitchClasses = ORUMI_CATALOG.pitchClasses;
     const numberToPitchClass = ORUMI_CATALOG.numberToPitchClass;
@@ -882,7 +895,8 @@
           family: "diatonic",
           mode: "ionian",
           set: "full",
-          voice: "softKeys"
+          voice: "softKeys",
+          paletteOctave: 4
         },
         lanes: [
           { id: "tenor", name: "Tenor", role: "upper harmony", voice: "softKeys" },
@@ -1177,6 +1191,11 @@
           ? project.context.voice
           : "softKeys";
 
+      project.context.paletteOctave = Math.max(
+        1,
+        Math.min(6, Number(project.context.paletteOctave || 4))
+      );
+
       project.tempo = Number(project.tempo || 120);
 
       if (!project.lanes || !Array.isArray(project.lanes)) {
@@ -1319,6 +1338,7 @@
       setSelect.value = project.context.set;
       tempoInput.value = project.tempo;
       projectVoiceSelect.value = project.context.voice;
+      paletteOctaveSelect.value = project.context.paletteOctave;
     }
 
     function refreshFamilyModeControls() {
@@ -1373,6 +1393,7 @@
       project.context.mode = modeSelect.value;
       project.context.set = setSelect.value;
       project.context.voice = projectVoiceSelect.value;
+      project.context.paletteOctave = Math.max(1, Math.min(6, Number(paletteOctaveSelect.value || 4)));
       project.tempo = Math.max(40, Math.min(240, Number(tempoInput.value || 120)));
 
       localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
@@ -1388,18 +1409,20 @@
     setSelect.addEventListener("change", handleContextChange);
     tempoInput.addEventListener("change", handleContextChange);
     projectVoiceSelect.addEventListener("change", handleContextChange);
+    paletteOctaveSelect.addEventListener("change", handleContextChange);
 
     function createPalette() {
       paletteGrid.innerHTML = "";
 
       const rootNumber = pitchClasses[project.context.root].number;
+      const paletteOctave = Math.max(1, Math.min(6, Number(project.context.paletteOctave || 4)));
       const notes = [];
 
       for (let i = 0; i < 12; i++) {
         const pc = pcToName(rootNumber + i);
-        const midi = 12 * (4 + 1) + pitchClasses[pc].number;
+        const midi = 12 * (paletteOctave + 1) + pitchClasses[pc].number;
         notes.push({
-          name: pc + "4",
+          name: pc + paletteOctave,
           midi,
           pc
         });
@@ -1810,9 +1833,17 @@
       durationVelocityRow.appendChild(velocityWrap);
       blockInspector.appendChild(durationVelocityRow);
 
+      const copyButton = document.createElement("button");
+      copyButton.classList.add("control-button", "secondary");
+      copyButton.style.marginTop = "12px";
+      copyButton.textContent = block.type === "rest" ? "Copy Rest" : "Copy Note";
+
+      copyButton.addEventListener("click", copySelectedBlock);
+      blockInspector.appendChild(copyButton);
+
       const deleteButton = document.createElement("button");
       deleteButton.classList.add("control-button", "danger");
-      deleteButton.style.marginTop = "12px";
+      deleteButton.style.marginTop = "8px";
       deleteButton.textContent = "Delete Block";
 
       deleteButton.addEventListener("click", () => {
@@ -1825,6 +1856,34 @@
       });
 
       blockInspector.appendChild(deleteButton);
+    }
+
+
+    function copySelectedBlock() {
+      const block = project.blocks.find(item => item.id === selectedBlockId);
+
+      if (!block) {
+        status.textContent = "Select a block to copy.";
+        return;
+      }
+
+      saveHistory();
+
+      const copy = {
+        ...block,
+        id: createId(block.type === "rest" ? "rest" : "note"),
+        startBeat: snapBeat(Number(block.startBeat || 0) + Number(block.durationBeats || 1)),
+        source: block.source || "manual",
+        sourceId: block.sourceId || null
+      };
+
+      project.blocks.push(copy);
+      selectedBlockId = copy.id;
+      selectedLaneId = copy.laneId;
+
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+      render();
+      status.textContent = "Block copied.";
     }
 
     function renderLaneInspector() {
@@ -1899,9 +1958,17 @@
 
       laneInspector.appendChild(voiceSelect);
 
+      const duplicateLaneButton = document.createElement("button");
+      duplicateLaneButton.classList.add("control-button", "secondary");
+      duplicateLaneButton.style.marginTop = "12px";
+      duplicateLaneButton.textContent = "Duplicate Lane";
+
+      duplicateLaneButton.addEventListener("click", duplicateSelectedLane);
+      laneInspector.appendChild(duplicateLaneButton);
+
       const deleteLaneButton = document.createElement("button");
       deleteLaneButton.classList.add("control-button", "danger");
-      deleteLaneButton.style.marginTop = "12px";
+      deleteLaneButton.style.marginTop = "8px";
       deleteLaneButton.textContent = "Delete Empty Lane";
       deleteLaneButton.disabled =
         project.blocks.some(block => block.laneId === lane.id) ||
@@ -2183,48 +2250,71 @@
       }
 
       const target = dragState.currentTarget;
+      const movingExisting = dragState.source === "existing";
+      const movingItem = { ...dragState.item };
+      const originalBlockId = dragState.blockId;
 
       saveHistory();
 
-      if (dragState.source === "existing") {
-        project.blocks = project.blocks.filter(block => block.id !== dragState.blockId);
-      }
-
       if (target.mode === "replace" && target.blockId) {
-        const existing = project.blocks.find(block => block.id === target.blockId);
+        const targetBlock = project.blocks.find(block => block.id === target.blockId);
 
-        if (existing) {
+        if (movingExisting && target.blockId === originalBlockId) {
+          const kept = {
+            ...movingItem,
+            laneId: movingItem.laneId,
+            startBeat: snapBeat(movingItem.startBeat || 0)
+          };
+
+          project.blocks = project.blocks.filter(block => block.id !== originalBlockId);
+          project.blocks.push(kept);
+          selectedBlockId = kept.id;
+          selectedLaneId = kept.laneId;
+          status.textContent = "Block kept in place.";
+        } else if (targetBlock) {
           const replacement = createBlockFromDragItem(
-            dragState.item,
-            existing.laneId,
-            existing.startBeat,
-            existing.durationBeats,
-            existing.velocity
+            movingItem,
+            targetBlock.laneId,
+            targetBlock.startBeat,
+            movingExisting ? movingItem.durationBeats : targetBlock.durationBeats,
+            movingExisting ? movingItem.velocity : targetBlock.velocity
           );
 
-          project.blocks = project.blocks.filter(block => block.id !== existing.id);
+          project.blocks = project.blocks.filter(block =>
+            block.id !== target.blockId &&
+            (!movingExisting || block.id !== originalBlockId)
+          );
+
           project.blocks.push(replacement);
           selectedBlockId = replacement.id;
           selectedLaneId = replacement.laneId;
-          status.textContent = "Block replaced.";
+          status.textContent = movingExisting
+            ? "Block moved and replaced target."
+            : "Block replaced.";
         }
       } else {
-        const block = createBlockFromDragItem(
-          dragState.item,
+        const movedBlock = createBlockFromDragItem(
+          movingItem,
           target.laneId,
           target.startBeat,
-          DEFAULT_DURATION,
-          82
+          movingExisting ? movingItem.durationBeats : DEFAULT_DURATION,
+          movingExisting ? movingItem.velocity : 82
         );
 
-        project.blocks.push(block);
-        selectedBlockId = block.id;
-        selectedLaneId = block.laneId;
+        if (movingExisting) {
+          project.blocks = project.blocks.filter(block => block.id !== originalBlockId);
+        }
+
+        project.blocks.push(movedBlock);
+        selectedBlockId = movedBlock.id;
+        selectedLaneId = movedBlock.laneId;
 
         status.textContent =
           target.mode === "append"
             ? "Block added to end of lane."
-            : "Block inserted.";
+            : movingExisting
+              ? "Block moved."
+              : "Block inserted.";
       }
 
       localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
@@ -2233,6 +2323,9 @@
 
     function completeDropIntoNewLane(event, insertIndex) {
       if (!dragState) return;
+
+      const movingExisting = dragState.source === "existing";
+      const movingItem = { ...dragState.item };
 
       saveHistory();
 
@@ -2245,16 +2338,20 @@
 
       project.lanes.splice(insertIndex, 0, newLane);
 
-      if (dragState.source === "existing") {
+      if (movingExisting) {
         project.blocks = project.blocks.filter(block => block.id !== dragState.blockId);
       }
 
       const block = createBlockFromDragItem(
-        dragState.item,
+        movingItem,
         newLane.id,
         0,
-        DEFAULT_DURATION,
-        82
+        movingExisting
+          ? movingItem.durationBeats
+          : DEFAULT_DURATION,
+        movingExisting
+          ? movingItem.velocity
+          : 82
       );
 
       project.blocks.push(block);
@@ -2263,37 +2360,39 @@
 
       localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
       render();
-      status.textContent = "New lane added.";
+      status.textContent = movingExisting
+        ? "Block moved into new lane."
+        : "New lane added.";
     }
 
     function createBlockFromDragItem(item, laneId, startBeat, durationBeats, velocity) {
       if (item.type === "rest") {
         return {
-          id: createId("rest"),
+          id: item.id || createId("rest"),
           type: "rest",
           laneId,
           startBeat: snapBeat(startBeat),
-          durationBeats: Math.max(MIN_DURATION, durationBeats),
+          durationBeats: Math.max(MIN_DURATION, Number(durationBeats || item.durationBeats || 1)),
           velocity: 0,
-          name: "Rest",
+          name: item.name || "Rest",
           voice: null,
-          system: project.context.system,
-          source: "manual",
-          sourceId: null
+          system: item.system || project.context.system,
+          source: item.source || "manual",
+          sourceId: item.sourceId || null
         };
       }
 
       const midi = Number.isFinite(item.midi) ? item.midi : 60;
 
       return {
-        id: createId("note"),
+        id: item.id || createId("note"),
         type: "note",
         laneId,
         midi,
         name: item.name || midiToDisplayName(midi),
         startBeat: snapBeat(startBeat),
-        durationBeats: Math.max(MIN_DURATION, durationBeats),
-        velocity: Math.max(20, Math.min(127, velocity || item.velocity || 82)),
+        durationBeats: Math.max(MIN_DURATION, Number(durationBeats || item.durationBeats || 1)),
+        velocity: Math.max(20, Math.min(127, Number(velocity || item.velocity || 82))),
         voice: item.voice === undefined ? null : item.voice,
         system: item.system || project.context.system,
         source: item.source || "manual",
@@ -2569,8 +2668,8 @@
     }
 
     function importRecording() {
-      const raw = localStorage.getItem("orumiStudioArrangement") ||
-        localStorage.getItem("orumiCurrentRecording");
+      const raw = localStorage.getItem("orumiCurrentRecording") ||
+        localStorage.getItem("orumiStudioArrangement");
 
       if (!raw) {
         status.textContent = "No recording found.";
@@ -2589,39 +2688,58 @@
       const importId = "recording_" + new Date().toISOString();
 
       events.forEach(event => {
-        const laneId = chooseLaneForEvent(event);
+        const rawNotes = Array.isArray(event.notes) ? event.notes : [];
 
-        if (event.notes && event.notes.length > 0) {
-          event.notes.forEach((note, index) => {
+        const parsedNotes = rawNotes
+          .map(note => {
             const midi = Number.isFinite(note.midi)
               ? note.midi
               : note.name
                 ? noteNameToMidi(note.name)
                 : null;
 
-            if (midi === null) return;
-
-            project.blocks.push({
-              id: createId("note"),
-              type: "note",
-              laneId: laneIdForChordIndex(index, laneId),
+            return {
+              ...note,
               midi,
-              name: note.name || midiToDisplayName(midi),
-              startBeat: Number(event.start || 0),
-              durationBeats: Math.max(MIN_DURATION, Number(event.duration || 1)),
-              velocity: 86,
-              voice: event.voice || null,
-              system: event.system || project.context.system,
-              source: "recording",
-              sourceId: importId
-            });
-          });
+              name: note.name || (midi !== null ? midiToDisplayName(midi) : "")
+            };
+          })
+          .filter(note => note.midi !== null)
+          .sort((a, b) => a.midi - b.midi);
+
+        if (parsedNotes.length === 0) {
+          return;
         }
+
+        parsedNotes.forEach((note, index) => {
+          const laneId = parsedNotes.length === 1
+            ? chooseLaneForEvent(event)
+            : getLaneIdForChordNoteIndex(index, parsedNotes.length);
+
+          project.blocks.push({
+            id: createId("note"),
+            type: "note",
+            laneId,
+            midi: note.midi,
+            name: note.name || midiToDisplayName(note.midi),
+            startBeat: Number(event.start || 0),
+            durationBeats: Math.max(MIN_DURATION, Number(event.duration || 1)),
+            velocity: 86,
+            voice: event.voice || null,
+            system: event.system || project.context.system,
+            source: "recording",
+            sourceId: importId
+          });
+        });
       });
 
       localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
       render();
-      status.textContent = "Recording imported.";
+      status.textContent =
+        events.length +
+        " recorded event" +
+        (events.length === 1 ? "" : "s") +
+        " imported.";
     }
 
     function importProgression() {
@@ -2744,6 +2862,195 @@
           : "Progression imported as editable note blocks.";
     }
 
+    function exportMidi() {
+      normalizeProject();
+
+      const noteBlocks = project.blocks
+        .filter(block => block.type === "note" && Number.isFinite(block.midi));
+
+      if (noteBlocks.length === 0) {
+        status.textContent = "Nothing to export yet.";
+        return;
+      }
+
+      const ticksPerBeat = 480;
+      const bpm = Math.max(40, Math.min(240, Number(project.tempo || 120)));
+      const tracks = [];
+
+      tracks.push(createConductorTrack(bpm));
+
+      project.lanes.forEach((lane, laneIndex) => {
+        const laneBlocks = noteBlocks
+          .filter(block => block.laneId === lane.id)
+          .sort((a, b) => a.startBeat - b.startBeat);
+
+        if (laneBlocks.length > 0) {
+          tracks.push(createLaneMidiTrack(lane, laneBlocks, laneIndex, ticksPerBeat));
+        }
+      });
+
+      const unassignedBlocks = noteBlocks
+        .filter(block => !project.lanes.some(lane => lane.id === block.laneId))
+        .sort((a, b) => a.startBeat - b.startBeat);
+
+      if (unassignedBlocks.length > 0) {
+        tracks.push(createLaneMidiTrack(
+          { name: "Unassigned" },
+          unassignedBlocks,
+          tracks.length,
+          ticksPerBeat
+        ));
+      }
+
+      const bytes = [];
+      writeAscii(bytes, "MThd");
+      writeUint32(bytes, 6);
+      writeUint16(bytes, 1);
+      writeUint16(bytes, tracks.length);
+      writeUint16(bytes, ticksPerBeat);
+
+      tracks.forEach(trackBytes => {
+        writeAscii(bytes, "MTrk");
+        writeUint32(bytes, trackBytes.length);
+        bytes.push(...trackBytes);
+      });
+
+      const blob = new Blob([new Uint8Array(bytes)], {
+        type: "audio/midi"
+      });
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const name = (project.title || "orumi-design")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "") || "orumi-design";
+
+      link.href = url;
+      link.download = name + ".mid";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+
+      status.textContent = "MIDI exported: " + link.download;
+    }
+
+    function createConductorTrack(bpm) {
+      const track = [];
+      const microsPerQuarter = Math.round(60000000 / bpm);
+
+      writeVarLength(track, 0);
+      track.push(0xff, 0x03);
+      writeVarLength(track, 13);
+      writeAscii(track, "Orumi Studio");
+
+      writeVarLength(track, 0);
+      track.push(0xff, 0x51, 0x03);
+      track.push(
+        (microsPerQuarter >> 16) & 0xff,
+        (microsPerQuarter >> 8) & 0xff,
+        microsPerQuarter & 0xff
+      );
+
+      writeVarLength(track, 0);
+      track.push(0xff, 0x58, 0x04, 0x04, 0x02, 0x18, 0x08);
+
+      writeVarLength(track, 0);
+      track.push(0xff, 0x2f, 0x00);
+
+      return track;
+    }
+
+    function createLaneMidiTrack(lane, blocks, laneIndex, ticksPerBeat) {
+      const absoluteEvents = [];
+      const channel = laneIndex % 16;
+
+      blocks.forEach(block => {
+        const startTick = Math.max(0, Math.round(Number(block.startBeat || 0) * ticksPerBeat));
+        const durationTicks = Math.max(1, Math.round(Number(block.durationBeats || 1) * ticksPerBeat));
+        const endTick = startTick + durationTicks;
+        const midi = Math.max(0, Math.min(127, Math.round(block.midi)));
+        const velocity = Math.max(1, Math.min(127, Math.round(block.velocity || 86)));
+
+        absoluteEvents.push({
+          tick: startTick,
+          order: 1,
+          data: [0x90 + channel, midi, velocity]
+        });
+
+        absoluteEvents.push({
+          tick: endTick,
+          order: 0,
+          data: [0x80 + channel, midi, 0]
+        });
+      });
+
+      absoluteEvents.sort((a, b) => {
+        if (a.tick !== b.tick) return a.tick - b.tick;
+        return a.order - b.order;
+      });
+
+      const track = [];
+      const laneName = lane.name || "Orumi Lane";
+
+      writeVarLength(track, 0);
+      track.push(0xff, 0x03);
+      writeVarLength(track, laneName.length);
+      writeAscii(track, laneName);
+
+      let previousTick = 0;
+
+      absoluteEvents.forEach(event => {
+        writeVarLength(track, event.tick - previousTick);
+        track.push(...event.data);
+        previousTick = event.tick;
+      });
+
+      writeVarLength(track, 0);
+      track.push(0xff, 0x2f, 0x00);
+
+      return track;
+    }
+
+    function writeAscii(bytes, text) {
+      for (let i = 0; i < text.length; i++) {
+        bytes.push(text.charCodeAt(i) & 0xff);
+      }
+    }
+
+    function writeUint16(bytes, value) {
+      bytes.push((value >> 8) & 0xff, value & 0xff);
+    }
+
+    function writeUint32(bytes, value) {
+      bytes.push(
+        (value >> 24) & 0xff,
+        (value >> 16) & 0xff,
+        (value >> 8) & 0xff,
+        value & 0xff
+      );
+    }
+
+    function writeVarLength(bytes, value) {
+      let buffer = value & 0x7f;
+
+      while ((value >>= 7)) {
+        buffer <<= 8;
+        buffer |= ((value & 0x7f) | 0x80);
+      }
+
+      while (true) {
+        bytes.push(buffer & 0xff);
+
+        if (buffer & 0x80) {
+          buffer >>= 8;
+        } else {
+          break;
+        }
+      }
+    }
+
     function chooseLaneForEvent(event) {
       return project.lanes.find(lane => lane.id === "lead")?.id || project.lanes[0].id;
     }
@@ -2762,6 +3069,45 @@
     function laneIdForChordIndex(index, fallbackLaneId) {
       ensureLaneForChordIndex(index);
       return project.lanes[index]?.id || fallbackLaneId;
+    }
+
+
+    function duplicateSelectedLane() {
+      const laneIndex = project.lanes.findIndex(item => item.id === selectedLaneId);
+
+      if (laneIndex < 0) {
+        status.textContent = "Select a lane to duplicate.";
+        return;
+      }
+
+      saveHistory();
+
+      const sourceLane = project.lanes[laneIndex];
+      const newLane = {
+        ...sourceLane,
+        id: createId("lane"),
+        name: (sourceLane.name || "Part") + " Copy"
+      };
+
+      project.lanes.splice(laneIndex + 1, 0, newLane);
+
+      const copiedBlocks = project.blocks
+        .filter(block => block.laneId === sourceLane.id)
+        .map(block => ({
+          ...block,
+          id: createId(block.type === "rest" ? "rest" : "note"),
+          laneId: newLane.id,
+          source: block.source || "manual",
+          sourceId: block.sourceId || null
+        }));
+
+      project.blocks.push(...copiedBlocks);
+      selectedLaneId = newLane.id;
+      selectedBlockId = copiedBlocks[0]?.id || null;
+
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+      render();
+      status.textContent = "Lane duplicated.";
     }
 
     function getEffectiveVoice(block) {
@@ -2892,7 +3238,7 @@
     importChordButton.addEventListener("click", () => importPendingChordFromStorage(false));
     importRecordingButton.addEventListener("click", importRecording);
     importProgressionButton.addEventListener("click", importProgression);
-    addRestButton.addEventListener("click", addRestToLead);
+    exportMidiButton.addEventListener("click", exportMidi);
     resetViewButton.addEventListener("click", resetView);
 
     window.addEventListener("beforeunload", () => {
