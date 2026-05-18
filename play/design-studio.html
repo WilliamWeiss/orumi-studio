@@ -72,33 +72,33 @@
       filter: brightness(1.08);
     }
 
-.logo-button {
-  left: 18px;
-  width: 58px;
-  height: 58px;
-  background: transparent;
-  box-shadow: none;
-  border-radius: 0;
-}
+    .logo-button {
+      left: 18px;
+      width: 58px;
+      height: 58px;
+      background: transparent;
+      box-shadow: none;
+      border-radius: 0;
+    }
 
-.logo-button:hover,
-.logo-button:active {
-  background: transparent;
-  box-shadow: none;
-  filter: brightness(1.12);
-}
+    .logo-button:hover,
+    .logo-button:active {
+      background: transparent;
+      box-shadow: none;
+      filter: brightness(1.12);
+    }
 
-.logo-button img {
-  width: 58px;
-  height: 58px;
-  object-fit: contain;
-  border-radius: 0;
-}
+    .logo-button img {
+      width: 58px;
+      height: 58px;
+      object-fit: contain;
+      border-radius: 0;
+    }
 
-.back-button { left: 88px; }
-.home-button { right: 18px; }
-.player-button { right: 76px; }
-.progression-button { right: 134px; }
+    .back-button { left: 88px; }
+    .home-button { right: 18px; }
+    .player-button { right: 76px; }
+    .progression-button { right: 134px; }
 
     .studio {
       width: min(98vw, 1380px);
@@ -560,7 +560,7 @@
 
     @media (max-width: 1100px) {
       h1 {
-        margin-top: 72px;
+        margin-top: 82px;
       }
 
       .studio {
@@ -581,8 +581,19 @@
         font-size: 22px;
       }
 
-      .progression-button { right: 120px; }
+      .logo-button {
+        width: 52px;
+        height: 52px;
+      }
+
+      .logo-button img {
+        width: 52px;
+        height: 52px;
+      }
+
+      .back-button { left: 80px; }
       .player-button { right: 69px; }
+      .progression-button { right: 120px; }
     }
 
     @media (max-width: 620px) {
@@ -595,13 +606,13 @@
 
 <body>
 
-<a
-  class="top-button logo-button"
-  href="../index.html"
-  title="Orumi Home"
->
-  <img src="../assets/orumi-black.png" alt="Orumi" />
-</a>
+  <a
+    class="top-button logo-button"
+    href="../index.html"
+    title="Orumi Home"
+  >
+    <img src="../assets/orumi-black.png" alt="Orumi" />
+  </a>
 
   <button
     class="top-button back-button"
@@ -621,16 +632,16 @@
     title="Open Player"
   >□</a>
 
-<a
-  class="top-button progression-button"
-  href="progression-builder.html"
-  title="Open Progression Builder"
->≡</a>
+  <a
+    class="top-button progression-button"
+    href="progression-builder.html"
+    title="Open Progression Builder"
+  >≡</a>
 
   <h1>Design Studio</h1>
 
   <div class="subtitle">
-    Arrange Orumi blocks by part. Save named designs, import recordings, and bring in chord progressions as editable blocks.
+    Arrange Orumi blocks by part. Save named designs, import recordings, and bring in chords or progressions as editable blocks.
   </div>
 
   <div class="studio">
@@ -733,6 +744,10 @@
         <div class="section-title">Barbershop Parts / Orumi Lanes</div>
 
         <div class="toolbar">
+          <button class="control-button secondary" id="importChordButton">
+            Import Chord
+          </button>
+
           <button class="control-button secondary" id="importRecordingButton">
             Import Recording
           </button>
@@ -795,6 +810,7 @@
     let selectedBlockId = null;
     let selectedLaneId = "lead";
     let currentProjectId = null;
+    let pendingChordChecked = false;
 
     const BEAT_WIDTH = 72;
     const MIN_DURATION = 0.25;
@@ -804,6 +820,7 @@
     const STORAGE_LIBRARY = "orumiDesignStudioProjects";
     const STORAGE_CURRENT_ID = "orumiDesignStudioCurrentProjectId";
     const STORAGE_LEGACY = "orumiDesignStudioProject";
+    const STORAGE_PENDING_CHORD = "orumiPendingDesignChord";
 
     const backButton = document.getElementById("backButton");
     const paletteGrid = document.getElementById("paletteGrid");
@@ -834,6 +851,7 @@
     const undoButton = document.getElementById("undoButton");
     const playButton = document.getElementById("playButton");
     const clearButton = document.getElementById("clearButton");
+    const importChordButton = document.getElementById("importChordButton");
     const importRecordingButton = document.getElementById("importRecordingButton");
     const importProgressionButton = document.getElementById("importProgressionButton");
     const addRestButton = document.getElementById("addRestButton");
@@ -2442,6 +2460,114 @@
       return Math.max(...blocks.map(block => block.startBeat + block.durationBeats));
     }
 
+    function importPendingChordFromStorage(autoPrompt = false) {
+      const raw = localStorage.getItem(STORAGE_PENDING_CHORD);
+
+      if (!raw) {
+        if (!autoPrompt) {
+          status.textContent = "No pending chord from Chord Factory.";
+        }
+
+        return;
+      }
+
+      const chord = JSON.parse(raw);
+
+      if (!chord || !Array.isArray(chord.notes) || chord.notes.length === 0) {
+        localStorage.removeItem(STORAGE_PENDING_CHORD);
+        status.textContent = "Pending chord was empty.";
+        return;
+      }
+
+      if (autoPrompt) {
+        const confirmed = window.confirm(
+          "Add " + (chord.name || "this chord") + " from Chord Factory to Design Studio?"
+        );
+
+        if (!confirmed) {
+          return;
+        }
+      }
+
+      importChordObject(chord);
+      localStorage.removeItem(STORAGE_PENDING_CHORD);
+    }
+
+    function importChordObject(chord) {
+      saveHistory();
+
+      const importId =
+        "chord_" +
+        Date.now().toString(36) +
+        "_" +
+        Math.random().toString(36).slice(2);
+
+      const parsedNotes =
+        chord.notes
+          .map(noteName => ({
+            noteName,
+            midi: noteNameToMidi(noteName)
+          }))
+          .filter(note => note.midi !== null)
+          .sort((a, b) => a.midi - b.midi);
+
+      const startBeat =
+        getProjectLength() > 8 ? getProjectLength() + 0.5 : 0;
+
+      parsedNotes.forEach((note, index) => {
+        const laneId =
+          getLaneIdForChordNoteIndex(index, parsedNotes.length);
+
+        project.blocks.push({
+          id: createId("note"),
+          type: "note",
+          laneId,
+          midi: note.midi,
+          name: note.noteName,
+          startBeat,
+          durationBeats: 1.5,
+          velocity: 86,
+          voice: chord.voice || null,
+          system: chord.system || project.context.system,
+          source: "chord",
+          sourceId: importId
+        });
+      });
+
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+      render();
+
+      status.textContent =
+        (chord.name || "Chord") +
+        " imported as editable note blocks.";
+    }
+
+    function getLaneIdForChordNoteIndex(index, totalNotes) {
+      const threeNoteMap = ["bass", "baritone", "lead"];
+      const fourNoteMap = ["bass", "baritone", "lead", "tenor"];
+
+      const map =
+        totalNotes <= 3 ? threeNoteMap : fourNoteMap;
+
+      let preferred =
+        map[index];
+
+      if (!preferred) {
+        ensureLaneForChordIndex(index);
+        return project.lanes[index].id;
+      }
+
+      const lane =
+        project.lanes.find(item => item.id === preferred);
+
+      if (lane) {
+        return lane.id;
+      }
+
+      ensureLaneForChordIndex(index);
+      return project.lanes[index].id;
+    }
+
     function importRecording() {
       const raw = localStorage.getItem("orumiStudioArrangement") ||
         localStorage.getItem("orumiCurrentRecording");
@@ -2577,18 +2703,25 @@
       progression.forEach(chord => {
         const notes = Array.isArray(chord.notes) ? chord.notes : [];
 
-        notes.forEach((noteName, index) => {
-          const midi = noteNameToMidi(noteName);
-          if (midi === null) return;
+        const parsedNotes =
+          notes
+            .map(noteName => ({
+              noteName,
+              midi: noteNameToMidi(noteName)
+            }))
+            .filter(note => note.midi !== null)
+            .sort((a, b) => a.midi - b.midi);
 
-          ensureLaneForChordIndex(index);
+        parsedNotes.forEach((note, index) => {
+          const laneId =
+            getLaneIdForChordNoteIndex(index, parsedNotes.length);
 
           project.blocks.push({
             id: createId("note"),
             type: "note",
-            laneId: project.lanes[index].id,
-            midi,
-            name: noteName,
+            laneId,
+            midi: note.midi,
+            name: note.noteName,
             startBeat: cursor,
             durationBeats: 1.5,
             velocity: 86,
@@ -2756,6 +2889,7 @@
     undoButton.addEventListener("click", undo);
     playButton.addEventListener("click", playProject);
     clearButton.addEventListener("click", clearProject);
+    importChordButton.addEventListener("click", () => importPendingChordFromStorage(false));
     importRecordingButton.addEventListener("click", importRecording);
     importProgressionButton.addEventListener("click", importProgression);
     addRestButton.addEventListener("click", addRestToLead);
@@ -2768,6 +2902,13 @@
 
     loadStartupProject();
     render();
+
+    setTimeout(() => {
+      if (!pendingChordChecked) {
+        pendingChordChecked = true;
+        importPendingChordFromStorage(true);
+      }
+    }, 250);
   </script>
 
 </body>
