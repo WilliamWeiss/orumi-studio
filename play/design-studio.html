@@ -839,6 +839,22 @@
           <button class="control-button secondary" id="jumpToEndButton">
             ⏭ Jump to End
           </button>
+
+          <button class="control-button secondary" id="zoomOutButton">
+            🔍− Zoom Out
+          </button>
+
+          <button class="control-button secondary" id="zoomInButton">
+            🔍＋ Zoom In
+          </button>
+
+          <button class="control-button secondary" id="readableViewButton">
+            ↔ Readable View
+          </button>
+
+          <button class="control-button secondary" id="goToMeasureButton">
+            📍 Go to Measure
+          </button>
         </div>
 
         <div class="timeline-shell">
@@ -893,7 +909,11 @@
     let blockClipboard = [];
     let selectedInsertBeat = 0;
 
-    const BEAT_WIDTH = 72;
+    let BEAT_WIDTH = Math.max(36, Math.min(180, Number(localStorage.getItem("orumiDesignStudioBeatWidth") || 72)));
+    const MIN_BEAT_WIDTH = 36;
+    const MAX_BEAT_WIDTH = 180;
+    const READABLE_BEAT_WIDTH = 120;
+    const ZOOM_STEP = 24;
     const MIN_DURATION = 0.25;
     const MAX_HISTORY = 60;
     const DEFAULT_DURATION = 1;
@@ -945,6 +965,10 @@
     const insertMeasuresButton = document.getElementById("insertMeasuresButton");
     const resetViewButton = document.getElementById("resetViewButton");
     const jumpToEndButton = document.getElementById("jumpToEndButton");
+    const zoomOutButton = document.getElementById("zoomOutButton");
+    const zoomInButton = document.getElementById("zoomInButton");
+    const readableViewButton = document.getElementById("readableViewButton");
+    const goToMeasureButton = document.getElementById("goToMeasureButton");
     const midiFileInput = document.getElementById("midiFileInput");
     const paletteOctaveSelect = document.getElementById("paletteOctaveSelect");
 
@@ -1637,6 +1661,7 @@
       renderProjectName();
       populateContextControls();
       createPalette();
+      applyTimelineScale();
       renderRuler();
       renderLanes();
       renderInspectors();
@@ -1658,7 +1683,10 @@
         " · " +
         (project.context.set === "full" ? "Full Palette" : "Native Palette") +
         " · Insert: M" +
-        getSelectedInsertMeasure();
+        getSelectedInsertMeasure() +
+        " · Zoom: " +
+        BEAT_WIDTH +
+        "px/beat";
 
       undoButton.disabled = historyStack.length === 0;
       redoButton.disabled = redoStack.length === 0;
@@ -4305,6 +4333,68 @@
       status.textContent = "Playing Design Studio.";
     }
 
+    function getTimelinePixelWidth() {
+      const maxBeat = Math.max(12, Math.ceil(getProjectLength()) + 4);
+      return Math.max(1040, 104 + ((maxBeat + 2) * BEAT_WIDTH) + 40);
+    }
+
+    function applyTimelineScale() {
+      document.documentElement.style.setProperty("--beat-width", BEAT_WIDTH + "px");
+
+      const timeline = document.getElementById("timeline");
+      if (timeline) {
+        timeline.style.minWidth = getTimelinePixelWidth() + "px";
+      }
+    }
+
+    function setTimelineZoom(nextWidth, message) {
+      const shell = document.querySelector(".timeline-shell");
+      const anchorBeat = shell
+        ? (shell.scrollLeft + (shell.clientWidth / 2)) / BEAT_WIDTH
+        : 0;
+
+      BEAT_WIDTH = Math.max(
+        MIN_BEAT_WIDTH,
+        Math.min(MAX_BEAT_WIDTH, Math.round(Number(nextWidth || BEAT_WIDTH)))
+      );
+
+      localStorage.setItem("orumiDesignStudioBeatWidth", String(BEAT_WIDTH));
+      render();
+
+      if (shell) {
+        shell.scrollLeft = Math.max(
+          0,
+          (anchorBeat * BEAT_WIDTH) - (shell.clientWidth / 2)
+        );
+      }
+
+      status.textContent =
+        message + " Timeline spacing is now " + BEAT_WIDTH + "px per beat.";
+    }
+
+    function zoomInTimeline() {
+      setTimelineZoom(BEAT_WIDTH + ZOOM_STEP, "Zoomed in.");
+    }
+
+    function zoomOutTimeline() {
+      setTimelineZoom(BEAT_WIDTH - ZOOM_STEP, "Zoomed out.");
+    }
+
+    function readableView() {
+      setTimelineZoom(READABLE_BEAT_WIDTH, "Readable view applied.");
+    }
+
+    function goToSelectedMeasure() {
+      const shell = document.querySelector(".timeline-shell");
+
+      if (!shell) {
+        return;
+      }
+
+      shell.scrollLeft = Math.max(0, (selectedInsertBeat * BEAT_WIDTH) - 60);
+      status.textContent = "Scrolled to selected measure M" + getSelectedInsertMeasure() + ".";
+    }
+
     function resetView() {
       document.querySelector(".timeline-shell").scrollLeft = 0;
       status.textContent = "Jumped to start.";
@@ -4354,6 +4444,10 @@
     insertMeasuresButton.addEventListener("click", insertMeasuresAtSelectedPoint);
     resetViewButton.addEventListener("click", resetView);
     jumpToEndButton.addEventListener("click", jumpToEnd);
+    zoomOutButton.addEventListener("click", zoomOutTimeline);
+    zoomInButton.addEventListener("click", zoomInTimeline);
+    readableViewButton.addEventListener("click", readableView);
+    goToMeasureButton.addEventListener("click", goToSelectedMeasure);
 
     window.addEventListener("beforeunload", () => {
       stopPlayback();
