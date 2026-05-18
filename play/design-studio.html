@@ -72,18 +72,31 @@
       filter: brightness(1.08);
     }
 
-.logo-button { left: 18px; }
-.back-button { left: 76px; }
+.logo-button {
+  left: 18px;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+.logo-button:hover,
+.logo-button:active {
+  background: transparent;
+  box-shadow: none;
+  filter: brightness(1.08);
+}
 
 .logo-button img {
-  width: 34px;
-  height: 34px;
+  width: 40px;
+  height: 40px;
   object-fit: contain;
-  border-radius: 50%;
+  border-radius: 0;
 }
-    .home-button { right: 18px; }
-    .player-button { right: 76px; }
-    .progression-button { right: 134px; }
+
+.back-button { left: 76px; }
+.home-button { right: 18px; }
+.player-button { right: 76px; }
+.progression-button { right: 134px; }
 
     .studio {
       width: min(98vw, 1380px);
