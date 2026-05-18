@@ -72,7 +72,15 @@
       filter: brightness(1.08);
     }
 
-    .back-button { left: 18px; }
+.logo-button { left: 18px; }
+.back-button { left: 76px; }
+
+.logo-button img {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  border-radius: 50%;
+}
     .home-button { right: 18px; }
     .player-button { right: 76px; }
     .progression-button { right: 134px; }
@@ -571,6 +579,14 @@
 </head>
 
 <body>
+
+<a
+  class="top-button logo-button"
+  href="../index.html"
+  title="Orumi Home"
+>
+  <img src="../assets/orumi-black.png" alt="Orumi" />
+</a>
 
   <button
     class="top-button back-button"
