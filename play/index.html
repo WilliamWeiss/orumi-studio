@@ -92,7 +92,7 @@
     .andean   { background: #5f6f72; }
 
     .chordfactory { background: #5b4f7a; }
-    .recordingstudio { background: #6a4f2f; }
+    .progressionstudio { background: #6a4f2f; }
     .designstudio { background: #2f665f; }
 
     @media (max-width: 620px) {
@@ -137,7 +137,7 @@
 
       "andean",
       "chordfactory",
-      "recordingstudio",
+      "progressionstudio",
       "designstudio"
     ];
 
@@ -203,13 +203,13 @@
           return;
         }
 
-        if (systemKey === "recordingstudio") {
+        if (systemKey === "progressionstudio") {
           menuGrid.appendChild(
             createTile(
-              "recordingstudio",
-              "recording-studio.html",
-              "RS",
-              "Recording Studio"
+              "progressionstudio",
+              "progression-builder.html",
+              "PS",
+              "Progression Studio"
             )
           );
 
