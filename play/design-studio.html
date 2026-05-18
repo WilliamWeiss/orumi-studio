@@ -268,6 +268,35 @@
       transform: translateX(4px);
     }
 
+    .measure-label {
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 999px;
+      user-select: none;
+    }
+
+    .measure-label:hover {
+      background: rgba(255,255,255,0.16);
+      color: #fff7ea;
+    }
+
+    .measure-label.selected {
+      background: rgba(255,255,255,0.92);
+      color: #111;
+      box-shadow: 0 0 16px rgba(255,255,255,0.72);
+    }
+
+    .beat-mark.measure-start {
+      height: 28px;
+      background: rgba(255,255,255,0.34);
+    }
+
+    .beat-mark.selected-insert {
+      width: 3px;
+      background: rgba(255,255,255,0.95);
+      box-shadow: 0 0 18px rgba(255,255,255,0.95);
+    }
+
     .lane {
       display: grid;
       grid-template-columns: 104px 1fr;
@@ -736,7 +765,7 @@
 
         <div class="controls">
           <button class="control-button secondary" id="addLaneButton">
-            ＋ Add Lane
+            Add Lane
           </button>
 
           <button class="control-button secondary" id="undoButton">
@@ -756,15 +785,15 @@
           </button>
 
           <button class="control-button secondary" id="copySelectionButton">
-            ⧉ Copy Selection
+            Copy Selection
           </button>
 
           <button class="control-button secondary" id="pasteSelectionButton">
-            ⧆ Paste at End
+            Paste at End
           </button>
 
           <button class="control-button danger" id="clearButton">
-            🗑 Clear Design
+            Clear
           </button>
         </div>
 
@@ -795,6 +824,9 @@
             ⇩ Export MIDI
           </button>
 
+          <button class="control-button secondary" id="insertMeasuresButton">
+            ＋ Insert Measures
+          </button>
 
           <button class="control-button secondary" id="resetViewButton">
             ⏮ Jump to Start
@@ -850,11 +882,13 @@
     let currentProjectId = null;
     let pendingChordChecked = false;
     let blockClipboard = [];
+    let selectedInsertBeat = 0;
 
     const BEAT_WIDTH = 72;
     const MIN_DURATION = 0.25;
     const MAX_HISTORY = 60;
     const DEFAULT_DURATION = 1;
+    const BEATS_PER_MEASURE = 4;
 
     const STORAGE_LIBRARY = "orumiDesignStudioProjects";
     const STORAGE_CURRENT_ID = "orumiDesignStudioCurrentProjectId";
@@ -898,6 +932,7 @@
     const importRecordingButton = document.getElementById("importRecordingButton");
     const importProgressionButton = document.getElementById("importProgressionButton");
     const exportMidiButton = document.getElementById("exportMidiButton");
+    const insertMeasuresButton = document.getElementById("insertMeasuresButton");
     const resetViewButton = document.getElementById("resetViewButton");
     const paletteOctaveSelect = document.getElementById("paletteOctaveSelect");
 
@@ -1530,20 +1565,50 @@
       rulerBeats.innerHTML = "";
 
       const maxBeat = Math.max(12, Math.ceil(getProjectLength()) + 4);
+      const maxMeasure = Math.ceil(maxBeat / BEATS_PER_MEASURE) + 1;
 
       for (let beat = 0; beat <= maxBeat; beat++) {
         const mark = document.createElement("div");
         mark.classList.add("beat-mark");
-        mark.style.left = beat * BEAT_WIDTH + "px";
 
+        if (beat % BEATS_PER_MEASURE === 0) {
+          mark.classList.add("measure-start");
+        }
+
+        if (beat === selectedInsertBeat) {
+          mark.classList.add("selected-insert");
+        }
+
+        mark.style.left = beat * BEAT_WIDTH + "px";
+        rulerBeats.appendChild(mark);
+      }
+
+      for (let measure = 1; measure <= maxMeasure; measure++) {
+        const beat = (measure - 1) * BEATS_PER_MEASURE;
         const label = document.createElement("div");
-        label.classList.add("beat-label");
-        label.textContent = beat + 1;
+        label.classList.add("beat-label", "measure-label");
+
+        if (beat === selectedInsertBeat) {
+          label.classList.add("selected");
+        }
+
+        label.textContent = "M" + measure;
+        label.title = "Select insertion point before Measure " + measure;
         label.style.left = beat * BEAT_WIDTH + "px";
 
-        rulerBeats.appendChild(mark);
+        label.addEventListener("click", () => {
+          selectedInsertBeat = beat;
+          render();
+          status.textContent =
+            "Insertion point selected: Measure " + measure + ".";
+        });
+
         rulerBeats.appendChild(label);
       }
+    }
+
+    function getSelectedInsertMeasure() {
+      return Math.floor(selectedInsertBeat / BEATS_PER_MEASURE) + 1;
     }
 
     function getProjectLength() {
@@ -1579,7 +1644,9 @@
         " · " +
         getCurrentMode().label +
         " · " +
-        (project.context.set === "full" ? "Full Palette" : "Native Palette");
+        (project.context.set === "full" ? "Full Palette" : "Native Palette") +
+        " · Insert: M" +
+        getSelectedInsertMeasure();
 
       undoButton.disabled = historyStack.length === 0;
       redoButton.disabled = redoStack.length === 0;
@@ -1823,14 +1890,14 @@
         const copySelectionButton = document.createElement("button");
         copySelectionButton.classList.add("control-button", "secondary");
         copySelectionButton.style.marginTop = "12px";
-        copySelectionButton.textContent = "⧉ Copy Selection";
+        copySelectionButton.textContent = "Copy Selection";
         copySelectionButton.addEventListener("click", copySelectionToClipboard);
         blockInspector.appendChild(copySelectionButton);
 
         const pasteSelectionButton = document.createElement("button");
         pasteSelectionButton.classList.add("control-button", "secondary");
         pasteSelectionButton.style.marginTop = "8px";
-        pasteSelectionButton.textContent = "⧆ Paste at End";
+        pasteSelectionButton.textContent = "Paste at End";
         pasteSelectionButton.addEventListener("click", pasteClipboardAtEnd);
         blockInspector.appendChild(pasteSelectionButton);
 
@@ -1962,7 +2029,7 @@
       const copyButton = document.createElement("button");
       copyButton.classList.add("control-button", "secondary");
       copyButton.style.marginTop = "12px";
-      copyButton.textContent = block.type === "rest" ? "⧉ Copy Rest" : "⧉ Copy Note";
+      copyButton.textContent = block.type === "rest" ? "Copy Rest" : "Copy Note";
 
       copyButton.addEventListener("click", copySelectedBlock);
       blockInspector.appendChild(copyButton);
@@ -1970,7 +2037,7 @@
       const deleteButton = document.createElement("button");
       deleteButton.classList.add("control-button", "danger");
       deleteButton.style.marginTop = "8px";
-      deleteButton.textContent = "🗑 Delete Block";
+      deleteButton.textContent = "Delete Block";
 
       deleteButton.addEventListener("click", () => {
         saveHistory();
@@ -2153,7 +2220,7 @@
       const duplicateLaneButton = document.createElement("button");
       duplicateLaneButton.classList.add("control-button", "secondary");
       duplicateLaneButton.style.marginTop = "12px";
-      duplicateLaneButton.textContent = "⧉ Duplicate Lane";
+      duplicateLaneButton.textContent = "Duplicate Lane";
 
       duplicateLaneButton.addEventListener("click", duplicateSelectedLane);
       laneInspector.appendChild(duplicateLaneButton);
@@ -2161,7 +2228,7 @@
       const deleteLaneButton = document.createElement("button");
       deleteLaneButton.classList.add("control-button", "danger");
       deleteLaneButton.style.marginTop = "8px";
-      deleteLaneButton.textContent = "🗑 Delete Empty Lane";
+      deleteLaneButton.textContent = "Delete Empty Lane";
       deleteLaneButton.disabled =
         project.blocks.some(block => block.laneId === lane.id) ||
         project.lanes.length <= 1;
@@ -2927,6 +2994,91 @@
       return Math.max(...blocks.map(block => block.startBeat + block.durationBeats));
     }
 
+    function insertMeasuresAtSelectedPoint() {
+      const selectedMeasure = getSelectedInsertMeasure();
+      const countAnswer = window.prompt(
+        "Insert how many measures before Measure " + selectedMeasure + "?",
+        "4"
+      );
+
+      if (!countAnswer) {
+        status.textContent = "Insert measures cancelled.";
+        return;
+      }
+
+      const measureCount = Math.max(1, Math.round(Number(countAnswer)));
+
+      if (!Number.isFinite(measureCount)) {
+        status.textContent = "Insert measures cancelled.";
+        return;
+      }
+
+      const scopeAnswer = window.prompt(
+        "Apply inserted space to:\n\n" +
+        "A = All Tracks\n" +
+        "S = Selected Track only\n" +
+        "C = Cancel",
+        "A"
+      );
+
+      if (!scopeAnswer) {
+        status.textContent = "Insert measures cancelled.";
+        return;
+      }
+
+      const normalizedScope = scopeAnswer.trim().toLowerCase();
+      let scope = "all";
+
+      if (normalizedScope === "a" || normalizedScope === "all" || normalizedScope === "all tracks") {
+        scope = "all";
+      } else if (normalizedScope === "s" || normalizedScope === "selected" || normalizedScope === "selected track") {
+        scope = "selected";
+      } else {
+        status.textContent = "Insert measures cancelled.";
+        return;
+      }
+
+      const selectedLane = project.lanes.find(lane => lane.id === selectedLaneId) || project.lanes[0];
+
+      if (scope === "selected" && !selectedLane) {
+        status.textContent = "No selected track found.";
+        return;
+      }
+
+      saveHistory();
+
+      const shiftBeats = measureCount * BEATS_PER_MEASURE;
+      let shiftedCount = 0;
+
+      project.blocks.forEach(block => {
+        const appliesToScope =
+          scope === "all" || block.laneId === selectedLane.id;
+
+        if (appliesToScope && Number(block.startBeat || 0) >= selectedInsertBeat) {
+          block.startBeat = snapBeat(Number(block.startBeat || 0) + shiftBeats);
+          shiftedCount += 1;
+        }
+      });
+
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+      render();
+
+      status.textContent =
+        "Inserted " +
+        measureCount +
+        " measure" +
+        (measureCount === 1 ? "" : "s") +
+        " before M" +
+        selectedMeasure +
+        " " +
+        (scope === "all" ? "across all tracks" : "in " + selectedLane.name) +
+        ". " +
+        shiftedCount +
+        " later block" +
+        (shiftedCount === 1 ? "" : "s") +
+        " shifted.";
+    }
+
     function importPendingChordFromStorage(autoPrompt = false) {
       const raw = localStorage.getItem(STORAGE_PENDING_CHORD);
 
@@ -3053,9 +3205,9 @@
 
       const answer = window.prompt(
         "Import recording how?\n\n" +
-        "A = ⏭ Append after current design\n" +
-        "O = ◫ Overlay at start\n" +
-        "N = ＋ New track / new lane\n" +
+        "A = Append after current design\n" +
+        "O = Overlay at start\n" +
+        "N = New track / new lane\n" +
         "C = Cancel",
         "A"
       );
@@ -3072,6 +3224,8 @@
         importMode = "overlay";
       } else if (normalizedAnswer === "n" || normalizedAnswer === "new" || normalizedAnswer === "new track" || normalizedAnswer === "new lane") {
         importMode = "new";
+      } else if (normalizedAnswer === "i" || normalizedAnswer === "insert" || normalizedAnswer === "selected" || normalizedAnswer === "selected measure") {
+        importMode = "insert";
       } else if (normalizedAnswer === "a" || normalizedAnswer === "append") {
         importMode = "append";
       } else {
@@ -3118,7 +3272,9 @@
       const offsetBeat =
         importMode === "append" && project.blocks.length > 0
           ? getProjectLength() + 0.5
-          : 0;
+          : importMode === "insert"
+            ? selectedInsertBeat
+            : 0;
 
       let newRecordingLanes = [];
 
@@ -3204,14 +3360,18 @@
           ? "appended"
           : importMode === "overlay"
             ? "overlaid"
-            : "imported into new " + (newRecordingLanes.length === 1 ? "lane" : "lanes");
+            : importMode === "insert"
+              ? "inserted"
+              : "imported into new " + (newRecordingLanes.length === 1 ? "lane" : "lanes");
 
       const detailText =
         importMode === "append"
           ? " after beat " + offsetBeat.toFixed(2)
           : importMode === "overlay"
             ? " at the start"
-            : " into " + newRecordingLanes.length + " new " + (newRecordingLanes.length === 1 ? "lane" : "lanes");
+            : importMode === "insert"
+              ? " at selected measure M" + getSelectedInsertMeasure()
+              : " into " + newRecordingLanes.length + " new " + (newRecordingLanes.length === 1 ? "lane" : "lanes");
 
       status.textContent =
         importedNoteCount +
@@ -3246,7 +3406,7 @@
 
       if (existingProgressionBlocks) {
         const answer = window.prompt(
-          "Progression blocks already exist in this design.\n\nType:\nA = ⏭ Add another copy\nR = Replace previous progression import\nC = Cancel",
+          "Progression blocks already exist in this design.\n\nType:\nA = Add another copy\nR = Replace previous progression import\nC = Cancel",
           "A"
         );
 
@@ -3259,6 +3419,8 @@
 
         if (normalized === "r" || normalized === "replace") {
           mode = "replace";
+        } else if (normalized === "i" || normalized === "insert" || normalized === "selected" || normalized === "selected measure") {
+          mode = "insert";
         } else if (normalized === "a" || normalized === "add") {
           mode = "add";
         } else {
@@ -3267,7 +3429,7 @@
         }
       } else {
         const answer = window.prompt(
-          "Import current progression?\n\nType:\nA = ⏭ Add to current design\nC = Cancel",
+          "Import current progression?\n\nType:\nA = Add to current design\nC = Cancel",
           "A"
         );
 
@@ -3276,12 +3438,26 @@
           return;
         }
 
-        mode = "add";
+        const normalized = answer.trim().toLowerCase();
+
+        if (normalized === "i" || normalized === "insert" || normalized === "selected" || normalized === "selected measure") {
+          mode = "insert";
+        } else if (normalized === "a" || normalized === "add") {
+          mode = "add";
+        } else {
+          status.textContent = "Import cancelled.";
+          return;
+        }
       }
 
       saveHistory();
 
-      let cursor = getProjectLength() > 8 ? getProjectLength() + 0.5 : 0;
+      let cursor =
+        mode === "insert"
+          ? selectedInsertBeat
+          : getProjectLength() > 8
+            ? getProjectLength() + 0.5
+            : 0;
       const importId = "progression_current";
 
       if (mode === "replace") {
@@ -3341,7 +3517,9 @@
       status.textContent =
         mode === "replace"
           ? "Previous progression import replaced."
-          : "Progression imported as editable note blocks.";
+          : mode === "insert"
+            ? "Progression inserted at selected measure M" + getSelectedInsertMeasure() + "."
+            : "Progression imported as editable note blocks.";
     }
 
     function exportMidi() {
@@ -3729,6 +3907,7 @@
     importRecordingButton.addEventListener("click", importRecording);
     importProgressionButton.addEventListener("click", importProgression);
     exportMidiButton.addEventListener("click", exportMidi);
+    insertMeasuresButton.addEventListener("click", insertMeasuresAtSelectedPoint);
     resetViewButton.addEventListener("click", resetView);
 
     window.addEventListener("beforeunload", () => {
