@@ -9,41 +9,7 @@
   <script src="js/themes.js"></script>
   <script src="js/voices.js"></script>
 
-  <header class="orumi-header">
-  <a href="../index.html" class="orumi-logo-link" aria-label="Back to Orumi home">
-    <img src="../orumi-logo.png" alt="Orumi" class="orumi-logo">
-  </a>
-</header>
-
   <style>
-
-    .orumi-header {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 18px 0 10px;
-}
-
-.orumi-logo-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
-}
-
-.orumi-logo {
-  width: 96px;
-  height: auto;
-  display: block;
-  cursor: pointer;
-  transition: transform 0.18s ease, opacity 0.18s ease;
-}
-
-.orumi-logo:hover {
-  transform: scale(1.04);
-  opacity: 0.9;
-}
 
     body {
       font-family: Arial, sans-serif;
@@ -206,10 +172,17 @@
       filter: brightness(1.08);
     }
 
-    .back-button { left: 18px; }
-    .home-button { right: 18px; }
+    .logo-button { left: 18px; }
+    .back-button { right: 18px; }
     .settings-button { right: 76px; }
     .chord-button { right: 134px; }
+
+    .logo-button img {
+      width: 29px;
+      height: 29px;
+      object-fit: contain;
+      display: block;
+    }
 
     .grid {
       width: min(92vmin, 760px);
@@ -295,17 +268,21 @@
 
 <body>
 
+  <a
+    class="top-button logo-button"
+    href="../index.html"
+    title="Orumi Home"
+    aria-label="Orumi Home"
+  >
+    <img src="../assets/orumi-black.png" alt="Orumi" />
+  </a>
+
   <button
     class="top-button back-button"
     id="backButton"
     title="Go Back"
+    aria-label="Go Back"
   >←</button>
-
-  <a
-    class="top-button home-button"
-    href="index.html"
-    title="Orumi Play Home"
-  >⌂</a>
 
   <a
     class="top-button chord-button"
@@ -335,13 +312,13 @@
   <div class="recording-row">
     <button id="recordButton" class="record-button">Start Recording</button>
     <button id="clearRecordingButton" class="record-button">Clear Take</button>
-<a
-  id="recordingStudioLink"
-  class="studio-link"
-  href="design-studio.html"
->
-  Open Design Studio
-</a>
+    <a
+      id="recordingStudioLink"
+      class="studio-link"
+      href="design-studio.html"
+    >
+      Open Design Studio
+    </a>
   </div>
 
   <button id="playChordButton">Play Highlighted Chord</button>
@@ -858,9 +835,9 @@
 
         statusText.textContent =
           recordedEvents.length +
-" event" +
-(recordedEvents.length === 1 ? "" : "s") +
-" recorded. Open Design Studio and choose Import Recording.";
+          " event" +
+          (recordedEvents.length === 1 ? "" : "s") +
+          " recorded. Open Design Studio and choose Import Recording.";
       }
     }
 
