@@ -2215,6 +2215,129 @@
       return card;
     }
 
+
+    function getBlocksActiveAtBeat(beat) {
+      const targetBeat = Math.max(0, Number(beat || 0));
+      const tolerance = 0.0001;
+
+      return project.blocks
+        .filter(block => {
+          if (block.type !== "note" || !Number.isFinite(block.midi)) {
+            return false;
+          }
+
+          const start = Number(block.startBeat || 0);
+          const end = start + Number(block.durationBeats || MIN_DURATION);
+
+          return start <= targetBeat + tolerance && end > targetBeat + tolerance;
+        })
+        .sort((a, b) => {
+          const laneA = project.lanes.findIndex(lane => lane.id === a.laneId);
+          const laneB = project.lanes.findIndex(lane => lane.id === b.laneId);
+
+          if (laneA !== laneB) {
+            return laneA - laneB;
+          }
+
+          return Number(a.midi || 0) - Number(b.midi || 0);
+        });
+    }
+
+    function selectBlocksForHarmony(blocks, message) {
+      const noteBlocks = blocks
+        .filter(block => block.type === "note" && Number.isFinite(block.midi));
+
+      if (noteBlocks.length === 0) {
+        status.textContent = "No note stack found to analyze.";
+        return;
+      }
+
+      selectedBlockIds = new Set(noteBlocks.map(block => block.id));
+      selectedBlockId = noteBlocks[0].id;
+      selectedLaneId = noteBlocks[0].laneId || selectedLaneId;
+
+      render();
+
+      status.textContent =
+        message ||
+        "Selected " +
+          noteBlocks.length +
+          " note" +
+          (noteBlocks.length === 1 ? "" : "s") +
+          " for harmony analysis.";
+    }
+
+    function selectStackAtBeat(beat, label) {
+      const stack = getBlocksActiveAtBeat(beat);
+
+      selectBlocksForHarmony(
+        stack,
+        "Selected " +
+          stack.length +
+          " note" +
+          (stack.length === 1 ? "" : "s") +
+          " active at " +
+          label +
+          "."
+      );
+    }
+
+    function selectStackAtSelectedBeat() {
+      const block = project.blocks.find(item => item.id === selectedBlockId);
+
+      if (!block) {
+        status.textContent = "Select a note block first.";
+        return;
+      }
+
+      if (block.type !== "note") {
+        status.textContent = "Select a note block, not a rest.";
+        return;
+      }
+
+      const beat = Number(block.startBeat || 0);
+      const measure = Math.floor(beat / BEATS_PER_MEASURE) + 1;
+
+      selectStackAtBeat(
+        beat,
+        "M" + measure + ", beat " + formatBeatValue(beat)
+      );
+    }
+
+    function analyzePlayheadChord() {
+      const beat =
+        playbackState === "playing" || playbackState === "paused" || pausedBeat > 0
+          ? getCurrentPlaybackBeat()
+          : selectedInsertBeat || 0;
+
+      const measure = Math.floor(beat / BEATS_PER_MEASURE) + 1;
+
+      selectStackAtBeat(
+        beat,
+        "playhead M" + measure + ", beat " + formatBeatValue(beat)
+      );
+    }
+
+    function createInspectorActionButton(label, className, handler, title) {
+      const button = document.createElement("button");
+      button.classList.add("control-button");
+
+      if (className) {
+        button.classList.add(className);
+      }
+
+      button.style.marginTop = "8px";
+      button.textContent = label;
+
+      if (title) {
+        button.title = title;
+      }
+
+      button.addEventListener("click", handler);
+
+      return button;
+    }
+
     function renderBlockInspector() {
       const block = project.blocks.find(item => item.id === selectedBlockId);
 
@@ -2224,7 +2347,17 @@
 
       if (!block) {
         blockInspector.innerHTML =
-          "<div class='inspector-empty'>Select a note or rest block to edit it. Shift-click blocks to build a phrase selection.</div>";
+          "<div class='inspector-empty'>Select a note or rest block to edit it. Shift-click blocks to build a phrase selection. Pause playback, then use Analyze Playhead Chord to inspect the current harmony.</div>";
+
+        blockInspector.appendChild(
+          createInspectorActionButton(
+            "⌕ Analyze Playhead Chord",
+            "secondary",
+            analyzePlayheadChord,
+            "Select and analyze notes active at the current playhead position"
+          )
+        );
+
         return;
       }
 
@@ -2235,6 +2368,24 @@
         blockInspector.appendChild(info);
 
         blockInspector.appendChild(createHarmonyCard(selectedBlocks));
+
+        blockInspector.appendChild(
+          createInspectorActionButton(
+            "⌕ Select Stack at This Beat",
+            "secondary",
+            selectStackAtSelectedBeat,
+            "Select all notes active where the anchor selected block begins"
+          )
+        );
+
+        blockInspector.appendChild(
+          createInspectorActionButton(
+            "⌕ Analyze Playhead Chord",
+            "secondary",
+            analyzePlayheadChord,
+            "Select and analyze notes active at the current playhead position"
+          )
+        );
 
         const copySelectionButton = document.createElement("button");
         copySelectionButton.classList.add("control-button", "secondary");
@@ -2374,6 +2525,26 @@
       durationVelocityRow.appendChild(durationWrap);
       durationVelocityRow.appendChild(velocityWrap);
       blockInspector.appendChild(durationVelocityRow);
+
+      if (block.type === "note") {
+        blockInspector.appendChild(
+          createInspectorActionButton(
+            "⌕ Select Stack at This Beat",
+            "secondary",
+            selectStackAtSelectedBeat,
+            "Select all notes active where this block begins"
+          )
+        );
+
+        blockInspector.appendChild(
+          createInspectorActionButton(
+            "⌕ Analyze Playhead Chord",
+            "secondary",
+            analyzePlayheadChord,
+            "Select and analyze notes active at the current playhead position"
+          )
+        );
+      }
 
       const copyButton = document.createElement("button");
       copyButton.classList.add("control-button", "secondary");
