@@ -718,6 +718,27 @@
       text-align: center;
     }
 
+
+    .harmony-card {
+      margin-top: 10px;
+      padding: 11px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.09);
+      border: 1px solid rgba(255,255,255,0.10);
+      color: #fff7ea;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .harmony-card strong {
+      color: #fff;
+    }
+
+    .harmony-card .harmony-muted {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
     .c  { background: #ff6b6b; }
     .db { background: linear-gradient(135deg, #ff6b6b, #f7b267); }
     .d  { background: #f7b267; }
@@ -859,15 +880,28 @@
     </div>
 
     <div class="menu-group">
+      <button class="menu-trigger" type="button">Select</button>
+      <div class="menu-dropdown">
+        <button class="control-button secondary" id="setSelectedLocationButton">📍 Set Selected Location</button>
+        <button class="control-button secondary" id="clearSelectedLocationButton">✕ Clear Selected Location</button>
+        <button class="control-button secondary" id="selectAllButton">☑ Select All</button>
+        <button class="control-button secondary" id="selectCurrentLaneButton">☑ Select Current Lane</button>
+        <button class="control-button secondary" id="selectMeasureRangeButton">▦ Select Measure Range</button>
+        <button class="control-button secondary" id="selectStackButton">⌕ Select Stack at Selected Beat</button>
+        <button class="control-button secondary" id="analyzePlayheadChordButton">⌕ Analyze Playhead Chord</button>
+        <button class="control-button secondary" id="clearSelectionButton">✕ Clear Selection</button>
+      </div>
+    </div>
+
+    <div class="menu-group">
       <button class="menu-trigger" type="button">Edit</button>
       <div class="menu-dropdown">
         <button class="control-button secondary" id="undoButton">↶ Undo</button>
         <button class="control-button secondary" id="redoButton">↷ Redo</button>
-        <button class="control-button secondary" id="selectMeasureRangeButton">▦ Select Measure Range</button>
         <button class="control-button secondary" id="copySelectionButton">⧉ Copy Selection</button>
         <button class="control-button secondary" id="pasteSelectionButton">⧆ Paste at End</button>
         <button class="control-button secondary" id="pasteAtMeasureButton">⧆ Paste at Selected Location</button>
-        <button class="control-button secondary" id="moveSelectionButton">⇥ Move Selection to Selected Measure</button>
+        <button class="control-button secondary" id="moveSelectionButton">⇥ Move Selection to Selected Location</button>
         <button class="control-button danger" id="deleteSelectionButton">🗑 Delete Selection</button>
         <button class="control-button danger" id="clearButton">🗑 Clear Design</button>
       </div>
@@ -974,6 +1008,7 @@
           <button class="control-button secondary" id="resetViewButton" title="Jump to Start">⏮</button>
           <button class="control-button secondary" id="backMeasureButton" title="Back 1 Measure">⏪</button>
           <button class="control-button transport-text" id="playButton" title="Play / Resume">▶ Play</button>
+          <button class="control-button secondary" id="playFromLocationButton" title="Play from Selected Location">▶L</button>
           <button class="control-button secondary" id="pausePlaybackButton" title="Pause">⏸</button>
           <button class="control-button secondary" id="stopPlaybackButton" title="Stop">■</button>
           <button class="control-button secondary" id="forwardMeasureButton" title="Forward 1 Measure">⏩</button>
@@ -1032,7 +1067,7 @@
     let currentProjectId = null;
     let pendingChordChecked = false;
     let blockClipboard = [];
-    let selectedInsertBeat = 0;
+    let selectedInsertBeat = null;
     let playbackState = "stopped";
     let playbackStartTime = 0;
     let playbackStartBeat = 0;
@@ -1091,7 +1126,15 @@
     const pausePlaybackButton = document.getElementById("pausePlaybackButton");
     const stopPlaybackButton = document.getElementById("stopPlaybackButton");
     const forwardMeasureButton = document.getElementById("forwardMeasureButton");
+    const playFromLocationButton = document.getElementById("playFromLocationButton");
+    const setSelectedLocationButton = document.getElementById("setSelectedLocationButton");
+    const clearSelectedLocationButton = document.getElementById("clearSelectedLocationButton");
+    const selectAllButton = document.getElementById("selectAllButton");
+    const selectCurrentLaneButton = document.getElementById("selectCurrentLaneButton");
     const selectMeasureRangeButton = document.getElementById("selectMeasureRangeButton");
+    const selectStackButton = document.getElementById("selectStackButton");
+    const analyzePlayheadChordButton = document.getElementById("analyzePlayheadChordButton");
+    const clearSelectionButton = document.getElementById("clearSelectionButton");
     const copySelectionButton = document.getElementById("copySelectionButton");
     const pasteSelectionButton = document.getElementById("pasteSelectionButton");
     const pasteAtMeasureButton = document.getElementById("pasteAtMeasureButton");
@@ -1754,57 +1797,76 @@
           mark.classList.add("measure-start");
         }
 
+        if (hasSelectedLocation() && beat === selectedInsertBeat) {
+          mark.classList.add("selected-insert");
+        }
+
         mark.style.left = beat * BEAT_WIDTH + "px";
         rulerBeats.appendChild(mark);
       }
-
-      const selectedMarker = document.createElement("div");
-      selectedMarker.classList.add("beat-mark", "selected-insert");
-      selectedMarker.style.left = selectedInsertBeat * BEAT_WIDTH + "px";
-      selectedMarker.title = "Selected location: " + getSelectedLocationLabel();
-      rulerBeats.appendChild(selectedMarker);
 
       for (let measure = 1; measure <= maxMeasure; measure++) {
         const beat = (measure - 1) * BEATS_PER_MEASURE;
         const label = document.createElement("div");
         label.classList.add("beat-label", "measure-label");
 
-        if (beat === selectedInsertBeat) {
+        if (hasSelectedLocation() && beat === selectedInsertBeat) {
           label.classList.add("selected");
         }
 
         label.textContent = "M" + measure;
-        label.title = "Select location at start of Measure " + measure;
+        label.title = "Select insertion point before Measure " + measure;
         label.style.left = beat * BEAT_WIDTH + "px";
 
-        label.addEventListener("click", event => {
-          event.stopPropagation();
-          setSelectedLocationBeat(beat, "Selected location");
+        label.addEventListener("click", () => {
+          selectedInsertBeat = beat;
+          render();
+          status.textContent =
+            "Insertion point selected: Measure " + measure + ".";
         });
 
         rulerBeats.appendChild(label);
       }
+    }
 
-      rulerBeats.addEventListener("click", event => {
-        setSelectedLocationBeat(beatFromRulerEvent(event), "Selected location");
-      }, { once: true });
+    function hasSelectedLocation() {
+      return Number.isFinite(selectedInsertBeat);
     }
 
     function getSelectedInsertMeasure() {
+      if (!hasSelectedLocation()) return 1;
       return Math.floor(selectedInsertBeat / BEATS_PER_MEASURE) + 1;
     }
 
     function getSelectedBeatWithinMeasure() {
+      if (!hasSelectedLocation()) return 1;
       const measureStart = (getSelectedInsertMeasure() - 1) * BEATS_PER_MEASURE;
       return (selectedInsertBeat - measureStart) + 1;
     }
 
     function getSelectedLocationLabel() {
+      if (!hasSelectedLocation()) {
+        return "none";
+      }
+
       return "M" + getSelectedInsertMeasure() + " beat " + formatBeatValue(getSelectedBeatWithinMeasure());
     }
 
+    function clearSelectedLocation(message = "Selected location cleared.") {
+      selectedInsertBeat = null;
+      render();
+      status.textContent = message;
+    }
+
     function setSelectedLocationBeat(beat, messagePrefix = "Selected location") {
-      selectedInsertBeat = snapBeat(Math.max(0, Number(beat || 0)));
+      const nextBeat = snapBeat(Math.max(0, Number(beat || 0)));
+
+      if (hasSelectedLocation() && Math.abs(selectedInsertBeat - nextBeat) < 0.0001) {
+        clearSelectedLocation("Selected location cleared.");
+        return;
+      }
+
+      selectedInsertBeat = nextBeat;
       render();
       status.textContent = messagePrefix + ": " + getSelectedLocationLabel() + ".";
     }
@@ -1987,14 +2049,6 @@
           }
         });
 
-        track.addEventListener("click", event => {
-          if (event.target !== track) {
-            return;
-          }
-
-          setSelectedLocationBeat(beatFromTrackEvent(event, track), "Selected location");
-        });
-
         const laneBlocks = project.blocks.filter(block => block.laneId === lane.id);
 
         laneBlocks.forEach(block => {
@@ -2131,6 +2185,153 @@
       renderLaneInspector();
     }
 
+
+    function pitchClassLabelFromNumber(number) {
+      return pcToName(((number % 12) + 12) % 12);
+    }
+
+    function uniquePitchClassesFromBlocks(blocks) {
+      const seen = new Set();
+      const pcs = [];
+
+      blocks
+        .filter(block => block.type === "note" && Number.isFinite(block.midi))
+        .slice()
+        .sort((a, b) => Number(a.midi || 0) - Number(b.midi || 0))
+        .forEach(block => {
+          const pc = ((Number(block.midi || 0) % 12) + 12) % 12;
+
+          if (!seen.has(pc)) {
+            seen.add(pc);
+            pcs.push(pc);
+          }
+        });
+
+      return pcs;
+    }
+
+    function analyzeSelectedHarmony(blocks) {
+      const noteBlocks = blocks
+        .filter(block => block.type === "note" && Number.isFinite(block.midi))
+        .slice()
+        .sort((a, b) => Number(a.midi || 0) - Number(b.midi || 0));
+
+      if (noteBlocks.length === 0) {
+        return {
+          noteCount: 0,
+          notesLabel: "No notes selected",
+          pitchClassLabel: "n/a",
+          chordLabel: "No chord detected",
+          detail: "Select two or more note blocks to analyze harmony."
+        };
+      }
+
+      const pcs = uniquePitchClassesFromBlocks(noteBlocks);
+      const bassPc = ((Number(noteBlocks[0].midi || 0) % 12) + 12) % 12;
+      const notesLabel = noteBlocks
+        .map(block => block.name || midiToDisplayName(block.midi))
+        .join(" ");
+      const pitchClassLabel = pcs
+        .map(pc => pitchClassLabelFromNumber(pc))
+        .join(" ");
+
+      if (pcs.length < 2) {
+        return {
+          noteCount: noteBlocks.length,
+          notesLabel,
+          pitchClassLabel,
+          chordLabel: pitchClassLabel || "Single note",
+          detail: "Only one pitch class is selected."
+        };
+      }
+
+      const chordPatterns = [
+        { name: "dominant 7", suffix: "7", intervals: [0, 4, 7, 10] },
+        { name: "major 7", suffix: "maj7", intervals: [0, 4, 7, 11] },
+        { name: "minor 7", suffix: "m7", intervals: [0, 3, 7, 10] },
+        { name: "half-diminished 7", suffix: "m7♭5", intervals: [0, 3, 6, 10] },
+        { name: "diminished 7", suffix: "dim7", intervals: [0, 3, 6, 9] },
+        { name: "minor-major 7", suffix: "mMaj7", intervals: [0, 3, 7, 11] },
+        { name: "major", suffix: "", intervals: [0, 4, 7] },
+        { name: "minor", suffix: "m", intervals: [0, 3, 7] },
+        { name: "diminished", suffix: "dim", intervals: [0, 3, 6] },
+        { name: "augmented", suffix: "aug", intervals: [0, 4, 8] },
+        { name: "suspended 2", suffix: "sus2", intervals: [0, 2, 7] },
+        { name: "suspended 4", suffix: "sus4", intervals: [0, 5, 7] },
+        { name: "power chord", suffix: "5", intervals: [0, 7] },
+        { name: "tritone", suffix: " tritone", intervals: [0, 6] },
+        { name: "major third dyad", suffix: " major dyad", intervals: [0, 4] },
+        { name: "minor third dyad", suffix: " minor dyad", intervals: [0, 3] }
+      ];
+
+      let bestMatch = null;
+
+      for (const rootPc of pcs) {
+        const selectedIntervals = pcs
+          .map(pc => (pc - rootPc + 12) % 12)
+          .sort((a, b) => a - b);
+
+        for (const pattern of chordPatterns) {
+          if (pattern.intervals.length !== selectedIntervals.length) {
+            continue;
+          }
+
+          const matches = pattern.intervals.every(interval =>
+            selectedIntervals.includes(interval)
+          );
+
+          if (matches) {
+            bestMatch = {
+              rootPc,
+              pattern
+            };
+            break;
+          }
+        }
+
+        if (bestMatch) {
+          break;
+        }
+      }
+
+      if (!bestMatch) {
+        return {
+          noteCount: noteBlocks.length,
+          notesLabel,
+          pitchClassLabel,
+          chordLabel: "Unknown / color chord",
+          detail: "No basic triad or seventh-chord pattern was found."
+        };
+      }
+
+      const rootName = pitchClassLabelFromNumber(bestMatch.rootPc);
+      const bassName = pitchClassLabelFromNumber(bassPc);
+      const slash = bassPc !== bestMatch.rootPc ? "/" + bassName : "";
+      const chordLabel = rootName + bestMatch.pattern.suffix + slash;
+
+      return {
+        noteCount: noteBlocks.length,
+        notesLabel,
+        pitchClassLabel,
+        chordLabel,
+        detail: bestMatch.pattern.name + (slash ? " · inversion / slash bass" : "")
+      };
+    }
+
+    function createHarmonyCard(blocks) {
+      const analysis = analyzeSelectedHarmony(blocks);
+      const card = document.createElement("div");
+      card.classList.add("harmony-card");
+
+      card.innerHTML =
+        "<div><strong>Detected chord:</strong> " + escapeHtml(analysis.chordLabel) + "</div>" +
+        "<div><strong>Pitch classes:</strong> " + escapeHtml(analysis.pitchClassLabel) + "</div>" +
+        "<div><strong>Notes:</strong> " + escapeHtml(analysis.notesLabel) + "</div>" +
+        "<div class='harmony-muted'>" + escapeHtml(analysis.detail) + "</div>";
+
+      return card;
+    }
+
     function renderBlockInspector() {
       const block = project.blocks.find(item => item.id === selectedBlockId);
 
@@ -2140,7 +2341,17 @@
 
       if (!block) {
         blockInspector.innerHTML =
-          "<div class='inspector-empty'>Select a note or rest block to edit it. Shift-click blocks to build a phrase selection.</div>";
+          "<div class='inspector-empty'>Select a note or rest block to edit it. Shift-click blocks to build a phrase selection. Pause playback, then use Analyze Playhead Chord to inspect the current harmony.</div>";
+
+        blockInspector.appendChild(
+          createInspectorActionButton(
+            "⌕ Analyze Playhead Chord",
+            "secondary",
+            analyzePlayheadChord,
+            "Select and analyze notes active at the current playhead position"
+          )
+        );
+
         return;
       }
 
@@ -2149,6 +2360,8 @@
         info.classList.add("inspector-empty");
         info.textContent = selectedBlocks.length + " blocks selected.";
         blockInspector.appendChild(info);
+
+        blockInspector.appendChild(createHarmonyCard(selectedBlocks));
 
         const copySelectionButton = document.createElement("button");
         copySelectionButton.classList.add("control-button", "secondary");
@@ -2168,14 +2381,14 @@
         pasteAtMeasureButton.classList.add("control-button", "secondary");
         pasteAtMeasureButton.style.marginTop = "8px";
         pasteAtMeasureButton.textContent = "Paste at Selected Location";
-        pasteAtMeasureButton.addEventListener("click", pasteClipboardAtSelectedMeasure);
+        pasteAtMeasureButton.addEventListener("click", pasteClipboardAtSelectedLocation);
         blockInspector.appendChild(pasteAtMeasureButton);
 
         const moveSelectionButton = document.createElement("button");
         moveSelectionButton.classList.add("control-button", "secondary");
         moveSelectionButton.style.marginTop = "8px";
-        moveSelectionButton.textContent = "Move Selection to Selected Measure";
-        moveSelectionButton.addEventListener("click", moveSelectionToSelectedMeasure);
+        moveSelectionButton.textContent = "Move Selection to Selected Location";
+        moveSelectionButton.addEventListener("click", moveSelectionToSelectedLocation);
         blockInspector.appendChild(moveSelectionButton);
 
         const deleteSelectionButton = document.createElement("button");
@@ -2310,6 +2523,26 @@
       durationVelocityRow.appendChild(velocityWrap);
       blockInspector.appendChild(durationVelocityRow);
 
+      if (block.type === "note") {
+        blockInspector.appendChild(
+          createInspectorActionButton(
+            "⌕ Select Stack at This Beat",
+            "secondary",
+            selectStackAtSelectedBeat,
+            "Select all notes active where this block begins"
+          )
+        );
+
+        blockInspector.appendChild(
+          createInspectorActionButton(
+            "⌕ Analyze Playhead Chord",
+            "secondary",
+            analyzePlayheadChord,
+            "Select and analyze notes active at the current playhead position"
+          )
+        );
+      }
+
       const copyButton = document.createElement("button");
       copyButton.classList.add("control-button", "secondary");
       copyButton.style.marginTop = "12px";
@@ -2327,6 +2560,7 @@
         saveHistory();
         project.blocks = project.blocks.filter(item => item.id !== block.id);
         selectedBlockId = null;
+        selectedBlockIds.delete(block.id);
         localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
         render();
         status.textContent = "Block deleted. Undo is available.";
@@ -2334,7 +2568,6 @@
 
       blockInspector.appendChild(deleteButton);
     }
-
 
     function copySelectedBlock() {
       const block = project.blocks.find(item => item.id === selectedBlockId);
@@ -2553,7 +2786,7 @@
         " pasted at end.";
     }
 
-    function pasteClipboardAtSelectedLocation() {
+    function pasteClipboardAtSelectedMeasure() {
       if (!blockClipboard || blockClipboard.length === 0) {
         status.textContent = "Copy a block or selection first.";
         return;
@@ -2597,10 +2830,6 @@
         " pasted at selected location " +
         getSelectedLocationLabel() +
         ".";
-    }
-
-    function pasteClipboardAtSelectedMeasure() {
-      pasteClipboardAtSelectedLocation();
     }
 
     function deleteSelectedBlocks() {
@@ -2656,8 +2885,8 @@
 
       if (Math.abs(deltaBeats) < 0.0001) {
         status.textContent =
-          "Selection already starts at selected measure M" +
-          getSelectedInsertMeasure() +
+          "Selection already starts at selected location " +
+          getSelectedLocationLabel() +
           ".";
         return;
       }
@@ -2667,8 +2896,8 @@
           selectedBlocks.length +
           " selected block" +
           (selectedBlocks.length === 1 ? "" : "s") +
-          " so the selection starts at M" +
-          getSelectedInsertMeasure() +
+          " so the selection starts at " +
+          getSelectedLocationLabel() +
           "?\n\nRelative timing and lanes will be preserved. Undo will be available."
       );
 
@@ -2695,26 +2924,90 @@
         selectedBlocks.length +
         " selected block" +
         (selectedBlocks.length === 1 ? "" : "s") +
-        " to selected measure M" +
-        getSelectedInsertMeasure() +
+        " to selected location " +
+        getSelectedLocationLabel() +
         ". Undo is available.";
     }
 
 
-    function createInspectorActionButton(label, tone, handler, title = "") {
-      const button = document.createElement("button");
-      button.classList.add("control-button");
 
-      if (tone) {
-        button.classList.add(tone);
+    function selectAllBlocks() {
+      if (project.blocks.length === 0) {
+        status.textContent = "No blocks to select.";
+        return;
       }
 
-      button.style.marginTop = "8px";
-      button.textContent = label;
-      button.title = title;
-      button.addEventListener("click", handler);
+      selectedBlockIds = new Set(project.blocks.map(block => block.id));
+      selectedBlockId = project.blocks[0].id;
+      selectedLaneId = project.blocks[0].laneId || selectedLaneId;
 
-      return button;
+      render();
+
+      status.textContent =
+        "Selected all " +
+        project.blocks.length +
+        " block" +
+        (project.blocks.length === 1 ? "" : "s") +
+        ".";
+    }
+
+    function selectCurrentLaneBlocks() {
+      const lane = project.lanes.find(item => item.id === selectedLaneId);
+
+      if (!lane) {
+        status.textContent = "Select a lane first.";
+        return;
+      }
+
+      const laneBlocks = project.blocks
+        .filter(block => block.laneId === lane.id)
+        .sort((a, b) => Number(a.startBeat || 0) - Number(b.startBeat || 0));
+
+      if (laneBlocks.length === 0) {
+        clearBlockSelection();
+        render();
+        status.textContent = lane.name + " has no blocks to select.";
+        return;
+      }
+
+      selectedBlockIds = new Set(laneBlocks.map(block => block.id));
+      selectedBlockId = laneBlocks[0].id;
+
+      render();
+
+      status.textContent =
+        "Selected " +
+        laneBlocks.length +
+        " block" +
+        (laneBlocks.length === 1 ? "" : "s") +
+        " in " +
+        lane.name +
+        ".";
+    }
+
+    function clearSelectionAndRender() {
+      clearBlockSelection();
+      render();
+      status.textContent = "Selection cleared.";
+    }
+
+
+    function pasteClipboardAtSelectedLocation() {
+      if (!hasSelectedLocation()) {
+        status.textContent = "Set a selected location first.";
+        return;
+      }
+
+      pasteClipboardAtSelectedMeasure();
+    }
+
+    function moveSelectionToSelectedLocation() {
+      if (!hasSelectedLocation()) {
+        status.textContent = "Set a selected location first.";
+        return;
+      }
+
+      moveSelectionToSelectedMeasure();
     }
 
     function getBlocksActiveAtBeat(beat, options = {}) {
@@ -2791,6 +3084,22 @@
       const beatWithinMeasure = (beat - ((measure - 1) * BEATS_PER_MEASURE)) + 1;
 
       selectStackAtBeat(beat, "playhead M" + measure + " beat " + formatBeatValue(beatWithinMeasure));
+    }
+
+    function createInspectorActionButton(label, tone, handler, title = "") {
+      const button = document.createElement("button");
+      button.classList.add("control-button");
+
+      if (tone) {
+        button.classList.add(tone);
+      }
+
+      button.style.marginTop = "8px";
+      button.textContent = label;
+      button.title = title;
+      button.addEventListener("click", handler);
+
+      return button;
     }
 
     function renderLaneInspector() {
@@ -3651,6 +3960,11 @@
     }
 
     function insertMeasuresAtSelectedPoint() {
+      if (!hasSelectedLocation()) {
+        status.textContent = "Set a selected location before inserting measures.";
+        return;
+      }
+
       const selectedMeasure = getSelectedInsertMeasure();
       const countAnswer = window.prompt(
         "Insert how many measures before Measure " + selectedMeasure + "?",
@@ -4193,6 +4507,11 @@
         return;
       }
 
+      if (importMode === "insert" && !hasSelectedLocation()) {
+        status.textContent = "Set a selected location before inserting a recording.";
+        return;
+      }
+
       saveHistory();
 
       const importId = "recording_" + new Date().toISOString();
@@ -4297,7 +4616,7 @@
           : importMode === "overlay"
             ? " at the start"
             : importMode === "insert"
-              ? " at selected location " + getSelectedLocationLabel()
+              ? " at selected location " + getSelectedInsertMeasure()
               : " into " + newRecordingLanes.length + " new " + (newRecordingLanes.length === 1 ? "lane" : "lanes");
 
       status.textContent =
@@ -4377,6 +4696,11 @@
         }
       }
 
+      if (mode === "insert" && !hasSelectedLocation()) {
+        status.textContent = "Set a selected location before inserting a progression.";
+        return;
+      }
+
       saveHistory();
 
       let cursor =
@@ -4445,7 +4769,7 @@
         mode === "replace"
           ? "Previous progression import replaced."
           : mode === "insert"
-            ? "Progression inserted at selected location " + getSelectedLocationLabel() + "."
+            ? "Progression inserted at selected location " + getSelectedInsertMeasure() + "."
             : "Progression imported as editable note blocks.";
     }
 
@@ -4493,7 +4817,7 @@
         "N = ＋ New lanes from MIDI tracks\n" +
         "A = ⏭ Append after current design\n" +
         "O = ◫ Overlay at start\n" +
-        "I = 📍 Insert at selected location\n" +
+        "I = 📍 Insert at selected measure\n" +
         "C = Cancel",
         "N"
       );
@@ -4516,6 +4840,11 @@
         importMode = "new";
       } else {
         status.textContent = "MIDI import cancelled.";
+        return;
+      }
+
+      if (importMode === "insert" && !hasSelectedLocation()) {
+        status.textContent = "Set a selected location before inserting MIDI.";
         return;
       }
 
@@ -4598,7 +4927,7 @@
           : importMode === "append"
             ? "after beat " + offsetBeat.toFixed(2)
             : importMode === "insert"
-              ? "at selected measure M" + getSelectedInsertMeasure()
+              ? "at selected location " + getSelectedLocationLabel()
               : "at the start";
 
       status.textContent =
@@ -5383,6 +5712,48 @@
       playBlocks(project.blocks, "Playing Design Studio.", "Playback complete.", startBeat);
     }
 
+    async function playFromSelectedLocation() {
+      await ensureAudio();
+
+      if (!hasSelectedLocation()) {
+        status.textContent = "Set a selected location before playing from location.";
+        return;
+      }
+
+      if (project.blocks.length === 0) {
+        status.textContent = "Nothing to play yet.";
+        return;
+      }
+
+      playBlocks(
+        project.blocks,
+        "Playing from selected location " + getSelectedLocationLabel() + ".",
+        "Playback complete from selected location.",
+        selectedInsertBeat
+      );
+    }
+
+    async function playFromSelectedLocation() {
+      await ensureAudio();
+
+      if (!hasSelectedLocation()) {
+        status.textContent = "Set a selected location first.";
+        return;
+      }
+
+      if (project.blocks.length === 0) {
+        status.textContent = "Nothing to play yet.";
+        return;
+      }
+
+      playBlocks(
+        project.blocks,
+        "Playing from selected location " + getSelectedLocationLabel() + ".",
+        "Playback complete from selected location.",
+        selectedInsertBeat
+      );
+    }
+
     async function playSelectedLane() {
       await ensureAudio();
 
@@ -5429,7 +5800,9 @@
       const wasPlaying = playbackState === "playing";
       const currentBeat = wasPlaying || playbackState === "paused"
         ? getCurrentPlaybackBeat()
-        : selectedInsertBeat || 0;
+        : hasSelectedLocation()
+          ? selectedInsertBeat
+          : 0;
       const targetBeat = Math.max(0, snapBeat(currentBeat + direction * BEATS_PER_MEASURE));
 
       pausedBeat = targetBeat;
@@ -5516,7 +5889,7 @@
       }
 
       shell.scrollLeft = Math.max(0, (selectedInsertBeat * BEAT_WIDTH) - 60);
-      status.textContent = "Scrolled to selected location " + getSelectedLocationLabel() + ".";
+      status.textContent = "Scrolled to selected location " + getSelectedInsertMeasure() + ".";
     }
 
     function resetView() {
@@ -5553,17 +5926,25 @@
     redoButton.addEventListener("click", redo);
     backMeasureButton.addEventListener("click", () => jumpPlaybackByMeasures(-1));
     playButton.addEventListener("click", playProject);
+    playFromLocationButton.addEventListener("click", playFromSelectedLocation);
     pausePlaybackButton.addEventListener("click", pausePlayback);
     stopPlaybackButton.addEventListener("click", () => {
       stopPlayback({ reset: true });
       status.textContent = "Playback stopped.";
     });
     forwardMeasureButton.addEventListener("click", () => jumpPlaybackByMeasures(1));
+    setSelectedLocationButton.addEventListener("click", promptForSelectedLocation);
+    clearSelectedLocationButton.addEventListener("click", () => clearSelectedLocation("Selected location cleared."));
+    selectAllButton.addEventListener("click", selectAllBlocks);
+    selectCurrentLaneButton.addEventListener("click", selectCurrentLaneBlocks);
     selectMeasureRangeButton.addEventListener("click", selectMeasureRange);
+    selectStackButton.addEventListener("click", selectStackAtSelectedBeat);
+    analyzePlayheadChordButton.addEventListener("click", analyzePlayheadChord);
+    clearSelectionButton.addEventListener("click", clearSelectionAndRender);
     copySelectionButton.addEventListener("click", copySelectionToClipboard);
     pasteSelectionButton.addEventListener("click", pasteClipboardAtEnd);
-    pasteAtMeasureButton.addEventListener("click", pasteClipboardAtSelectedMeasure);
-    moveSelectionButton.addEventListener("click", moveSelectionToSelectedMeasure);
+    pasteAtMeasureButton.addEventListener("click", pasteClipboardAtSelectedLocation);
+    moveSelectionButton.addEventListener("click", moveSelectionToSelectedLocation);
     deleteSelectionButton.addEventListener("click", deleteSelectedBlocks);
     clearButton.addEventListener("click", clearProject);
     importChordButton.addEventListener("click", () => importPendingChordFromStorage(false));
