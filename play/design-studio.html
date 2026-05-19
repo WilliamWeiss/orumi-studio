@@ -866,7 +866,7 @@
         <button class="control-button secondary" id="selectMeasureRangeButton">▦ Select Measure Range</button>
         <button class="control-button secondary" id="copySelectionButton">⧉ Copy Selection</button>
         <button class="control-button secondary" id="pasteSelectionButton">⧆ Paste at End</button>
-        <button class="control-button secondary" id="pasteAtMeasureButton">⧆ Paste at Selected Measure</button>
+        <button class="control-button secondary" id="pasteAtMeasureButton">⧆ Paste at Selected Location</button>
         <button class="control-button secondary" id="moveSelectionButton">⇥ Move Selection to Selected Measure</button>
         <button class="control-button danger" id="deleteSelectionButton">🗑 Delete Selection</button>
         <button class="control-button danger" id="clearButton">🗑 Clear Design</button>
@@ -1754,13 +1754,15 @@
           mark.classList.add("measure-start");
         }
 
-        if (beat === selectedInsertBeat) {
-          mark.classList.add("selected-insert");
-        }
-
         mark.style.left = beat * BEAT_WIDTH + "px";
         rulerBeats.appendChild(mark);
       }
+
+      const selectedMarker = document.createElement("div");
+      selectedMarker.classList.add("beat-mark", "selected-insert");
+      selectedMarker.style.left = selectedInsertBeat * BEAT_WIDTH + "px";
+      selectedMarker.title = "Selected location: " + getSelectedLocationLabel();
+      rulerBeats.appendChild(selectedMarker);
 
       for (let measure = 1; measure <= maxMeasure; measure++) {
         const beat = (measure - 1) * BEATS_PER_MEASURE;
@@ -1772,22 +1774,88 @@
         }
 
         label.textContent = "M" + measure;
-        label.title = "Select insertion point before Measure " + measure;
+        label.title = "Select location at start of Measure " + measure;
         label.style.left = beat * BEAT_WIDTH + "px";
 
-        label.addEventListener("click", () => {
-          selectedInsertBeat = beat;
-          render();
-          status.textContent =
-            "Insertion point selected: Measure " + measure + ".";
+        label.addEventListener("click", event => {
+          event.stopPropagation();
+          setSelectedLocationBeat(beat, "Selected location");
         });
 
         rulerBeats.appendChild(label);
       }
+
+      rulerBeats.addEventListener("click", event => {
+        setSelectedLocationBeat(beatFromRulerEvent(event), "Selected location");
+      }, { once: true });
     }
 
     function getSelectedInsertMeasure() {
       return Math.floor(selectedInsertBeat / BEATS_PER_MEASURE) + 1;
+    }
+
+    function getSelectedBeatWithinMeasure() {
+      const measureStart = (getSelectedInsertMeasure() - 1) * BEATS_PER_MEASURE;
+      return (selectedInsertBeat - measureStart) + 1;
+    }
+
+    function getSelectedLocationLabel() {
+      return "M" + getSelectedInsertMeasure() + " beat " + formatBeatValue(getSelectedBeatWithinMeasure());
+    }
+
+    function setSelectedLocationBeat(beat, messagePrefix = "Selected location") {
+      selectedInsertBeat = snapBeat(Math.max(0, Number(beat || 0)));
+      render();
+      status.textContent = messagePrefix + ": " + getSelectedLocationLabel() + ".";
+    }
+
+    function beatFromRulerEvent(event) {
+      const rect = rulerBeats.getBoundingClientRect();
+      const x = Math.max(0, event.clientX - rect.left);
+      return snapBeat(x / BEAT_WIDTH);
+    }
+
+    function beatFromTrackEvent(event, track) {
+      const rect = track.getBoundingClientRect();
+      const x = Math.max(0, event.clientX - rect.left);
+      return snapBeat(x / BEAT_WIDTH);
+    }
+
+    function promptForSelectedLocation() {
+      const currentMeasure = String(getSelectedInsertMeasure());
+      const measureAnswer = window.prompt("Set selected location — measure number:", currentMeasure);
+
+      if (!measureAnswer) {
+        status.textContent = "Set selected location cancelled.";
+        return;
+      }
+
+      const measure = Math.max(1, Math.round(Number(measureAnswer)));
+
+      if (!Number.isFinite(measure)) {
+        status.textContent = "Set selected location cancelled.";
+        return;
+      }
+
+      const beatAnswer = window.prompt(
+        "Set selected location — beat within measure:\n\nUse decimals if needed, such as 2.5 or 3.75.",
+        formatBeatValue(getSelectedBeatWithinMeasure())
+      );
+
+      if (!beatAnswer) {
+        status.textContent = "Set selected location cancelled.";
+        return;
+      }
+
+      const beatWithinMeasure = Math.max(1, Number(beatAnswer));
+
+      if (!Number.isFinite(beatWithinMeasure)) {
+        status.textContent = "Set selected location cancelled.";
+        return;
+      }
+
+      const absoluteBeat = ((measure - 1) * BEATS_PER_MEASURE) + (beatWithinMeasure - 1);
+      setSelectedLocationBeat(absoluteBeat, "Selected location set");
     }
 
     function getProjectLength() {
@@ -1825,8 +1893,8 @@
         getCurrentMode().label +
         " · " +
         (project.context.set === "full" ? "Full Palette" : "Native Palette") +
-        " · Insert: M" +
-        getSelectedInsertMeasure() +
+        " · Location: " +
+        getSelectedLocationLabel() +
         " · Zoom: " +
         BEAT_WIDTH +
         "px/beat";
@@ -1917,6 +1985,14 @@
           if (dragState) {
             completeDrop(event, track);
           }
+        });
+
+        track.addEventListener("click", event => {
+          if (event.target !== track) {
+            return;
+          }
+
+          setSelectedLocationBeat(beatFromTrackEvent(event, track), "Selected location");
         });
 
         const laneBlocks = project.blocks.filter(block => block.laneId === lane.id);
@@ -2091,7 +2167,7 @@
         const pasteAtMeasureButton = document.createElement("button");
         pasteAtMeasureButton.classList.add("control-button", "secondary");
         pasteAtMeasureButton.style.marginTop = "8px";
-        pasteAtMeasureButton.textContent = "Paste at Selected Measure";
+        pasteAtMeasureButton.textContent = "Paste at Selected Location";
         pasteAtMeasureButton.addEventListener("click", pasteClipboardAtSelectedMeasure);
         blockInspector.appendChild(pasteAtMeasureButton);
 
@@ -2477,7 +2553,7 @@
         " pasted at end.";
     }
 
-    function pasteClipboardAtSelectedMeasure() {
+    function pasteClipboardAtSelectedLocation() {
       if (!blockClipboard || blockClipboard.length === 0) {
         status.textContent = "Copy a block or selection first.";
         return;
@@ -2518,9 +2594,13 @@
         newIds.length +
         " copied block" +
         (newIds.length === 1 ? "" : "s") +
-        " pasted at selected measure M" +
-        getSelectedInsertMeasure() +
+        " pasted at selected location " +
+        getSelectedLocationLabel() +
         ".";
+    }
+
+    function pasteClipboardAtSelectedMeasure() {
+      pasteClipboardAtSelectedLocation();
     }
 
     function deleteSelectedBlocks() {
@@ -2620,6 +2700,98 @@
         ". Undo is available.";
     }
 
+
+    function createInspectorActionButton(label, tone, handler, title = "") {
+      const button = document.createElement("button");
+      button.classList.add("control-button");
+
+      if (tone) {
+        button.classList.add(tone);
+      }
+
+      button.style.marginTop = "8px";
+      button.textContent = label;
+      button.title = title;
+      button.addEventListener("click", handler);
+
+      return button;
+    }
+
+    function getBlocksActiveAtBeat(beat, options = {}) {
+      const tolerance = 0.0001;
+      const includeRests = options.includeRests === true;
+
+      return project.blocks
+        .filter(block => {
+          if (!includeRests && block.type !== "note") {
+            return false;
+          }
+
+          const start = Number(block.startBeat || 0);
+          const end = start + Number(block.durationBeats || MIN_DURATION);
+
+          return start <= beat + tolerance && end > beat + tolerance;
+        })
+        .sort((a, b) => {
+          const laneA = project.lanes.findIndex(lane => lane.id === a.laneId);
+          const laneB = project.lanes.findIndex(lane => lane.id === b.laneId);
+
+          if (laneA !== laneB) {
+            return laneA - laneB;
+          }
+
+          return Number(a.midi || 0) - Number(b.midi || 0);
+        });
+    }
+
+    function selectStackAtBeat(beat, label) {
+      const stackBlocks = getBlocksActiveAtBeat(beat);
+
+      if (stackBlocks.length === 0) {
+        clearBlockSelection();
+        render();
+        status.textContent = "No active notes found at " + label + ".";
+        return;
+      }
+
+      selectedBlockIds = new Set(stackBlocks.map(block => block.id));
+      selectedBlockId = stackBlocks[0].id;
+      selectedLaneId = stackBlocks[0].laneId || selectedLaneId;
+
+      render();
+
+      status.textContent =
+        "Selected " +
+        stackBlocks.length +
+        " active note" +
+        (stackBlocks.length === 1 ? "" : "s") +
+        " at " +
+        label +
+        ".";
+    }
+
+    function selectStackAtSelectedBeat() {
+      const block = project.blocks.find(item => item.id === selectedBlockId);
+
+      if (!block) {
+        status.textContent = "Select a note block first, or use Analyze Playhead Chord.";
+        return;
+      }
+
+      const beat = Number(block.startBeat || 0);
+      const measure = Math.floor(beat / BEATS_PER_MEASURE) + 1;
+      const beatWithinMeasure = (beat - ((measure - 1) * BEATS_PER_MEASURE)) + 1;
+
+      selectStackAtBeat(beat, "M" + measure + " beat " + formatBeatValue(beatWithinMeasure));
+    }
+
+    function analyzePlayheadChord() {
+      const beat = snapBeat(getCurrentPlaybackBeat());
+      const measure = Math.floor(beat / BEATS_PER_MEASURE) + 1;
+      const beatWithinMeasure = (beat - ((measure - 1) * BEATS_PER_MEASURE)) + 1;
+
+      selectStackAtBeat(beat, "playhead M" + measure + " beat " + formatBeatValue(beatWithinMeasure));
+    }
 
     function renderLaneInspector() {
       const lane = project.lanes.find(item => item.id === selectedLaneId);
@@ -4125,7 +4297,7 @@
           : importMode === "overlay"
             ? " at the start"
             : importMode === "insert"
-              ? " at selected measure M" + getSelectedInsertMeasure()
+              ? " at selected location " + getSelectedLocationLabel()
               : " into " + newRecordingLanes.length + " new " + (newRecordingLanes.length === 1 ? "lane" : "lanes");
 
       status.textContent =
@@ -4273,7 +4445,7 @@
         mode === "replace"
           ? "Previous progression import replaced."
           : mode === "insert"
-            ? "Progression inserted at selected measure M" + getSelectedInsertMeasure() + "."
+            ? "Progression inserted at selected location " + getSelectedLocationLabel() + "."
             : "Progression imported as editable note blocks.";
     }
 
@@ -4321,7 +4493,7 @@
         "N = ＋ New lanes from MIDI tracks\n" +
         "A = ⏭ Append after current design\n" +
         "O = ◫ Overlay at start\n" +
-        "I = 📍 Insert at selected measure\n" +
+        "I = 📍 Insert at selected location\n" +
         "C = Cancel",
         "N"
       );
@@ -5344,7 +5516,7 @@
       }
 
       shell.scrollLeft = Math.max(0, (selectedInsertBeat * BEAT_WIDTH) - 60);
-      status.textContent = "Scrolled to selected measure M" + getSelectedInsertMeasure() + ".";
+      status.textContent = "Scrolled to selected location " + getSelectedLocationLabel() + ".";
     }
 
     function resetView() {
