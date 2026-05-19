@@ -434,6 +434,42 @@
       z-index: 30;
     }
 
+
+    .orumi-block.playing {
+      outline: 4px solid rgba(255,235,120,0.98);
+      outline-offset: 4px;
+      box-shadow:
+        0 0 34px rgba(255,235,120,0.92),
+        0 7px 14px rgba(0,0,0,0.40);
+      z-index: 35;
+    }
+
+    .playhead {
+      position: absolute;
+      top: 14px;
+      bottom: 18px;
+      width: 3px;
+      border-radius: 999px;
+      background: rgba(255,235,120,0.96);
+      box-shadow: 0 0 18px rgba(255,235,120,0.95);
+      z-index: 60;
+      display: none;
+      pointer-events: none;
+    }
+
+    .playhead::before {
+      content: "";
+      position: absolute;
+      top: -7px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: rgba(255,235,120,0.98);
+      box-shadow: 0 0 16px rgba(255,235,120,0.95);
+    }
+
     .drop-indicator {
       position: absolute;
       top: 8px;
@@ -582,6 +618,106 @@
       font-weight: 900;
     }
 
+
+
+    .app-menu-bar {
+      width: min(98vw, 1380px);
+      margin: 0 auto 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      z-index: 900;
+    }
+
+    .menu-group {
+      position: relative;
+    }
+
+    .menu-trigger {
+      border: none;
+      border-radius: 999px;
+      padding: 9px 14px;
+      font-size: 13px;
+      font-weight: 900;
+      cursor: pointer;
+      color: #fff7ea;
+      background: rgba(255,255,255,0.13);
+      border: 1px solid rgba(255,255,255,0.10);
+      box-shadow: 0 5px 14px rgba(0,0,0,0.18);
+      font-family: inherit;
+    }
+
+    .menu-trigger:hover,
+    .menu-group:focus-within .menu-trigger,
+    .menu-group:hover .menu-trigger {
+      background: rgba(255,255,255,0.24);
+      color: #fff;
+    }
+
+    .menu-dropdown {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      min-width: 218px;
+      padding: 8px;
+      border-radius: 16px;
+      background: rgba(28,28,28,0.97);
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: 0 14px 34px rgba(0,0,0,0.48);
+      display: none;
+      grid-template-columns: 1fr;
+      gap: 7px;
+      z-index: 1100;
+    }
+
+    .menu-group:hover .menu-dropdown,
+    .menu-group:focus-within .menu-dropdown {
+      display: grid;
+    }
+
+    .menu-dropdown .control-button {
+      width: 100%;
+      box-shadow: none;
+      text-align: left;
+      padding: 10px 12px;
+      border-radius: 12px;
+    }
+
+    .compact-transport {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin: 0 0 14px;
+      padding: 10px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.055);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .compact-transport .control-button {
+      min-width: 48px;
+      padding: 10px 12px;
+      border-radius: 999px;
+      box-shadow: 0 5px 14px rgba(0,0,0,0.20);
+    }
+
+    .compact-transport .transport-text {
+      min-width: 118px;
+    }
+
+    .menu-note {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+      padding: 4px 6px 2px;
+      text-align: center;
+    }
+
     .c  { background: #ff6b6b; }
     .db { background: linear-gradient(135deg, #ff6b6b, #f7b267); }
     .d  { background: #f7b267; }
@@ -610,6 +746,25 @@
 
       .controls {
         grid-template-columns: repeat(2, 1fr);
+      }
+
+
+
+      .app-menu-bar {
+        justify-content: flex-start;
+        overflow-x: auto;
+        padding-bottom: 4px;
+      }
+
+      .menu-dropdown {
+        left: 0;
+        transform: none;
+      }
+
+      .compact-transport {
+        justify-content: flex-start;
+        overflow-x: auto;
+        flex-wrap: nowrap;
       }
 
       .top-button {
@@ -681,6 +836,60 @@
     Arrange Orumi blocks by part. Save named designs, import recordings, and bring in chords or progressions as editable blocks.
   </div>
 
+  <nav class="app-menu-bar" aria-label="Design Studio main controls">
+    <div class="menu-group">
+      <button class="menu-trigger" type="button">Project</button>
+      <div class="menu-dropdown">
+        <button class="control-button" id="saveButton">Save</button>
+        <button class="control-button secondary" id="saveAsButton">Save As</button>
+        <button class="control-button secondary" id="loadProjectButton">Load Project</button>
+        <button class="control-button secondary" id="newDesignButton">New Design</button>
+      </div>
+    </div>
+
+    <div class="menu-group">
+      <button class="menu-trigger" type="button">Bring In</button>
+      <div class="menu-dropdown">
+        <button class="control-button secondary" id="importChordButton">⤓ Import Chord</button>
+        <button class="control-button secondary" id="importRecordingButton">⤓ Import Recording</button>
+        <button class="control-button secondary" id="importProgressionButton">⤓ Import Progression</button>
+        <button class="control-button secondary" id="importMidiButton">⤓ Import MIDI</button>
+        <button class="control-button secondary" id="exportMidiButton">⇩ Export MIDI</button>
+      </div>
+    </div>
+
+    <div class="menu-group">
+      <button class="menu-trigger" type="button">Edit</button>
+      <div class="menu-dropdown">
+        <button class="control-button secondary" id="undoButton">↶ Undo</button>
+        <button class="control-button secondary" id="redoButton">↷ Redo</button>
+        <button class="control-button secondary" id="copySelectionButton">⧉ Copy Selection</button>
+        <button class="control-button secondary" id="pasteSelectionButton">⧆ Paste at End</button>
+        <button class="control-button danger" id="clearButton">🗑 Clear Design</button>
+      </div>
+    </div>
+
+    <div class="menu-group">
+      <button class="menu-trigger" type="button">Arrange</button>
+      <div class="menu-dropdown">
+        <button class="control-button secondary" id="addLaneButton">＋ Add Lane</button>
+        <button class="control-button secondary" id="insertMeasuresButton">＋ Insert Measures</button>
+        <button class="control-button secondary" id="quantizeTimingButton">⌁ Quantize / Clean Timing</button>
+        <div class="menu-note">Lane duplicate/delete stay in the Selected Lane panel.</div>
+      </div>
+    </div>
+
+    <div class="menu-group">
+      <button class="menu-trigger" type="button">View</button>
+      <div class="menu-dropdown">
+        <button class="control-button secondary" id="zoomOutButton">🔍− Zoom Out</button>
+        <button class="control-button secondary" id="zoomInButton">🔍＋ Zoom In</button>
+        <button class="control-button secondary" id="readableViewButton">↔ Readable View</button>
+        <button class="control-button secondary" id="goToMeasureButton">📍 Go to Measure</button>
+      </div>
+    </div>
+  </nav>
+
   <div class="studio">
 
     <aside class="panel">
@@ -690,23 +899,8 @@
         <div class="project-name" id="projectNameLabel">
           File loaded: Untitled Design
         </div>
-
-        <div class="controls">
-          <button class="control-button" id="saveButton">
-            Save
-          </button>
-
-          <button class="control-button secondary" id="saveAsButton">
-            Save As
-          </button>
-
-          <button class="control-button secondary" id="loadProjectButton">
-            Load Project
-          </button>
-
-          <button class="control-button secondary" id="newDesignButton">
-            New Design
-          </button>
+        <div class="inspector-empty">
+          Project actions are now in the top Project menu.
         </div>
       </div>
 
@@ -761,42 +955,7 @@
       </div>
 
       <div class="section">
-        <div class="section-title">Actions</div>
-
-        <div class="controls">
-          <button class="control-button secondary" id="addLaneButton">
-            Add Lane
-          </button>
-
-          <button class="control-button secondary" id="undoButton">
-            ↶ Undo
-          </button>
-
-          <button class="control-button secondary" id="redoButton">
-            ↷ Redo
-          </button>
-
-          <button class="control-button" id="playButton">
-            ▶ Play
-          </button>
-
-          <button class="control-button secondary" id="stopPlaybackButton">
-            ■ Stop
-          </button>
-
-          <button class="control-button secondary" id="copySelectionButton">
-            Copy Selection
-          </button>
-
-          <button class="control-button secondary" id="pasteSelectionButton">
-            Paste at End
-          </button>
-
-          <button class="control-button danger" id="clearButton">
-            Clear
-          </button>
-        </div>
-
+        <div class="section-title">Status</div>
         <div class="status" id="status">
           Drag a note into a lane.
         </div>
@@ -807,54 +966,14 @@
       <div class="panel">
         <div class="section-title">Barbershop Parts / Orumi Lanes</div>
 
-        <div class="toolbar">
-          <button class="control-button secondary" id="importChordButton">
-            ⤓ Import Chord
-          </button>
-
-          <button class="control-button secondary" id="importRecordingButton">
-            ⤓ Import Recording
-          </button>
-
-          <button class="control-button secondary" id="importProgressionButton">
-            ⤓ Import Progression
-          </button>
-
-          <button class="control-button secondary" id="exportMidiButton">
-            ⇩ Export MIDI
-          </button>
-
-          <button class="control-button secondary" id="importMidiButton">
-            ⤓ Import MIDI
-          </button>
-
-          <button class="control-button secondary" id="insertMeasuresButton">
-            ＋ Insert Measures
-          </button>
-
-          <button class="control-button secondary" id="resetViewButton">
-            ⏮ Jump to Start
-          </button>
-
-          <button class="control-button secondary" id="jumpToEndButton">
-            ⏭ Jump to End
-          </button>
-
-          <button class="control-button secondary" id="zoomOutButton">
-            🔍− Zoom Out
-          </button>
-
-          <button class="control-button secondary" id="zoomInButton">
-            🔍＋ Zoom In
-          </button>
-
-          <button class="control-button secondary" id="readableViewButton">
-            ↔ Readable View
-          </button>
-
-          <button class="control-button secondary" id="goToMeasureButton">
-            📍 Go to Measure
-          </button>
+        <div class="compact-transport" aria-label="Playback controls">
+          <button class="control-button secondary" id="resetViewButton" title="Jump to Start">⏮</button>
+          <button class="control-button secondary" id="backMeasureButton" title="Back 1 Measure">⏪</button>
+          <button class="control-button transport-text" id="playButton" title="Play / Resume">▶ Play</button>
+          <button class="control-button secondary" id="pausePlaybackButton" title="Pause">⏸</button>
+          <button class="control-button secondary" id="stopPlaybackButton" title="Stop">■</button>
+          <button class="control-button secondary" id="forwardMeasureButton" title="Forward 1 Measure">⏩</button>
+          <button class="control-button secondary" id="jumpToEndButton" title="Jump to End">⏭</button>
         </div>
 
         <div class="timeline-shell">
@@ -863,6 +982,8 @@
               <div></div>
               <div class="ruler-beats" id="rulerBeats"></div>
             </div>
+
+            <div class="playhead" id="playhead"></div>
 
             <div id="lanesContainer"></div>
           </div>
@@ -908,6 +1029,15 @@
     let pendingChordChecked = false;
     let blockClipboard = [];
     let selectedInsertBeat = 0;
+    let playbackState = "stopped";
+    let playbackStartTime = 0;
+    let playbackStartBeat = 0;
+    let pausedBeat = 0;
+    let playheadAnimationFrame = null;
+    let currentPlaybackBlocks = [];
+    let currentPlaybackStatusMessage = "Playing.";
+    let currentPlaybackCompletionMessage = "Playback complete.";
+    let activeBlockIds = new Set();
 
     let BEAT_WIDTH = Math.max(36, Math.min(180, Number(localStorage.getItem("orumiDesignStudioBeatWidth") || 72)));
     const MIN_BEAT_WIDTH = 36;
@@ -952,8 +1082,11 @@
     const addLaneButton = document.getElementById("addLaneButton");
     const undoButton = document.getElementById("undoButton");
     const redoButton = document.getElementById("redoButton");
+    const backMeasureButton = document.getElementById("backMeasureButton");
     const playButton = document.getElementById("playButton");
+    const pausePlaybackButton = document.getElementById("pausePlaybackButton");
     const stopPlaybackButton = document.getElementById("stopPlaybackButton");
+    const forwardMeasureButton = document.getElementById("forwardMeasureButton");
     const copySelectionButton = document.getElementById("copySelectionButton");
     const pasteSelectionButton = document.getElementById("pasteSelectionButton");
     const clearButton = document.getElementById("clearButton");
@@ -963,12 +1096,14 @@
     const exportMidiButton = document.getElementById("exportMidiButton");
     const importMidiButton = document.getElementById("importMidiButton");
     const insertMeasuresButton = document.getElementById("insertMeasuresButton");
+    const quantizeTimingButton = document.getElementById("quantizeTimingButton");
     const resetViewButton = document.getElementById("resetViewButton");
     const jumpToEndButton = document.getElementById("jumpToEndButton");
     const zoomOutButton = document.getElementById("zoomOutButton");
     const zoomInButton = document.getElementById("zoomInButton");
     const readableViewButton = document.getElementById("readableViewButton");
     const goToMeasureButton = document.getElementById("goToMeasureButton");
+    const playhead = document.getElementById("playhead");
     const midiFileInput = document.getElementById("midiFileInput");
     const paletteOctaveSelect = document.getElementById("paletteOctaveSelect");
 
@@ -1848,6 +1983,10 @@
 
       if (block.id === selectedBlockId || selectedBlockIds.has(block.id)) {
         element.classList.add("selected");
+      }
+
+      if (activeBlockIds.has(block.id)) {
+        element.classList.add("playing");
       }
 
       element.style.left = block.startBeat * BEAT_WIDTH + "px";
@@ -3127,6 +3266,134 @@
         " shifted.";
     }
 
+    function quantizeValue(value, gridSize) {
+      return Math.max(0, Math.round(Number(value || 0) / gridSize) * gridSize);
+    }
+
+    function quantizeDuration(value, gridSize) {
+      return Math.max(MIN_DURATION, Math.round(Number(value || MIN_DURATION) / gridSize) * gridSize);
+    }
+
+    function quantizeCleanTiming() {
+      const scopeAnswer = window.prompt(
+        "Quantize / clean timing for:\n\n" +
+        "A = All Tracks\n" +
+        "S = Selected Track only\n" +
+        "B = Selected Blocks\n" +
+        "C = Cancel",
+        getSelectedBlocks().length > 0 ? "B" : "A"
+      );
+
+      if (!scopeAnswer) {
+        status.textContent = "Quantize cancelled.";
+        return;
+      }
+
+      const normalizedScope = scopeAnswer.trim().toLowerCase();
+      let scope = "all";
+
+      if (normalizedScope === "a" || normalizedScope === "all" || normalizedScope === "all tracks") {
+        scope = "all";
+      } else if (normalizedScope === "s" || normalizedScope === "selected" || normalizedScope === "selected track") {
+        scope = "selected";
+      } else if (normalizedScope === "b" || normalizedScope === "blocks" || normalizedScope === "selected blocks") {
+        scope = "blocks";
+      } else {
+        status.textContent = "Quantize cancelled.";
+        return;
+      }
+
+      const gridAnswer = window.prompt(
+        "Snap timing to:\n\n" +
+        "4 = Quarter notes\n" +
+        "8 = Eighth notes\n" +
+        "16 = Sixteenth notes\n" +
+        "C = Cancel",
+        "8"
+      );
+
+      if (!gridAnswer) {
+        status.textContent = "Quantize cancelled.";
+        return;
+      }
+
+      const normalizedGrid = gridAnswer.trim().toLowerCase();
+      let gridSize = null;
+      let gridLabel = "";
+
+      if (normalizedGrid === "4" || normalizedGrid === "q" || normalizedGrid === "quarter" || normalizedGrid === "quarter notes") {
+        gridSize = 1;
+        gridLabel = "quarter notes";
+      } else if (normalizedGrid === "8" || normalizedGrid === "e" || normalizedGrid === "eighth" || normalizedGrid === "eighth notes") {
+        gridSize = 0.5;
+        gridLabel = "eighth notes";
+      } else if (normalizedGrid === "16" || normalizedGrid === "s" || normalizedGrid === "sixteenth" || normalizedGrid === "sixteenth notes") {
+        gridSize = 0.25;
+        gridLabel = "sixteenth notes";
+      } else {
+        status.textContent = "Quantize cancelled.";
+        return;
+      }
+
+      let targetBlocks = [];
+      let scopeLabel = "all tracks";
+
+      if (scope === "all") {
+        targetBlocks = project.blocks;
+      } else if (scope === "selected") {
+        const selectedLane = project.lanes.find(lane => lane.id === selectedLaneId);
+
+        if (!selectedLane) {
+          status.textContent = "Select a track before quantizing selected track timing.";
+          return;
+        }
+
+        targetBlocks = project.blocks.filter(block => block.laneId === selectedLane.id);
+        scopeLabel = selectedLane.name;
+      } else {
+        targetBlocks = getSelectedBlocks();
+        scopeLabel = "selected blocks";
+      }
+
+      if (targetBlocks.length === 0) {
+        status.textContent = "No blocks found to quantize.";
+        return;
+      }
+
+      saveHistory();
+
+      let changedCount = 0;
+
+      targetBlocks.forEach(block => {
+        const oldStart = Number(block.startBeat || 0);
+        const oldDuration = Number(block.durationBeats || MIN_DURATION);
+        const newStart = quantizeValue(oldStart, gridSize);
+        const newDuration = quantizeDuration(oldDuration, gridSize);
+
+        if (newStart !== oldStart || newDuration !== oldDuration) {
+          block.startBeat = newStart;
+          block.durationBeats = newDuration;
+          changedCount += 1;
+        }
+      });
+
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+      render();
+
+      status.textContent =
+        "Quantized " +
+        changedCount +
+        " of " +
+        targetBlocks.length +
+        " block" +
+        (targetBlocks.length === 1 ? "" : "s") +
+        " in " +
+        scopeLabel +
+        " to " +
+        gridLabel +
+        ". Undo is available.";
+    }
+
     function importPendingChordFromStorage(autoPrompt = false) {
       const raw = localStorage.getItem(STORAGE_PENDING_CHORD);
 
@@ -4266,20 +4533,124 @@
       }
     }
 
-    function stopPlayback() {
+    function clearActiveBlockHighlights() {
+      activeBlockIds.clear();
+
+      document.querySelectorAll(".orumi-block.playing").forEach(element => {
+        element.classList.remove("playing");
+      });
+    }
+
+    function setBlockPlaying(blockId, isPlaying) {
+      const element = document.querySelector("[data-block-id='" + blockId + "']");
+
+      if (isPlaying) {
+        activeBlockIds.add(blockId);
+        if (element) {
+          element.classList.add("playing");
+        }
+      } else {
+        activeBlockIds.delete(blockId);
+        if (element) {
+          element.classList.remove("playing");
+        }
+      }
+    }
+
+    function getCurrentPlaybackBeat() {
+      if (playbackState === "playing" && audioContext) {
+        const bpm = project.tempo || 120;
+        const secondsPerBeat = 60 / bpm;
+        const elapsedSeconds = Math.max(0, audioContext.currentTime - playbackStartTime);
+        return Math.max(0, playbackStartBeat + (elapsedSeconds / secondsPerBeat));
+      }
+
+      if (playbackState === "paused") {
+        return pausedBeat;
+      }
+
+      return pausedBeat || 0;
+    }
+
+    function showPlayheadAtBeat(beat) {
+      if (!playhead) return;
+
+      const safeBeat = Math.max(0, Number(beat || 0));
+      playhead.style.left = (104 + safeBeat * BEAT_WIDTH) + "px";
+      playhead.style.display = "block";
+    }
+
+    function hidePlayhead() {
+      if (!playhead) return;
+      playhead.style.display = "none";
+    }
+
+    function keepBeatInView(beat) {
+      const shell = document.querySelector(".timeline-shell");
+      if (!shell) return;
+
+      const x = 104 + beat * BEAT_WIDTH;
+      const leftEdge = shell.scrollLeft;
+      const rightEdge = shell.scrollLeft + shell.clientWidth;
+      const margin = Math.min(180, shell.clientWidth * 0.22);
+
+      if (x > rightEdge - margin) {
+        shell.scrollLeft = Math.max(0, x - shell.clientWidth + margin);
+      } else if (x < leftEdge + margin) {
+        shell.scrollLeft = Math.max(0, x - margin);
+      }
+    }
+
+    function startPlayheadAnimation() {
+      stopPlayheadAnimation();
+
+      const tick = () => {
+        if (playbackState !== "playing") {
+          return;
+        }
+
+        const beat = getCurrentPlaybackBeat();
+        showPlayheadAtBeat(beat);
+        keepBeatInView(beat);
+        playheadAnimationFrame = requestAnimationFrame(tick);
+      };
+
+      playheadAnimationFrame = requestAnimationFrame(tick);
+    }
+
+    function stopPlayheadAnimation() {
+      if (playheadAnimationFrame) {
+        cancelAnimationFrame(playheadAnimationFrame);
+        playheadAnimationFrame = null;
+      }
+    }
+
+    function stopPlayback(options = {}) {
+      const reset = options.reset !== false;
+
       playbackTimers.forEach(timer => clearTimeout(timer));
       playbackTimers = [];
 
       if (audioContext) {
         activeNotes.forEach(note => {
-          ORUMI_VOICES.stopVoice(note, audioContext, 0.15);
+          ORUMI_VOICES.stopVoice(note, audioContext, 0.08);
         });
       }
 
       activeNotes = [];
+      clearActiveBlockHighlights();
+      stopPlayheadAnimation();
+
+      if (reset) {
+        playbackState = "stopped";
+        playbackStartBeat = 0;
+        playbackStartTime = 0;
+        pausedBeat = 0;
+        hidePlayhead();
+      }
     }
 
-    function playBlocks(blocks, statusMessage, completionMessage) {
+    function playBlocks(blocks, statusMessage, completionMessage, startBeat = null) {
       const playableBlocks = blocks
         .filter(block => block.type === "note")
         .slice()
@@ -4290,14 +4661,57 @@
         return;
       }
 
+      const requestedStartBeat =
+        startBeat === null
+          ? playbackState === "paused"
+            ? pausedBeat
+            : 0
+          : Number(startBeat || 0);
+
+      const safeStartBeat = Math.max(0, requestedStartBeat);
       const bpm = project.tempo || 120;
       const secondsPerBeat = 60 / bpm;
+      const playableAfterStart = playableBlocks.filter(block => {
+        const blockEnd = Number(block.startBeat || 0) + Number(block.durationBeats || 1);
+        return blockEnd > safeStartBeat;
+      });
 
-      playableBlocks.forEach(block => {
-        const startMs = block.startBeat * secondsPerBeat * 1000;
-        const durationMs = block.durationBeats * secondsPerBeat * 1000;
+      if (playableAfterStart.length === 0) {
+        status.textContent = "Nothing to play after the current playhead position.";
+        showPlayheadAtBeat(safeStartBeat);
+        playbackState = "paused";
+        pausedBeat = safeStartBeat;
+        return;
+      }
+
+      stopPlayback({ reset: false });
+
+      currentPlaybackBlocks = playableBlocks;
+      currentPlaybackStatusMessage = statusMessage || "Playing.";
+      currentPlaybackCompletionMessage = completionMessage || "Playback complete.";
+      playbackState = "playing";
+      playbackStartBeat = safeStartBeat;
+      playbackStartTime = audioContext.currentTime;
+      pausedBeat = safeStartBeat;
+
+      showPlayheadAtBeat(safeStartBeat);
+      keepBeatInView(safeStartBeat);
+      startPlayheadAnimation();
+
+      playableAfterStart.forEach(block => {
+        const blockStart = Number(block.startBeat || 0);
+        const blockDuration = Number(block.durationBeats || 1);
+        const blockEnd = blockStart + blockDuration;
+        const delayBeats = Math.max(0, blockStart - safeStartBeat);
+        const remainingBeats = Math.max(MIN_DURATION, blockEnd - Math.max(blockStart, safeStartBeat));
+        const startMs = delayBeats * secondsPerBeat * 1000;
+        const durationMs = remainingBeats * secondsPerBeat * 1000;
 
         const timer = setTimeout(() => {
+          if (playbackState !== "playing") {
+            return;
+          }
+
           const now = audioContext.currentTime;
           const voice = getEffectiveVoice(block);
 
@@ -4309,6 +4723,7 @@
           );
 
           const played = {
+            blockId: block.id,
             voice,
             gain: voiceNode.gain,
             oscillators: voiceNode.oscillators || [],
@@ -4316,10 +4731,12 @@
           };
 
           activeNotes.push(played);
+          setBlockPlaying(block.id, true);
 
           const stopTimer = setTimeout(() => {
-            ORUMI_VOICES.stopVoice(played, audioContext, 0.15);
+            ORUMI_VOICES.stopVoice(played, audioContext, 0.08);
             activeNotes = activeNotes.filter(item => item !== played);
+            setBlockPlaying(block.id, false);
           }, durationMs);
 
           playbackTimers.push(stopTimer);
@@ -4330,34 +4747,32 @@
 
       const playbackEndBeat = Math.max(
         MIN_DURATION,
-        ...playableBlocks.map(block => Number(block.startBeat || 0) + Number(block.durationBeats || 1))
+        ...playableAfterStart.map(block => Number(block.startBeat || 0) + Number(block.durationBeats || 1))
       );
 
       const endTimer = setTimeout(() => {
-        stopPlayback();
-        status.textContent = completionMessage || "Playback complete.";
-      }, (playbackEndBeat * secondsPerBeat + 0.5) * 1000);
+        stopPlayback({ reset: true });
+        status.textContent = currentPlaybackCompletionMessage;
+      }, Math.max(0, (playbackEndBeat - safeStartBeat) * secondsPerBeat + 0.5) * 1000);
 
       playbackTimers.push(endTimer);
-
-      status.textContent = statusMessage || "Playing.";
+      status.textContent = currentPlaybackStatusMessage;
     }
 
     async function playProject() {
       await ensureAudio();
-      stopPlayback();
 
       if (project.blocks.length === 0) {
         status.textContent = "Nothing to play yet.";
         return;
       }
 
-      playBlocks(project.blocks, "Playing Design Studio.", "Playback complete.");
+      const startBeat = playbackState === "paused" ? pausedBeat : 0;
+      playBlocks(project.blocks, "Playing Design Studio.", "Playback complete.", startBeat);
     }
 
     async function playSelectedLane() {
       await ensureAudio();
-      stopPlayback();
 
       const lane = project.lanes.find(item => item.id === selectedLaneId);
 
@@ -4374,11 +4789,60 @@
         return;
       }
 
+      const startBeat = playbackState === "paused" ? pausedBeat : 0;
+
       playBlocks(
         laneBlocks,
         "Playing selected lane: " + lane.name + ".",
-        "Selected lane playback complete: " + lane.name + "."
+        "Selected lane playback complete: " + lane.name + ".",
+        startBeat
       );
+    }
+
+    function pausePlayback() {
+      if (playbackState !== "playing") {
+        status.textContent = "Nothing is playing.";
+        return;
+      }
+
+      pausedBeat = snapBeat(getCurrentPlaybackBeat());
+      stopPlayback({ reset: false });
+      playbackState = "paused";
+      showPlayheadAtBeat(pausedBeat);
+      keepBeatInView(pausedBeat);
+      status.textContent = "Paused at M" + (Math.floor(pausedBeat / BEATS_PER_MEASURE) + 1) + ", beat " + pausedBeat.toFixed(2) + ".";
+    }
+
+    async function jumpPlaybackByMeasures(direction) {
+      const wasPlaying = playbackState === "playing";
+      const currentBeat = wasPlaying || playbackState === "paused"
+        ? getCurrentPlaybackBeat()
+        : selectedInsertBeat || 0;
+      const targetBeat = Math.max(0, snapBeat(currentBeat + direction * BEATS_PER_MEASURE));
+
+      pausedBeat = targetBeat;
+      showPlayheadAtBeat(pausedBeat);
+      keepBeatInView(pausedBeat);
+
+      if (wasPlaying && currentPlaybackBlocks.length > 0) {
+        await ensureAudio();
+        stopPlayback({ reset: false });
+        playBlocks(
+          currentPlaybackBlocks,
+          "Playing from M" + (Math.floor(pausedBeat / BEATS_PER_MEASURE) + 1) + ".",
+          currentPlaybackCompletionMessage,
+          pausedBeat
+        );
+      } else {
+        stopPlayback({ reset: false });
+        playbackState = "paused";
+        showPlayheadAtBeat(pausedBeat);
+        status.textContent =
+          (direction < 0 ? "Moved back" : "Moved forward") +
+          " to M" +
+          (Math.floor(pausedBeat / BEATS_PER_MEASURE) + 1) +
+          ". Press Play to continue from here.";
+      }
     }
 
     function getTimelinePixelWidth() {
@@ -4475,11 +4939,14 @@
     addLaneButton.addEventListener("click", addLane);
     undoButton.addEventListener("click", undo);
     redoButton.addEventListener("click", redo);
+    backMeasureButton.addEventListener("click", () => jumpPlaybackByMeasures(-1));
     playButton.addEventListener("click", playProject);
+    pausePlaybackButton.addEventListener("click", pausePlayback);
     stopPlaybackButton.addEventListener("click", () => {
-      stopPlayback();
+      stopPlayback({ reset: true });
       status.textContent = "Playback stopped.";
     });
+    forwardMeasureButton.addEventListener("click", () => jumpPlaybackByMeasures(1));
     copySelectionButton.addEventListener("click", copySelectionToClipboard);
     pasteSelectionButton.addEventListener("click", pasteClipboardAtEnd);
     clearButton.addEventListener("click", clearProject);
@@ -4490,6 +4957,7 @@
     importMidiButton.addEventListener("click", beginMidiImport);
     midiFileInput.addEventListener("change", handleMidiFileSelected);
     insertMeasuresButton.addEventListener("click", insertMeasuresAtSelectedPoint);
+    quantizeTimingButton.addEventListener("click", quantizeCleanTiming);
     resetViewButton.addEventListener("click", resetView);
     jumpToEndButton.addEventListener("click", jumpToEnd);
     zoomOutButton.addEventListener("click", zoomOutTimeline);
