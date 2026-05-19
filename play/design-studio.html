@@ -718,6 +718,26 @@
       text-align: center;
     }
 
+    .harmony-card {
+      margin-top: 10px;
+      padding: 11px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.09);
+      border: 1px solid rgba(255,255,255,0.10);
+      color: #fff7ea;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .harmony-card strong {
+      color: #fff;
+    }
+
+    .harmony-card .harmony-muted {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
     .c  { background: #ff6b6b; }
     .db { background: linear-gradient(135deg, #ff6b6b, #f7b267); }
     .d  { background: #f7b267; }
@@ -2047,6 +2067,154 @@
       renderLaneInspector();
     }
 
+
+    function pitchClassLabelFromNumber(number) {
+      return pcToName(((number % 12) + 12) % 12);
+    }
+
+    function uniquePitchClassesFromBlocks(blocks) {
+      const seen = new Set();
+      const pcs = [];
+
+      blocks
+        .filter(block => block.type === "note" && Number.isFinite(block.midi))
+        .slice()
+        .sort((a, b) => Number(a.midi || 0) - Number(b.midi || 0))
+        .forEach(block => {
+          const pc = ((Number(block.midi || 0) % 12) + 12) % 12;
+
+          if (!seen.has(pc)) {
+            seen.add(pc);
+            pcs.push(pc);
+          }
+        });
+
+      return pcs;
+    }
+
+    function analyzeSelectedHarmony(blocks) {
+      const noteBlocks = blocks
+        .filter(block => block.type === "note" && Number.isFinite(block.midi))
+        .slice()
+        .sort((a, b) => Number(a.midi || 0) - Number(b.midi || 0));
+
+      if (noteBlocks.length === 0) {
+        return {
+          noteCount: 0,
+          notesLabel: "No notes selected",
+          pitchClassLabel: "n/a",
+          chordLabel: "No chord detected",
+          detail: "Select two or more note blocks to analyze harmony."
+        };
+      }
+
+      const pitchClasses = uniquePitchClassesFromBlocks(noteBlocks);
+      const bassPc = ((Number(noteBlocks[0].midi || 0) % 12) + 12) % 12;
+      const notesLabel = noteBlocks
+        .map(block => block.name || midiToDisplayName(block.midi))
+        .join(" ");
+      const pitchClassLabel = pitchClasses
+        .map(pc => pitchClassLabelFromNumber(pc))
+        .join(" ");
+
+      if (pitchClasses.length < 2) {
+        return {
+          noteCount: noteBlocks.length,
+          notesLabel,
+          pitchClassLabel,
+          chordLabel: pitchClassLabel || "Single note",
+          detail: "Only one pitch class is selected."
+        };
+      }
+
+      const chordPatterns = [
+        { name: "dominant 7", suffix: "7", intervals: [0, 4, 7, 10] },
+        { name: "major 7", suffix: "maj7", intervals: [0, 4, 7, 11] },
+        { name: "minor 7", suffix: "m7", intervals: [0, 3, 7, 10] },
+        { name: "half-diminished 7", suffix: "m7♭5", intervals: [0, 3, 6, 10] },
+        { name: "diminished 7", suffix: "dim7", intervals: [0, 3, 6, 9] },
+        { name: "minor-major 7", suffix: "mMaj7", intervals: [0, 3, 7, 11] },
+        { name: "major", suffix: "", intervals: [0, 4, 7] },
+        { name: "minor", suffix: "m", intervals: [0, 3, 7] },
+        { name: "diminished", suffix: "dim", intervals: [0, 3, 6] },
+        { name: "augmented", suffix: "aug", intervals: [0, 4, 8] },
+        { name: "suspended 2", suffix: "sus2", intervals: [0, 2, 7] },
+        { name: "suspended 4", suffix: "sus4", intervals: [0, 5, 7] },
+        { name: "power chord", suffix: "5", intervals: [0, 7] },
+        { name: "tritone", suffix: " tritone", intervals: [0, 6] },
+        { name: "major third dyad", suffix: " major dyad", intervals: [0, 4] },
+        { name: "minor third dyad", suffix: " minor dyad", intervals: [0, 3] }
+      ];
+
+      const pcSet = new Set(pitchClasses);
+      let bestMatch = null;
+
+      for (const rootPc of pitchClasses) {
+        const selectedIntervals = pitchClasses
+          .map(pc => (pc - rootPc + 12) % 12)
+          .sort((a, b) => a - b);
+
+        for (const pattern of chordPatterns) {
+          if (pattern.intervals.length !== selectedIntervals.length) {
+            continue;
+          }
+
+          const matches = pattern.intervals.every(interval =>
+            selectedIntervals.includes(interval)
+          );
+
+          if (matches) {
+            bestMatch = {
+              rootPc,
+              pattern
+            };
+            break;
+          }
+        }
+
+        if (bestMatch) {
+          break;
+        }
+      }
+
+      if (!bestMatch) {
+        return {
+          noteCount: noteBlocks.length,
+          notesLabel,
+          pitchClassLabel,
+          chordLabel: "Unknown / color chord",
+          detail: "No basic triad or seventh-chord pattern was found."
+        };
+      }
+
+      const rootName = pitchClassLabelFromNumber(bestMatch.rootPc);
+      const bassName = pitchClassLabelFromNumber(bassPc);
+      const slash = bassPc !== bestMatch.rootPc ? "/" + bassName : "";
+      const chordLabel = rootName + bestMatch.pattern.suffix + slash;
+
+      return {
+        noteCount: noteBlocks.length,
+        notesLabel,
+        pitchClassLabel,
+        chordLabel,
+        detail: bestMatch.pattern.name + (slash ? " · inversion / slash bass" : "")
+      };
+    }
+
+    function createHarmonyCard(blocks) {
+      const analysis = analyzeSelectedHarmony(blocks);
+      const card = document.createElement("div");
+      card.classList.add("harmony-card");
+
+      card.innerHTML =
+        "<div><strong>Detected chord:</strong> " + escapeHtml(analysis.chordLabel) + "</div>" +
+        "<div><strong>Pitch classes:</strong> " + escapeHtml(analysis.pitchClassLabel) + "</div>" +
+        "<div><strong>Notes:</strong> " + escapeHtml(analysis.notesLabel) + "</div>" +
+        "<div class='harmony-muted'>" + escapeHtml(analysis.detail) + "</div>";
+
+      return card;
+    }
+
     function renderBlockInspector() {
       const block = project.blocks.find(item => item.id === selectedBlockId);
 
@@ -2065,6 +2233,8 @@
         info.classList.add("inspector-empty");
         info.textContent = selectedBlocks.length + " blocks selected.";
         blockInspector.appendChild(info);
+
+        blockInspector.appendChild(createHarmonyCard(selectedBlocks));
 
         const copySelectionButton = document.createElement("button");
         copySelectionButton.classList.add("control-button", "secondary");
