@@ -883,8 +883,10 @@
       <div class="menu-dropdown">
         <button class="control-button secondary" id="undoButton">↶ Undo</button>
         <button class="control-button secondary" id="redoButton">↷ Redo</button>
+        <button class="control-button secondary" id="selectMeasureRangeButton">▦ Select Measure Range</button>
         <button class="control-button secondary" id="copySelectionButton">⧉ Copy Selection</button>
         <button class="control-button secondary" id="pasteSelectionButton">⧆ Paste at End</button>
+        <button class="control-button secondary" id="pasteAtMeasureButton">⧆ Paste at Selected Measure</button>
         <button class="control-button danger" id="clearButton">🗑 Clear Design</button>
       </div>
     </div>
@@ -1107,8 +1109,10 @@
     const pausePlaybackButton = document.getElementById("pausePlaybackButton");
     const stopPlaybackButton = document.getElementById("stopPlaybackButton");
     const forwardMeasureButton = document.getElementById("forwardMeasureButton");
+    const selectMeasureRangeButton = document.getElementById("selectMeasureRangeButton");
     const copySelectionButton = document.getElementById("copySelectionButton");
     const pasteSelectionButton = document.getElementById("pasteSelectionButton");
+    const pasteAtMeasureButton = document.getElementById("pasteAtMeasureButton");
     const clearButton = document.getElementById("clearButton");
     const importChordButton = document.getElementById("importChordButton");
     const importRecordingButton = document.getElementById("importRecordingButton");
@@ -2215,129 +2219,6 @@
       return card;
     }
 
-
-    function getBlocksActiveAtBeat(beat) {
-      const targetBeat = Math.max(0, Number(beat || 0));
-      const tolerance = 0.0001;
-
-      return project.blocks
-        .filter(block => {
-          if (block.type !== "note" || !Number.isFinite(block.midi)) {
-            return false;
-          }
-
-          const start = Number(block.startBeat || 0);
-          const end = start + Number(block.durationBeats || MIN_DURATION);
-
-          return start <= targetBeat + tolerance && end > targetBeat + tolerance;
-        })
-        .sort((a, b) => {
-          const laneA = project.lanes.findIndex(lane => lane.id === a.laneId);
-          const laneB = project.lanes.findIndex(lane => lane.id === b.laneId);
-
-          if (laneA !== laneB) {
-            return laneA - laneB;
-          }
-
-          return Number(a.midi || 0) - Number(b.midi || 0);
-        });
-    }
-
-    function selectBlocksForHarmony(blocks, message) {
-      const noteBlocks = blocks
-        .filter(block => block.type === "note" && Number.isFinite(block.midi));
-
-      if (noteBlocks.length === 0) {
-        status.textContent = "No note stack found to analyze.";
-        return;
-      }
-
-      selectedBlockIds = new Set(noteBlocks.map(block => block.id));
-      selectedBlockId = noteBlocks[0].id;
-      selectedLaneId = noteBlocks[0].laneId || selectedLaneId;
-
-      render();
-
-      status.textContent =
-        message ||
-        "Selected " +
-          noteBlocks.length +
-          " note" +
-          (noteBlocks.length === 1 ? "" : "s") +
-          " for harmony analysis.";
-    }
-
-    function selectStackAtBeat(beat, label) {
-      const stack = getBlocksActiveAtBeat(beat);
-
-      selectBlocksForHarmony(
-        stack,
-        "Selected " +
-          stack.length +
-          " note" +
-          (stack.length === 1 ? "" : "s") +
-          " active at " +
-          label +
-          "."
-      );
-    }
-
-    function selectStackAtSelectedBeat() {
-      const block = project.blocks.find(item => item.id === selectedBlockId);
-
-      if (!block) {
-        status.textContent = "Select a note block first.";
-        return;
-      }
-
-      if (block.type !== "note") {
-        status.textContent = "Select a note block, not a rest.";
-        return;
-      }
-
-      const beat = Number(block.startBeat || 0);
-      const measure = Math.floor(beat / BEATS_PER_MEASURE) + 1;
-
-      selectStackAtBeat(
-        beat,
-        "M" + measure + ", beat " + formatBeatValue(beat)
-      );
-    }
-
-    function analyzePlayheadChord() {
-      const beat =
-        playbackState === "playing" || playbackState === "paused" || pausedBeat > 0
-          ? getCurrentPlaybackBeat()
-          : selectedInsertBeat || 0;
-
-      const measure = Math.floor(beat / BEATS_PER_MEASURE) + 1;
-
-      selectStackAtBeat(
-        beat,
-        "playhead M" + measure + ", beat " + formatBeatValue(beat)
-      );
-    }
-
-    function createInspectorActionButton(label, className, handler, title) {
-      const button = document.createElement("button");
-      button.classList.add("control-button");
-
-      if (className) {
-        button.classList.add(className);
-      }
-
-      button.style.marginTop = "8px";
-      button.textContent = label;
-
-      if (title) {
-        button.title = title;
-      }
-
-      button.addEventListener("click", handler);
-
-      return button;
-    }
-
     function renderBlockInspector() {
       const block = project.blocks.find(item => item.id === selectedBlockId);
 
@@ -2347,17 +2228,7 @@
 
       if (!block) {
         blockInspector.innerHTML =
-          "<div class='inspector-empty'>Select a note or rest block to edit it. Shift-click blocks to build a phrase selection. Pause playback, then use Analyze Playhead Chord to inspect the current harmony.</div>";
-
-        blockInspector.appendChild(
-          createInspectorActionButton(
-            "⌕ Analyze Playhead Chord",
-            "secondary",
-            analyzePlayheadChord,
-            "Select and analyze notes active at the current playhead position"
-          )
-        );
-
+          "<div class='inspector-empty'>Select a note or rest block to edit it. Shift-click blocks to build a phrase selection.</div>";
         return;
       }
 
@@ -2368,24 +2239,6 @@
         blockInspector.appendChild(info);
 
         blockInspector.appendChild(createHarmonyCard(selectedBlocks));
-
-        blockInspector.appendChild(
-          createInspectorActionButton(
-            "⌕ Select Stack at This Beat",
-            "secondary",
-            selectStackAtSelectedBeat,
-            "Select all notes active where the anchor selected block begins"
-          )
-        );
-
-        blockInspector.appendChild(
-          createInspectorActionButton(
-            "⌕ Analyze Playhead Chord",
-            "secondary",
-            analyzePlayheadChord,
-            "Select and analyze notes active at the current playhead position"
-          )
-        );
 
         const copySelectionButton = document.createElement("button");
         copySelectionButton.classList.add("control-button", "secondary");
@@ -2400,6 +2253,13 @@
         pasteSelectionButton.textContent = "Paste at End";
         pasteSelectionButton.addEventListener("click", pasteClipboardAtEnd);
         blockInspector.appendChild(pasteSelectionButton);
+
+        const pasteAtMeasureButton = document.createElement("button");
+        pasteAtMeasureButton.classList.add("control-button", "secondary");
+        pasteAtMeasureButton.style.marginTop = "8px";
+        pasteAtMeasureButton.textContent = "Paste at Selected Measure";
+        pasteAtMeasureButton.addEventListener("click", pasteClipboardAtSelectedMeasure);
+        blockInspector.appendChild(pasteAtMeasureButton);
 
         return;
       }
@@ -2526,26 +2386,6 @@
       durationVelocityRow.appendChild(velocityWrap);
       blockInspector.appendChild(durationVelocityRow);
 
-      if (block.type === "note") {
-        blockInspector.appendChild(
-          createInspectorActionButton(
-            "⌕ Select Stack at This Beat",
-            "secondary",
-            selectStackAtSelectedBeat,
-            "Select all notes active where this block begins"
-          )
-        );
-
-        blockInspector.appendChild(
-          createInspectorActionButton(
-            "⌕ Analyze Playhead Chord",
-            "secondary",
-            analyzePlayheadChord,
-            "Select and analyze notes active at the current playhead position"
-          )
-        );
-      }
-
       const copyButton = document.createElement("button");
       copyButton.classList.add("control-button", "secondary");
       copyButton.style.marginTop = "12px";
@@ -2621,6 +2461,130 @@
         " copied to phrase clipboard.";
     }
 
+    function selectMeasureRange() {
+      const defaultStart = String(getSelectedInsertMeasure());
+      const startAnswer = window.prompt(
+        "Select blocks starting with which measure?",
+        defaultStart
+      );
+
+      if (!startAnswer) {
+        status.textContent = "Measure range selection cancelled.";
+        return;
+      }
+
+      const endAnswer = window.prompt(
+        "Select blocks through which measure?",
+        startAnswer
+      );
+
+      if (!endAnswer) {
+        status.textContent = "Measure range selection cancelled.";
+        return;
+      }
+
+      const startMeasure = Math.max(1, Math.round(Number(startAnswer)));
+      const endMeasure = Math.max(startMeasure, Math.round(Number(endAnswer)));
+
+      if (!Number.isFinite(startMeasure) || !Number.isFinite(endMeasure)) {
+        status.textContent = "Measure range selection cancelled.";
+        return;
+      }
+
+      const scopeAnswer = window.prompt(
+        "Select measure range from:\n\n" +
+        "A = All Tracks\n" +
+        "S = Selected Track only\n" +
+        "C = Cancel",
+        "A"
+      );
+
+      if (!scopeAnswer) {
+        status.textContent = "Measure range selection cancelled.";
+        return;
+      }
+
+      const normalizedScope = scopeAnswer.trim().toLowerCase();
+      let scope = "all";
+
+      if (normalizedScope === "a" || normalizedScope === "all" || normalizedScope === "all tracks") {
+        scope = "all";
+      } else if (normalizedScope === "s" || normalizedScope === "selected" || normalizedScope === "selected track") {
+        scope = "selected";
+      } else {
+        status.textContent = "Measure range selection cancelled.";
+        return;
+      }
+
+      const selectedLane = project.lanes.find(lane => lane.id === selectedLaneId);
+
+      if (scope === "selected" && !selectedLane) {
+        status.textContent = "Select a track before selecting a track range.";
+        return;
+      }
+
+      const startBeat = (startMeasure - 1) * BEATS_PER_MEASURE;
+      const endBeat = endMeasure * BEATS_PER_MEASURE;
+      const tolerance = 0.0001;
+
+      const matchingBlocks = project.blocks
+        .filter(block => {
+          const blockStart = Number(block.startBeat || 0);
+          const blockEnd = blockStart + Number(block.durationBeats || MIN_DURATION);
+          const overlapsRange =
+            blockStart < endBeat - tolerance &&
+            blockEnd > startBeat + tolerance;
+          const matchesScope =
+            scope === "all" || block.laneId === selectedLane.id;
+
+          return overlapsRange && matchesScope;
+        })
+        .sort((a, b) => {
+          if (Number(a.startBeat || 0) !== Number(b.startBeat || 0)) {
+            return Number(a.startBeat || 0) - Number(b.startBeat || 0);
+          }
+
+          const laneA = project.lanes.findIndex(lane => lane.id === a.laneId);
+          const laneB = project.lanes.findIndex(lane => lane.id === b.laneId);
+
+          if (laneA !== laneB) {
+            return laneA - laneB;
+          }
+
+          return Number(a.midi || 0) - Number(b.midi || 0);
+        });
+
+      if (matchingBlocks.length === 0) {
+        clearBlockSelection();
+        render();
+        status.textContent =
+          "No blocks found from M" +
+          startMeasure +
+          " through M" +
+          endMeasure +
+          (scope === "all" ? " across all tracks." : " in " + selectedLane.name + ".");
+        return;
+      }
+
+      selectedBlockIds = new Set(matchingBlocks.map(block => block.id));
+      selectedBlockId = matchingBlocks[0].id;
+      selectedLaneId = matchingBlocks[0].laneId || selectedLaneId;
+
+      render();
+
+      status.textContent =
+        "Selected " +
+        matchingBlocks.length +
+        " block" +
+        (matchingBlocks.length === 1 ? "" : "s") +
+        " from M" +
+        startMeasure +
+        " through M" +
+        endMeasure +
+        (scope === "all" ? " across all tracks." : " in " + selectedLane.name + ".");
+    }
+
+
     function pasteClipboardAtEnd() {
       if (!blockClipboard || blockClipboard.length === 0) {
         status.textContent = "Copy a block or selection first.";
@@ -2664,6 +2628,53 @@
         (newIds.length === 1 ? "" : "s") +
         " pasted at end.";
     }
+
+    function pasteClipboardAtSelectedMeasure() {
+      if (!blockClipboard || blockClipboard.length === 0) {
+        status.textContent = "Copy a block or selection first.";
+        return;
+      }
+
+      saveHistory();
+
+      const pasteStart = selectedInsertBeat;
+      const newIds = [];
+
+      blockClipboard.forEach(item => {
+        const copy = {
+          ...item,
+          id: createId(item.type === "rest" ? "rest" : "note"),
+          startBeat: snapBeat(pasteStart + Number(item.relativeStartBeat || 0)),
+          source: item.source || "manual",
+          sourceId: item.sourceId || null
+        };
+
+        delete copy.relativeStartBeat;
+
+        project.blocks.push(copy);
+        newIds.push(copy.id);
+      });
+
+      selectedBlockIds = new Set(newIds);
+      selectedBlockId = newIds[0] || null;
+
+      const firstBlock = project.blocks.find(block => block.id === selectedBlockId);
+      if (firstBlock) {
+        selectedLaneId = firstBlock.laneId;
+      }
+
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+      render();
+
+      status.textContent =
+        newIds.length +
+        " copied block" +
+        (newIds.length === 1 ? "" : "s") +
+        " pasted at selected measure M" +
+        getSelectedInsertMeasure() +
+        ".";
+    }
+
 
     function renderLaneInspector() {
       const lane = project.lanes.find(item => item.id === selectedLaneId);
@@ -5431,8 +5442,10 @@
       status.textContent = "Playback stopped.";
     });
     forwardMeasureButton.addEventListener("click", () => jumpPlaybackByMeasures(1));
+    selectMeasureRangeButton.addEventListener("click", selectMeasureRange);
     copySelectionButton.addEventListener("click", copySelectionToClipboard);
     pasteSelectionButton.addEventListener("click", pasteClipboardAtEnd);
+    pasteAtMeasureButton.addEventListener("click", pasteClipboardAtSelectedMeasure);
     clearButton.addEventListener("click", clearProject);
     importChordButton.addEventListener("click", () => importPendingChordFromStorage(false));
     importRecordingButton.addEventListener("click", importRecording);
