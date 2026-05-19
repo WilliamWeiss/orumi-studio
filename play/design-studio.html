@@ -3274,6 +3274,102 @@
       return Math.max(MIN_DURATION, Math.round(Number(value || MIN_DURATION) / gridSize) * gridSize);
     }
 
+    function formatBeatValue(value) {
+      const rounded = Math.round(Number(value || 0) * 1000) / 1000;
+      return Number.isInteger(rounded)
+        ? String(rounded)
+        : rounded.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+    }
+
+    function getQuantizeGridInfo(gridSize) {
+      if (gridSize === 1) {
+        return { label: "quarter notes", answer: "4" };
+      }
+
+      if (gridSize === 0.5) {
+        return { label: "eighth notes", answer: "8" };
+      }
+
+      return { label: "sixteenth notes", answer: "16" };
+    }
+
+    function getSuggestedQuantizeGrid(analysis) {
+      const smallestUsefulValue = Math.min(
+        analysis.smallestDuration || 1,
+        analysis.smallestStartGap || analysis.smallestDuration || 1
+      );
+
+      if (smallestUsefulValue <= 0.25 + 0.0001) {
+        return 0.25;
+      }
+
+      if (smallestUsefulValue <= 0.5 + 0.0001) {
+        return 0.5;
+      }
+
+      return 1;
+    }
+
+    function analyzeQuantizeTargets(blocks) {
+      const durations = blocks
+        .map(block => Number(block.durationBeats || 0))
+        .filter(value => Number.isFinite(value) && value > 0);
+
+      const starts = Array.from(
+        new Set(
+          blocks
+            .map(block => Number(block.startBeat || 0))
+            .filter(value => Number.isFinite(value))
+            .map(value => Math.round(value * 1000) / 1000)
+        )
+      ).sort((a, b) => a - b);
+
+      const startGaps = [];
+
+      for (let index = 1; index < starts.length; index++) {
+        const gap = starts[index] - starts[index - 1];
+
+        if (gap > 0.0001) {
+          startGaps.push(gap);
+        }
+      }
+
+      return {
+        blockCount: blocks.length,
+        smallestDuration: durations.length ? Math.min(...durations) : null,
+        smallestStartGap: startGaps.length ? Math.min(...startGaps) : null
+      };
+    }
+
+    function countQuantizeChanges(blocks, gridSize) {
+      let changedCount = 0;
+      let shortenedCount = 0;
+      let lengthenedCount = 0;
+
+      blocks.forEach(block => {
+        const oldStart = Number(block.startBeat || 0);
+        const oldDuration = Number(block.durationBeats || MIN_DURATION);
+        const newStart = quantizeValue(oldStart, gridSize);
+        const newDuration = quantizeDuration(oldDuration, gridSize);
+
+        if (newStart !== oldStart || newDuration !== oldDuration) {
+          changedCount += 1;
+        }
+
+        if (newDuration < oldDuration) {
+          shortenedCount += 1;
+        } else if (newDuration > oldDuration) {
+          lengthenedCount += 1;
+        }
+      });
+
+      return {
+        changedCount,
+        shortenedCount,
+        lengthenedCount
+      };
+    }
+
     function quantizeCleanTiming() {
       const scopeAnswer = window.prompt(
         "Quantize / clean timing for:\n\n" +
@@ -3298,38 +3394,6 @@
         scope = "selected";
       } else if (normalizedScope === "b" || normalizedScope === "blocks" || normalizedScope === "selected blocks") {
         scope = "blocks";
-      } else {
-        status.textContent = "Quantize cancelled.";
-        return;
-      }
-
-      const gridAnswer = window.prompt(
-        "Snap timing to:\n\n" +
-        "4 = Quarter notes\n" +
-        "8 = Eighth notes\n" +
-        "16 = Sixteenth notes\n" +
-        "C = Cancel",
-        "8"
-      );
-
-      if (!gridAnswer) {
-        status.textContent = "Quantize cancelled.";
-        return;
-      }
-
-      const normalizedGrid = gridAnswer.trim().toLowerCase();
-      let gridSize = null;
-      let gridLabel = "";
-
-      if (normalizedGrid === "4" || normalizedGrid === "q" || normalizedGrid === "quarter" || normalizedGrid === "quarter notes") {
-        gridSize = 1;
-        gridLabel = "quarter notes";
-      } else if (normalizedGrid === "8" || normalizedGrid === "e" || normalizedGrid === "eighth" || normalizedGrid === "eighth notes") {
-        gridSize = 0.5;
-        gridLabel = "eighth notes";
-      } else if (normalizedGrid === "16" || normalizedGrid === "s" || normalizedGrid === "sixteenth" || normalizedGrid === "sixteenth notes") {
-        gridSize = 0.25;
-        gridLabel = "sixteenth notes";
       } else {
         status.textContent = "Quantize cancelled.";
         return;
@@ -3360,9 +3424,78 @@
         return;
       }
 
+      const analysis = analyzeQuantizeTargets(targetBlocks);
+      const suggestedGrid = getSuggestedQuantizeGrid(analysis);
+      const suggestedInfo = getQuantizeGridInfo(suggestedGrid);
+      const quarterPreview = countQuantizeChanges(targetBlocks, 1);
+      const eighthPreview = countQuantizeChanges(targetBlocks, 0.5);
+      const sixteenthPreview = countQuantizeChanges(targetBlocks, 0.25);
+
+      const gridAnswer = window.prompt(
+        "Timing analysis for " + scopeLabel + ":\n\n" +
+        "Blocks analyzed: " + analysis.blockCount + "\n" +
+        "Smallest duration: " + (analysis.smallestDuration === null ? "n/a" : formatBeatValue(analysis.smallestDuration) + " beats") + "\n" +
+        "Smallest start gap: " + (analysis.smallestStartGap === null ? "n/a" : formatBeatValue(analysis.smallestStartGap) + " beats") + "\n\n" +
+        "Recommended grid: " + suggestedInfo.answer + " = " + suggestedInfo.label + "\n\n" +
+        "Preview changes:\n" +
+        "4 = Quarter notes: " + quarterPreview.changedCount + " block" + (quarterPreview.changedCount === 1 ? "" : "s") + " would change\n" +
+        "8 = Eighth notes: " + eighthPreview.changedCount + " block" + (eighthPreview.changedCount === 1 ? "" : "s") + " would change\n" +
+        "16 = Sixteenth notes: " + sixteenthPreview.changedCount + " block" + (sixteenthPreview.changedCount === 1 ? "" : "s") + " would change\n\n" +
+        "Choose grid, or C to cancel:",
+        suggestedInfo.answer
+      );
+
+      if (!gridAnswer) {
+        status.textContent = "Quantize cancelled.";
+        return;
+      }
+
+      const normalizedGrid = gridAnswer.trim().toLowerCase();
+      let gridSize = null;
+      let gridLabel = "";
+
+      if (normalizedGrid === "4" || normalizedGrid === "q" || normalizedGrid === "quarter" || normalizedGrid === "quarter notes") {
+        gridSize = 1;
+        gridLabel = "quarter notes";
+      } else if (normalizedGrid === "8" || normalizedGrid === "e" || normalizedGrid === "eighth" || normalizedGrid === "eighth notes") {
+        gridSize = 0.5;
+        gridLabel = "eighth notes";
+      } else if (normalizedGrid === "16" || normalizedGrid === "s" || normalizedGrid === "sixteenth" || normalizedGrid === "sixteenth notes") {
+        gridSize = 0.25;
+        gridLabel = "sixteenth notes";
+      } else {
+        status.textContent = "Quantize cancelled.";
+        return;
+      }
+
+      const smallestDuration = analysis.smallestDuration || MIN_DURATION;
+      const smallestStartGap = analysis.smallestStartGap || smallestDuration;
+      const smallestRelevantValue = Math.min(smallestDuration, smallestStartGap);
+
+      if (gridSize > smallestRelevantValue + 0.0001) {
+        const warningConfirmed = window.confirm(
+          "Warning: this material contains timing values as small as " +
+          formatBeatValue(smallestRelevantValue) +
+          " beats.\n\n" +
+          "Quantizing to " +
+          gridLabel +
+          " (" +
+          formatBeatValue(gridSize) +
+          " beat grid) may distort the rhythm.\n\n" +
+          "Continue anyway?"
+        );
+
+        if (!warningConfirmed) {
+          status.textContent = "Quantize cancelled after warning.";
+          return;
+        }
+      }
+
       saveHistory();
 
       let changedCount = 0;
+      let shortenedCount = 0;
+      let lengthenedCount = 0;
 
       targetBlocks.forEach(block => {
         const oldStart = Number(block.startBeat || 0);
@@ -3374,6 +3507,12 @@
           block.startBeat = newStart;
           block.durationBeats = newDuration;
           changedCount += 1;
+
+          if (newDuration < oldDuration) {
+            shortenedCount += 1;
+          } else if (newDuration > oldDuration) {
+            lengthenedCount += 1;
+          }
         }
       });
 
@@ -3391,7 +3530,11 @@
         scopeLabel +
         " to " +
         gridLabel +
-        ". Undo is available.";
+        ". " +
+        shortenedCount +
+        " shortened, " +
+        lengthenedCount +
+        " lengthened. Undo is available.";
     }
 
     function importPendingChordFromStorage(autoPrompt = false) {
