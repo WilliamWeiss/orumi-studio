@@ -2257,9 +2257,17 @@
 
       laneInspector.appendChild(voiceSelect);
 
+      const playSelectedLaneButton = document.createElement("button");
+      playSelectedLaneButton.classList.add("control-button");
+      playSelectedLaneButton.style.marginTop = "12px";
+      playSelectedLaneButton.textContent = "▶ Play Selected Lane";
+      playSelectedLaneButton.title = "Play only the currently selected lane / track";
+      playSelectedLaneButton.addEventListener("click", playSelectedLane);
+      laneInspector.appendChild(playSelectedLaneButton);
+
       const duplicateLaneButton = document.createElement("button");
       duplicateLaneButton.classList.add("control-button", "secondary");
-      duplicateLaneButton.style.marginTop = "12px";
+      duplicateLaneButton.style.marginTop = "8px";
       duplicateLaneButton.textContent = "Duplicate Lane";
 
       duplicateLaneButton.addEventListener("click", duplicateSelectedLane);
@@ -4271,11 +4279,13 @@
       activeNotes = [];
     }
 
-    async function playProject() {
-      await ensureAudio();
-      stopPlayback();
+    function playBlocks(blocks, statusMessage, completionMessage) {
+      const playableBlocks = blocks
+        .filter(block => block.type === "note")
+        .slice()
+        .sort((a, b) => a.startBeat - b.startBeat);
 
-      if (project.blocks.length === 0) {
+      if (playableBlocks.length === 0) {
         status.textContent = "Nothing to play yet.";
         return;
       }
@@ -4283,12 +4293,7 @@
       const bpm = project.tempo || 120;
       const secondsPerBeat = 60 / bpm;
 
-      const sorted = project.blocks
-        .filter(block => block.type === "note")
-        .slice()
-        .sort((a, b) => a.startBeat - b.startBeat);
-
-      sorted.forEach(block => {
+      playableBlocks.forEach(block => {
         const startMs = block.startBeat * secondsPerBeat * 1000;
         const durationMs = block.durationBeats * secondsPerBeat * 1000;
 
@@ -4323,14 +4328,57 @@
         playbackTimers.push(timer);
       });
 
+      const playbackEndBeat = Math.max(
+        MIN_DURATION,
+        ...playableBlocks.map(block => Number(block.startBeat || 0) + Number(block.durationBeats || 1))
+      );
+
       const endTimer = setTimeout(() => {
         stopPlayback();
-        status.textContent = "Playback complete.";
-      }, (getProjectLength() * secondsPerBeat + 0.5) * 1000);
+        status.textContent = completionMessage || "Playback complete.";
+      }, (playbackEndBeat * secondsPerBeat + 0.5) * 1000);
 
       playbackTimers.push(endTimer);
 
-      status.textContent = "Playing Design Studio.";
+      status.textContent = statusMessage || "Playing.";
+    }
+
+    async function playProject() {
+      await ensureAudio();
+      stopPlayback();
+
+      if (project.blocks.length === 0) {
+        status.textContent = "Nothing to play yet.";
+        return;
+      }
+
+      playBlocks(project.blocks, "Playing Design Studio.", "Playback complete.");
+    }
+
+    async function playSelectedLane() {
+      await ensureAudio();
+      stopPlayback();
+
+      const lane = project.lanes.find(item => item.id === selectedLaneId);
+
+      if (!lane) {
+        status.textContent = "Select a lane to play.";
+        return;
+      }
+
+      const laneBlocks = project.blocks
+        .filter(block => block.type === "note" && block.laneId === lane.id);
+
+      if (laneBlocks.length === 0) {
+        status.textContent = lane.name + " has no notes to play.";
+        return;
+      }
+
+      playBlocks(
+        laneBlocks,
+        "Playing selected lane: " + lane.name + ".",
+        "Selected lane playback complete: " + lane.name + "."
+      );
     }
 
     function getTimelinePixelWidth() {
