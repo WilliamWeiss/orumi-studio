@@ -249,9 +249,20 @@
       margin-bottom: 4px;
     }
 
+    .ruler-name {
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.02em;
+      cursor: default;
+    }
+
     .ruler-beats {
       position: relative;
       overflow: hidden;
+      cursor: crosshair;
     }
 
     .beat-mark {
@@ -883,7 +894,7 @@
       <button class="menu-trigger" type="button">Select</button>
       <div class="menu-dropdown">
         <button class="control-button secondary" id="setSelectedLocationButton">📍 Set Selected Location</button>
-        <button class="control-button secondary" id="clearSelectedLocationButton">✕ Clear Selected Location</button>
+        <button class="control-button secondary" id="clearSelectedLocationButton">↤ Location to Beginning</button>
         <button class="control-button secondary" id="selectAllButton">☑ Select All</button>
         <button class="control-button secondary" id="selectCurrentLaneButton">☑ Select Current Lane</button>
         <button class="control-button secondary" id="selectMeasureRangeButton">▦ Select Measure Range</button>
@@ -1018,8 +1029,8 @@
         <div class="timeline-shell">
           <div class="timeline" id="timeline">
             <div class="time-ruler">
-              <div></div>
-              <div class="ruler-beats" id="rulerBeats"></div>
+              <div class="ruler-name" title="Click the beat ruler to set the selected location. Click the same location again to return to beginning.">Beat Ruler</div>
+              <div class="ruler-beats" id="rulerBeats" title="Click to set selected location"></div>
             </div>
 
             <div class="playhead" id="playhead"></div>
@@ -1067,7 +1078,7 @@
     let currentProjectId = null;
     let pendingChordChecked = false;
     let blockClipboard = [];
-    let selectedInsertBeat = null;
+    let selectedInsertBeat = 0;
     let playbackState = "stopped";
     let playbackStartTime = 0;
     let playbackStartBeat = 0;
@@ -1785,6 +1796,13 @@
 
     function renderRuler() {
       rulerBeats.innerHTML = "";
+      rulerBeats.onclick = event => {
+        if (event.target && event.target.classList && event.target.classList.contains("measure-label")) {
+          return;
+        }
+
+        setSelectedLocationBeat(beatFromRulerEvent(event), "Selected location");
+      };
 
       const maxBeat = Math.max(12, Math.ceil(getProjectLength()) + 4);
       const maxMeasure = Math.ceil(maxBeat / BEATS_PER_MEASURE) + 1;
@@ -1797,12 +1815,21 @@
           mark.classList.add("measure-start");
         }
 
-        if (hasSelectedLocation() && beat === selectedInsertBeat) {
+        if (Math.abs(beat - selectedInsertBeat) < 0.0001) {
           mark.classList.add("selected-insert");
+          mark.title = "Selected location: " + getSelectedLocationLabel() + ". Click again to return to beginning.";
         }
 
         mark.style.left = beat * BEAT_WIDTH + "px";
         rulerBeats.appendChild(mark);
+      }
+
+      if (!Number.isInteger(selectedInsertBeat)) {
+        const selectedMarker = document.createElement("div");
+        selectedMarker.classList.add("beat-mark", "selected-insert");
+        selectedMarker.style.left = getSelectedLocationBeat() * BEAT_WIDTH + "px";
+        selectedMarker.title = "Selected location: " + getSelectedLocationLabel() + ". Click again to return to beginning.";
+        rulerBeats.appendChild(selectedMarker);
       }
 
       for (let measure = 1; measure <= maxMeasure; measure++) {
@@ -1810,19 +1837,17 @@
         const label = document.createElement("div");
         label.classList.add("beat-label", "measure-label");
 
-        if (hasSelectedLocation() && beat === selectedInsertBeat) {
+        if (Math.abs(beat - selectedInsertBeat) < 0.0001) {
           label.classList.add("selected");
         }
 
         label.textContent = "M" + measure;
-        label.title = "Select insertion point before Measure " + measure;
+        label.title = "Select location at start of Measure " + measure + ". Click again to return to beginning.";
         label.style.left = beat * BEAT_WIDTH + "px";
 
-        label.addEventListener("click", () => {
-          selectedInsertBeat = beat;
-          render();
-          status.textContent =
-            "Insertion point selected: Measure " + measure + ".";
+        label.addEventListener("click", event => {
+          event.stopPropagation();
+          setSelectedLocationBeat(beat, "Selected location");
         });
 
         rulerBeats.appendChild(label);
@@ -1834,26 +1859,29 @@
     }
 
     function getSelectedInsertMeasure() {
-      if (!hasSelectedLocation()) return 1;
-      return Math.floor(selectedInsertBeat / BEATS_PER_MEASURE) + 1;
+      return Math.floor(getSelectedLocationBeat() / BEATS_PER_MEASURE) + 1;
+    }
+
+    function getSelectedLocationBeat() {
+      return Math.max(0, Number.isFinite(selectedInsertBeat) ? selectedInsertBeat : 0);
     }
 
     function getSelectedBeatWithinMeasure() {
-      if (!hasSelectedLocation()) return 1;
+      const safeBeat = getSelectedLocationBeat();
       const measureStart = (getSelectedInsertMeasure() - 1) * BEATS_PER_MEASURE;
-      return (selectedInsertBeat - measureStart) + 1;
+      return (safeBeat - measureStart) + 1;
     }
 
     function getSelectedLocationLabel() {
-      if (!hasSelectedLocation()) {
-        return "none";
+      if (Math.abs(getSelectedLocationBeat()) < 0.0001) {
+        return "beginning";
       }
 
       return "M" + getSelectedInsertMeasure() + " beat " + formatBeatValue(getSelectedBeatWithinMeasure());
     }
 
-    function clearSelectedLocation(message = "Selected location cleared.") {
-      selectedInsertBeat = null;
+    function clearSelectedLocation(message = "Selected location returned to beginning.") {
+      selectedInsertBeat = 0;
       render();
       status.textContent = message;
     }
@@ -1861,8 +1889,8 @@
     function setSelectedLocationBeat(beat, messagePrefix = "Selected location") {
       const nextBeat = snapBeat(Math.max(0, Number(beat || 0)));
 
-      if (hasSelectedLocation() && Math.abs(selectedInsertBeat - nextBeat) < 0.0001) {
-        clearSelectedLocation("Selected location cleared.");
+      if (Math.abs(getSelectedLocationBeat() - nextBeat) < 0.0001) {
+        clearSelectedLocation("Selected location returned to beginning.");
         return;
       }
 
@@ -2794,7 +2822,7 @@
 
       saveHistory();
 
-      const pasteStart = selectedInsertBeat;
+      const pasteStart = getSelectedLocationBeat();
       const newIds = [];
 
       blockClipboard.forEach(item => {
@@ -2881,7 +2909,7 @@
       const minStart = Math.min(
         ...selectedBlocks.map(block => Number(block.startBeat || 0))
       );
-      const deltaBeats = snapBeat(selectedInsertBeat - minStart);
+      const deltaBeats = snapBeat(getSelectedLocationBeat() - minStart);
 
       if (Math.abs(deltaBeats) < 0.0001) {
         status.textContent =
@@ -4024,7 +4052,7 @@
         const appliesToScope =
           scope === "all" || block.laneId === selectedLane.id;
 
-        if (appliesToScope && Number(block.startBeat || 0) >= selectedInsertBeat) {
+        if (appliesToScope && Number(block.startBeat || 0) >= getSelectedLocationBeat()) {
           block.startBeat = snapBeat(Number(block.startBeat || 0) + shiftBeats);
           shiftedCount += 1;
         }
@@ -4465,7 +4493,7 @@
         importMode = "overlay";
       } else if (normalizedAnswer === "n" || normalizedAnswer === "new" || normalizedAnswer === "new track" || normalizedAnswer === "new lane") {
         importMode = "new";
-      } else if (normalizedAnswer === "i" || normalizedAnswer === "insert" || normalizedAnswer === "selected" || normalizedAnswer === "selected measure") {
+      } else if (normalizedAnswer === "i" || normalizedAnswer === "insert" || normalizedAnswer === "selected" || normalizedAnswer === "selected location") {
         importMode = "insert";
       } else if (normalizedAnswer === "a" || normalizedAnswer === "append") {
         importMode = "append";
@@ -4519,7 +4547,7 @@
         importMode === "append" && project.blocks.length > 0
           ? getProjectLength() + 0.5
           : importMode === "insert"
-            ? selectedInsertBeat
+            ? getSelectedLocationBeat()
             : 0;
 
       let newRecordingLanes = [];
@@ -4665,7 +4693,7 @@
 
         if (normalized === "r" || normalized === "replace") {
           mode = "replace";
-        } else if (normalized === "i" || normalized === "insert" || normalized === "selected" || normalized === "selected measure") {
+        } else if (normalized === "i" || normalized === "insert" || normalized === "selected" || normalized === "selected location") {
           mode = "insert";
         } else if (normalized === "a" || normalized === "add") {
           mode = "add";
@@ -4686,7 +4714,7 @@
 
         const normalized = answer.trim().toLowerCase();
 
-        if (normalized === "i" || normalized === "insert" || normalized === "selected" || normalized === "selected measure") {
+        if (normalized === "i" || normalized === "insert" || normalized === "selected" || normalized === "selected location") {
           mode = "insert";
         } else if (normalized === "a" || normalized === "add") {
           mode = "add";
@@ -4705,7 +4733,7 @@
 
       let cursor =
         mode === "insert"
-          ? selectedInsertBeat
+          ? getSelectedLocationBeat()
           : getProjectLength() > 8
             ? getProjectLength() + 0.5
             : 0;
@@ -4817,7 +4845,7 @@
         "N = ＋ New lanes from MIDI tracks\n" +
         "A = ⏭ Append after current design\n" +
         "O = ◫ Overlay at start\n" +
-        "I = 📍 Insert at selected measure\n" +
+        "I = 📍 Insert at selected location\n" +
         "C = Cancel",
         "N"
       );
@@ -4834,7 +4862,7 @@
         importMode = "append";
       } else if (normalized === "o" || normalized === "overlay") {
         importMode = "overlay";
-      } else if (normalized === "i" || normalized === "insert" || normalized === "selected" || normalized === "selected measure") {
+      } else if (normalized === "i" || normalized === "insert" || normalized === "selected" || normalized === "selected location") {
         importMode = "insert";
       } else if (normalized === "n" || normalized === "new" || normalized === "new lanes" || normalized === "new lane") {
         importMode = "new";
@@ -4860,7 +4888,7 @@
         importMode === "append" && project.blocks.length > 0
           ? getProjectLength() + 0.5
           : importMode === "insert"
-            ? selectedInsertBeat
+            ? getSelectedLocationBeat()
             : 0;
 
       const importedLaneIds = [];
@@ -5801,7 +5829,7 @@
       const currentBeat = wasPlaying || playbackState === "paused"
         ? getCurrentPlaybackBeat()
         : hasSelectedLocation()
-          ? selectedInsertBeat
+          ? getSelectedLocationBeat()
           : 0;
       const targetBeat = Math.max(0, snapBeat(currentBeat + direction * BEATS_PER_MEASURE));
 
@@ -5888,7 +5916,7 @@
         return;
       }
 
-      shell.scrollLeft = Math.max(0, (selectedInsertBeat * BEAT_WIDTH) - 60);
+      shell.scrollLeft = Math.max(0, (getSelectedLocationBeat() * BEAT_WIDTH) - 60);
       status.textContent = "Scrolled to selected location " + getSelectedInsertMeasure() + ".";
     }
 
@@ -5934,7 +5962,7 @@
     });
     forwardMeasureButton.addEventListener("click", () => jumpPlaybackByMeasures(1));
     setSelectedLocationButton.addEventListener("click", promptForSelectedLocation);
-    clearSelectedLocationButton.addEventListener("click", () => clearSelectedLocation("Selected location cleared."));
+    clearSelectedLocationButton.addEventListener("click", () => clearSelectedLocation("Selected location returned to beginning."));
     selectAllButton.addEventListener("click", selectAllBlocks);
     selectCurrentLaneButton.addEventListener("click", selectCurrentLaneBlocks);
     selectMeasureRangeButton.addEventListener("click", selectMeasureRange);
