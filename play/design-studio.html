@@ -2505,63 +2505,51 @@
     }
 
 
+    function getDurationOptions() {
+      return [
+        { value: 0.125, notation: "1/32", label: "Thirty-second note" },
+        { value: 0.25, notation: "1/16", label: "Sixteenth note" },
+        { value: 1 / 3, notation: "1/8T", label: "Eighth-note triplet" },
+        { value: 0.5, notation: "1/8", label: "Eighth note" },
+        { value: 2 / 3, notation: "1/4T", label: "Quarter-note triplet" },
+        { value: 0.75, notation: "1/8.", label: "Dotted eighth note" },
+        { value: 1, notation: "1/4", label: "Quarter note" },
+        { value: 1.5, notation: "1/4.", label: "Dotted quarter note" },
+        { value: 2, notation: "1/2", label: "Half note" },
+        { value: 3, notation: "1/2.", label: "Dotted half note" },
+        { value: 4, notation: "1/1", label: "Whole note" },
+        { value: 6, notation: "1/1.", label: "Dotted whole note" },
+        { value: 8, notation: "2/1", label: "Double whole note" }
+      ];
+    }
+
     function getDurationName(beats) {
       const value = Number(beats || 0);
-      const durationNames = [
-        { beats: 0.125, label: "Thirty-second note" },
-        { beats: 0.25, label: "Sixteenth note" },
-        { beats: 1 / 3, label: "Eighth-note triplet" },
-        { beats: 0.5, label: "Eighth note" },
-        { beats: 2 / 3, label: "Quarter-note triplet" },
-        { beats: 0.75, label: "Dotted eighth note" },
-        { beats: 1, label: "Quarter note" },
-        { beats: 1.5, label: "Dotted quarter note" },
-        { beats: 2, label: "Half note" },
-        { beats: 3, label: "Dotted half note" },
-        { beats: 4, label: "Whole note" },
-        { beats: 6, label: "Dotted whole note" },
-        { beats: 8, label: "Double whole note" }
-      ];
+      const match = getDurationOptions().find(item => Math.abs(value - item.value) < 0.015);
 
-      const match = durationNames.find(item => Math.abs(value - item.beats) < 0.015);
-      return match ? match.label : "Custom duration";
+      if (match) {
+        return match.notation + " — " + match.label;
+      }
+
+      return "Custom duration";
     }
 
     function getDurationText(beats) {
-      const value = Math.max(MIN_DURATION, Number(beats || MIN_DURATION));
-      const beatText = formatBeatValue(value) + " beat" + (Math.abs(value - 1) < 0.0001 ? "" : "s");
-      return getDurationName(value) + " · " + beatText;
-    }
-
-    function getDurationOptions() {
-      return [
-        { value: 0.25, label: "Sixteenth note" },
-        { value: 1 / 3, label: "Eighth-note triplet" },
-        { value: 0.5, label: "Eighth note" },
-        { value: 2 / 3, label: "Quarter-note triplet" },
-        { value: 0.75, label: "Dotted eighth note" },
-        { value: 1, label: "Quarter note" },
-        { value: 1.5, label: "Dotted quarter note" },
-        { value: 2, label: "Half note" },
-        { value: 3, label: "Dotted half note" },
-        { value: 4, label: "Whole note" },
-        { value: 6, label: "Dotted whole note" },
-        { value: 8, label: "Double whole note" }
-      ];
+      return getDurationName(Math.max(MIN_DURATION, Number(beats || MIN_DURATION)));
     }
 
     function buildDurationOptions(select, currentBeats) {
       select.innerHTML = "";
       const current = Number(currentBeats || MIN_DURATION);
-      let matched = false;
+      let matchedOption = null;
 
       getDurationOptions().forEach(item => {
         const option = document.createElement("option");
         option.value = String(item.value);
-        option.textContent = item.label + " — " + formatBeatValue(item.value) + " beat" + (Math.abs(item.value - 1) < 0.0001 ? "" : "s");
+        option.textContent = item.notation + " — " + item.label;
 
         if (Math.abs(current - item.value) < 0.015) {
-          matched = true;
+          matchedOption = item;
         }
 
         select.appendChild(option);
@@ -2572,7 +2560,7 @@
       customOption.textContent = "Custom duration";
       select.appendChild(customOption);
 
-      select.value = matched ? String(getDurationOptions().find(item => Math.abs(current - item.value) < 0.015).value) : "custom";
+      select.value = matchedOption ? String(matchedOption.value) : "custom";
     }
 
     function renderBlockInspector() {
@@ -2734,20 +2722,35 @@
       const durationLabel = document.createElement("label");
       durationLabel.textContent = "Duration";
 
-      const durationReadout = document.createElement("div");
-      durationReadout.classList.add("duration-readout");
-      durationReadout.innerHTML =
-        escapeHtml(getDurationName(block.durationBeats)) +
-        "<span class='duration-muted'>" +
-        escapeHtml(formatBeatValue(block.durationBeats) + " beat" + (Math.abs(Number(block.durationBeats || 0) - 1) < 0.0001 ? "" : "s")) +
-        "</span>";
-
       const durationSelect = document.createElement("select");
+      durationSelect.title = "Duration";
       buildDurationOptions(durationSelect, block.durationBeats);
 
       durationSelect.addEventListener("change", () => {
         if (durationSelect.value === "custom") {
-          durationInput.focus();
+          const answer = window.prompt(
+            "Custom duration value:\n\nUse the internal grid value only when a standard note value does not fit.",
+            formatBeatValue(block.durationBeats)
+          );
+
+          if (!answer) {
+            render();
+            return;
+          }
+
+          const customValue = Math.max(MIN_DURATION, Number(answer));
+
+          if (!Number.isFinite(customValue)) {
+            render();
+            status.textContent = "Custom duration cancelled.";
+            return;
+          }
+
+          saveHistory();
+          block.durationBeats = customValue;
+          localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+          render();
+          flashStatus("Duration set to " + getDurationText(block.durationBeats) + ".");
           return;
         }
 
@@ -2758,26 +2761,8 @@
         flashStatus("Duration set to " + getDurationText(block.durationBeats) + ".");
       });
 
-      const durationInput = document.createElement("input");
-      durationInput.classList.add("duration-beats-input");
-      durationInput.type = "number";
-      durationInput.min = "0.125";
-      durationInput.step = "0.001";
-      durationInput.value = formatBeatValue(block.durationBeats);
-      durationInput.title = "Advanced: raw duration in quarter-note beats. Current global time signature: " + getTimeSignatureLabel() + ".";
-
-      durationInput.addEventListener("change", () => {
-        saveHistory();
-        block.durationBeats = Math.max(MIN_DURATION, Number(durationInput.value || 1));
-        localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
-        render();
-        flashStatus("Duration set to " + getDurationText(block.durationBeats) + ".");
-      });
-
       durationWrap.appendChild(durationLabel);
-      durationWrap.appendChild(durationReadout);
       durationWrap.appendChild(durationSelect);
-      durationWrap.appendChild(durationInput);
 
       const velocityWrap = document.createElement("div");
       const velocityLabel = document.createElement("label");
