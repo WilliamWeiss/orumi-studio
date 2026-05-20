@@ -750,6 +750,31 @@
       font-size: 12px;
     }
 
+
+    .duration-readout {
+      margin: 6px 0 7px;
+      padding: 8px 9px;
+      border-radius: 11px;
+      background: rgba(255,255,255,0.08);
+      color: #fff7ea;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.35;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .duration-readout .duration-muted {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .duration-beats-input {
+      margin-top: 7px;
+    }
+
     .c  { background: #ff6b6b; }
     .db { background: linear-gradient(135deg, #ff6b6b, #f7b267); }
     .d  { background: #f7b267; }
@@ -911,7 +936,8 @@
         <button class="control-button secondary" id="redoButton">↷ Redo</button>
         <button class="control-button secondary" id="copySelectionButton">⧉ Copy Selection</button>
         <button class="control-button secondary" id="pasteSelectionButton">⧆ Paste at End</button>
-        <button class="control-button secondary" id="pasteAtMeasureButton">⧆ Paste at Selected Location</button>
+        <button class="control-button secondary" id="pasteAtMeasureButton">📍 Paste at Selected Location</button>
+        <button class="control-button secondary" id="insertPasteAtLocationButton">⤓ Insert Paste at Selected Location</button>
         <button class="control-button secondary" id="moveSelectionButton">⇥ Move Selection to Selected Location</button>
         <button class="control-button danger" id="deleteSelectionButton">🗑 Delete Selection</button>
         <button class="control-button danger" id="clearButton">🗑 Clear Design</button>
@@ -1149,6 +1175,7 @@
     const copySelectionButton = document.getElementById("copySelectionButton");
     const pasteSelectionButton = document.getElementById("pasteSelectionButton");
     const pasteAtMeasureButton = document.getElementById("pasteAtMeasureButton");
+    const insertPasteAtLocationButton = document.getElementById("insertPasteAtLocationButton");
     const moveSelectionButton = document.getElementById("moveSelectionButton");
     const deleteSelectionButton = document.getElementById("deleteSelectionButton");
     const clearButton = document.getElementById("clearButton");
@@ -2360,6 +2387,77 @@
       return card;
     }
 
+
+    function getDurationName(beats) {
+      const value = Number(beats || 0);
+      const durationNames = [
+        { beats: 0.125, label: "Thirty-second note" },
+        { beats: 0.25, label: "Sixteenth note" },
+        { beats: 1 / 3, label: "Eighth-note triplet" },
+        { beats: 0.5, label: "Eighth note" },
+        { beats: 2 / 3, label: "Quarter-note triplet" },
+        { beats: 0.75, label: "Dotted eighth note" },
+        { beats: 1, label: "Quarter note" },
+        { beats: 1.5, label: "Dotted quarter note" },
+        { beats: 2, label: "Half note" },
+        { beats: 3, label: "Dotted half note" },
+        { beats: 4, label: "Whole note" },
+        { beats: 6, label: "Dotted whole note" },
+        { beats: 8, label: "Double whole note" }
+      ];
+
+      const match = durationNames.find(item => Math.abs(value - item.beats) < 0.015);
+      return match ? match.label : "Custom duration";
+    }
+
+    function getDurationText(beats) {
+      const value = Math.max(MIN_DURATION, Number(beats || MIN_DURATION));
+      const beatText = formatBeatValue(value) + " beat" + (Math.abs(value - 1) < 0.0001 ? "" : "s");
+      return getDurationName(value) + " · " + beatText;
+    }
+
+    function getDurationOptions() {
+      return [
+        { value: 0.25, label: "Sixteenth note" },
+        { value: 1 / 3, label: "Eighth-note triplet" },
+        { value: 0.5, label: "Eighth note" },
+        { value: 2 / 3, label: "Quarter-note triplet" },
+        { value: 0.75, label: "Dotted eighth note" },
+        { value: 1, label: "Quarter note" },
+        { value: 1.5, label: "Dotted quarter note" },
+        { value: 2, label: "Half note" },
+        { value: 3, label: "Dotted half note" },
+        { value: 4, label: "Whole note" },
+        { value: 6, label: "Dotted whole note" },
+        { value: 8, label: "Double whole note" }
+      ];
+    }
+
+    function buildDurationOptions(select, currentBeats) {
+      select.innerHTML = "";
+      const current = Number(currentBeats || MIN_DURATION);
+      let matched = false;
+
+      getDurationOptions().forEach(item => {
+        const option = document.createElement("option");
+        option.value = String(item.value);
+        option.textContent = item.label + " — " + formatBeatValue(item.value) + " beat" + (Math.abs(item.value - 1) < 0.0001 ? "" : "s");
+
+        if (Math.abs(current - item.value) < 0.015) {
+          matched = true;
+        }
+
+        select.appendChild(option);
+      });
+
+      const customOption = document.createElement("option");
+      customOption.value = "custom";
+      customOption.textContent = "Custom duration";
+      select.appendChild(customOption);
+
+      select.value = matched ? String(getDurationOptions().find(item => Math.abs(current - item.value) < 0.015).value) : "custom";
+    }
+
     function renderBlockInspector() {
       const block = project.blocks.find(item => item.id === selectedBlockId);
 
@@ -2408,9 +2506,17 @@
         const pasteAtMeasureButton = document.createElement("button");
         pasteAtMeasureButton.classList.add("control-button", "secondary");
         pasteAtMeasureButton.style.marginTop = "8px";
-        pasteAtMeasureButton.textContent = "Paste at Selected Location";
+        pasteAtMeasureButton.textContent = "📍 Paste at Selected Location";
         pasteAtMeasureButton.addEventListener("click", pasteClipboardAtSelectedLocation);
         blockInspector.appendChild(pasteAtMeasureButton);
+
+        const insertPasteButton = document.createElement("button");
+        insertPasteButton.classList.add("control-button", "secondary");
+        insertPasteButton.style.marginTop = "8px";
+        insertPasteButton.textContent = "⤓ Insert Paste at Selected Location";
+        insertPasteButton.title = "Make room at the selected location, then paste the copied phrase.";
+        insertPasteButton.addEventListener("click", insertPasteClipboardAtSelectedLocation);
+        blockInspector.appendChild(insertPasteButton);
 
         const moveSelectionButton = document.createElement("button");
         moveSelectionButton.classList.add("control-button", "secondary");
@@ -2510,20 +2616,50 @@
       const durationWrap = document.createElement("div");
       const durationLabel = document.createElement("label");
       durationLabel.textContent = "Duration";
+
+      const durationReadout = document.createElement("div");
+      durationReadout.classList.add("duration-readout");
+      durationReadout.innerHTML =
+        escapeHtml(getDurationName(block.durationBeats)) +
+        "<span class='duration-muted'>" +
+        escapeHtml(formatBeatValue(block.durationBeats) + " beat" + (Math.abs(Number(block.durationBeats || 0) - 1) < 0.0001 ? "" : "s")) +
+        "</span>";
+
+      const durationSelect = document.createElement("select");
+      buildDurationOptions(durationSelect, block.durationBeats);
+
+      durationSelect.addEventListener("change", () => {
+        if (durationSelect.value === "custom") {
+          durationInput.focus();
+          return;
+        }
+
+        saveHistory();
+        block.durationBeats = Math.max(MIN_DURATION, Number(durationSelect.value || 1));
+        localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+        render();
+        flashStatus("Duration set to " + getDurationText(block.durationBeats) + ".");
+      });
+
       const durationInput = document.createElement("input");
+      durationInput.classList.add("duration-beats-input");
       durationInput.type = "number";
-      durationInput.min = "0.25";
-      durationInput.step = "0.25";
-      durationInput.value = block.durationBeats;
+      durationInput.min = "0.125";
+      durationInput.step = "0.001";
+      durationInput.value = formatBeatValue(block.durationBeats);
+      durationInput.title = "Advanced: raw duration in beats. In the current 4/4 grid, 1 beat equals a quarter note.";
 
       durationInput.addEventListener("change", () => {
         saveHistory();
         block.durationBeats = Math.max(MIN_DURATION, Number(durationInput.value || 1));
         localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
         render();
+        flashStatus("Duration set to " + getDurationText(block.durationBeats) + ".");
       });
 
       durationWrap.appendChild(durationLabel);
+      durationWrap.appendChild(durationReadout);
+      durationWrap.appendChild(durationSelect);
       durationWrap.appendChild(durationInput);
 
       const velocityWrap = document.createElement("div");
@@ -2858,6 +2994,150 @@
         " pasted at selected location " +
         getSelectedLocationLabel() +
         ".";
+    }
+
+    function getClipboardPhraseLength() {
+      if (!blockClipboard || blockClipboard.length === 0) {
+        return 0;
+      }
+
+      const phraseEnd = Math.max(
+        ...blockClipboard.map(item =>
+          Number(item.relativeStartBeat || 0) + Number(item.durationBeats || MIN_DURATION)
+        )
+      );
+
+      return Math.max(MIN_DURATION, snapBeat(phraseEnd));
+    }
+
+    function insertPasteClipboardAtSelectedLocation() {
+      if (!blockClipboard || blockClipboard.length === 0) {
+        status.textContent = "Copy a block or selection first.";
+        return;
+      }
+
+      if (!hasSelectedLocation()) {
+        status.textContent = "Set a selected location first.";
+        return;
+      }
+
+      const phraseLength = getClipboardPhraseLength();
+
+      if (phraseLength <= 0) {
+        status.textContent = "Copied phrase has no usable length.";
+        return;
+      }
+
+      const scopeAnswer = window.prompt(
+        "Insert paste how?\n\n" +
+        "A = Make room across all tracks\n" +
+        "S = Make room in selected track only\n" +
+        "C = Cancel",
+        "A"
+      );
+
+      if (!scopeAnswer) {
+        status.textContent = "Insert paste cancelled.";
+        return;
+      }
+
+      const normalizedScope = scopeAnswer.trim().toLowerCase();
+      let scope = "all";
+
+      if (normalizedScope === "a" || normalizedScope === "all" || normalizedScope === "all tracks") {
+        scope = "all";
+      } else if (normalizedScope === "s" || normalizedScope === "selected" || normalizedScope === "selected track" || normalizedScope === "selected lane") {
+        scope = "selected";
+      } else {
+        status.textContent = "Insert paste cancelled.";
+        return;
+      }
+
+      const selectedLane = project.lanes.find(lane => lane.id === selectedLaneId) || project.lanes[0];
+
+      if (scope === "selected" && !selectedLane) {
+        status.textContent = "Select a track before using selected-track insert paste.";
+        return;
+      }
+
+      const locationBeat = getSelectedLocationBeat();
+      const locationLabel = getSelectedLocationLabel();
+
+      const confirmed = window.confirm(
+        "Insert paste at " +
+        locationLabel +
+        "?\n\n" +
+        "Copied phrase length: " +
+        formatBeatValue(phraseLength) +
+        " beats.\n" +
+        "Existing blocks at or after this point will shift right " +
+        (scope === "all" ? "across all tracks." : "in " + selectedLane.name + " only.") +
+        "\n\nUndo will be available."
+      );
+
+      if (!confirmed) {
+        status.textContent = "Insert paste cancelled.";
+        return;
+      }
+
+      saveHistory();
+
+      let shiftedCount = 0;
+
+      project.blocks.forEach(block => {
+        const appliesToScope =
+          scope === "all" || block.laneId === selectedLane.id;
+
+        if (appliesToScope && Number(block.startBeat || 0) >= locationBeat) {
+          block.startBeat = snapBeat(Number(block.startBeat || 0) + phraseLength);
+          shiftedCount += 1;
+        }
+      });
+
+      const newIds = [];
+
+      blockClipboard.forEach(item => {
+        const copy = {
+          ...item,
+          id: createId(item.type === "rest" ? "rest" : "note"),
+          startBeat: snapBeat(locationBeat + Number(item.relativeStartBeat || 0)),
+          source: item.source || "manual",
+          sourceId: item.sourceId || null
+        };
+
+        delete copy.relativeStartBeat;
+
+        project.blocks.push(copy);
+        newIds.push(copy.id);
+      });
+
+      selectedBlockIds = new Set(newIds);
+      selectedBlockId = newIds[0] || null;
+
+      const firstBlock = project.blocks.find(block => block.id === selectedBlockId);
+      if (firstBlock) {
+        selectedLaneId = firstBlock.laneId;
+      }
+
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+      render();
+
+      status.textContent =
+        "Inserted " +
+        newIds.length +
+        " copied block" +
+        (newIds.length === 1 ? "" : "s") +
+        " at " +
+        locationLabel +
+        ", making " +
+        formatBeatValue(phraseLength) +
+        " beat" +
+        (Math.abs(phraseLength - 1) < 0.0001 ? "" : "s") +
+        " of space. Shifted " +
+        shiftedCount +
+        " later block" +
+        (shiftedCount === 1 ? "" : "s") +
+        ". Undo is available.";
     }
 
     function deleteSelectedBlocks() {
@@ -3880,7 +4160,7 @@
 
       render();
       status.textContent =
-        "Duration: " + block.durationBeats.toFixed(2) + " beats";
+        "Duration: " + getDurationText(block.durationBeats);
     }
 
     function finishResize() {
@@ -5972,6 +6252,7 @@
     copySelectionButton.addEventListener("click", copySelectionToClipboard);
     pasteSelectionButton.addEventListener("click", pasteClipboardAtEnd);
     pasteAtMeasureButton.addEventListener("click", pasteClipboardAtSelectedLocation);
+    insertPasteAtLocationButton.addEventListener("click", insertPasteClipboardAtSelectedLocation);
     moveSelectionButton.addEventListener("click", moveSelectionToSelectedLocation);
     deleteSelectionButton.addEventListener("click", deleteSelectedBlocks);
     clearButton.addEventListener("click", clearProject);
