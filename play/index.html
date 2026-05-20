@@ -147,8 +147,12 @@
       const scaleMode = encodeURIComponent(system.defaultMode);
       const setView = encodeURIComponent(system.defaultSet || "native");
 
+      const defaultOctaves = (system.defaultOctaves || [3,4,5])
+        .map(Number)
+        .filter(octave => octave >= 3 && octave <= 5);
+
       const octaves = encodeURIComponent(
-        (system.defaultOctaves || [2,3,4,5]).join(",")
+        (defaultOctaves.length ? defaultOctaves : [3,4,5]).join(",")
       );
 
       const voice = encodeURIComponent(system.defaultVoice || "warm");
