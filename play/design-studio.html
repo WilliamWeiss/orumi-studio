@@ -1211,6 +1211,45 @@
     const voices = ORUMI_CATALOG.voices;
     const systems = ORUMI_CATALOG.systems;
 
+    registerOrumiVoiceCatalog();
+
+    function registerOrumiVoiceCatalog() {
+      if (!ORUMI_CATALOG || !ORUMI_CATALOG.voices) {
+        return;
+      }
+
+      const standardizedVoices = {
+        orumiVocalAh: { label: "Orumi Vocal Ah" },
+        orumiVocalOo: { label: "Orumi Vocal Oo" },
+        orumiVocalHum: { label: "Orumi Vocal Hum" },
+        orumiChoir: { label: "Orumi Choir" },
+        orumiLeadVoice: { label: "Orumi Lead Voice" },
+        orumiBassVoice: { label: "Orumi Bass Voice" },
+        orumiWarmPad: { label: "Orumi Warm Pad" },
+        orumiKeys: { label: "Orumi Keys" },
+        orumiPiano: { label: "Orumi Piano" },
+        orumiOrgan: { label: "Orumi Organ" },
+        orumiBell: { label: "Orumi Bell" },
+        orumiPluck: { label: "Orumi Pluck" },
+        orumiPure: { label: "Orumi Pure Tone" },
+
+        softKeys: ORUMI_CATALOG.voices.softKeys || { label: "Soft Keys" },
+        piano: ORUMI_CATALOG.voices.piano || { label: "Piano" },
+        organ: ORUMI_CATALOG.voices.organ || { label: "Organ" },
+        bell: ORUMI_CATALOG.voices.bell || { label: "Bell" },
+        choir: ORUMI_CATALOG.voices.choir || { label: "Choir" },
+        synth: ORUMI_CATALOG.voices.synth || { label: "Synth Pad" },
+        pure: ORUMI_CATALOG.voices.pure || { label: "Pure Tone" }
+      };
+
+      Object.entries(standardizedVoices).forEach(([key, voice]) => {
+        ORUMI_CATALOG.voices[key] = {
+          ...voice,
+          label: voice.label || key
+        };
+      });
+    }
+
     let project = createDefaultProject();
 
     backButton.addEventListener("click", () => {
@@ -1232,14 +1271,14 @@
           mode: "ionian",
           set: "full",
           timeSignature: { numerator: 4, denominator: 4 },
-          voice: "softKeys",
+          voice: "orumiVocalAh",
           paletteOctave: 4
         },
         lanes: [
-          { id: "tenor", name: "Tenor", role: "upper harmony", voice: "softKeys" },
-          { id: "lead", name: "Lead", role: "melody", voice: "softKeys" },
-          { id: "baritone", name: "Baritone", role: "inner harmony", voice: "softKeys" },
-          { id: "bass", name: "Bass", role: "foundation", voice: "organ" }
+          { id: "tenor", name: "Tenor", role: "upper harmony", voice: "orumiVocalOo" },
+          { id: "lead", name: "Lead", role: "melody", voice: "orumiLeadVoice" },
+          { id: "baritone", name: "Baritone", role: "inner harmony", voice: "orumiVocalAh" },
+          { id: "bass", name: "Bass", role: "foundation", voice: "orumiBassVoice" }
         ],
         blocks: []
       };
@@ -1667,7 +1706,7 @@
       project.context.voice =
         voices[project.context.voice]
           ? project.context.voice
-          : "softKeys";
+          : "orumiVocalAh";
 
       project.context.paletteOctave = Math.max(
         1,
@@ -5871,7 +5910,7 @@
         return project.context.voice;
       }
 
-      return "softKeys";
+      return voices.orumiVocalAh ? "orumiVocalAh" : "softKeys";
     }
 
     async function ensureAudio() {
