@@ -205,6 +205,11 @@
     }
 
 
+    .control-button.tool-action-unavailable {
+      display: none !important;
+    }
+
+
     .control-button:active,
     .control-button.button-pressed {
       transform: scale(0.96);
@@ -2205,6 +2210,7 @@
 
       undoButton.disabled = historyStack.length === 0;
       redoButton.disabled = redoStack.length === 0;
+      updateSelectionActionButtons();
     }
 
     function clearBlockSelection() {
@@ -2241,6 +2247,83 @@
       }
 
       return project.blocks.filter(block => ids.has(block.id));
+    }
+
+    function getSelectionActionState(blocks = getSelectedBlocks()) {
+      const playableBlocks = blocks
+        .filter(block => block && (block.type === "note" || block.type === "rest"));
+
+      const noteBlocks = playableBlocks
+        .filter(block => block.type === "note" && Number.isFinite(block.midi));
+
+      const laneIds = [...new Set(playableBlocks.map(block => block.laneId))];
+      const noteLaneIds = [...new Set(noteBlocks.map(block => block.laneId))];
+
+      const starts = noteBlocks.map(block => Number(block.startBeat || 0));
+      const ends = noteBlocks.map(block => Number(block.startBeat || 0) + Number(block.durationBeats || MIN_DURATION));
+      const maxStart = starts.length ? Math.max(...starts) : 0;
+      const minEnd = ends.length ? Math.min(...ends) : 0;
+      const hasCommonOverlap = noteBlocks.length >= 2 && maxStart < minEnd - 0.0001;
+
+      const uniqueStarts = [...new Set(playableBlocks.map(block => Number(block.startBeat || 0).toFixed(4)))];
+      const uniqueNoteStarts = [...new Set(noteBlocks.map(block => Number(block.startBeat || 0).toFixed(4)))];
+      const allNotesStartTogether = noteBlocks.length >= 2 && uniqueNoteStarts.length === 1;
+      const canEditInPlayer = playableBlocks.length >= 1 && laneIds.length === 1;
+      const canEditChord = noteBlocks.length >= 2 && noteLaneIds.length > 1 && hasCommonOverlap && allNotesStartTogether;
+
+      let kind = "none";
+      let reason = "Select notes to choose an edit tool.";
+
+      if (canEditChord) {
+        kind = "vertical-chord";
+        reason = "Vertical harmony selected: edit the chord in Chord Factory.";
+      } else if (canEditInPlayer) {
+        kind = playableBlocks.length === 1 ? "single-block" : "horizontal-phrase";
+        reason = playableBlocks.length === 1
+          ? "Single block selected: edit it in Player."
+          : "Horizontal same-lane phrase selected: edit it in Player.";
+      } else if (playableBlocks.length > 0) {
+        kind = "mixed-selection";
+        reason = "Mixed multi-lane selection: select a vertical stack for Chord Factory or a same-lane phrase for Player.";
+      }
+
+      return {
+        kind,
+        reason,
+        playableBlocks,
+        noteBlocks,
+        laneIds,
+        canEditInPlayer,
+        canEditChord,
+        uniqueStarts
+      };
+    }
+
+    function setToolActionAvailability(button, isAvailable, availableTitle, unavailableTitle) {
+      if (!button) return;
+
+      button.disabled = !isAvailable;
+      button.setAttribute("aria-disabled", isAvailable ? "false" : "true");
+      button.title = isAvailable ? availableTitle : unavailableTitle;
+      button.classList.toggle("tool-action-unavailable", !isAvailable);
+    }
+
+    function updateSelectionActionButtons() {
+      const state = getSelectionActionState();
+
+      setToolActionAvailability(
+        replaceSelectedChordButton,
+        state.canEditChord,
+        "Send this vertical chord stack to Chord Factory.",
+        "Hidden unless the selection is a vertical chord stack across lanes."
+      );
+
+      setToolActionAvailability(
+        editSelectionInPlayerButton,
+        state.canEditInPlayer,
+        "Send this same-lane phrase selection to Player.",
+        "Hidden unless the selection is a horizontal phrase within one lane."
+      );
     }
 
     function renderLanes() {
@@ -2595,9 +2678,11 @@
           return Number(a.midi || 0) - Number(b.midi || 0);
         });
 
-      if (selectedBlocks.length < 2) {
-        flashStatus("Select two or more note blocks before editing a chord.");
-        window.alert("Select two or more note blocks first, then choose Edit Selected Chord.");
+      const actionState = getSelectionActionState(selectedBlocks);
+
+      if (!actionState.canEditChord) {
+        flashStatus(actionState.reason);
+        window.alert("Edit Selected Chord is for vertical chord stacks. Select two or more notes that overlap across different lanes.");
         return;
       }
 
@@ -2746,21 +2831,15 @@
 
     function beginEditSelectionInPlayer() {
       const selectedBlocks = getSelectedPhraseBlocksForPlayer();
+      const actionState = getSelectionActionState(selectedBlocks);
 
-      if (selectedBlocks.length === 0) {
-        flashStatus("Select one or more notes in a single lane before editing in Player.");
-        window.alert("Select one or more notes in a single lane first, then choose Edit Selection in Player.");
+      if (!actionState.canEditInPlayer) {
+        flashStatus(actionState.reason);
+        window.alert("Edit Selection in Player is for a horizontal phrase within one lane. Select one or more notes from a single track.");
         return;
       }
 
       const laneIds = [...new Set(selectedBlocks.map(block => block.laneId))];
-
-      if (laneIds.length !== 1) {
-        flashStatus("Player phrase editing currently needs a selection from one lane.");
-        window.alert("For this first Player editing pass, select notes from one lane only.");
-        return;
-      }
-
       const laneId = laneIds[0];
       const lane = project.lanes.find(item => item.id === laneId) || null;
       const minStart = Math.min(...selectedBlocks.map(block => Number(block.startBeat || 0)));
@@ -2938,13 +3017,27 @@
 
         blockInspector.appendChild(createHarmonyCard(selectedBlocks));
 
-        const replaceChordButton = document.createElement("button");
-        replaceChordButton.classList.add("control-button", "secondary");
-        replaceChordButton.style.marginTop = "12px";
-        replaceChordButton.textContent = "✧ Edit Selected Chord";
-        replaceChordButton.title = "Send the selected harmony to Chord Factory for detailed chord editing.";
-        replaceChordButton.addEventListener("click", beginReplaceSelectedChord);
-        blockInspector.appendChild(replaceChordButton);
+        const actionState = getSelectionActionState(selectedBlocks);
+
+        if (actionState.canEditChord) {
+          const replaceChordButton = document.createElement("button");
+          replaceChordButton.classList.add("control-button", "secondary");
+          replaceChordButton.style.marginTop = "12px";
+          replaceChordButton.textContent = "✧ Edit Selected Chord";
+          replaceChordButton.title = "Send this vertical chord stack to Chord Factory for detailed chord editing.";
+          replaceChordButton.addEventListener("click", handleEditSelectedChordClick);
+          blockInspector.appendChild(replaceChordButton);
+        }
+
+        if (actionState.canEditInPlayer) {
+          const editInPlayerButton = document.createElement("button");
+          editInPlayerButton.classList.add("control-button", "secondary");
+          editInPlayerButton.style.marginTop = "12px";
+          editInPlayerButton.textContent = "▶ Edit Selection in Player";
+          editInPlayerButton.title = "Send this same-lane phrase selection to Player for focused playback/editing.";
+          editInPlayerButton.addEventListener("click", handleEditSelectionInPlayerClick);
+          blockInspector.appendChild(editInPlayerButton);
+        }
 
         const copySelectionButton = document.createElement("button");
         copySelectionButton.classList.add("control-button", "secondary");
@@ -2952,14 +3045,6 @@
         copySelectionButton.textContent = "Copy Selection";
         copySelectionButton.addEventListener("click", copySelectionToClipboard);
         blockInspector.appendChild(copySelectionButton);
-
-        const editInPlayerButton = document.createElement("button");
-        editInPlayerButton.classList.add("control-button", "secondary");
-        editInPlayerButton.style.marginTop = "8px";
-        editInPlayerButton.textContent = "▶ Edit Selection in Player";
-        editInPlayerButton.title = "Send this same-lane phrase selection to Player for focused playback/editing.";
-        editInPlayerButton.addEventListener("click", beginEditSelectionInPlayer);
-        blockInspector.appendChild(editInPlayerButton);
 
         const pasteSelectionButton = document.createElement("button");
         pasteSelectionButton.classList.add("control-button", "secondary");
@@ -3182,7 +3267,7 @@
       editInPlayerButton.style.marginTop = "8px";
       editInPlayerButton.textContent = "▶ Edit in Player";
       editInPlayerButton.title = "Send this selected block to Player for focused playback/editing.";
-      editInPlayerButton.addEventListener("click", beginEditSelectionInPlayer);
+      editInPlayerButton.addEventListener("click", handleEditSelectionInPlayerClick);
       blockInspector.appendChild(editInPlayerButton);
 
       const deleteButton = document.createElement("button");
@@ -6753,6 +6838,32 @@
     });
 
 
+    function handleEditSelectionInPlayerClick(event) {
+      const actionState = getSelectionActionState();
+
+      if (!actionState.canEditInPlayer) {
+        event.preventDefault();
+        event.stopPropagation();
+        flashStatus(actionState.reason);
+        return;
+      }
+
+      beginEditSelectionInPlayer();
+    }
+
+    function handleEditSelectedChordClick(event) {
+      const actionState = getSelectionActionState();
+
+      if (!actionState.canEditChord) {
+        event.preventDefault();
+        event.stopPropagation();
+        flashStatus(actionState.reason);
+        return;
+      }
+
+      beginReplaceSelectedChord();
+    }
+
     saveButton.addEventListener("click", () => saveProject(true));
     saveAsButton.addEventListener("click", saveProjectAs);
     loadProjectButton.addEventListener("click", loadProjectPicker);
@@ -6779,8 +6890,8 @@
     analyzePlayheadChordButton.addEventListener("click", analyzePlayheadChord);
     clearSelectionButton.addEventListener("click", clearSelectionAndRender);
     copySelectionButton.addEventListener("click", copySelectionToClipboard);
-    editSelectionInPlayerButton.addEventListener("click", beginEditSelectionInPlayer);
-    replaceSelectedChordButton.addEventListener("click", beginReplaceSelectedChord);
+    editSelectionInPlayerButton.addEventListener("click", handleEditSelectionInPlayerClick);
+    replaceSelectedChordButton.addEventListener("click", handleEditSelectedChordClick);
     pasteSelectionButton.addEventListener("click", pasteClipboardAtEnd);
     pasteAtMeasureButton.addEventListener("click", pasteClipboardAtSelectedLocation);
     insertPasteAtLocationButton.addEventListener("click", insertPasteClipboardAtSelectedLocation);
