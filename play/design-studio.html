@@ -1009,6 +1009,15 @@
           </div>
         </div>
 
+        <label for="timeSignatureSelect">Time Signature</label>
+        <select id="timeSignatureSelect">
+          <option value="4/4">4/4 Common Time</option>
+          <option value="3/4">3/4 Waltz</option>
+          <option value="2/4">2/4 March</option>
+          <option value="6/8">6/8 Compound Duple</option>
+          <option value="custom">Custom...</option>
+        </select>
+
         <label for="projectVoiceSelect">Default Voice</label>
         <select id="projectVoiceSelect"></select>
       </div>
@@ -1123,7 +1132,7 @@
     const MIN_DURATION = 0.25;
     const MAX_HISTORY = 60;
     const DEFAULT_DURATION = 1;
-    const BEATS_PER_MEASURE = 4;
+    const DEFAULT_TIME_SIGNATURE = { numerator: 4, denominator: 4 };
 
     const STORAGE_LIBRARY = "orumiDesignStudioProjects";
     const STORAGE_CURRENT_ID = "orumiDesignStudioCurrentProjectId";
@@ -1145,6 +1154,7 @@
     const modeSelect = document.getElementById("modeSelect");
     const setSelect = document.getElementById("setSelect");
     const tempoInput = document.getElementById("tempoInput");
+    const timeSignatureSelect = document.getElementById("timeSignatureSelect");
     const projectVoiceSelect = document.getElementById("projectVoiceSelect");
 
     const blockInspector = document.getElementById("blockInspector");
@@ -1221,6 +1231,7 @@
           family: "diatonic",
           mode: "ionian",
           set: "full",
+          timeSignature: { numerator: 4, denominator: 4 },
           voice: "softKeys",
           paletteOctave: 4
         },
@@ -1509,6 +1520,112 @@
       status.textContent = "Redid last action.";
     }
 
+    function normalizeTimeSignature(value) {
+      let numerator = DEFAULT_TIME_SIGNATURE.numerator;
+      let denominator = DEFAULT_TIME_SIGNATURE.denominator;
+
+      if (typeof value === "string") {
+        const match = value.match(/^(\d+)\/(\d+)$/);
+        if (match) {
+          numerator = Number(match[1]);
+          denominator = Number(match[2]);
+        }
+      } else if (value && typeof value === "object") {
+        numerator = Number(value.numerator || numerator);
+        denominator = Number(value.denominator || denominator);
+      }
+
+      const allowedDenominators = [1, 2, 4, 8, 16, 32];
+      numerator = Math.max(1, Math.min(32, Math.round(numerator || 4)));
+      denominator = allowedDenominators.includes(denominator) ? denominator : 4;
+
+      return { numerator, denominator };
+    }
+
+    function getTimeSignature() {
+      return normalizeTimeSignature(project.context && project.context.timeSignature);
+    }
+
+    function getTimeSignatureLabel() {
+      const signature = getTimeSignature();
+      return signature.numerator + "/" + signature.denominator;
+    }
+
+    function getBeatsPerMeasure() {
+      const signature = getTimeSignature();
+      return (signature.numerator * 4) / signature.denominator;
+    }
+
+    function getMeasureStartBeat(measureNumber) {
+      return Math.max(0, (Math.max(1, Number(measureNumber || 1)) - 1) * getBeatsPerMeasure());
+    }
+
+    function beatToMeasureInfo(beat) {
+      const safeBeat = Math.max(0, Number(beat || 0));
+      const beatsPerMeasure = getBeatsPerMeasure() || 4;
+      const measure = Math.floor(safeBeat / beatsPerMeasure) + 1;
+      const measureStart = getMeasureStartBeat(measure);
+      const beatWithinMeasure = (safeBeat - measureStart) + 1;
+
+      return { measure, beatWithinMeasure, measureStart, beatsPerMeasure };
+    }
+
+    function syncTimeSignatureControl() {
+      if (!timeSignatureSelect) return;
+
+      const label = getTimeSignatureLabel();
+      const builtInValues = ["4/4", "3/4", "2/4", "6/8"];
+      timeSignatureSelect.value = builtInValues.includes(label) ? label : "custom";
+    }
+
+    function handleTimeSignatureChange() {
+      const value = timeSignatureSelect.value;
+      let nextSignature;
+
+      if (value === "custom") {
+        const current = getTimeSignatureLabel();
+        const answer = window.prompt(
+          "Enter global time signature as numerator/denominator, such as 5/4, 5/8, or 7/8:",
+          current
+        );
+
+        if (!answer) {
+          syncTimeSignatureControl();
+          status.textContent = "Time signature change cancelled.";
+          return;
+        }
+
+        const match = answer.trim().match(/^(\d+)\s*\/\s*(\d+)$/);
+        if (!match) {
+          syncTimeSignatureControl();
+          status.textContent = "Time signature change cancelled.";
+          return;
+        }
+
+        nextSignature = normalizeTimeSignature({
+          numerator: Number(match[1]),
+          denominator: Number(match[2])
+        });
+      } else {
+        nextSignature = normalizeTimeSignature(value);
+      }
+
+      const currentSignature = getTimeSignature();
+      if (
+        currentSignature.numerator === nextSignature.numerator &&
+        currentSignature.denominator === nextSignature.denominator
+      ) {
+        syncTimeSignatureControl();
+        return;
+      }
+
+      saveHistory();
+      project.context.timeSignature = nextSignature;
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+      render();
+      flashStatus("Global time signature set to " + getTimeSignatureLabel() + ".");
+    }
+
     function normalizeProject() {
       if (!project.title) {
         project.title = "Untitled Design";
@@ -1544,6 +1661,8 @@
         ["full", "native"].includes(project.context.set)
           ? project.context.set
           : "full";
+
+      project.context.timeSignature = normalizeTimeSignature(project.context.timeSignature);
 
       project.context.voice =
         voices[project.context.voice]
@@ -1696,6 +1815,7 @@
       modeSelect.value = project.context.mode;
       setSelect.value = project.context.set;
       tempoInput.value = project.tempo;
+      syncTimeSignatureControl();
       projectVoiceSelect.value = project.context.voice;
       paletteOctaveSelect.value = project.context.paletteOctave;
     }
@@ -1751,6 +1871,7 @@
       project.context.family = familySelect.value;
       project.context.mode = modeSelect.value;
       project.context.set = setSelect.value;
+      project.context.timeSignature = normalizeTimeSignature(project.context.timeSignature);
       project.context.voice = projectVoiceSelect.value;
       project.context.paletteOctave = Math.max(1, Math.min(6, Number(paletteOctaveSelect.value || 4)));
       project.tempo = Math.max(40, Math.min(240, Number(tempoInput.value || 120)));
@@ -1767,6 +1888,7 @@
     modeSelect.addEventListener("change", handleContextChange);
     setSelect.addEventListener("change", handleContextChange);
     tempoInput.addEventListener("change", handleContextChange);
+    timeSignatureSelect.addEventListener("change", handleTimeSignatureChange);
     projectVoiceSelect.addEventListener("change", handleContextChange);
     paletteOctaveSelect.addEventListener("change", handleContextChange);
 
@@ -1831,36 +1953,25 @@
         setSelectedLocationBeat(beatFromRulerEvent(event), "Selected location");
       };
 
-      const maxBeat = Math.max(12, Math.ceil(getProjectLength()) + 4);
-      const maxMeasure = Math.ceil(maxBeat / BEATS_PER_MEASURE) + 1;
+      const beatsPerMeasure = getBeatsPerMeasure();
+      const maxBeat = Math.max(12, Math.ceil(getProjectLength()) + Math.ceil(beatsPerMeasure));
+      const maxMeasure = Math.ceil(maxBeat / beatsPerMeasure) + 1;
 
       for (let beat = 0; beat <= maxBeat; beat++) {
         const mark = document.createElement("div");
         mark.classList.add("beat-mark");
-
-        if (beat % BEATS_PER_MEASURE === 0) {
-          mark.classList.add("measure-start");
-        }
-
-        if (Math.abs(beat - selectedInsertBeat) < 0.0001) {
-          mark.classList.add("selected-insert");
-          mark.title = "Selected location: " + getSelectedLocationLabel() + ". Click again to return to beginning.";
-        }
-
         mark.style.left = beat * BEAT_WIDTH + "px";
         rulerBeats.appendChild(mark);
       }
 
-      if (!Number.isInteger(selectedInsertBeat)) {
-        const selectedMarker = document.createElement("div");
-        selectedMarker.classList.add("beat-mark", "selected-insert");
-        selectedMarker.style.left = getSelectedLocationBeat() * BEAT_WIDTH + "px";
-        selectedMarker.title = "Selected location: " + getSelectedLocationLabel() + ". Click again to return to beginning.";
-        rulerBeats.appendChild(selectedMarker);
-      }
-
       for (let measure = 1; measure <= maxMeasure; measure++) {
-        const beat = (measure - 1) * BEATS_PER_MEASURE;
+        const beat = getMeasureStartBeat(measure);
+
+        const measureMark = document.createElement("div");
+        measureMark.classList.add("beat-mark", "measure-start");
+        measureMark.style.left = beat * BEAT_WIDTH + "px";
+        rulerBeats.appendChild(measureMark);
+
         const label = document.createElement("div");
         label.classList.add("beat-label", "measure-label");
 
@@ -1879,6 +1990,12 @@
 
         rulerBeats.appendChild(label);
       }
+
+      const selectedMarker = document.createElement("div");
+      selectedMarker.classList.add("beat-mark", "selected-insert");
+      selectedMarker.style.left = getSelectedLocationBeat() * BEAT_WIDTH + "px";
+      selectedMarker.title = "Selected location: " + getSelectedLocationLabel() + ". Click again to return to beginning.";
+      rulerBeats.appendChild(selectedMarker);
     }
 
     function hasSelectedLocation() {
@@ -1886,7 +2003,7 @@
     }
 
     function getSelectedInsertMeasure() {
-      return Math.floor(getSelectedLocationBeat() / BEATS_PER_MEASURE) + 1;
+      return beatToMeasureInfo(getSelectedLocationBeat()).measure;
     }
 
     function getSelectedLocationBeat() {
@@ -1894,9 +2011,7 @@
     }
 
     function getSelectedBeatWithinMeasure() {
-      const safeBeat = getSelectedLocationBeat();
-      const measureStart = (getSelectedInsertMeasure() - 1) * BEATS_PER_MEASURE;
-      return (safeBeat - measureStart) + 1;
+      return beatToMeasureInfo(getSelectedLocationBeat()).beatWithinMeasure;
     }
 
     function getSelectedLocationLabel() {
@@ -1971,7 +2086,7 @@
         return;
       }
 
-      const absoluteBeat = ((measure - 1) * BEATS_PER_MEASURE) + (beatWithinMeasure - 1);
+      const absoluteBeat = getMeasureStartBeat(measure) + (beatWithinMeasure - 1);
       setSelectedLocationBeat(absoluteBeat, "Selected location set");
     }
 
@@ -2008,6 +2123,8 @@
         project.context.root +
         " · " +
         getCurrentMode().label +
+        " · " +
+        getTimeSignatureLabel() +
         " · " +
         (project.context.set === "full" ? "Full Palette" : "Native Palette") +
         " · Location: " +
@@ -2647,7 +2764,7 @@
       durationInput.min = "0.125";
       durationInput.step = "0.001";
       durationInput.value = formatBeatValue(block.durationBeats);
-      durationInput.title = "Advanced: raw duration in beats. In the current 4/4 grid, 1 beat equals a quarter note.";
+      durationInput.title = "Advanced: raw duration in quarter-note beats. Current global time signature: " + getTimeSignatureLabel() + ".";
 
       durationInput.addEventListener("change", () => {
         saveHistory();
@@ -2844,8 +2961,8 @@
         return;
       }
 
-      const startBeat = (startMeasure - 1) * BEATS_PER_MEASURE;
-      const endBeat = endMeasure * BEATS_PER_MEASURE;
+      const startBeat = getMeasureStartBeat(startMeasure);
+      const endBeat = getMeasureStartBeat(endMeasure + 1);
       const tolerance = 0.0001;
 
       const matchingBlocks = project.blocks
@@ -3380,18 +3497,16 @@
       }
 
       const beat = Number(block.startBeat || 0);
-      const measure = Math.floor(beat / BEATS_PER_MEASURE) + 1;
-      const beatWithinMeasure = (beat - ((measure - 1) * BEATS_PER_MEASURE)) + 1;
+      const location = beatToMeasureInfo(beat);
 
-      selectStackAtBeat(beat, "M" + measure + " beat " + formatBeatValue(beatWithinMeasure));
+      selectStackAtBeat(beat, "M" + location.measure + " beat " + formatBeatValue(location.beatWithinMeasure));
     }
 
     function analyzePlayheadChord() {
       const beat = snapBeat(getCurrentPlaybackBeat());
-      const measure = Math.floor(beat / BEATS_PER_MEASURE) + 1;
-      const beatWithinMeasure = (beat - ((measure - 1) * BEATS_PER_MEASURE)) + 1;
+      const location = beatToMeasureInfo(beat);
 
-      selectStackAtBeat(beat, "playhead M" + measure + " beat " + formatBeatValue(beatWithinMeasure));
+      selectStackAtBeat(beat, "playhead M" + location.measure + " beat " + formatBeatValue(location.beatWithinMeasure));
     }
 
     function createInspectorActionButton(label, tone, handler, title = "") {
@@ -4325,7 +4440,7 @@
 
       saveHistory();
 
-      const shiftBeats = measureCount * BEATS_PER_MEASURE;
+      const shiftBeats = measureCount * getBeatsPerMeasure();
       let shiftedCount = 0;
 
       project.blocks.forEach(block => {
@@ -4924,7 +5039,7 @@
           : importMode === "overlay"
             ? " at the start"
             : importMode === "insert"
-              ? " at selected location " + getSelectedInsertMeasure()
+              ? " at selected location " + getSelectedLocationLabel()
               : " into " + newRecordingLanes.length + " new " + (newRecordingLanes.length === 1 ? "lane" : "lanes");
 
       status.textContent =
@@ -5077,7 +5192,7 @@
         mode === "replace"
           ? "Previous progression import replaced."
           : mode === "insert"
-            ? "Progression inserted at selected location " + getSelectedInsertMeasure() + "."
+            ? "Progression inserted at selected location " + getSelectedLocationLabel() + "."
             : "Progression imported as editable note blocks.";
     }
 
@@ -5521,7 +5636,7 @@
       const bpm = Math.max(40, Math.min(240, Number(project.tempo || 120)));
       const tracks = [];
 
-      tracks.push(createConductorTrack(bpm));
+      tracks.push(createConductorTrack(bpm, getTimeSignature()));
 
       project.lanes.forEach((lane, laneIndex) => {
         const laneBlocks = noteBlocks
@@ -5580,9 +5695,11 @@
       status.textContent = "MIDI exported: " + link.download;
     }
 
-    function createConductorTrack(bpm) {
+    function createConductorTrack(bpm, timeSignature) {
       const track = [];
       const microsPerQuarter = Math.round(60000000 / bpm);
+      const signature = normalizeTimeSignature(timeSignature);
+      const denominatorPower = Math.max(0, Math.round(Math.log2(signature.denominator)));
 
       writeVarLength(track, 0);
       track.push(0xff, 0x03);
@@ -5598,7 +5715,7 @@
       );
 
       writeVarLength(track, 0);
-      track.push(0xff, 0x58, 0x04, 0x04, 0x02, 0x18, 0x08);
+      track.push(0xff, 0x58, 0x04, signature.numerator & 0xff, denominatorPower & 0xff, 0x18, 0x08);
 
       writeVarLength(track, 0);
       track.push(0xff, 0x2f, 0x00);
@@ -6101,7 +6218,8 @@
       playbackState = "paused";
       showPlayheadAtBeat(pausedBeat);
       keepBeatInView(pausedBeat);
-      status.textContent = "Paused at M" + (Math.floor(pausedBeat / BEATS_PER_MEASURE) + 1) + ", beat " + pausedBeat.toFixed(2) + ".";
+      const location = beatToMeasureInfo(pausedBeat);
+      status.textContent = "Paused at M" + location.measure + ", beat " + formatBeatValue(location.beatWithinMeasure) + ".";
     }
 
     async function jumpPlaybackByMeasures(direction) {
@@ -6111,7 +6229,7 @@
         : hasSelectedLocation()
           ? getSelectedLocationBeat()
           : 0;
-      const targetBeat = Math.max(0, snapBeat(currentBeat + direction * BEATS_PER_MEASURE));
+      const targetBeat = Math.max(0, snapBeat(currentBeat + direction * getBeatsPerMeasure()));
 
       pausedBeat = targetBeat;
       showPlayheadAtBeat(pausedBeat);
@@ -6122,7 +6240,7 @@
         stopPlayback({ reset: false });
         playBlocks(
           currentPlaybackBlocks,
-          "Playing from M" + (Math.floor(pausedBeat / BEATS_PER_MEASURE) + 1) + ".",
+          "Playing from M" + beatToMeasureInfo(pausedBeat).measure + ".",
           currentPlaybackCompletionMessage,
           pausedBeat
         );
@@ -6133,7 +6251,7 @@
         status.textContent =
           (direction < 0 ? "Moved back" : "Moved forward") +
           " to M" +
-          (Math.floor(pausedBeat / BEATS_PER_MEASURE) + 1) +
+          beatToMeasureInfo(pausedBeat).measure +
           ". Press Play to continue from here.";
       }
     }
@@ -6197,7 +6315,7 @@
       }
 
       shell.scrollLeft = Math.max(0, (getSelectedLocationBeat() * BEAT_WIDTH) - 60);
-      status.textContent = "Scrolled to selected location " + getSelectedInsertMeasure() + ".";
+      status.textContent = "Scrolled to selected location " + getSelectedLocationLabel() + ".";
     }
 
     function resetView() {
