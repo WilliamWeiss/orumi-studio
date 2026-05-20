@@ -204,6 +204,33 @@
       cursor: default;
     }
 
+
+    .control-button:active,
+    .control-button.button-pressed {
+      transform: scale(0.96);
+      filter: brightness(1.14);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.32);
+    }
+
+    .status.status-pulse {
+      animation: statusPulse 0.55s ease;
+    }
+
+    @keyframes statusPulse {
+      0% {
+        color: #fff;
+        text-shadow: 0 0 0 rgba(255,255,255,0);
+      }
+      40% {
+        color: #fff7ea;
+        text-shadow: 0 0 18px rgba(255,255,255,0.78);
+      }
+      100% {
+        color: var(--muted);
+        text-shadow: 0 0 0 rgba(255,255,255,0);
+      }
+    }
+
     .status {
       color: var(--muted);
       text-align: center;
@@ -935,6 +962,7 @@
         <button class="control-button secondary" id="undoButton">↶ Undo</button>
         <button class="control-button secondary" id="redoButton">↷ Redo</button>
         <button class="control-button secondary" id="copySelectionButton">⧉ Copy Selection</button>
+        <button class="control-button secondary" id="replaceSelectedChordButton">✧ Edit Selected Chord</button>
         <button class="control-button secondary" id="pasteSelectionButton">⧆ Paste at End</button>
         <button class="control-button secondary" id="pasteAtMeasureButton">📍 Paste at Selected Location</button>
         <button class="control-button secondary" id="insertPasteAtLocationButton">⤓ Insert Paste at Selected Location</button>
@@ -1183,6 +1211,7 @@
     const analyzePlayheadChordButton = document.getElementById("analyzePlayheadChordButton");
     const clearSelectionButton = document.getElementById("clearSelectionButton");
     const copySelectionButton = document.getElementById("copySelectionButton");
+    const replaceSelectedChordButton = document.getElementById("replaceSelectedChordButton");
     const pasteSelectionButton = document.getElementById("pasteSelectionButton");
     const pasteAtMeasureButton = document.getElementById("pasteAtMeasureButton");
     const insertPasteAtLocationButton = document.getElementById("insertPasteAtLocationButton");
@@ -2544,6 +2573,118 @@
     }
 
 
+
+
+    function beginReplaceSelectedChord() {
+      const selectedBlocks = getSelectedBlocks()
+        .filter(block => block.type === "note" && Number.isFinite(block.midi))
+        .slice()
+        .sort((a, b) => {
+          const startA = Number(a.startBeat || 0);
+          const startB = Number(b.startBeat || 0);
+
+          if (startA !== startB) return startA - startB;
+
+          const laneA = project.lanes.findIndex(lane => lane.id === a.laneId);
+          const laneB = project.lanes.findIndex(lane => lane.id === b.laneId);
+
+          if (laneA !== laneB) return laneA - laneB;
+
+          return Number(a.midi || 0) - Number(b.midi || 0);
+        });
+
+      if (selectedBlocks.length < 2) {
+        flashStatus("Select two or more note blocks before editing a chord.");
+        window.alert("Select two or more note blocks first, then choose Edit Selected Chord.");
+        return;
+      }
+
+      const analysis = analyzeSelectedHarmony(selectedBlocks);
+      const minStart = Math.min(...selectedBlocks.map(block => Number(block.startBeat || 0)));
+      const maxEnd = Math.max(...selectedBlocks.map(block => Number(block.startBeat || 0) + Number(block.durationBeats || MIN_DURATION)));
+      const location = beatToMeasureInfo(minStart);
+      const returnFile = window.location.pathname.split("/").pop() || "design-studio.html";
+
+      const chordFactoryRequest = {
+        version: 1,
+        source: "design-studio",
+        mode: "editSelectedChord",
+        createdAt: new Date().toISOString(),
+        returnUrl: returnFile,
+        projectId: currentProjectId || null,
+        projectTitle: project.title || "Untitled Design",
+        context: JSON.parse(JSON.stringify(project.context || {})),
+        tempo: project.tempo || 120,
+        selectedBlockIds: selectedBlocks.map(block => block.id),
+        selectedBlocks: selectedBlocks.map(block => {
+          const lane = project.lanes.find(item => item.id === block.laneId);
+
+          return {
+            id: block.id,
+            blockId: block.id,
+            laneId: block.laneId,
+            laneName: lane ? lane.name : block.laneId,
+            laneRole: lane ? lane.role : "part",
+            midi: block.midi,
+            name: block.name || midiToDisplayName(block.midi),
+            note: block.name || midiToDisplayName(block.midi),
+            startBeat: Number(block.startBeat || 0),
+            relativeStartBeat: Number(block.startBeat || 0) - minStart,
+            durationBeats: Number(block.durationBeats || MIN_DURATION),
+            velocity: Number(block.velocity || 82),
+            voice: block.voice || null
+          };
+        }),
+        detectedChord: analysis.chordLabel,
+        chordSymbol: analysis.chordLabel,
+        chordDetail: analysis.detail,
+        pitchClasses: analysis.pitchClassLabel,
+        notesLabel: analysis.notesLabel,
+        startBeat: minStart,
+        durationBeats: Math.max(MIN_DURATION, snapBeat(maxEnd - minStart)),
+        locationLabel: "M" + location.measure + " beat " + formatBeatValue(location.beatWithinMeasure),
+        laneIds: selectedBlocks.map(block => block.laneId),
+        lanes: project.lanes.map(lane => ({
+          id: lane.id,
+          name: lane.name,
+          role: lane.role || "part",
+          voice: lane.voice || null
+        }))
+      };
+
+      normalizeProject();
+
+      localStorage.setItem(
+        STORAGE_LEGACY,
+        JSON.stringify(project)
+      );
+
+      localStorage.setItem(
+        "orumiDesignStudioProjectForChordFactory",
+        JSON.stringify(project)
+      );
+
+      localStorage.setItem(
+        "orumiChordFactoryPayload",
+        JSON.stringify(chordFactoryRequest)
+      );
+
+      localStorage.setItem(
+        "orumiPendingChordFactoryPayload",
+        JSON.stringify(chordFactoryRequest)
+      );
+
+      localStorage.removeItem("orumiPendingChordReplacement");
+      localStorage.removeItem("orumiPendingDesignChordReplacement");
+
+      flashStatus("Opening Chord Factory to edit " + analysis.chordLabel + "…");
+
+      window.setTimeout(() => {
+        window.location.href = "chord-factory.html?mode=editSelectedChord&source=design-studio";
+      }, 220);
+    }
+
+
     function getDurationOptions() {
       return [
         { value: 0.125, notation: "1/32", label: "Thirty-second note" },
@@ -2632,6 +2773,14 @@
         blockInspector.appendChild(info);
 
         blockInspector.appendChild(createHarmonyCard(selectedBlocks));
+
+        const replaceChordButton = document.createElement("button");
+        replaceChordButton.classList.add("control-button", "secondary");
+        replaceChordButton.style.marginTop = "12px";
+        replaceChordButton.textContent = "✧ Edit Selected Chord";
+        replaceChordButton.title = "Send the selected harmony to Chord Factory for detailed chord editing.";
+        replaceChordButton.addEventListener("click", beginReplaceSelectedChord);
+        blockInspector.appendChild(replaceChordButton);
 
         const copySelectionButton = document.createElement("button");
         copySelectionButton.classList.add("control-button", "secondary");
@@ -6366,6 +6515,49 @@
         .replaceAll("'", "&#039;");
     }
 
+
+
+    function flashStatus(message) {
+      status.textContent = message;
+
+      if (status) {
+        status.classList.remove("status-pulse");
+      }
+
+      if (projectStatus) {
+        projectStatus.classList.remove("status-pulse");
+      }
+
+      window.requestAnimationFrame(() => {
+        if (status) {
+          status.classList.add("status-pulse");
+        }
+
+        if (projectStatus) {
+          projectStatus.classList.add("status-pulse");
+        }
+      });
+    }
+
+    document.addEventListener("pointerdown", event => {
+      const button = event.target.closest(".control-button");
+
+      if (!button || button.disabled) {
+        return;
+      }
+
+      button.classList.remove("button-pressed");
+
+      window.requestAnimationFrame(() => {
+        button.classList.add("button-pressed");
+
+        window.setTimeout(() => {
+          button.classList.remove("button-pressed");
+        }, 160);
+      });
+    });
+
+
     saveButton.addEventListener("click", () => saveProject(true));
     saveAsButton.addEventListener("click", saveProjectAs);
     loadProjectButton.addEventListener("click", loadProjectPicker);
@@ -6392,6 +6584,7 @@
     analyzePlayheadChordButton.addEventListener("click", analyzePlayheadChord);
     clearSelectionButton.addEventListener("click", clearSelectionAndRender);
     copySelectionButton.addEventListener("click", copySelectionToClipboard);
+    replaceSelectedChordButton.addEventListener("click", beginReplaceSelectedChord);
     pasteSelectionButton.addEventListener("click", pasteClipboardAtEnd);
     pasteAtMeasureButton.addEventListener("click", pasteClipboardAtSelectedLocation);
     insertPasteAtLocationButton.addEventListener("click", insertPasteClipboardAtSelectedLocation);

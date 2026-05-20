@@ -400,6 +400,11 @@
 
       <div id="chordName">CMv1</div>
 
+      <div
+        id="incomingDesignContext"
+        style="display:none; margin: 0 auto 12px; max-width: 680px; padding: 10px 12px; border-radius: 14px; background: rgba(155,235,215,0.14); border: 1px solid rgba(155,235,215,0.34); color: #dffcf5; font-size: 14px; line-height: 1.35;"
+      ></div>
+
       <div id="noteList">
         Notes: C3 · E3 · G3
       </div>
@@ -551,7 +556,7 @@
       selectedSystemKey = "western";
     }
 
-    const selectedSystem =
+    let selectedSystem =
       systems[selectedSystemKey];
 
     let selectedVoice =
@@ -615,6 +620,17 @@
       "3,4";
 
     let selectedNoteMidis = [];
+    let designEditPayload = null;
+
+    const DESIGN_EDIT_PAYLOAD_KEYS = [
+      "orumiChordFactoryPayload",
+      "orumiPendingChordFactoryPayload",
+      "orumiPendingChordReplacement",
+      "orumiPendingDesignChordReplacement"
+    ];
+
+    const incomingDesignContext =
+      document.getElementById("incomingDesignContext");
 
     const qualities = {
 
@@ -773,6 +789,448 @@
 
       return 12 * (octave + 1) +
         pitchClasses[pc].number;
+    }
+
+    function createDesignId(prefix = "note") {
+      return (
+        prefix +
+        "_" +
+        Date.now().toString(36) +
+        "_" +
+        Math.random().toString(36).slice(2)
+      );
+    }
+
+    function readJsonStorage(key) {
+      try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : null;
+      } catch (error) {
+        console.warn("Could not read " + key, error);
+        return null;
+      }
+    }
+
+    function writeJsonStorage(key, value) {
+      localStorage.setItem(key, JSON.stringify(value));
+    }
+
+    function getDesignEditPayload() {
+      for (const key of DESIGN_EDIT_PAYLOAD_KEYS) {
+        const payload = readJsonStorage(key);
+
+        if (
+          payload &&
+          payload.source === "design-studio" &&
+          Array.isArray(payload.selectedBlocks) &&
+          payload.selectedBlocks.length > 0
+        ) {
+          payload.storageKey = key;
+          return payload;
+        }
+      }
+
+      return null;
+    }
+
+    function midiFromPayloadBlock(block) {
+      if (Number.isFinite(block.midi)) {
+        return Number(block.midi);
+      }
+
+      const noteName =
+        block.name ||
+        block.note ||
+        block.displayName;
+
+      if (noteName) {
+        return noteNameToMidi(String(noteName));
+      }
+
+      return null;
+    }
+
+    function inferRootFromPayload(payload, midis) {
+      const label =
+        String(
+          payload.chordSymbol ||
+          payload.detectedChord ||
+          payload.name ||
+          ""
+        ).trim();
+
+      const match =
+        label.match(/^([A-G](?:b)?)/);
+
+      if (match && pitchClasses[match[1]]) {
+        return match[1];
+      }
+
+      if (midis.length > 0) {
+        return pcToName(midis[0] % 12);
+      }
+
+      return selectedRoot;
+    }
+
+    function inferQualityFromPayload(payload) {
+      const label =
+        String(
+          payload.chordSymbol ||
+          payload.detectedChord ||
+          payload.name ||
+          ""
+        ).trim();
+
+      if (/m7b5|ø/i.test(label)) return "halfDiminished7";
+      if (/dim7/i.test(label)) return "diminished7";
+      if (/dim/i.test(label)) return "diminished";
+      if (/aug/i.test(label)) return "augmented";
+      if (/sus2/i.test(label)) return "sus2";
+      if (/sus4/i.test(label)) return "sus4";
+      if (/maj7|M7/i.test(label)) return "major7";
+      if (/m7/.test(label)) return "minor7";
+      if (/7/.test(label)) return "dominant7";
+      if (/m6/.test(label)) return "minor6";
+      if (/6/.test(label)) return "major6";
+      if (/add9/i.test(label)) return "add9";
+
+      const root = inferRootFromPayload(payload, []);
+      const afterRoot = label.slice(root.length);
+
+      if (/^m(?!aj)/.test(afterRoot)) {
+        return "minor";
+      }
+
+      return "major";
+    }
+
+    function applyDesignEditPayload() {
+      const payload = getDesignEditPayload();
+
+      if (!payload) {
+        return false;
+      }
+
+      const midis =
+        payload.selectedBlocks
+          .map(midiFromPayloadBlock)
+          .filter(midi => Number.isFinite(midi))
+          .map(midi => Number(midi));
+
+      if (midis.length === 0) {
+        return false;
+      }
+
+      designEditPayload = payload;
+
+      const context = payload.context || {};
+
+      if (context.system && systems[context.system]) {
+        selectedSystemKey = context.system;
+        selectedSystem = systems[selectedSystemKey];
+      }
+
+      if (context.root && pitchClasses[context.root]) {
+        selectedKeyRoot = context.root;
+      }
+
+      if (context.family) {
+        selectedFamily = context.family;
+      }
+
+      if (context.mode) {
+        selectedMode = context.mode;
+      }
+
+      if (context.voice && voices[context.voice]) {
+        selectedVoice = context.voice;
+      }
+
+      const firstBlockVoice =
+        payload.selectedBlocks.find(block => block.voice)?.voice;
+
+      if (firstBlockVoice && voices[firstBlockVoice]) {
+        selectedVoice = firstBlockVoice;
+      }
+
+      selectedNoteMidis =
+        [...new Set(midis)]
+          .sort((a, b) => a - b);
+
+      selectedRoot =
+        inferRootFromPayload(payload, selectedNoteMidis);
+
+      if (!pitchClasses[selectedRoot]) {
+        selectedRoot = selectedKeyRoot;
+      }
+
+      selectedQuality =
+        inferQualityFromPayload(payload);
+
+      if (!qualities[selectedQuality]) {
+        selectedQuality = "major";
+      }
+
+      selectedVoicing = 1;
+
+      selectedOctave =
+        Math.floor(selectedNoteMidis[0] / 12) - 1;
+
+      if (![3, 4].includes(selectedOctave)) {
+        selectedOctave = selectedNoteMidis[0] < 60 ? 3 : 4;
+      }
+
+      addDesignButton.textContent =
+        "Apply Changes to Design Studio";
+
+      if (incomingDesignContext) {
+        incomingDesignContext.style.display = "block";
+        incomingDesignContext.textContent =
+          "Editing " +
+          (payload.detectedChord || payload.chordSymbol || "selected chord") +
+          " from Design Studio" +
+          (payload.locationLabel ? " at " + payload.locationLabel : "") +
+          ". Adjust the notes here, then apply changes back to the selected blocks.";
+      }
+
+      factoryStatus.textContent =
+        "Loaded selected Design Studio chord: " +
+        selectedNoteMidis.map(midiToDisplayName).join(" · ");
+
+      return true;
+    }
+
+    function getDesignProjectForEdit() {
+      const directProject =
+        readJsonStorage("orumiDesignStudioProjectForChordFactory");
+
+      if (directProject && Array.isArray(directProject.blocks)) {
+        return {
+          project: directProject,
+          source: "orumiDesignStudioProjectForChordFactory"
+        };
+      }
+
+      const legacyProject =
+        readJsonStorage("orumiDesignStudioProject");
+
+      if (legacyProject && Array.isArray(legacyProject.blocks)) {
+        return {
+          project: legacyProject,
+          source: "orumiDesignStudioProject"
+        };
+      }
+
+      return {
+        project: null,
+        source: null
+      };
+    }
+
+    function getFallbackLaneIdForIndex(project, index, totalNotes) {
+      const preferred =
+        totalNotes <= 3
+          ? ["bass", "baritone", "lead"]
+          : ["bass", "baritone", "lead", "tenor"];
+
+      const preferredId = preferred[index];
+
+      if (
+        preferredId &&
+        project.lanes &&
+        project.lanes.some(lane => lane.id === preferredId)
+      ) {
+        return preferredId;
+      }
+
+      if (project.lanes && project.lanes[index]) {
+        return project.lanes[index].id;
+      }
+
+      if (project.lanes && project.lanes[0]) {
+        return project.lanes[0].id;
+      }
+
+      return "lead";
+    }
+
+    function applyCurrentChordToDesignSelection() {
+      if (
+        !designEditPayload ||
+        !Array.isArray(designEditPayload.selectedBlocks) ||
+        designEditPayload.selectedBlocks.length === 0
+      ) {
+        addCurrentChordToDesignStudioAsNew();
+        return;
+      }
+
+      const projectInfo = getDesignProjectForEdit();
+      const designProject = projectInfo.project;
+
+      if (!designProject || !Array.isArray(designProject.blocks)) {
+        factoryStatus.textContent =
+          "Could not find the Design Studio project to update.";
+        return;
+      }
+
+      const chord =
+        buildCurrentChordObject();
+
+      const currentNotes =
+        getCurrentNotes();
+
+      if (currentNotes.length === 0) {
+        factoryStatus.textContent =
+          "Choose at least one note before applying changes.";
+        return;
+      }
+
+      const selectedIds =
+        new Set(
+          (designEditPayload.selectedBlockIds || designEditPayload.selectedBlocks.map(block => block.id || block.blockId))
+            .filter(Boolean)
+        );
+
+      const originalBlocks =
+        designEditPayload.selectedBlocks
+          .slice()
+          .sort((a, b) => {
+            const startA = Number(a.startBeat || 0);
+            const startB = Number(b.startBeat || 0);
+
+            if (startA !== startB) return startA - startB;
+
+            const laneA = String(a.laneId || "");
+            const laneB = String(b.laneId || "");
+
+            return laneA.localeCompare(laneB);
+          });
+
+      const startBeat =
+        Number.isFinite(designEditPayload.startBeat)
+          ? Number(designEditPayload.startBeat)
+          : Math.min(
+              ...originalBlocks.map(block => Number(block.startBeat || 0))
+            );
+
+      const durationBeats =
+        Number.isFinite(designEditPayload.durationBeats)
+          ? Number(designEditPayload.durationBeats)
+          : Math.max(
+              1,
+              ...originalBlocks.map(block => Number(block.durationBeats || 1))
+            );
+
+      designProject.blocks =
+        designProject.blocks.filter(block => !selectedIds.has(block.id));
+
+      currentNotes.forEach((note, index) => {
+        const original =
+          originalBlocks[index] ||
+          originalBlocks[originalBlocks.length - 1] ||
+          {};
+
+        const laneId =
+          original.laneId ||
+          getFallbackLaneIdForIndex(
+            designProject,
+            index,
+            currentNotes.length
+          );
+
+        designProject.blocks.push({
+          id: original.id || original.blockId || createDesignId("note"),
+          type: "note",
+          laneId,
+          midi: note.midi,
+          name: note.displayName,
+          startBeat:
+            Number.isFinite(original.relativeStartBeat)
+              ? startBeat + Number(original.relativeStartBeat)
+              : startBeat,
+          durationBeats:
+            Number.isFinite(original.durationBeats)
+              ? Number(original.durationBeats)
+              : durationBeats,
+          velocity:
+            Number.isFinite(original.velocity)
+              ? Number(original.velocity)
+              : 86,
+          voice: original.voice || chord.voice || null,
+          system: chord.system || designProject.context?.system || "western",
+          source: "chord-factory-edit",
+          sourceId:
+            designEditPayload.chordId ||
+            designEditPayload.createdAt ||
+            "edited-chord"
+        });
+      });
+
+      designProject.blocks.sort((a, b) => {
+        const startA = Number(a.startBeat || 0);
+        const startB = Number(b.startBeat || 0);
+
+        if (startA !== startB) return startA - startB;
+
+        return String(a.laneId || "").localeCompare(String(b.laneId || ""));
+      });
+
+      writeJsonStorage("orumiDesignStudioProject", designProject);
+      writeJsonStorage("orumiDesignStudioProjectForChordFactory", designProject);
+
+      const currentProjectId =
+        localStorage.getItem("orumiDesignStudioCurrentProjectId");
+
+      const library =
+        readJsonStorage("orumiDesignStudioProjects") || {};
+
+      if (currentProjectId && library[currentProjectId]) {
+        library[currentProjectId].project =
+          JSON.parse(JSON.stringify(designProject));
+        library[currentProjectId].updatedAt =
+          new Date().toISOString();
+        library[currentProjectId].name =
+          designProject.title || library[currentProjectId].name || "Untitled Design";
+
+        writeJsonStorage("orumiDesignStudioProjects", library);
+      }
+
+      writeJsonStorage("orumiPendingDesignChordEdit", {
+        version: 1,
+        source: "chord-factory",
+        appliedAt: new Date().toISOString(),
+        chord,
+        designEditPayload
+      });
+
+      DESIGN_EDIT_PAYLOAD_KEYS.forEach(key => {
+        localStorage.removeItem(key);
+      });
+
+      factoryStatus.textContent =
+        "Applied " +
+        chord.name +
+        " back to Design Studio.";
+
+      window.location.href =
+        designEditPayload.returnUrl || "design-studio.html";
+    }
+
+    function addCurrentChordToDesignStudioAsNew() {
+      const chord =
+        buildCurrentChordObject();
+
+      localStorage.setItem(
+        "orumiPendingDesignChord",
+        JSON.stringify(chord)
+      );
+
+      factoryStatus.textContent =
+        chord.name + " saved for Design Studio.";
+
+      window.location.href =
+        "design-studio.html";
     }
 
     function getChromaticFromRoot(rootName) {
@@ -1300,19 +1758,12 @@
     }
 
     function addCurrentChordToDesignStudio() {
-      const chord =
-        buildCurrentChordObject();
+      if (designEditPayload) {
+        applyCurrentChordToDesignSelection();
+        return;
+      }
 
-      localStorage.setItem(
-        "orumiPendingDesignChord",
-        JSON.stringify(chord)
-      );
-
-      factoryStatus.textContent =
-        chord.name + " saved for Design Studio.";
-
-      window.location.href =
-        "design-studio.html";
+      addCurrentChordToDesignStudioAsNew();
     }
 
     function openProgressionBuilder() {
@@ -1442,7 +1893,10 @@
       stopActiveChord
     );
 
-    loadSelectedNotesFromUrlOrFactory();
+    if (!applyDesignEditPayload()) {
+      loadSelectedNotesFromUrlOrFactory();
+    }
+
     buildAll();
   </script>
 
