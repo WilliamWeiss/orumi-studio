@@ -962,6 +962,7 @@
         <button class="control-button secondary" id="undoButton">↶ Undo</button>
         <button class="control-button secondary" id="redoButton">↷ Redo</button>
         <button class="control-button secondary" id="copySelectionButton">⧉ Copy Selection</button>
+        <button class="control-button secondary" id="editSelectionInPlayerButton">▶ Edit Selection in Player</button>
         <button class="control-button secondary" id="replaceSelectedChordButton">✧ Edit Selected Chord</button>
         <button class="control-button secondary" id="pasteSelectionButton">⧆ Paste at End</button>
         <button class="control-button secondary" id="pasteAtMeasureButton">📍 Paste at Selected Location</button>
@@ -1211,6 +1212,7 @@
     const analyzePlayheadChordButton = document.getElementById("analyzePlayheadChordButton");
     const clearSelectionButton = document.getElementById("clearSelectionButton");
     const copySelectionButton = document.getElementById("copySelectionButton");
+    const editSelectionInPlayerButton = document.getElementById("editSelectionInPlayerButton");
     const replaceSelectedChordButton = document.getElementById("replaceSelectedChordButton");
     const pasteSelectionButton = document.getElementById("pasteSelectionButton");
     const pasteAtMeasureButton = document.getElementById("pasteAtMeasureButton");
@@ -2685,6 +2687,168 @@
     }
 
 
+
+    function getLaneSortIndex(laneId) {
+      const index = project.lanes.findIndex(lane => lane.id === laneId);
+      return index === -1 ? 9999 : index;
+    }
+
+    function persistProjectForExternalTool(projectStorageKey) {
+      normalizeProject();
+
+      const snapshot = JSON.parse(JSON.stringify(project));
+
+      localStorage.setItem(
+        STORAGE_LEGACY,
+        JSON.stringify(snapshot)
+      );
+
+      if (projectStorageKey) {
+        localStorage.setItem(
+          projectStorageKey,
+          JSON.stringify(snapshot)
+        );
+      }
+
+      if (currentProjectId) {
+        const library = getProjectLibrary();
+
+        library[currentProjectId] = {
+          id: currentProjectId,
+          name: project.title || "Untitled Design",
+          updatedAt: new Date().toISOString(),
+          project: snapshot
+        };
+
+        setProjectLibrary(library);
+        saveCurrentProjectId();
+      }
+    }
+
+    function getSelectedPhraseBlocksForPlayer() {
+      return getSelectedBlocks()
+        .filter(block => block && (block.type === "note" || block.type === "rest"))
+        .slice()
+        .sort((a, b) => {
+          const startA = Number(a.startBeat || 0);
+          const startB = Number(b.startBeat || 0);
+
+          if (startA !== startB) return startA - startB;
+
+          const laneA = getLaneSortIndex(a.laneId);
+          const laneB = getLaneSortIndex(b.laneId);
+
+          if (laneA !== laneB) return laneA - laneB;
+
+          return Number(a.midi || 0) - Number(b.midi || 0);
+        });
+    }
+
+    function beginEditSelectionInPlayer() {
+      const selectedBlocks = getSelectedPhraseBlocksForPlayer();
+
+      if (selectedBlocks.length === 0) {
+        flashStatus("Select one or more notes in a single lane before editing in Player.");
+        window.alert("Select one or more notes in a single lane first, then choose Edit Selection in Player.");
+        return;
+      }
+
+      const laneIds = [...new Set(selectedBlocks.map(block => block.laneId))];
+
+      if (laneIds.length !== 1) {
+        flashStatus("Player phrase editing currently needs a selection from one lane.");
+        window.alert("For this first Player editing pass, select notes from one lane only.");
+        return;
+      }
+
+      const laneId = laneIds[0];
+      const lane = project.lanes.find(item => item.id === laneId) || null;
+      const minStart = Math.min(...selectedBlocks.map(block => Number(block.startBeat || 0)));
+      const maxEnd = Math.max(...selectedBlocks.map(block => Number(block.startBeat || 0) + Number(block.durationBeats || MIN_DURATION)));
+      const location = beatToMeasureInfo(minStart);
+      const returnFile = window.location.pathname.split("/").pop() || "design-studio.html";
+
+      const playerEditRequest = {
+        version: 1,
+        source: "design-studio",
+        mode: "editDesignSelection",
+        createdAt: new Date().toISOString(),
+        returnUrl: returnFile,
+        projectId: currentProjectId || null,
+        projectTitle: project.title || "Untitled Design",
+        context: JSON.parse(JSON.stringify(project.context || {})),
+        tempo: project.tempo || 120,
+        timeSignature: getTimeSignature(),
+        selectedBlockIds: selectedBlocks.map(block => block.id),
+        originalBlockIds: selectedBlocks.map(block => block.id),
+        laneId,
+        lane: lane
+          ? {
+              id: lane.id,
+              name: lane.name || lane.id,
+              role: lane.role || "part",
+              voice: lane.voice || project.context.voice || null
+            }
+          : {
+              id: laneId,
+              name: laneId,
+              role: "part",
+              voice: project.context.voice || null
+            },
+        voice: lane?.voice || project.context.voice || null,
+        startBeat: minStart,
+        durationBeats: Math.max(MIN_DURATION, snapBeat(maxEnd - minStart)),
+        endBeat: maxEnd,
+        locationLabel: "M" + location.measure + " beat " + formatBeatValue(location.beatWithinMeasure),
+        blocks: selectedBlocks.map(block => ({
+          id: block.id,
+          blockId: block.id,
+          type: block.type || "note",
+          laneId: block.laneId,
+          midi: Number.isFinite(block.midi) ? block.midi : null,
+          name: block.name || (Number.isFinite(block.midi) ? midiToDisplayName(block.midi) : "Rest"),
+          note: block.name || (Number.isFinite(block.midi) ? midiToDisplayName(block.midi) : "Rest"),
+          startBeat: Number(block.startBeat || 0),
+          relativeStartBeat: Number(block.startBeat || 0) - minStart,
+          durationBeats: Number(block.durationBeats || MIN_DURATION),
+          velocity: Number(block.velocity || 82),
+          voice: block.voice || lane?.voice || project.context.voice || null,
+          system: block.system || project.context.system || "western",
+          source: block.source || null,
+          sourceId: block.sourceId || null
+        }))
+      };
+
+      persistProjectForExternalTool("orumiDesignStudioProjectForPlayer");
+
+      localStorage.setItem(
+        "orumiPlayerEditPayload",
+        JSON.stringify(playerEditRequest)
+      );
+
+      localStorage.setItem(
+        "orumiPendingPlayerEditPayload",
+        JSON.stringify(playerEditRequest)
+      );
+
+      localStorage.removeItem("orumiPlayerReplacementPayload");
+      localStorage.removeItem("orumiPendingPlayerReplacementPayload");
+
+      flashStatus(
+        "Opening Player to edit " +
+        selectedBlocks.length +
+        " block" +
+        (selectedBlocks.length === 1 ? "" : "s") +
+        " from " +
+        (lane?.name || laneId) +
+        "…"
+      );
+
+      window.setTimeout(() => {
+        window.location.href = "player.html?mode=editDesignSelection&source=design-studio";
+      }, 220);
+    }
+
     function getDurationOptions() {
       return [
         { value: 0.125, notation: "1/32", label: "Thirty-second note" },
@@ -2788,6 +2952,14 @@
         copySelectionButton.textContent = "Copy Selection";
         copySelectionButton.addEventListener("click", copySelectionToClipboard);
         blockInspector.appendChild(copySelectionButton);
+
+        const editInPlayerButton = document.createElement("button");
+        editInPlayerButton.classList.add("control-button", "secondary");
+        editInPlayerButton.style.marginTop = "8px";
+        editInPlayerButton.textContent = "▶ Edit Selection in Player";
+        editInPlayerButton.title = "Send this same-lane phrase selection to Player for focused playback/editing.";
+        editInPlayerButton.addEventListener("click", beginEditSelectionInPlayer);
+        blockInspector.appendChild(editInPlayerButton);
 
         const pasteSelectionButton = document.createElement("button");
         pasteSelectionButton.classList.add("control-button", "secondary");
@@ -3004,6 +3176,14 @@
 
       copyButton.addEventListener("click", copySelectedBlock);
       blockInspector.appendChild(copyButton);
+
+      const editInPlayerButton = document.createElement("button");
+      editInPlayerButton.classList.add("control-button", "secondary");
+      editInPlayerButton.style.marginTop = "8px";
+      editInPlayerButton.textContent = "▶ Edit in Player";
+      editInPlayerButton.title = "Send this selected block to Player for focused playback/editing.";
+      editInPlayerButton.addEventListener("click", beginEditSelectionInPlayer);
+      blockInspector.appendChild(editInPlayerButton);
 
       const deleteButton = document.createElement("button");
       deleteButton.classList.add("control-button", "danger");
@@ -3676,6 +3856,21 @@
     }
 
     function analyzePlayheadChord() {
+      const selectedBlock = project.blocks.find(item => item.id === selectedBlockId);
+
+      if (selectedBlock) {
+        const start = Number(selectedBlock.startBeat || 0);
+        const duration = Math.max(MIN_DURATION, Number(selectedBlock.durationBeats || MIN_DURATION));
+        const beat = snapBeat(start + Math.min(duration / 2, 0.25));
+        const location = beatToMeasureInfo(start);
+
+        selectStackAtBeat(
+          beat,
+          "selected block at M" + location.measure + " beat " + formatBeatValue(location.beatWithinMeasure)
+        );
+        return;
+      }
+
       const beat = snapBeat(getCurrentPlaybackBeat());
       const location = beatToMeasureInfo(beat);
 
@@ -6584,6 +6779,7 @@
     analyzePlayheadChordButton.addEventListener("click", analyzePlayheadChord);
     clearSelectionButton.addEventListener("click", clearSelectionAndRender);
     copySelectionButton.addEventListener("click", copySelectionToClipboard);
+    editSelectionInPlayerButton.addEventListener("click", beginEditSelectionInPlayer);
     replaceSelectedChordButton.addEventListener("click", beginReplaceSelectedChord);
     pasteSelectionButton.addEventListener("click", pasteClipboardAtEnd);
     pasteAtMeasureButton.addEventListener("click", pasteClipboardAtSelectedLocation);
