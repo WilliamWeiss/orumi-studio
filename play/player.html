@@ -327,6 +327,405 @@
       filter: brightness(1.45);
     }
 
+
+    body.design-edit-mode {
+      justify-content: flex-start;
+      height: auto;
+      min-height: 100vh;
+      overflow-x: hidden;
+      overflow-y: auto;
+      padding: 24px 18px 56px;
+      box-sizing: border-box;
+      touch-action: manipulation;
+    }
+
+    .design-phrase-panel {
+      width: min(94vw, 980px);
+      margin: 8px 0 12px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.10);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.30);
+      padding: 14px;
+      box-sizing: border-box;
+    }
+
+    .design-phrase-panel[hidden] {
+      display: none;
+    }
+
+    .design-phrase-header {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .design-phrase-title {
+      font-size: 16px;
+      font-weight: 900;
+      color: var(--text-color, white);
+      margin-bottom: 3px;
+      text-align: center;
+    }
+
+    .design-phrase-meta {
+      color: var(--muted-text, #ccc);
+      font-size: 12px;
+      line-height: 1.35;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .design-phrase-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .phrase-action-button {
+      border: none;
+      border-radius: 999px;
+      padding: 10px 13px;
+      font-size: 13px;
+      font-weight: 900;
+      cursor: pointer;
+      background: rgba(255,255,255,0.15);
+      color: var(--text-color, white);
+      font-family: inherit;
+      box-shadow: 0 5px 14px rgba(0,0,0,0.22);
+    }
+
+    .phrase-action-button.primary {
+      background: var(--button-bg, white);
+      color: var(--button-text, black);
+    }
+
+    .phrase-action-button.apply {
+      background: rgba(155,235,215,0.92);
+      color: #102522;
+    }
+
+    .phrase-action-button:hover:not(:disabled),
+    .phrase-action-button:active:not(:disabled) {
+      transform: scale(0.96);
+      filter: brightness(1.12);
+    }
+
+    .phrase-action-button:disabled {
+      opacity: 0.42;
+      cursor: default;
+    }
+
+    .phrase-action-button.history-ready {
+      background: rgba(255,255,255,0.92);
+      color: #111;
+      box-shadow:
+        0 0 18px rgba(255,255,255,0.36),
+        0 5px 14px rgba(0,0,0,0.22);
+    }
+
+    .phrase-timeline-shell {
+      overflow-x: auto;
+      overflow-y: visible;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.045);
+      border: 1px solid rgba(255,255,255,0.10);
+    }
+
+    .phrase-timeline {
+      position: relative;
+      min-width: 640px;
+      padding: 12px 12px 14px;
+      box-sizing: border-box;
+    }
+
+    .phrase-ruler {
+      position: relative;
+      height: 26px;
+      margin-left: 96px;
+      color: var(--muted-text, #ccc);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .phrase-beat-mark {
+      position: absolute;
+      top: 0;
+      width: 1px;
+      height: 24px;
+      background: rgba(255,255,255,0.20);
+    }
+
+    .phrase-beat-label {
+      position: absolute;
+      top: 2px;
+      transform: translateX(5px);
+    }
+
+    .phrase-lane-row {
+      display: grid;
+      grid-template-columns: 96px 1fr;
+      min-height: 86px;
+    }
+
+    .phrase-lane-label {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      border-radius: 14px 0 0 14px;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-right: none;
+      padding: 10px;
+      box-sizing: border-box;
+      font-size: 15px;
+      font-weight: 900;
+      color: var(--text-color, white);
+    }
+
+    .phrase-lane-subtitle {
+      margin-top: 3px;
+      color: var(--muted-text, #ccc);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .phrase-lane-track {
+      position: relative;
+      min-height: 86px;
+      border-radius: 0 14px 14px 0;
+      border: 1px solid rgba(255,255,255,0.12);
+      background:
+        repeating-linear-gradient(
+          to right,
+          rgba(255,255,255,0.08) 0px,
+          rgba(255,255,255,0.08) 1px,
+          transparent 1px,
+          transparent 76px
+        ),
+        rgba(255,255,255,0.04);
+    }
+
+    .phrase-block {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      min-width: 38px;
+      height: 48px;
+      border-radius: 13px;
+      display: grid;
+      place-items: center;
+      color: white;
+      font-size: 14px;
+      font-weight: 900;
+      border: 1px solid rgba(255,255,255,0.14);
+      box-shadow:
+        0 7px 14px rgba(0,0,0,0.40),
+        inset 0 1px 0 rgba(255,255,255,0.20);
+      overflow: hidden;
+      box-sizing: border-box;
+      padding: 0 7px;
+      white-space: nowrap;
+    }
+
+    .phrase-block.playing {
+      outline: 4px solid rgba(255,235,120,0.98);
+      outline-offset: 3px;
+      box-shadow:
+        0 0 34px rgba(255,235,120,0.92),
+        0 7px 14px rgba(0,0,0,0.40);
+      z-index: 10;
+    }
+
+    .phrase-playhead {
+      position: absolute;
+      top: 38px;
+      bottom: 14px;
+      width: 3px;
+      border-radius: 999px;
+      background: rgba(255,235,120,0.96);
+      box-shadow: 0 0 18px rgba(255,235,120,0.95);
+      z-index: 20;
+      display: none;
+      pointer-events: none;
+    }
+
+    .phrase-empty {
+      color: var(--muted-text, #ccc);
+      font-size: 13px;
+      font-weight: 800;
+      text-align: center;
+      padding: 20px;
+    }
+
+
+
+
+    body.design-edit-mode .transport-row,
+    body.design-edit-mode #playChordButton,
+    body.design-edit-mode #clearChordButton {
+      display: none !important;
+    }
+
+    body.design-edit-mode #designPhrasePanel {
+      order: 6;
+    }
+
+    body.design-edit-mode #grid {
+      order: 7;
+    }
+
+    body.design-edit-mode #capturePhraseButton {
+      display: none !important;
+    }
+
+    .phrase-action-button.toggle-on {
+      background: rgba(155,235,215,0.92);
+      color: #102522;
+    }
+
+    .phrase-editor-note {
+      margin: 10px 0 0;
+      color: var(--muted-text, #ccc);
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.35;
+      text-align: center;
+    }
+
+    .phrase-action-button.capture-active {
+      background: rgba(255,90,90,0.92);
+      color: #111;
+      box-shadow:
+        0 0 18px rgba(255,90,90,0.72),
+        0 5px 14px rgba(0,0,0,0.22);
+    }
+
+    .phrase-lane-track.drop-ready {
+      outline: 3px solid rgba(255,255,255,0.82);
+      outline-offset: -3px;
+      box-shadow: inset 0 0 24px rgba(255,255,255,0.22);
+    }
+
+    .phrase-block.editable {
+      cursor: grab;
+    }
+
+    .phrase-block.editable:active {
+      cursor: grabbing;
+    }
+
+    .phrase-resize-handle {
+      position: absolute;
+      right: -2px;
+      top: 0;
+      width: 12px;
+      height: 100%;
+      border-radius: 0 13px 13px 0;
+      background: rgba(255,255,255,0.26);
+      cursor: ew-resize;
+      z-index: 3;
+    }
+
+    .phrase-block:hover .phrase-resize-handle {
+      background: rgba(255,255,255,0.42);
+    }
+
+    .phrase-block .phrase-delete-hint {
+      position: absolute;
+      right: 6px;
+      top: 4px;
+      font-size: 10px;
+      opacity: 0;
+      transition: 0.12s;
+    }
+
+    .phrase-block:hover .phrase-delete-hint {
+      opacity: 0.75;
+    }
+
+
+    .phrase-trash {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      width: 76px;
+      height: 76px;
+      border-radius: 22px;
+      background: rgba(255,90,90,0.18);
+      border: 2px solid rgba(255,150,150,0.35);
+      display: grid;
+      place-items: center;
+      color: #ffe5e5;
+      font-size: 34px;
+      z-index: 2200;
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(0.92);
+      transition: 0.12s;
+    }
+
+    .phrase-trash.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: scale(1);
+    }
+
+    .phrase-trash.glow {
+      background: rgba(255,80,80,0.74);
+      color: #111;
+      box-shadow: 0 0 28px rgba(255,90,90,0.95);
+      border-color: rgba(255,255,255,0.75);
+    }
+
+    .phrase-drag-ghost {
+      position: fixed;
+      pointer-events: none;
+      z-index: 2300;
+      min-width: 54px;
+      height: 42px;
+      border-radius: 13px;
+      display: grid;
+      place-items: center;
+      color: white;
+      font-weight: 900;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.42);
+      opacity: 0.9;
+      transform: translate(-50%, -50%);
+      padding: 0 10px;
+      box-sizing: border-box;
+    }
+
+    .phrase-block.live-capture {
+      outline: 3px solid rgba(255,235,120,0.9);
+      outline-offset: 2px;
+      box-shadow:
+        0 0 20px rgba(255,235,120,0.72),
+        0 7px 14px rgba(0,0,0,0.40);
+    }
+
+    @media (max-width: 760px) {
+      .design-phrase-header {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .design-phrase-actions {
+        justify-content: center;
+      }
+
+      .phrase-action-button {
+        flex: 1 1 auto;
+      }
+
+      .phrase-timeline {
+        min-width: 560px;
+      }
+    }
+
+
     .c  { background: #ff6b6b; }
     .db { background: linear-gradient(135deg, #ff6b6b, #f7b267); }
     .d  { background: #f7b267; }
@@ -454,6 +853,75 @@
 
   <div id="status">Press Begin Sound first</div>
 
+
+  <section
+    id="designPhrasePanel"
+    class="design-phrase-panel"
+    hidden
+    aria-label="Design selection phrase editor"
+  >
+    <div class="design-phrase-header">
+      <div>
+        <div id="designPhraseTitle" class="design-phrase-title">
+          Editing Design Selection
+        </div>
+        <div id="designPhraseMeta" class="design-phrase-meta">
+          Phrase details will appear here.
+        </div>
+      </div>
+
+      <div class="design-phrase-actions">
+        <button id="playPhraseButton" class="phrase-action-button primary" type="button">
+          ▶ Play Line
+        </button>
+        <button id="stopPhraseButton" class="phrase-action-button" type="button">
+          ■ Stop
+        </button>
+        <button id="undoPhraseButton" class="phrase-action-button" type="button" disabled>
+          ↶ Undo
+        </button>
+        <button id="redoPhraseButton" class="phrase-action-button" type="button" disabled>
+          ↷ Redo
+        </button>
+        <button id="applyPhraseButton" class="phrase-action-button apply" type="button">
+          ⤴ Apply Back to Design
+        </button>
+        <button id="returnToDesignButton" class="phrase-action-button" type="button">
+          ↩ Return
+        </button>
+        <button id="capturePhraseButton" class="phrase-action-button" type="button" hidden>
+          Add Played Notes: On
+        </button>
+        <button id="clearPhraseLineButton" class="phrase-action-button" type="button">
+          ✕ Clear Play Line
+        </button>
+        <button id="resetPhraseLineButton" class="phrase-action-button" type="button">
+          ↺ Reset Original
+        </button>
+      </div>
+    </div>
+
+    <div class="phrase-timeline-shell">
+      <div id="phraseTimeline" class="phrase-timeline">
+        <div id="phraseRuler" class="phrase-ruler"></div>
+        <div id="phrasePlayhead" class="phrase-playhead"></div>
+        <div class="phrase-lane-row">
+          <div id="phraseLaneLabel" class="phrase-lane-label">
+            Lane
+            <span id="phraseLaneSubtitle" class="phrase-lane-subtitle">Design phrase</span>
+          </div>
+          <div id="phraseLaneTrack" class="phrase-lane-track"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phrase-editor-note">
+      Play notes on the sound square to add them to the Play Line automatically. Drag notes in for exact placement, drag blocks to move them, drag right edges to resize, or use Undo if the edit goes wrong.
+    </div>
+  </section>
+
+  <div id="phraseTrash" class="phrase-trash" title="Drag Play Line notes here to delete">🗑</div>
+
   <div id="grid" class="grid"></div>
 
   <script>
@@ -485,6 +953,55 @@
     const nativeButton = document.getElementById("nativeButton");
     const fullButton = document.getElementById("fullButton");
 
+    const designPhrasePanel = document.getElementById("designPhrasePanel");
+    const designPhraseTitle = document.getElementById("designPhraseTitle");
+    const designPhraseMeta = document.getElementById("designPhraseMeta");
+    const phraseRuler = document.getElementById("phraseRuler");
+    const phraseTimeline = document.getElementById("phraseTimeline");
+    const phraseLaneLabel = document.getElementById("phraseLaneLabel");
+    const phraseLaneSubtitle = document.getElementById("phraseLaneSubtitle");
+    const phraseLaneTrack = document.getElementById("phraseLaneTrack");
+    const phrasePlayhead = document.getElementById("phrasePlayhead");
+    const playPhraseButton = document.getElementById("playPhraseButton");
+    const stopPhraseButton = document.getElementById("stopPhraseButton");
+    const undoPhraseButton = document.getElementById("undoPhraseButton");
+    const redoPhraseButton = document.getElementById("redoPhraseButton");
+    const applyPhraseButton = document.getElementById("applyPhraseButton");
+    const returnToDesignButton = document.getElementById("returnToDesignButton");
+    const capturePhraseButton = document.getElementById("capturePhraseButton");
+    const clearPhraseLineButton = document.getElementById("clearPhraseLineButton");
+    const resetPhraseLineButton = document.getElementById("resetPhraseLineButton");
+    const phraseTrash = document.getElementById("phraseTrash");
+
+    const PHRASE_BEAT_WIDTH = 76;
+    const PLAYER_EDIT_PAYLOAD_KEYS = [
+      "orumiPlayerEditPayload",
+      "orumiPendingPlayerEditPayload",
+      "orumiDesignSelectionForPlayer",
+      "orumiDesignStudioSelectionForPlayer"
+    ];
+
+    let designPhrasePayload = null;
+    let designPhraseBlocks = [];
+    let originalDesignPhraseBlocks = [];
+    let isPhraseCaptureMode = false;
+    let phraseCaptureStartTime = 0;
+    let phrasePlaybackTimers = [];
+    let phrasePlaybackNotes = [];
+    let phrasePlayheadFrame = null;
+    let phrasePlaybackStartTime = 0;
+    let phraseDragState = null;
+    let phraseDragGhost = null;
+    let phraseResizeState = null;
+    let phraseHistoryStack = [];
+    let phraseRedoStack = [];
+    const PHRASE_MAX_HISTORY = 50;
+
+    let phraseAddPlayedNotes = true;
+    let phraseAutoCaptureSession = null;
+    let phraseAutoCaptureIdleTimer = null;
+
+
     const activeNotes = new Map();
     let recentNotes = [];
 
@@ -498,6 +1015,1078 @@
         window.location.href = "index.html";
       }
     });
+
+
+    function safeJsonParse(value) {
+      if (!value) return null;
+
+      try {
+        return JSON.parse(value);
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function readDesignPhrasePayload() {
+      for (const key of PLAYER_EDIT_PAYLOAD_KEYS) {
+        const parsed = safeJsonParse(localStorage.getItem(key));
+
+        if (parsed) {
+          parsed.storageKey = key;
+          return parsed;
+        }
+      }
+
+      return null;
+    }
+
+    function asFiniteNumber(value, fallback = 0) {
+      const number = Number(value);
+      return Number.isFinite(number) ? number : fallback;
+    }
+
+    function getLaneNameFromPayload(payload, blocks) {
+      if (payload.laneName) return payload.laneName;
+      if (payload.lane && typeof payload.lane === "string") return payload.lane;
+      if (payload.lane && payload.lane.name) return payload.lane.name;
+
+      const laneId =
+        payload.laneId ||
+        payload.selectedLaneId ||
+        blocks[0]?.laneId ||
+        blocks[0]?.lane;
+
+      if (Array.isArray(payload.lanes)) {
+        const lane = payload.lanes.find(item =>
+          item &&
+          (item.id === laneId || item.name === laneId || item.label === laneId)
+        );
+
+        if (lane) {
+          return lane.name || lane.label || lane.id || "Lane";
+        }
+      }
+
+      return laneId || "Lane";
+    }
+
+    function normalizeDesignPhrasePayload(payload) {
+      if (!payload || typeof payload !== "object") {
+        return null;
+      }
+
+      const rawBlocks =
+        Array.isArray(payload.blocks)
+          ? payload.blocks
+          : Array.isArray(payload.selectedBlocks)
+            ? payload.selectedBlocks
+            : Array.isArray(payload.notes)
+              ? payload.notes
+              : Array.isArray(payload.events)
+                ? payload.events
+                : [];
+
+      const blocks = rawBlocks
+        .map((block, index) => {
+          const midi =
+            Number.isFinite(Number(block.midi))
+              ? Number(block.midi)
+              : Number.isFinite(Number(block.noteMidi))
+                ? Number(block.noteMidi)
+                : null;
+
+          if (!Number.isFinite(midi)) {
+            return null;
+          }
+
+          const startBeat = asFiniteNumber(
+            block.startBeat !== undefined ? block.startBeat : block.start,
+            0
+          );
+
+          const durationBeats = Math.max(
+            0.05,
+            asFiniteNumber(
+              block.durationBeats !== undefined ? block.durationBeats : block.duration,
+              1
+            )
+          );
+
+          return {
+            originalIndex: index,
+            blockId: block.blockId || block.id || block.sourceId || ("phrase_block_" + index),
+            id: block.id || block.blockId || ("phrase_block_" + index),
+            laneId: block.laneId || block.lane || payload.laneId || payload.selectedLaneId || "lane",
+            midi,
+            name: block.name || block.note || block.displayName || midiToDisplayName(midi),
+            startBeat,
+            durationBeats,
+            velocity: Math.max(1, Math.min(127, asFiniteNumber(block.velocity, 82))),
+            voice: block.voice === undefined ? null : block.voice,
+            source: block.source || "design-studio"
+          };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.startBeat - b.startBeat || a.midi - b.midi);
+
+      if (blocks.length === 0) {
+        return null;
+      }
+
+      const originalStartBeat = asFiniteNumber(
+        payload.startBeat !== undefined
+          ? payload.startBeat
+          : Math.min(...blocks.map(block => block.startBeat)),
+        0
+      );
+
+      const originalEndBeat =
+        payload.endBeat !== undefined
+          ? asFiniteNumber(payload.endBeat, originalStartBeat + 1)
+          : Math.max(...blocks.map(block => block.startBeat + block.durationBeats));
+
+      const durationBeats = Math.max(
+        0.25,
+        asFiniteNumber(payload.durationBeats, originalEndBeat - originalStartBeat)
+      );
+
+      const laneName = getLaneNameFromPayload(payload, blocks);
+
+      return {
+        mode: payload.mode || "editDesignSelection",
+        source: payload.source || "design-studio",
+        projectId: payload.projectId || null,
+        projectTitle: payload.projectTitle || payload.title || "Untitled Design",
+        laneId: payload.laneId || payload.selectedLaneId || blocks[0].laneId,
+        laneName,
+        voice: payload.voice || payload.laneVoice || blocks.find(block => block.voice)?.voice || null,
+        originalStartBeat,
+        originalEndBeat,
+        durationBeats,
+        context: {
+          tempo: asFiniteNumber(payload.context?.tempo || payload.tempo, 120),
+          timeSignature: payload.context?.timeSignature || payload.timeSignature || { numerator: 4, denominator: 4 },
+          system: payload.context?.system || payload.system || getSettingsFromUrl().systemKey,
+          root: payload.context?.root || payload.root || getSettingsFromUrl().root,
+          family: payload.context?.family || payload.family || null,
+          mode: payload.context?.mode || payload.scaleMode || null
+        },
+        originalBlockIds:
+          Array.isArray(payload.originalBlockIds)
+            ? payload.originalBlockIds
+            : blocks.map(block => block.blockId),
+        blocks: blocks.map(block => ({
+          ...block,
+          relativeStartBeat: Math.max(0, block.startBeat - originalStartBeat)
+        })),
+        raw: payload
+      };
+    }
+
+    function beatToSimpleMeasureLabel(beat, timeSignature) {
+      const signature =
+        typeof timeSignature === "string"
+          ? timeSignature
+          : (timeSignature?.numerator || 4) + "/" + (timeSignature?.denominator || 4);
+
+      const parts = String(signature).split("/");
+      const numerator = Number(parts[0]) || 4;
+      const denominator = Number(parts[1]) || 4;
+      const beatsPerMeasure = Math.max(0.25, numerator * 4 / denominator);
+      const measure = Math.floor(Math.max(0, beat) / beatsPerMeasure) + 1;
+      const beatWithinMeasure = (Math.max(0, beat) - ((measure - 1) * beatsPerMeasure)) + 1;
+      const beatLabel =
+        Math.abs(beatWithinMeasure - Math.round(beatWithinMeasure)) < 0.001
+          ? String(Math.round(beatWithinMeasure))
+          : beatWithinMeasure.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+
+      return "M" + measure + " beat " + beatLabel;
+    }
+
+
+    function getPhraseDurationBeats() {
+      if (!designPhrasePayload) return 1;
+
+      return Math.max(
+        designPhrasePayload.durationBeats || 1,
+        ...designPhraseBlocks.map(block => block.relativeStartBeat + block.durationBeats),
+        1
+      );
+    }
+
+    function clonePhraseBlocks(blocks = designPhraseBlocks) {
+      return JSON.parse(JSON.stringify(blocks || []));
+    }
+
+    function getActivePhraseVoice() {
+      const phraseVoice =
+        designPhrasePayload?.voice && ORUMI_CATALOG.voices[designPhrasePayload.voice]
+          ? designPhrasePayload.voice
+          : designPhraseBlocks.find(block => block.voice && ORUMI_CATALOG.voices[block.voice])?.voice;
+
+      if (phraseVoice) {
+        return phraseVoice;
+      }
+
+      const settingsVoice = getSettingsFromUrl().voice;
+      return ORUMI_CATALOG.voices[settingsVoice] ? settingsVoice : "softKeys";
+    }
+
+    function savePhraseHistory() {
+      if (!designPhrasePayload) return;
+
+      phraseHistoryStack.push(JSON.stringify(clonePhraseBlocks()));
+
+      if (phraseHistoryStack.length > PHRASE_MAX_HISTORY) {
+        phraseHistoryStack.shift();
+      }
+
+      phraseRedoStack = [];
+      updatePhraseUndoRedoButtons();
+    }
+
+    function updatePhraseUndoRedoButtons() {
+      if (undoPhraseButton) {
+        const canUndo = phraseHistoryStack.length > 0;
+        undoPhraseButton.disabled = !canUndo;
+        undoPhraseButton.classList.toggle("history-ready", canUndo);
+      }
+
+      if (redoPhraseButton) {
+        const canRedo = phraseRedoStack.length > 0;
+        redoPhraseButton.disabled = !canRedo;
+        redoPhraseButton.classList.toggle("history-ready", canRedo);
+      }
+    }
+
+    function undoPhraseEdit() {
+      if (!phraseHistoryStack.length) {
+        statusText.textContent = "Nothing to undo in the Play Line.";
+        return;
+      }
+
+      stopDesignPhrasePlayback(false);
+      phraseRedoStack.push(JSON.stringify(clonePhraseBlocks()));
+      designPhraseBlocks = JSON.parse(phraseHistoryStack.pop());
+      sortPhraseBlocks();
+      renderDesignPhraseTimeline();
+      updatePhraseUndoRedoButtons();
+      statusText.textContent = "Undid Play Line edit. Redo is available.";
+    }
+
+    function redoPhraseEdit() {
+      if (!phraseRedoStack.length) {
+        statusText.textContent = "Nothing to redo in the Play Line.";
+        return;
+      }
+
+      stopDesignPhrasePlayback(false);
+      phraseHistoryStack.push(JSON.stringify(clonePhraseBlocks()));
+      designPhraseBlocks = JSON.parse(phraseRedoStack.pop());
+      sortPhraseBlocks();
+      renderDesignPhraseTimeline();
+      updatePhraseUndoRedoButtons();
+      statusText.textContent = "Redid Play Line edit.";
+    }
+
+    function updatePhraseCaptureButton() {
+      if (!capturePhraseButton) return;
+
+      capturePhraseButton.classList.toggle("capture-active", phraseAddPlayedNotes);
+      capturePhraseButton.classList.toggle("toggle-on", phraseAddPlayedNotes);
+      capturePhraseButton.textContent = phraseAddPlayedNotes
+        ? "Add Played Notes: On"
+        : "Add Played Notes: Off";
+    }
+
+    function getPhraseEndBeat() {
+      return Math.max(
+        0,
+        ...designPhraseBlocks.map(block =>
+          Math.max(0, Number(block.relativeStartBeat || 0)) +
+          Math.max(0.25, Number(block.durationBeats || 1))
+        )
+      );
+    }
+
+    function resetAutoPhraseCaptureSession() {
+      phraseAutoCaptureSession = null;
+
+      if (phraseAutoCaptureIdleTimer) {
+        clearTimeout(phraseAutoCaptureIdleTimer);
+        phraseAutoCaptureIdleTimer = null;
+      }
+    }
+
+    function scheduleAutoPhraseCaptureIdleReset() {
+      if (phraseAutoCaptureIdleTimer) {
+        clearTimeout(phraseAutoCaptureIdleTimer);
+      }
+
+      phraseAutoCaptureIdleTimer = setTimeout(() => {
+        phraseAutoCaptureSession = null;
+        phraseAutoCaptureIdleTimer = null;
+      }, 1500);
+    }
+
+    function getAutoPhraseRelativeStart(now) {
+      if (!designPhrasePayload || !audioContext) {
+        return 0;
+      }
+
+      if (!phraseAutoCaptureSession) {
+        phraseAutoCaptureSession = {
+          baseTime: now,
+          baseBeat: getPhraseEndBeat()
+        };
+      }
+
+      return Math.max(
+        0,
+        phraseAutoCaptureSession.baseBeat + secondsToPhraseBeats(now - phraseAutoCaptureSession.baseTime)
+      );
+    }
+
+    function beginAutoCapturedPhraseNote(button, startedAt, voice, initialDurationBeats = 0.25) {
+      if (!designPhrasePayload || !phraseAddPlayedNotes) {
+        return null;
+      }
+
+      savePhraseHistory();
+
+      const midi = parseInt(button.dataset.midi, 10);
+      const displayName = button.dataset.displayName;
+      const relativeStart = getAutoPhraseRelativeStart(startedAt);
+
+      const preview = createPhraseBlockFromMidi(
+        midi,
+        relativeStart,
+        Math.max(0.25, Number(initialDurationBeats || 0.25)),
+        displayName,
+        voice || getActivePhraseVoice()
+      );
+
+      preview.liveCapture = true;
+      designPhraseBlocks.push(preview);
+      sortPhraseBlocks();
+      renderDesignPhraseTimeline();
+
+      statusText.textContent = "Added " + displayName + " to the Play Line.";
+      return preview.blockId;
+    }
+
+    function finalizeAutoCapturedPhraseNote(blockId, durationSeconds) {
+      if (!blockId) return;
+
+      const block = designPhraseBlocks.find(item => item.blockId === blockId || item.id === blockId);
+      if (!block) return;
+
+      block.durationBeats = Math.max(0.25, secondsToPhraseBeats(durationSeconds));
+      block.liveCapture = false;
+      sortPhraseBlocks();
+      renderDesignPhraseTimeline();
+      scheduleAutoPhraseCaptureIdleReset();
+    }
+
+    function cancelAutoCapturedPhrasePreview(blockId) {
+      if (!blockId) return;
+
+      const before = designPhraseBlocks.length;
+      designPhraseBlocks = designPhraseBlocks.filter(block => block.blockId !== blockId && block.id !== blockId);
+
+      if (designPhraseBlocks.length !== before) {
+        sortPhraseBlocks();
+        renderDesignPhraseTimeline();
+      }
+    }
+
+    function makePhraseBlockId() {
+      return "player_phrase_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2);
+    }
+
+    function createPhraseBlockFromMidi(midi, relativeStartBeat, durationBeats, name, voice) {
+      const safeMidi = Number(midi);
+      const safeStart = Math.max(0, Number(relativeStartBeat || 0));
+      const safeDuration = Math.max(0.25, Number(durationBeats || 1));
+
+      return {
+        id: makePhraseBlockId(),
+        blockId: makePhraseBlockId(),
+        laneId: designPhrasePayload?.laneId || "lead",
+        midi: Number.isFinite(safeMidi) ? safeMidi : 60,
+        name: name || midiToDisplayName(Number.isFinite(safeMidi) ? safeMidi : 60),
+        startBeat: (designPhrasePayload?.originalStartBeat || 0) + safeStart,
+        relativeStartBeat: safeStart,
+        durationBeats: safeDuration,
+        velocity: 86,
+        voice: voice || getActivePhraseVoice() || null,
+        source: "player-phrase-editor"
+      };
+    }
+
+    function sortPhraseBlocks() {
+      designPhraseBlocks = designPhraseBlocks
+        .map(block => ({
+          ...block,
+          relativeStartBeat: Math.max(0, Number(block.relativeStartBeat || 0)),
+          durationBeats: Math.max(0.25, Number(block.durationBeats || 1))
+        }))
+        .sort((a, b) =>
+          a.relativeStartBeat - b.relativeStartBeat ||
+          Number(a.midi || 0) - Number(b.midi || 0)
+        );
+    }
+
+    function addPhraseBlockFromMidi(midi, relativeStartBeat, durationBeats = 1, name = null, voice = null, skipHistory = false) {
+      if (!designPhrasePayload) return;
+
+      if (!skipHistory) {
+        savePhraseHistory();
+      }
+
+      designPhraseBlocks.push(
+        createPhraseBlockFromMidi(midi, relativeStartBeat, durationBeats, name, voice)
+      );
+
+      sortPhraseBlocks();
+      renderDesignPhraseTimeline();
+      statusText.textContent = "Added " + (name || midiToDisplayName(midi)) + " to the Play Line.";
+    }
+
+    function removePhraseBlock(blockId) {
+      const before = designPhraseBlocks.length;
+      designPhraseBlocks = designPhraseBlocks.filter(block => block.blockId !== blockId && block.id !== blockId);
+
+      if (designPhraseBlocks.length !== before) {
+        savePhraseHistory();
+        renderDesignPhraseTimeline();
+        statusText.textContent = "Removed note from Play Line.";
+      }
+    }
+
+    function clearPhraseLine() {
+      if (!designPhrasePayload) return;
+
+      stopDesignPhrasePlayback(false);
+      isPhraseCaptureMode = false;
+      resetAutoPhraseCaptureSession();
+      savePhraseHistory();
+      designPhraseBlocks = [];
+      renderDesignPhraseTimeline();
+      statusText.textContent = "Play Line cleared. Play notes or drag notes in to build a new melody.";
+    }
+
+    function resetPhraseLineToOriginal() {
+      if (!designPhrasePayload) return;
+
+      stopDesignPhrasePlayback(false);
+      isPhraseCaptureMode = false;
+      resetAutoPhraseCaptureSession();
+      savePhraseHistory();
+      designPhraseBlocks = originalDesignPhraseBlocks.map(block => ({ ...block }));
+      renderDesignPhraseTimeline();
+      statusText.textContent = "Original Design phrase restored in the Play Line.";
+    }
+
+    async function togglePhraseCapture() {
+      if (!designPhrasePayload) return;
+
+      phraseAddPlayedNotes = !phraseAddPlayedNotes;
+      resetAutoPhraseCaptureSession();
+      updatePhraseCaptureButton();
+
+      statusText.textContent = phraseAddPlayedNotes
+        ? "Add Played Notes is on. Play the sound square to add notes to the Play Line."
+        : "Add Played Notes is off. Sound squares will only audition.";
+    }
+
+    function beatFromPhraseTrackEvent(event) {
+      const rect = phraseLaneTrack.getBoundingClientRect();
+      const x = Math.max(0, event.clientX - rect.left);
+      return Math.max(0, Math.round((x / PHRASE_BEAT_WIDTH) * 4) / 4);
+    }
+
+
+    function beatFromPhraseClientX(clientX) {
+      const rect = phraseLaneTrack.getBoundingClientRect();
+      const x = Math.max(0, clientX - rect.left);
+      return Math.max(0, Math.round((x / PHRASE_BEAT_WIDTH) * 4) / 4);
+    }
+
+    function secondsToPhraseBeats(seconds) {
+      const tempo = Math.max(20, Number(designPhrasePayload?.context?.tempo || 120));
+      return Math.round(Math.max(0, Number(seconds || 0)) * tempo / 60 * 4) / 4;
+    }
+
+    function updatePhraseBlockDuration(blockId, durationBeats, skipHistory = false) {
+      const block = designPhraseBlocks.find(item => item.blockId === blockId || item.id === blockId);
+      if (!block) return;
+
+      if (!skipHistory) {
+        savePhraseHistory();
+      }
+
+      block.durationBeats = Math.max(0.25, Number(durationBeats || 0.25));
+      sortPhraseBlocks();
+      renderDesignPhraseTimeline();
+    }
+
+    function isPointInsideElement(clientX, clientY, element) {
+      if (!element) return false;
+      const rect = element.getBoundingClientRect();
+      return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+    }
+
+    function createPhraseDragGhost(label, midi) {
+      removePhraseDragGhost();
+      const ghost = document.createElement("div");
+      ghost.className = "phrase-drag-ghost " + midiToClassNameSafe(midi);
+      ghost.textContent = label || midiToDisplayName(midi);
+      document.body.appendChild(ghost);
+      phraseDragGhost = ghost;
+      return ghost;
+    }
+
+    function movePhraseDragGhost(clientX, clientY) {
+      if (!phraseDragGhost) return;
+      phraseDragGhost.style.left = clientX + "px";
+      phraseDragGhost.style.top = clientY + "px";
+    }
+
+    function removePhraseDragGhost() {
+      if (phraseDragGhost && phraseDragGhost.parentNode) {
+        phraseDragGhost.parentNode.removeChild(phraseDragGhost);
+      }
+      phraseDragGhost = null;
+    }
+
+    function showPhraseTrash() {
+      if (!phraseTrash) return;
+      phraseTrash.classList.add("visible");
+    }
+
+    function hidePhraseTrash() {
+      if (!phraseTrash) return;
+      phraseTrash.classList.remove("visible", "glow");
+    }
+
+    function beginPhraseDrag(event, data) {
+      if (!designPhrasePayload || !data || !Number.isFinite(Number(data.midi))) return;
+
+      phraseDragState = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        currentX: event.clientX,
+        currentY: event.clientY,
+        active: false,
+        source: data.source || "grid",
+        blockId: data.blockId || null,
+        midi: Number(data.midi),
+        name: data.name || data.displayName || midiToDisplayName(Number(data.midi)),
+        voice: data.voice || null,
+        durationBeats: Math.max(0.25, Number(data.durationBeats || 1))
+      };
+    }
+
+    function handlePhraseDragMove(event) {
+      if (!phraseDragState || phraseDragState.pointerId !== event.pointerId) return;
+
+      phraseDragState.currentX = event.clientX;
+      phraseDragState.currentY = event.clientY;
+
+      const dx = event.clientX - phraseDragState.startX;
+      const dy = event.clientY - phraseDragState.startY;
+
+      if (!phraseDragState.active && Math.hypot(dx, dy) > 8) {
+        phraseDragState.active = true;
+
+        if (phraseDragState.source === "grid" && phraseDragState.previewBlockId) {
+          cancelAutoCapturedPhrasePreview(phraseDragState.previewBlockId);
+          phraseDragState.previewBlockId = null;
+        }
+
+        createPhraseDragGhost(phraseDragState.name, phraseDragState.midi);
+        phraseLaneTrack.classList.add("drop-ready");
+        if (phraseDragState.source === "play-line") {
+          showPhraseTrash();
+        }
+      }
+
+      if (!phraseDragState.active) return;
+
+      event.preventDefault();
+      movePhraseDragGhost(event.clientX, event.clientY);
+
+      if (phraseTrash) {
+        phraseTrash.classList.toggle("glow", isPointInsideElement(event.clientX, event.clientY, phraseTrash));
+      }
+    }
+
+    function handlePhraseDragEnd(event) {
+      if (!phraseDragState || phraseDragState.pointerId !== event.pointerId) return;
+
+      const drag = phraseDragState;
+      phraseDragState = null;
+      phraseLaneTrack.classList.remove("drop-ready");
+      removePhraseDragGhost();
+
+      if (!drag.active) {
+        hidePhraseTrash();
+        return;
+      }
+
+      event.preventDefault();
+
+      if (drag.source === "play-line" && isPointInsideElement(event.clientX, event.clientY, phraseTrash)) {
+        removePhraseBlock(drag.blockId);
+        hidePhraseTrash();
+        return;
+      }
+
+      if (isPointInsideElement(event.clientX, event.clientY, phraseLaneTrack)) {
+        const nextBeat = beatFromPhraseClientX(event.clientX);
+
+        if (drag.source === "play-line") {
+          const block = designPhraseBlocks.find(item => item.blockId === drag.blockId || item.id === drag.blockId);
+          if (block) {
+            savePhraseHistory();
+            block.relativeStartBeat = nextBeat;
+            block.startBeat = (designPhrasePayload?.originalStartBeat || 0) + nextBeat;
+            sortPhraseBlocks();
+            renderDesignPhraseTimeline();
+            statusText.textContent = "Moved " + drag.name + " in the Play Line.";
+          }
+        } else {
+          addPhraseBlockFromMidi(drag.midi, nextBeat, drag.durationBeats, drag.name, drag.voice);
+        }
+      } else if (drag.source === "play-line") {
+        statusText.textContent = "Drag a Play Line note to the trash to delete it, or back into the Play Line to move it.";
+      }
+
+      hidePhraseTrash();
+    }
+
+    function setupPhraseDropTarget() {
+      if (!phraseLaneTrack) return;
+
+      phraseLaneTrack.addEventListener("dragover", event => {
+        if (!designPhrasePayload) return;
+        event.preventDefault();
+        phraseLaneTrack.classList.add("drop-ready");
+      });
+
+      phraseLaneTrack.addEventListener("dragleave", () => {
+        phraseLaneTrack.classList.remove("drop-ready");
+      });
+
+      phraseLaneTrack.addEventListener("drop", event => {
+        if (!designPhrasePayload) return;
+
+        event.preventDefault();
+        phraseLaneTrack.classList.remove("drop-ready");
+
+        const raw = event.dataTransfer.getData("application/x-orumi-note") || event.dataTransfer.getData("text/plain");
+        const parsed = safeJsonParse(raw);
+
+        if (!parsed || !Number.isFinite(Number(parsed.midi))) {
+          statusText.textContent = "Drop a note square into the Play Line.";
+          return;
+        }
+
+        addPhraseBlockFromMidi(
+          Number(parsed.midi),
+          beatFromPhraseTrackEvent(event),
+          Number(parsed.durationBeats || 1),
+          parsed.name || parsed.displayName || midiToDisplayName(Number(parsed.midi)),
+          parsed.voice || null
+        );
+      });
+
+      document.addEventListener("pointermove", handlePhraseDragMove, { passive: false });
+      document.addEventListener("pointerup", handlePhraseDragEnd, { passive: false });
+      document.addEventListener("pointercancel", handlePhraseDragEnd, { passive: false });
+    }
+
+    function initializeDesignPhraseMode() {
+      const payload = normalizeDesignPhrasePayload(readDesignPhrasePayload());
+
+      if (!payload) {
+        return;
+      }
+
+      designPhrasePayload = payload;
+      designPhraseBlocks = payload.blocks.map(block => ({
+        ...block,
+        voice: block.voice || payload.voice || getActivePhraseVoice() || null
+      }));
+      originalDesignPhraseBlocks = designPhraseBlocks.map(block => ({ ...block }));
+      phraseHistoryStack = [];
+      phraseRedoStack = [];
+      isPhraseCaptureMode = false;
+      phraseAddPlayedNotes = true;
+      resetAutoPhraseCaptureSession();
+      updatePhraseCaptureButton();
+      updatePhraseUndoRedoButtons();
+
+      document.body.classList.add("design-edit-mode");
+      designPhrasePanel.hidden = false;
+
+      pageTitle.textContent = "Phrase Player";
+      recordingStudioLink.textContent = "↩ Return to Design Studio";
+
+      const context = payload.context || {};
+      const timeLabel = beatToSimpleMeasureLabel(
+        payload.originalStartBeat,
+        context.timeSignature
+      );
+
+      designPhraseTitle.textContent =
+        "Play Line · " + payload.laneName;
+
+      designPhraseMeta.textContent =
+        payload.projectTitle +
+        " · " +
+        designPhraseBlocks.length +
+        " note" +
+        (designPhraseBlocks.length === 1 ? "" : "s") +
+        " · " +
+        timeLabel +
+        " · ♩ " +
+        (context.tempo || 120) +
+        " · " +
+        (ORUMI_CATALOG.voices[getActivePhraseVoice()]?.label || getActivePhraseVoice());
+
+      statusText.textContent =
+        "Phrase received from Design. Play notes to add them automatically, or drag notes into the Play Line.";
+
+      renderDesignPhraseTimeline();
+    }
+
+    function renderDesignPhraseTimeline() {
+      if (!designPhrasePayload || !designPhraseBlocks.length) {
+        phraseLaneTrack.innerHTML =
+          '<div class="phrase-empty">Play Line is empty. Drag notes here or turn Capture on and play.</div>';
+        return;
+      }
+
+      const duration = getPhraseDurationBeats();
+
+      const timelineWidth = Math.max(560, 96 + (Math.ceil(duration) + 1) * PHRASE_BEAT_WIDTH);
+      phraseTimeline.style.width = timelineWidth + "px";
+
+      phraseLaneLabel.firstChild.nodeValue = designPhrasePayload.laneName || "Lane";
+      phraseLaneSubtitle.textContent = "Design phrase";
+
+      phraseRuler.innerHTML = "";
+      phraseRuler.style.width = Math.max(400, (Math.ceil(duration) + 1) * PHRASE_BEAT_WIDTH) + "px";
+
+      for (let beat = 0; beat <= Math.ceil(duration); beat++) {
+        const mark = document.createElement("div");
+        mark.className = "phrase-beat-mark";
+        mark.style.left = (beat * PHRASE_BEAT_WIDTH) + "px";
+        phraseRuler.appendChild(mark);
+
+        const label = document.createElement("div");
+        label.className = "phrase-beat-label";
+        label.style.left = (beat * PHRASE_BEAT_WIDTH) + "px";
+        label.textContent = "B" + (beat + 1);
+        phraseRuler.appendChild(label);
+      }
+
+      phraseLaneTrack.innerHTML = "";
+      phraseLaneTrack.style.width = Math.max(400, (Math.ceil(duration) + 1) * PHRASE_BEAT_WIDTH) + "px";
+
+      designPhraseBlocks.forEach(block => {
+        const element = document.createElement("div");
+        element.className = "phrase-block editable " + midiToClassNameSafe(block.midi) + (block.liveCapture ? " live-capture" : "");
+        element.dataset.blockId = block.blockId;
+        element.style.left = (block.relativeStartBeat * PHRASE_BEAT_WIDTH) + "px";
+        element.style.width = Math.max(38, block.durationBeats * PHRASE_BEAT_WIDTH - 6) + "px";
+        element.textContent = block.name || midiToDisplayName(block.midi);
+
+        const resizeHandle = document.createElement("span");
+        resizeHandle.className = "phrase-resize-handle";
+        resizeHandle.title = "Drag to lengthen or shorten";
+        resizeHandle.addEventListener("pointerdown", event => {
+          event.preventDefault();
+          event.stopPropagation();
+          beginPhraseResize(event, block.blockId || block.id);
+        });
+        element.appendChild(resizeHandle);
+
+        const deleteHint = document.createElement("span");
+        deleteHint.className = "phrase-delete-hint";
+        deleteHint.textContent = "×";
+        element.appendChild(deleteHint);
+
+        element.title =
+          (block.name || midiToDisplayName(block.midi)) +
+          " · beat " +
+          (block.relativeStartBeat + 1).toFixed(2).replace(/0+$/, "").replace(/\.$/, "") +
+          " · drag right edge to resize · double-click to remove";
+
+        element.addEventListener("dblclick", event => {
+          event.preventDefault();
+          removePhraseBlock(block.blockId || block.id);
+        });
+
+        element.draggable = false;
+        element.addEventListener("pointerdown", event => {
+          if (event.detail > 1) return;
+          beginPhraseDrag(event, {
+            source: "play-line",
+            blockId: block.blockId || block.id,
+            midi: block.midi,
+            name: block.name || midiToDisplayName(block.midi),
+            voice: block.voice || null,
+            durationBeats: block.durationBeats || 1
+          });
+        });
+
+        phraseLaneTrack.appendChild(element);
+      });
+    }
+
+    function beginPhraseResize(event, blockId) {
+      const block = designPhraseBlocks.find(item => item.blockId === blockId || item.id === blockId);
+      if (!block) return;
+
+      savePhraseHistory();
+
+      phraseResizeState = {
+        pointerId: event.pointerId,
+        blockId: block.blockId || block.id,
+        startX: event.clientX,
+        originalDuration: Math.max(0.25, Number(block.durationBeats || 1))
+      };
+
+      document.addEventListener("pointermove", handlePhraseResizeMove, { passive: false });
+      document.addEventListener("pointerup", handlePhraseResizeEnd, { passive: false });
+      document.addEventListener("pointercancel", handlePhraseResizeEnd, { passive: false });
+    }
+
+    function handlePhraseResizeMove(event) {
+      if (!phraseResizeState || phraseResizeState.pointerId !== event.pointerId) return;
+
+      event.preventDefault();
+
+      const deltaBeats = Math.round(((event.clientX - phraseResizeState.startX) / PHRASE_BEAT_WIDTH) * 4) / 4;
+      const nextDuration = Math.max(0.25, phraseResizeState.originalDuration + deltaBeats);
+      updatePhraseBlockDuration(phraseResizeState.blockId, nextDuration, true);
+      statusText.textContent = "Resizing note to " + nextDuration + " beat" + (nextDuration === 1 ? "" : "s") + ".";
+    }
+
+    function handlePhraseResizeEnd(event) {
+      if (!phraseResizeState || phraseResizeState.pointerId !== event.pointerId) return;
+
+      event.preventDefault();
+      phraseResizeState = null;
+      document.removeEventListener("pointermove", handlePhraseResizeMove);
+      document.removeEventListener("pointerup", handlePhraseResizeEnd);
+      document.removeEventListener("pointercancel", handlePhraseResizeEnd);
+      sortPhraseBlocks();
+      renderDesignPhraseTimeline();
+      updatePhraseUndoRedoButtons();
+      statusText.textContent = "Note duration updated.";
+    }
+
+    function midiToClassNameSafe(midi) {
+      const pc =
+        numberToPitchClass[((Number(midi) % 12) + 12) % 12];
+
+      return pitchClasses[pc] ? pitchClasses[pc].className : "c";
+    }
+
+    async function playDesignPhrase() {
+      if (!designPhrasePayload || !designPhraseBlocks.length) {
+        statusText.textContent = "No Design phrase to play.";
+        return;
+      }
+
+      if (!requireAudioReady()) {
+        return;
+      }
+
+      await ensureAudio();
+
+      stopDesignPhrasePlayback();
+
+      const baseTempo = Number(designPhrasePayload.context?.tempo || 120);
+      const beatSeconds = 60 / Math.max(20, baseTempo);
+      const { voice } = getSettingsFromUrl();
+
+      phrasePlaybackStartTime = audioContext.currentTime;
+      phrasePlayhead.style.display = "block";
+      phrasePlayhead.style.left = "108px";
+
+      const phraseDurationSeconds = getPhraseDurationBeats() * beatSeconds;
+
+      designPhraseBlocks.forEach(block => {
+        const startMs = Math.max(0, block.relativeStartBeat * beatSeconds * 1000);
+        const durationMs = Math.max(80, block.durationBeats * beatSeconds * 1000);
+
+        const timer = setTimeout(() => {
+          const now = audioContext.currentTime;
+          const eventVoice =
+            block.voice && ORUMI_CATALOG.voices[block.voice]
+              ? block.voice
+              : designPhrasePayload.voice && ORUMI_CATALOG.voices[designPhrasePayload.voice]
+                ? designPhrasePayload.voice
+                : voice;
+
+          const voiceNode =
+            ORUMI_VOICES.buildVoice(
+              audioContext,
+              eventVoice,
+              midiToFrequency(block.midi),
+              now
+            );
+
+          const playedNote = {
+            voice: eventVoice,
+            gain: voiceNode.gain,
+            oscillators: voiceNode.oscillators || [],
+            noiseSources: voiceNode.noiseSources || []
+          };
+
+          phrasePlaybackNotes.push(playedNote);
+
+          const blockEl =
+            phraseLaneTrack.querySelector('[data-block-id="' + CSS.escape(block.blockId) + '"]');
+
+          if (blockEl) {
+            blockEl.classList.add("playing");
+          }
+
+          const stopTimer = setTimeout(() => {
+            ORUMI_VOICES.stopVoice(playedNote, audioContext, 0.16);
+            phrasePlaybackNotes =
+              phrasePlaybackNotes.filter(note => note !== playedNote);
+
+            if (blockEl) {
+              blockEl.classList.remove("playing");
+            }
+          }, durationMs);
+
+          phrasePlaybackTimers.push(stopTimer);
+        }, startMs);
+
+        phrasePlaybackTimers.push(timer);
+      });
+
+      function animatePlayhead() {
+        if (!audioContext || !phrasePlayhead) return;
+
+        const elapsed = audioContext.currentTime - phrasePlaybackStartTime;
+        const beat = elapsed / beatSeconds;
+        phrasePlayhead.style.left = (108 + beat * PHRASE_BEAT_WIDTH) + "px";
+
+        if (elapsed <= phraseDurationSeconds + 0.05) {
+          phrasePlayheadFrame = requestAnimationFrame(animatePlayhead);
+        } else {
+          stopDesignPhrasePlayback(false);
+      isPhraseCaptureMode = false;
+          statusText.textContent = "Phrase playback complete.";
+        }
+      }
+
+      phrasePlayheadFrame = requestAnimationFrame(animatePlayhead);
+      statusText.textContent = "Playing Design phrase...";
+    }
+
+    function stopDesignPhrasePlayback(updateStatus = true) {
+      phrasePlaybackTimers.forEach(timer => clearTimeout(timer));
+      phrasePlaybackTimers = [];
+
+      if (phrasePlayheadFrame) {
+        cancelAnimationFrame(phrasePlayheadFrame);
+        phrasePlayheadFrame = null;
+      }
+
+      if (phrasePlayhead) {
+        phrasePlayhead.style.display = "none";
+      }
+
+      phrasePlaybackNotes.forEach(note => {
+        if (audioContext) {
+          ORUMI_VOICES.stopVoice(note, audioContext, 0.12);
+        }
+      });
+
+      phrasePlaybackNotes = [];
+
+      if (phraseLaneTrack) {
+        phraseLaneTrack
+          .querySelectorAll(".phrase-block.playing")
+          .forEach(element => element.classList.remove("playing"));
+      }
+
+      if (updateStatus && designPhrasePayload) {
+        statusText.textContent = "Phrase stopped.";
+      }
+    }
+
+    function buildPlayerReplacementPayload() {
+      if (!designPhrasePayload) {
+        return null;
+      }
+
+      return {
+        mode: "replaceDesignSelection",
+        source: "player",
+        createdAt: new Date().toISOString(),
+        projectId: designPhrasePayload.projectId,
+        projectTitle: designPhrasePayload.projectTitle,
+        laneId: designPhrasePayload.laneId,
+        laneName: designPhrasePayload.laneName,
+        originalStartBeat: designPhrasePayload.originalStartBeat,
+        originalEndBeat: designPhrasePayload.originalEndBeat,
+        durationBeats: designPhrasePayload.durationBeats,
+        originalBlockIds: designPhrasePayload.originalBlockIds,
+        originalBlocks: designPhrasePayload.blocks.map(block => ({
+          ...block,
+          startBeat: designPhrasePayload.originalStartBeat + block.relativeStartBeat
+        })),
+        replacementBlocks: designPhraseBlocks.map(block => ({
+          id: block.id,
+          blockId: block.blockId,
+          laneId: designPhrasePayload.laneId || block.laneId,
+          midi: block.midi,
+          name: block.name || midiToDisplayName(block.midi),
+          startBeat: designPhrasePayload.originalStartBeat + block.relativeStartBeat,
+          durationBeats: block.durationBeats,
+          velocity: block.velocity,
+          voice: block.voice || getActivePhraseVoice() || null
+        })),
+        context: designPhrasePayload.context
+      };
+    }
+
+    function applyDesignPhraseBackToDesign() {
+      const payload = buildPlayerReplacementPayload();
+
+      if (!payload) {
+        statusText.textContent = "No phrase replacement to send.";
+        return;
+      }
+
+      if (!designPhraseBlocks.length) {
+        const confirmed = window.confirm("Apply an empty Play Line and remove the selected Design notes?");
+        if (!confirmed) return;
+      }
+
+      localStorage.setItem("orumiPlayerReplacementPayload", JSON.stringify(payload));
+      localStorage.setItem("orumiPendingPlayerReplacementPayload", JSON.stringify(payload));
+      localStorage.setItem("orumiPlayerEditedPhrase", JSON.stringify(payload));
+
+      statusText.textContent = "Phrase saved for Design Studio.";
+      window.location.href = "design-studio.html?mode=applyPlayerSelection&source=player";
+    }
+
+    function returnToDesignStudio() {
+      window.location.href = "design-studio.html";
+    }
 
     function refreshNavLinks() {
       settingsButton.href = "selection-control.html" + window.location.search;
@@ -869,6 +2458,21 @@
           button.dataset.midi = midi;
 
           button.textContent = pitch.display + noteOctave;
+
+          if (designPhrasePayload) {
+            button.draggable = true;
+            button.title = "Play this note, or drag it into the Play Line.";
+            button.addEventListener("dragstart", event => {
+              event.dataTransfer.setData("application/x-orumi-note", JSON.stringify({
+                midi: parseInt(button.dataset.midi, 10),
+                name: button.dataset.displayName,
+                displayName: button.dataset.displayName,
+                voice: getActivePhraseVoice(),
+                durationBeats: 1
+              }));
+              event.dataTransfer.effectAllowed = "copy";
+            });
+          }
 
           if (highlightedNotes.includes(button.dataset.displayName)) {
             button.classList.add("highlighted");
@@ -1374,10 +2978,27 @@
         "organ",
         "choir",
         "synth",
-        "softKeys"
+        "softKeys",
+        "orumiVocalAh",
+        "orumiVocalOo",
+        "orumiVocalHum",
+        "orumiChoir",
+        "orumiLeadVoice",
+        "orumiBassVoice",
+        "orumiWarmPad"
       ];
 
       button.addEventListener("pointerdown", async event => {
+        if (designPhrasePayload && event.isPrimary) {
+          beginPhraseDrag(event, {
+            source: "grid",
+            midi: parseInt(button.dataset.midi, 10),
+            name: button.dataset.displayName,
+            voice: getActivePhraseVoice(),
+            durationBeats: 1
+          });
+        }
+
         event.preventDefault();
 
         if (event.shiftKey) {
@@ -1391,7 +3012,12 @@
 
         await ensureAudio();
 
-        const { voice } = getSettingsFromUrl();
+        const settings = getSettingsFromUrl();
+        const voice =
+          designPhrasePayload
+            ? getActivePhraseVoice()
+            : settings.voice;
+
         const freq = parseFloat(button.dataset.note);
         const now = audioContext.currentTime;
 
@@ -1414,8 +3040,22 @@
           noiseSources: voiceNode.noiseSources || [],
           pc: button.dataset.pc,
           midi: parseInt(button.dataset.midi, 10),
-          displayName: button.dataset.displayName
+          displayName: button.dataset.displayName,
+          phrasePreviewBlockId: null
         };
+
+        if (designPhrasePayload && phraseAddPlayedNotes) {
+          const initialDurationBeats = sustainedVoices.includes(voice)
+            ? 0.25
+            : Math.max(0.25, secondsToPhraseBeats(Math.min(voiceNode.autoStopSeconds || 0.9, 1.2)));
+
+          noteRecord.phrasePreviewBlockId =
+            beginAutoCapturedPhraseNote(button, now, voice, initialDurationBeats);
+
+          if (phraseDragState && phraseDragState.pointerId === event.pointerId) {
+            phraseDragState.previewBlockId = noteRecord.phrasePreviewBlockId;
+          }
+        }
 
         if (sustainedVoices.includes(voice)) {
           activeNotes.set(event.pointerId, noteRecord);
@@ -1423,12 +3063,25 @@
           const autoDuration =
             voiceNode.autoStopSeconds || 0.9;
 
-          recordFixedNote(
-            button,
-            now,
-            Math.min(autoDuration, 1.2),
-            voice
-          );
+          if (!designPhrasePayload) {
+            recordFixedNote(
+              button,
+              now,
+              Math.min(autoDuration, 1.2),
+              voice
+            );
+          } else if (noteRecord.phrasePreviewBlockId) {
+            setTimeout(() => {
+              if (phraseDragState && phraseDragState.previewBlockId === noteRecord.phrasePreviewBlockId) {
+                return;
+              }
+
+              finalizeAutoCapturedPhraseNote(
+                noteRecord.phrasePreviewBlockId,
+                Math.min(autoDuration, 1.2)
+              );
+            }, Math.min(autoDuration, 1.2) * 1000);
+          }
 
           trackRecentNote(button);
 
@@ -1468,12 +3121,19 @@
 
       ORUMI_VOICES.stopVoice(note, audioContext, 0.12);
 
-      recordSingleNote(
-        note.button,
-        note.startedAt,
-        endedAt,
-        note.voice
-      );
+      if (note.phrasePreviewBlockId) {
+        finalizeAutoCapturedPhraseNote(
+          note.phrasePreviewBlockId,
+          endedAt - note.startedAt
+        );
+      } else {
+        recordSingleNote(
+          note.button,
+          note.startedAt,
+          endedAt,
+          note.voice
+        );
+      }
 
       trackRecentNote(note.button);
 
@@ -1486,6 +3146,47 @@
         stopHeldNote(pointerId);
       });
     }
+
+
+    if (playPhraseButton) {
+      playPhraseButton.addEventListener("click", playDesignPhrase);
+    }
+
+    if (stopPhraseButton) {
+      stopPhraseButton.addEventListener("click", () => {
+        stopDesignPhrasePlayback(true);
+      });
+    }
+
+    if (undoPhraseButton) {
+      undoPhraseButton.addEventListener("click", undoPhraseEdit);
+    }
+
+    if (redoPhraseButton) {
+      redoPhraseButton.addEventListener("click", redoPhraseEdit);
+    }
+
+    if (applyPhraseButton) {
+      applyPhraseButton.addEventListener("click", applyDesignPhraseBackToDesign);
+    }
+
+    if (returnToDesignButton) {
+      returnToDesignButton.addEventListener("click", returnToDesignStudio);
+    }
+
+    if (capturePhraseButton) {
+      capturePhraseButton.addEventListener("click", togglePhraseCapture);
+    }
+
+    if (clearPhraseLineButton) {
+      clearPhraseLineButton.addEventListener("click", clearPhraseLine);
+    }
+
+    if (resetPhraseLineButton) {
+      resetPhraseLineButton.addEventListener("click", resetPhraseLineToOriginal);
+    }
+
+    setupPhraseDropTarget();
 
     recordButton.addEventListener("click", startRecording);
     stopRecordingButton.addEventListener("click", stopRecording);
@@ -1504,8 +3205,12 @@
       stopAllNotes();
       stopDrone();
       saveCurrentRecording();
+      stopDesignPhrasePlayback(false);
+      isPhraseCaptureMode = false;
+      resetAutoPhraseCaptureSession();
     });
 
+    initializeDesignPhraseMode();
     refreshNavLinks();
     buildGrid();
   </script>
