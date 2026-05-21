@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
@@ -328,7 +328,8 @@
     }
 
 
-    body.design-edit-mode {
+    body.design-edit-mode,
+    body.playline-mode {
       justify-content: flex-start;
       height: auto;
       min-height: 100vh;
@@ -565,19 +566,25 @@
 
     body.design-edit-mode .transport-row,
     body.design-edit-mode #playChordButton,
-    body.design-edit-mode #clearChordButton {
+    body.design-edit-mode #clearChordButton,
+    body.playline-mode .transport-row,
+    body.playline-mode #playChordButton,
+    body.playline-mode #clearChordButton {
       display: none !important;
     }
 
-    body.design-edit-mode #designPhrasePanel {
+    body.design-edit-mode #designPhrasePanel,
+    body.playline-mode #designPhrasePanel {
       order: 6;
     }
 
-    body.design-edit-mode #grid {
+    body.design-edit-mode #grid,
+    body.playline-mode #grid {
       order: 7;
     }
 
-    body.design-edit-mode #capturePhraseButton {
+    body.design-edit-mode #capturePhraseButton,
+    body.playline-mode #capturePhraseButton {
       display: none !important;
     }
 
@@ -1038,6 +1045,29 @@
       }
 
       return null;
+    }
+
+    function clearDesignPhrasePayloadStorage() {
+      PLAYER_EDIT_PAYLOAD_KEYS.forEach(key => {
+        localStorage.removeItem(key);
+      });
+    }
+
+    function shouldOpenDesignPhraseMode() {
+      const params = getUrlParams();
+      const mode = String(params.get("mode") || "").toLowerCase();
+      const source = String(params.get("source") || "").toLowerCase();
+
+      return (
+        source === "design-studio" &&
+        [
+          "editdesignselection",
+          "edit-design-selection",
+          "editselection",
+          "phraseedit",
+          "editphrase"
+        ].includes(mode)
+      );
     }
 
     function asFiniteNumber(value, fallback = 0) {
@@ -1708,10 +1738,152 @@
       document.addEventListener("pointercancel", handlePhraseDragEnd, { passive: false });
     }
 
+
+    function buildDefaultPlayerLinePayload() {
+      const settings = getSettingsFromUrl();
+
+      return {
+        mode: "playerLine",
+        source: "player",
+        projectId: null,
+        projectTitle: "Player Sketch",
+        laneId: "player-line",
+        laneName: "Play Line",
+        voice: settings.voice,
+        originalStartBeat: 0,
+        originalEndBeat: 0,
+        durationBeats: 4,
+        context: {
+          tempo: 120,
+          timeSignature: { numerator: 4, denominator: 4 },
+          system: settings.systemKey,
+          root: settings.root,
+          family: settings.family?.label || null,
+          mode: settings.mode?.label || null,
+          setView: settings.setView
+        },
+        originalBlockIds: [],
+        blocks: [],
+        isDefaultPlayerLine: true
+      };
+    }
+
+    function initializeDefaultPlayerLineMode() {
+      designPhrasePayload = buildDefaultPlayerLinePayload();
+      designPhraseBlocks = [];
+      originalDesignPhraseBlocks = [];
+      phraseHistoryStack = [];
+      phraseRedoStack = [];
+      isPhraseCaptureMode = false;
+      phraseAddPlayedNotes = true;
+      resetAutoPhraseCaptureSession();
+      updatePhraseCaptureButton();
+      updatePhraseUndoRedoButtons();
+
+      document.body.classList.add("playline-mode");
+      designPhrasePanel.hidden = false;
+
+      pageTitle.textContent = "Orumi Player";
+      recordingStudioLink.textContent = "Open Design Studio";
+
+      designPhraseTitle.textContent = "Play Line";
+      designPhraseMeta.textContent =
+        "Build a melody here, then send it to Design Studio · " +
+        (ORUMI_CATALOG.voices[getActivePhraseVoice()]?.label || getActivePhraseVoice());
+
+      phraseLaneLabel.firstChild.nodeValue = "Play Line";
+      phraseLaneSubtitle.textContent = "Player sketch";
+
+      if (applyPhraseButton) {
+        applyPhraseButton.textContent = "⤴ Send to Design Studio";
+      }
+
+      if (returnToDesignButton) {
+        returnToDesignButton.textContent = "DS Open Design";
+      }
+
+      if (resetPhraseLineButton) {
+        resetPhraseLineButton.style.display = "none";
+      }
+
+      statusText.textContent =
+        "Press Begin Sound, then play notes to build the Play Line.";
+
+      renderDesignPhraseTimeline();
+    }
+
+    function buildPlayerLineRecordingEvents() {
+      const settings = getSettingsFromUrl();
+      const tempo = Math.max(20, Number(designPhrasePayload?.context?.tempo || 120));
+      const beatSeconds = 60 / tempo;
+
+      return designPhraseBlocks.map(block => ({
+        type: "note",
+        start: Math.max(0, Number(block.relativeStartBeat || 0)) * beatSeconds,
+        duration: Math.max(0.05, Number(block.durationBeats || 1)) * beatSeconds,
+        notes: [{
+          midi: Number(block.midi),
+          name: block.name || midiToDisplayName(block.midi)
+        }],
+        voice: block.voice || getActivePhraseVoice(),
+        system: settings.systemKey,
+        root: settings.root,
+        family: settings.family?.label || "",
+        mode: settings.mode?.label || "",
+        setView: settings.setView,
+        source: "player-play-line"
+      }));
+    }
+
+    function sendDefaultPlayerLineToDesign() {
+      if (!designPhraseBlocks.length) {
+        statusText.textContent = "Play Line is empty. Play notes before sending to Design.";
+        return;
+      }
+
+      sortPhraseBlocks();
+
+      const events = buildPlayerLineRecordingEvents();
+      const payload = {
+        mode: "importPlayerLine",
+        source: "player",
+        createdAt: new Date().toISOString(),
+        projectTitle: "Player Play Line",
+        laneName: "Play Line",
+        voice: getActivePhraseVoice(),
+        context: designPhrasePayload?.context || {},
+        blocks: designPhraseBlocks.map(block => ({
+          laneId: block.laneId || "player-line",
+          midi: block.midi,
+          name: block.name || midiToDisplayName(block.midi),
+          startBeat: block.relativeStartBeat,
+          durationBeats: block.durationBeats,
+          velocity: block.velocity || 86,
+          voice: block.voice || getActivePhraseVoice()
+        })),
+        recordingEvents: events
+      };
+
+      localStorage.setItem("orumiCurrentRecording", JSON.stringify(events));
+      localStorage.setItem("orumiPlayerLineForDesign", JSON.stringify(payload));
+      localStorage.setItem("orumiPendingPlayerLine", JSON.stringify(payload));
+
+      statusText.textContent = "Play Line saved for Design Studio.";
+      window.location.href = "design-studio.html?mode=importPlayerLine&source=player";
+    }
+
     function initializeDesignPhraseMode() {
+      if (!shouldOpenDesignPhraseMode()) {
+        clearDesignPhrasePayloadStorage();
+        initializeDefaultPlayerLineMode();
+        return;
+      }
+
       const payload = normalizeDesignPhrasePayload(readDesignPhrasePayload());
 
       if (!payload) {
+        clearDesignPhrasePayloadStorage();
+        initializeDefaultPlayerLineMode();
         return;
       }
 
@@ -1730,10 +1902,23 @@
       updatePhraseUndoRedoButtons();
 
       document.body.classList.add("design-edit-mode");
+      document.body.classList.remove("playline-mode");
       designPhrasePanel.hidden = false;
 
       pageTitle.textContent = "Phrase Player";
       recordingStudioLink.textContent = "↩ Return to Design Studio";
+
+      if (applyPhraseButton) {
+        applyPhraseButton.textContent = "⤴ Apply Back to Design";
+      }
+
+      if (returnToDesignButton) {
+        returnToDesignButton.textContent = "↩ Return";
+      }
+
+      if (resetPhraseLineButton) {
+        resetPhraseLineButton.style.display = "";
+      }
 
       const context = payload.context || {};
       const timeLabel = beatToSimpleMeasureLabel(
@@ -1766,7 +1951,7 @@
     function renderDesignPhraseTimeline() {
       if (!designPhrasePayload || !designPhraseBlocks.length) {
         phraseLaneTrack.innerHTML =
-          '<div class="phrase-empty">Play Line is empty. Drag notes here or turn Capture on and play.</div>';
+          '<div class="phrase-empty">Play Line is empty. Play notes on the sound square or drag notes here.</div>';
         return;
       }
 
@@ -1900,7 +2085,7 @@
 
     async function playDesignPhrase() {
       if (!designPhrasePayload || !designPhraseBlocks.length) {
-        statusText.textContent = "No Design phrase to play.";
+        statusText.textContent = "No Play Line to play.";
         return;
       }
 
@@ -1992,7 +2177,7 @@
       }
 
       phrasePlayheadFrame = requestAnimationFrame(animatePlayhead);
-      statusText.textContent = "Playing Design phrase...";
+      statusText.textContent = "Playing Play Line...";
     }
 
     function stopDesignPhrasePlayback(updateStatus = true) {
@@ -2064,6 +2249,11 @@
     }
 
     function applyDesignPhraseBackToDesign() {
+      if (designPhrasePayload?.isDefaultPlayerLine) {
+        sendDefaultPlayerLineToDesign();
+        return;
+      }
+
       const payload = buildPlayerReplacementPayload();
 
       if (!payload) {
@@ -2080,11 +2270,16 @@
       localStorage.setItem("orumiPendingPlayerReplacementPayload", JSON.stringify(payload));
       localStorage.setItem("orumiPlayerEditedPhrase", JSON.stringify(payload));
 
+      clearDesignPhrasePayloadStorage();
+
       statusText.textContent = "Phrase saved for Design Studio.";
       window.location.href = "design-studio.html?mode=applyPlayerSelection&source=player";
     }
 
     function returnToDesignStudio() {
+      if (!designPhrasePayload?.isDefaultPlayerLine) {
+        clearDesignPhrasePayloadStorage();
+      }
       window.location.href = "design-studio.html";
     }
 

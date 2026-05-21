@@ -730,6 +730,58 @@
       border-radius: 12px;
     }
 
+    .menu-group.menu-open .menu-dropdown {
+      display: grid;
+    }
+
+    .context-menu-group .menu-dropdown {
+      min-width: 340px;
+    }
+
+    .context-menu-form {
+      display: grid;
+      gap: 8px;
+      padding: 4px;
+    }
+
+    .context-menu-form label {
+      margin: 4px 0 2px;
+    }
+
+    .context-menu-form select,
+    .context-menu-form input {
+      background: rgba(255,255,255,0.16);
+    }
+
+    .context-summary-card {
+      width: 100%;
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 14px;
+      padding: 11px;
+      background: rgba(255,255,255,0.09);
+      color: #fff7ea;
+      font-family: inherit;
+      font-weight: 900;
+      line-height: 1.35;
+      cursor: pointer;
+      text-align: center;
+      box-shadow: 0 5px 14px rgba(0,0,0,0.20);
+    }
+
+    .context-summary-card:hover,
+    .context-summary-card:active {
+      transform: scale(0.985);
+      filter: brightness(1.08);
+    }
+
+    .context-summary-detail {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      margin-top: 4px;
+    }
+
     .compact-transport {
       display: flex;
       flex-wrap: wrap;
@@ -829,6 +881,18 @@
         grid-template-columns: 1fr;
       }
 
+      .workspace {
+        order: 1;
+      }
+
+      .studio > aside:first-of-type {
+        order: 2;
+      }
+
+      .studio > aside:last-of-type {
+        order: 3;
+      }
+
       .palette-grid {
         grid-template-columns: repeat(6, 1fr);
       }
@@ -848,6 +912,27 @@
       .menu-dropdown {
         left: 0;
         transform: none;
+      }
+
+      .menu-group:not(.menu-open):hover .menu-dropdown {
+        display: none;
+      }
+
+      .menu-group.menu-open .menu-dropdown {
+        position: fixed;
+        left: 12px;
+        right: 12px;
+        top: 118px;
+        width: auto;
+        min-width: 0;
+        max-height: calc(100vh - 138px);
+        overflow-y: auto;
+        transform: none;
+        z-index: 3200;
+      }
+
+      .context-menu-group .menu-dropdown {
+        min-width: 0;
       }
 
       .compact-transport {
@@ -947,6 +1032,56 @@
       </div>
     </div>
 
+    <div class="menu-group context-menu-group">
+      <button class="menu-trigger" type="button" id="contextMenuTrigger">Context</button>
+      <div class="menu-dropdown context-menu-dropdown">
+        <div class="context-menu-form">
+          <div class="menu-note">Project setup controls. Adjust before adding notes, or change the whole design context here.</div>
+
+
+        <label for="systemSelect">System</label>
+        <select id="systemSelect"></select>
+
+        <label for="rootSelect">Key Center</label>
+        <select id="rootSelect"></select>
+
+        <label for="familySelect">Family</label>
+        <select id="familySelect"></select>
+
+        <label for="modeSelect">Mode / Scale</label>
+        <select id="modeSelect"></select>
+
+        <div class="mini-row">
+          <div>
+            <label for="setSelect">Palette</label>
+            <select id="setSelect">
+              <option value="full">Full</option>
+              <option value="native">Native</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="tempoInput">Tempo</label>
+            <input id="tempoInput" type="number" min="40" max="240" step="1">
+          </div>
+        </div>
+
+        <label for="timeSignatureSelect">Time Signature</label>
+        <select id="timeSignatureSelect">
+          <option value="4/4">4/4 Common Time</option>
+          <option value="3/4">3/4 Waltz</option>
+          <option value="2/4">2/4 March</option>
+          <option value="6/8">6/8 Compound Duple</option>
+          <option value="custom">Custom...</option>
+        </select>
+
+        <label for="projectVoiceSelect">Default Voice</label>
+        <select id="projectVoiceSelect"></select>
+
+        </div>
+      </div>
+    </div>
+
     <div class="menu-group">
       <button class="menu-trigger" type="button">Select</button>
       <div class="menu-dropdown">
@@ -1015,45 +1150,15 @@
 
       <div class="section">
         <div class="section-title">Project Context</div>
-
-        <label for="systemSelect">System</label>
-        <select id="systemSelect"></select>
-
-        <label for="rootSelect">Key Center</label>
-        <select id="rootSelect"></select>
-
-        <label for="familySelect">Family</label>
-        <select id="familySelect"></select>
-
-        <label for="modeSelect">Mode / Scale</label>
-        <select id="modeSelect"></select>
-
-        <div class="mini-row">
-          <div>
-            <label for="setSelect">Palette</label>
-            <select id="setSelect">
-              <option value="full">Full</option>
-              <option value="native">Native</option>
-            </select>
-          </div>
-
-          <div>
-            <label for="tempoInput">Tempo</label>
-            <input id="tempoInput" type="number" min="40" max="240" step="1">
-          </div>
-        </div>
-
-        <label for="timeSignatureSelect">Time Signature</label>
-        <select id="timeSignatureSelect">
-          <option value="4/4">4/4 Common Time</option>
-          <option value="3/4">3/4 Waltz</option>
-          <option value="2/4">2/4 March</option>
-          <option value="6/8">6/8 Compound Duple</option>
-          <option value="custom">Custom...</option>
-        </select>
-
-        <label for="projectVoiceSelect">Default Voice</label>
-        <select id="projectVoiceSelect"></select>
+        <button
+          class="context-summary-card"
+          id="contextSummaryButton"
+          type="button"
+          title="Open Context menu"
+        >
+          <span id="contextSummaryLabel">C · Ionian · 4/4 · ♩120</span>
+          <span class="context-summary-detail">Tap to edit system, key, mode, tempo, time signature, voice, and palette.</span>
+        </button>
       </div>
 
       <div class="section">
@@ -1181,6 +1286,10 @@
     const status = document.getElementById("status");
     const projectStatus = document.getElementById("projectStatus");
     const projectNameLabel = document.getElementById("projectNameLabel");
+
+    const contextSummaryButton = document.getElementById("contextSummaryButton");
+    const contextSummaryLabel = document.getElementById("contextSummaryLabel");
+    const contextMenuTrigger = document.getElementById("contextMenuTrigger");
 
     const systemSelect = document.getElementById("systemSelect");
     const rootSelect = document.getElementById("rootSelect");
@@ -1532,6 +1641,97 @@
         currentProjectId
           ? "File loaded: " + name
           : "File loaded: " + name + " · unsaved";
+    }
+
+    function updateContextSummary() {
+      if (!contextSummaryLabel || !project || !project.context) {
+        return;
+      }
+
+      const system = getCurrentSystem();
+      const family = getCurrentFamily();
+      const mode = getCurrentMode();
+      const root = pitchClasses[project.context.root]?.display || project.context.root || "C";
+      const modeLabel = mode?.label || project.context.mode || "Mode";
+      const systemLabel = system?.label || project.context.system || "System";
+      const voiceLabel = voices[project.context.voice]?.label || project.context.voice || "Voice";
+
+      contextSummaryLabel.textContent =
+        root +
+        " · " +
+        modeLabel +
+        " · " +
+        getTimeSignatureLabel() +
+        " · ♩" +
+        Math.round(Number(project.tempo || 120)) +
+        " · " +
+        voiceLabel;
+
+      if (contextSummaryButton) {
+        contextSummaryButton.title =
+          "Context: " +
+          systemLabel +
+          " · " +
+          (family?.label || project.context.family || "Family") +
+          " · " +
+          modeLabel +
+          " · " +
+          getTimeSignatureLabel() +
+          " · Tempo " +
+          Math.round(Number(project.tempo || 120));
+      }
+    }
+
+    function openContextMenu() {
+      if (!contextMenuTrigger) {
+        return;
+      }
+
+      const group = contextMenuTrigger.closest(".menu-group");
+      if (!group) {
+        return;
+      }
+
+      document.querySelectorAll(".menu-group.menu-open").forEach(item => {
+        if (item !== group) item.classList.remove("menu-open");
+      });
+
+      group.classList.add("menu-open");
+      contextMenuTrigger.focus();
+    }
+
+    function setupTapMenus() {
+      const menuGroups = Array.from(document.querySelectorAll(".menu-group"));
+
+      menuGroups.forEach(group => {
+        const trigger = group.querySelector(".menu-trigger");
+        if (!trigger) return;
+
+        trigger.addEventListener("click", event => {
+          event.preventDefault();
+          event.stopPropagation();
+
+          const isOpen = group.classList.contains("menu-open");
+
+          menuGroups.forEach(item => item.classList.remove("menu-open"));
+
+          if (!isOpen) {
+            group.classList.add("menu-open");
+          }
+        });
+      });
+
+      document.addEventListener("click", event => {
+        if (!event.target.closest(".menu-group")) {
+          menuGroups.forEach(item => item.classList.remove("menu-open"));
+        }
+      });
+
+      document.addEventListener("keydown", event => {
+        if (event.key === "Escape") {
+          menuGroups.forEach(item => item.classList.remove("menu-open"));
+        }
+      });
     }
 
     function saveHistory() {
@@ -1893,6 +2093,7 @@
       syncTimeSignatureControl();
       projectVoiceSelect.value = project.context.voice;
       paletteOctaveSelect.value = project.context.paletteOctave;
+      updateContextSummary();
     }
 
     function refreshFamilyModeControls() {
@@ -1966,6 +2167,10 @@
     timeSignatureSelect.addEventListener("change", handleTimeSignatureChange);
     projectVoiceSelect.addEventListener("change", handleContextChange);
     paletteOctaveSelect.addEventListener("change", handleContextChange);
+
+    if (contextSummaryButton) {
+      contextSummaryButton.addEventListener("click", openContextMenu);
+    }
 
     function createPalette() {
       paletteGrid.innerHTML = "";
@@ -7021,6 +7226,8 @@
       stopPlayback();
       localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
     });
+
+    setupTapMenus();
 
     loadStartupProject();
     render();
