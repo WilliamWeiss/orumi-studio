@@ -419,6 +419,14 @@
       cursor: default;
     }
 
+    .phrase-action-button.playing-now {
+      background: rgba(255,235,120,0.92);
+      color: #111;
+      box-shadow:
+        0 0 18px rgba(255,235,120,0.55),
+        0 5px 14px rgba(0,0,0,0.22);
+    }
+
     .phrase-action-button.history-ready {
       background: rgba(255,255,255,0.92);
       color: #111;
@@ -713,6 +721,13 @@
         0 7px 14px rgba(0,0,0,0.40);
     }
 
+    .phrase-block.rest-block {
+      background: #f5f0e8;
+      color: #111;
+      text-shadow: none;
+      border: 2px dashed rgba(0,0,0,0.32);
+    }
+
     @media (max-width: 760px) {
       .design-phrase-header {
         display: flex;
@@ -899,6 +914,12 @@
         <button id="capturePhraseButton" class="phrase-action-button" type="button" hidden>
           Add Played Notes: On
         </button>
+        <button id="insertRestButton" class="phrase-action-button" type="button">
+          ＋ Rest
+        </button>
+        <button id="tightenPhraseLineButton" class="phrase-action-button" type="button">
+          ⌁ Tighten Line
+        </button>
         <button id="clearPhraseLineButton" class="phrase-action-button" type="button">
           ✕ Clear Play Line
         </button>
@@ -923,7 +944,7 @@
     </div>
 
     <div class="phrase-editor-note">
-      Play notes on the sound square to add them to the Play Line automatically. Drag notes in for exact placement, drag blocks to move them, drag right edges to resize, or use Undo if the edit goes wrong.
+      Play notes to append them in sequence. Pauses are ignored unless you insert a Rest. Drag notes into the line to insert/reorder, drag right edges to resize, or use Undo if the edit goes wrong.
     </div>
   </section>
 
@@ -976,6 +997,8 @@
     const applyPhraseButton = document.getElementById("applyPhraseButton");
     const returnToDesignButton = document.getElementById("returnToDesignButton");
     const capturePhraseButton = document.getElementById("capturePhraseButton");
+    const insertRestButton = document.getElementById("insertRestButton");
+    const tightenPhraseLineButton = document.getElementById("tightenPhraseLineButton");
     const clearPhraseLineButton = document.getElementById("clearPhraseLineButton");
     const resetPhraseLineButton = document.getElementById("resetPhraseLineButton");
     const phraseTrash = document.getElementById("phraseTrash");
@@ -1007,6 +1030,8 @@
     let phraseAddPlayedNotes = true;
     let phraseAutoCaptureSession = null;
     let phraseAutoCaptureIdleTimer = null;
+    let isPhrasePlaybackActive = false;
+    let phrasePlaybackRunId = 0;
 
 
     const activeNotes = new Map();
@@ -1360,25 +1385,15 @@
     }
 
     function getAutoPhraseRelativeStart(now) {
-      if (!designPhrasePayload || !audioContext) {
+      if (!designPhrasePayload) {
         return 0;
       }
 
-      if (!phraseAutoCaptureSession) {
-        phraseAutoCaptureSession = {
-          baseTime: now,
-          baseBeat: getPhraseEndBeat()
-        };
-      }
-
-      return Math.max(
-        0,
-        phraseAutoCaptureSession.baseBeat + secondsToPhraseBeats(now - phraseAutoCaptureSession.baseTime)
-      );
+      return getPhraseEndBeat();
     }
 
     function beginAutoCapturedPhraseNote(button, startedAt, voice, initialDurationBeats = 0.25) {
-      if (!designPhrasePayload || !phraseAddPlayedNotes) {
+      if (!designPhrasePayload || !phraseAddPlayedNotes || isPhrasePlaybackActive) {
         return null;
       }
 
@@ -1438,10 +1453,12 @@
       const safeMidi = Number(midi);
       const safeStart = Math.max(0, Number(relativeStartBeat || 0));
       const safeDuration = Math.max(0.25, Number(durationBeats || 1));
+      const id = makePhraseBlockId();
 
       return {
-        id: makePhraseBlockId(),
-        blockId: makePhraseBlockId(),
+        id,
+        blockId: id,
+        type: "note",
         laneId: designPhrasePayload?.laneId || "lead",
         midi: Number.isFinite(safeMidi) ? safeMidi : 60,
         name: name || midiToDisplayName(Number.isFinite(safeMidi) ? safeMidi : 60),
@@ -1454,33 +1471,124 @@
       };
     }
 
+    function createPhraseRestBlock(relativeStartBeat = getPhraseEndBeat(), durationBeats = 1) {
+      const safeStart = Math.max(0, Number(relativeStartBeat || 0));
+      const safeDuration = Math.max(0.25, Number(durationBeats || 1));
+      const id = makePhraseBlockId();
+
+      return {
+        id,
+        blockId: id,
+        type: "rest",
+        laneId: designPhrasePayload?.laneId || "lead",
+        midi: null,
+        name: "Rest",
+        startBeat: (designPhrasePayload?.originalStartBeat || 0) + safeStart,
+        relativeStartBeat: safeStart,
+        durationBeats: safeDuration,
+        velocity: 0,
+        voice: null,
+        source: "player-phrase-editor"
+      };
+    }
+
+    function reflowPhraseSequence() {
+      let cursor = 0;
+
+      designPhraseBlocks = designPhraseBlocks.map(block => {
+        const duration = Math.max(0.25, Number(block.durationBeats || 1));
+        const next = {
+          ...block,
+          durationBeats: duration,
+          relativeStartBeat: cursor,
+          startBeat: (designPhrasePayload?.originalStartBeat || 0) + cursor
+        };
+
+        cursor += duration;
+        return next;
+      });
+    }
+
+    function getSequenceInsertIndexFromClientX(clientX) {
+      if (!phraseLaneTrack || designPhraseBlocks.length === 0) {
+        return designPhraseBlocks.length;
+      }
+
+      const rect = phraseLaneTrack.getBoundingClientRect();
+      const x = Math.max(0, clientX - rect.left);
+
+      for (let index = 0; index < designPhraseBlocks.length; index++) {
+        const block = designPhraseBlocks[index];
+        const midpoint = (block.relativeStartBeat + (block.durationBeats / 2)) * PHRASE_BEAT_WIDTH;
+
+        if (x < midpoint) {
+          return index;
+        }
+      }
+
+      return designPhraseBlocks.length;
+    }
+
+    function insertPhraseBlockAtIndex(block, index) {
+      const nextIndex = Math.max(0, Math.min(designPhraseBlocks.length, Number(index)));
+      designPhraseBlocks.splice(nextIndex, 0, block);
+      reflowPhraseSequence();
+    }
+
     function sortPhraseBlocks() {
       designPhraseBlocks = designPhraseBlocks
         .map(block => ({
           ...block,
+          type: block.type || (block.midi === null || block.midi === undefined ? "rest" : "note"),
           relativeStartBeat: Math.max(0, Number(block.relativeStartBeat || 0)),
           durationBeats: Math.max(0.25, Number(block.durationBeats || 1))
         }))
         .sort((a, b) =>
           a.relativeStartBeat - b.relativeStartBeat ||
+          (a.type === "rest" ? 1 : 0) - (b.type === "rest" ? 1 : 0) ||
           Number(a.midi || 0) - Number(b.midi || 0)
         );
+
+      reflowPhraseSequence();
     }
 
-    function addPhraseBlockFromMidi(midi, relativeStartBeat, durationBeats = 1, name = null, voice = null, skipHistory = false) {
+    function addPhraseBlockFromMidi(midi, relativeStartBeat = null, durationBeats = 1, name = null, voice = null, skipHistory = false) {
       if (!designPhrasePayload) return;
 
       if (!skipHistory) {
         savePhraseHistory();
       }
 
-      designPhraseBlocks.push(
-        createPhraseBlockFromMidi(midi, relativeStartBeat, durationBeats, name, voice)
+      const insertIndex = Number.isFinite(Number(relativeStartBeat))
+        ? designPhraseBlocks.filter(block => Number(block.relativeStartBeat || 0) < Number(relativeStartBeat)).length
+        : designPhraseBlocks.length;
+
+      insertPhraseBlockAtIndex(
+        createPhraseBlockFromMidi(midi, getPhraseEndBeat(), durationBeats, name, voice),
+        insertIndex
       );
 
-      sortPhraseBlocks();
       renderDesignPhraseTimeline();
       statusText.textContent = "Added " + (name || midiToDisplayName(midi)) + " to the Play Line.";
+    }
+
+    function addRestToPhraseLine(durationBeats = 1) {
+      if (!designPhrasePayload) return;
+
+      savePhraseHistory();
+      designPhraseBlocks.push(createPhraseRestBlock(getPhraseEndBeat(), durationBeats));
+      reflowPhraseSequence();
+      renderDesignPhraseTimeline();
+      statusText.textContent = "Inserted a rest. Drag the right edge to change its length.";
+    }
+
+    function tightenPhraseLine() {
+      if (!designPhrasePayload) return;
+
+      savePhraseHistory();
+      sortPhraseBlocks();
+      renderDesignPhraseTimeline();
+      statusText.textContent = "Play Line tightened. Only explicit rests keep silence.";
     }
 
     function removePhraseBlock(blockId) {
@@ -1489,8 +1597,9 @@
 
       if (designPhraseBlocks.length !== before) {
         savePhraseHistory();
+        reflowPhraseSequence();
         renderDesignPhraseTimeline();
-        statusText.textContent = "Removed note from Play Line.";
+        statusText.textContent = "Removed item from Play Line.";
       }
     }
 
@@ -1498,6 +1607,7 @@
       if (!designPhrasePayload) return;
 
       stopDesignPhrasePlayback(false);
+      stopAllNotes();
       isPhraseCaptureMode = false;
       resetAutoPhraseCaptureSession();
       savePhraseHistory();
@@ -1510,6 +1620,7 @@
       if (!designPhrasePayload) return;
 
       stopDesignPhrasePlayback(false);
+      stopAllNotes();
       isPhraseCaptureMode = false;
       resetAutoPhraseCaptureSession();
       savePhraseHistory();
@@ -1557,7 +1668,7 @@
       }
 
       block.durationBeats = Math.max(0.25, Number(durationBeats || 0.25));
-      sortPhraseBlocks();
+      reflowPhraseSequence();
       renderDesignPhraseTimeline();
     }
 
@@ -1628,7 +1739,9 @@
       const dx = event.clientX - phraseDragState.startX;
       const dy = event.clientY - phraseDragState.startY;
 
-      if (!phraseDragState.active && Math.hypot(dx, dy) > 8) {
+      const dragThreshold = phraseDragState.source === "grid" ? 16 : 8;
+
+      if (!phraseDragState.active && Math.hypot(dx, dy) > dragThreshold) {
         phraseDragState.active = true;
 
         if (phraseDragState.source === "grid" && phraseDragState.previewBlockId) {
@@ -1675,23 +1788,30 @@
       }
 
       if (isPointInsideElement(event.clientX, event.clientY, phraseLaneTrack)) {
-        const nextBeat = beatFromPhraseClientX(event.clientX);
+        const insertIndex = getSequenceInsertIndexFromClientX(event.clientX);
 
         if (drag.source === "play-line") {
-          const block = designPhraseBlocks.find(item => item.blockId === drag.blockId || item.id === drag.blockId);
-          if (block) {
+          const existingIndex = designPhraseBlocks.findIndex(item => item.blockId === drag.blockId || item.id === drag.blockId);
+
+          if (existingIndex >= 0) {
             savePhraseHistory();
-            block.relativeStartBeat = nextBeat;
-            block.startBeat = (designPhrasePayload?.originalStartBeat || 0) + nextBeat;
-            sortPhraseBlocks();
+            const [block] = designPhraseBlocks.splice(existingIndex, 1);
+            const adjustedIndex = existingIndex < insertIndex ? insertIndex - 1 : insertIndex;
+            insertPhraseBlockAtIndex(block, adjustedIndex);
             renderDesignPhraseTimeline();
             statusText.textContent = "Moved " + drag.name + " in the Play Line.";
           }
         } else {
-          addPhraseBlockFromMidi(drag.midi, nextBeat, drag.durationBeats, drag.name, drag.voice);
+          savePhraseHistory();
+          insertPhraseBlockAtIndex(
+            createPhraseBlockFromMidi(drag.midi, 0, drag.durationBeats, drag.name, drag.voice),
+            insertIndex
+          );
+          renderDesignPhraseTimeline();
+          statusText.textContent = "Inserted " + drag.name + " in the Play Line.";
         }
       } else if (drag.source === "play-line") {
-        statusText.textContent = "Drag a Play Line note to the trash to delete it, or back into the Play Line to move it.";
+        statusText.textContent = "Drag a Play Line item to the trash to delete it, or back into the Play Line to move it.";
       }
 
       hidePhraseTrash();
@@ -1724,13 +1844,19 @@
           return;
         }
 
-        addPhraseBlockFromMidi(
-          Number(parsed.midi),
-          beatFromPhraseTrackEvent(event),
-          Number(parsed.durationBeats || 1),
-          parsed.name || parsed.displayName || midiToDisplayName(Number(parsed.midi)),
-          parsed.voice || null
+        savePhraseHistory();
+        insertPhraseBlockAtIndex(
+          createPhraseBlockFromMidi(
+            Number(parsed.midi),
+            0,
+            Number(parsed.durationBeats || 1),
+            parsed.name || parsed.displayName || midiToDisplayName(Number(parsed.midi)),
+            parsed.voice || null
+          ),
+          getSequenceInsertIndexFromClientX(event.clientX)
         );
+        renderDesignPhraseTimeline();
+        statusText.textContent = "Inserted " + (parsed.name || parsed.displayName || midiToDisplayName(Number(parsed.midi))) + " in the Play Line.";
       });
 
       document.addEventListener("pointermove", handlePhraseDragMove, { passive: false });
@@ -1774,6 +1900,14 @@
       originalDesignPhraseBlocks = [];
       phraseHistoryStack = [];
       phraseRedoStack = [];
+      isRecording = false;
+      if (recordButton) recordButton.classList.remove("recording");
+      if (recordButton) recordButton.disabled = false;
+      if (stopRecordingButton) stopRecordingButton.disabled = true;
+      isRecording = false;
+      if (recordButton) recordButton.classList.remove("recording");
+      if (recordButton) recordButton.disabled = false;
+      if (stopRecordingButton) stopRecordingButton.disabled = true;
       isPhraseCaptureMode = false;
       phraseAddPlayedNotes = true;
       resetAutoPhraseCaptureSession();
@@ -1807,7 +1941,7 @@
       }
 
       statusText.textContent =
-        "Press Begin Sound, then play notes to build the Play Line.";
+        "Press Begin Sound, then play notes to append them. Use ＋ Rest for silence.";
 
       renderDesignPhraseTimeline();
     }
@@ -1817,22 +1951,26 @@
       const tempo = Math.max(20, Number(designPhrasePayload?.context?.tempo || 120));
       const beatSeconds = 60 / tempo;
 
-      return designPhraseBlocks.map(block => ({
-        type: "note",
-        start: Math.max(0, Number(block.relativeStartBeat || 0)) * beatSeconds,
-        duration: Math.max(0.05, Number(block.durationBeats || 1)) * beatSeconds,
-        notes: [{
-          midi: Number(block.midi),
-          name: block.name || midiToDisplayName(block.midi)
-        }],
-        voice: block.voice || getActivePhraseVoice(),
-        system: settings.systemKey,
-        root: settings.root,
-        family: settings.family?.label || "",
-        mode: settings.mode?.label || "",
-        setView: settings.setView,
-        source: "player-play-line"
-      }));
+      reflowPhraseSequence();
+
+      return designPhraseBlocks
+        .filter(block => !(block.type === "rest" || block.midi === null || block.midi === undefined))
+        .map(block => ({
+          type: "note",
+          start: Math.max(0, Number(block.relativeStartBeat || 0)) * beatSeconds,
+          duration: Math.max(0.05, Number(block.durationBeats || 1)) * beatSeconds,
+          notes: [{
+            midi: Number(block.midi),
+            name: block.name || midiToDisplayName(block.midi)
+          }],
+          voice: block.voice || getActivePhraseVoice(),
+          system: settings.systemKey,
+          root: settings.root,
+          family: settings.family?.label || "",
+          mode: settings.mode?.label || "",
+          setView: settings.setView,
+          source: "player-play-line"
+        }));
     }
 
     function sendDefaultPlayerLineToDesign() {
@@ -1853,13 +1991,14 @@
         voice: getActivePhraseVoice(),
         context: designPhrasePayload?.context || {},
         blocks: designPhraseBlocks.map(block => ({
+          type: block.type || (block.midi === null || block.midi === undefined ? "rest" : "note"),
           laneId: block.laneId || "player-line",
-          midi: block.midi,
-          name: block.name || midiToDisplayName(block.midi),
+          midi: block.type === "rest" ? null : block.midi,
+          name: block.type === "rest" ? "Rest" : (block.name || midiToDisplayName(block.midi)),
           startBeat: block.relativeStartBeat,
           durationBeats: block.durationBeats,
           velocity: block.velocity || 86,
-          voice: block.voice || getActivePhraseVoice()
+          voice: block.type === "rest" ? null : (block.voice || getActivePhraseVoice())
         })),
         recordingEvents: events
       };
@@ -1943,7 +2082,7 @@
         (ORUMI_CATALOG.voices[getActivePhraseVoice()]?.label || getActivePhraseVoice());
 
       statusText.textContent =
-        "Phrase received from Design. Play notes to add them automatically, or drag notes into the Play Line.";
+        "Phrase received from Design. Play notes to append them; use ＋ Rest for silence.";
 
       renderDesignPhraseTimeline();
     }
@@ -1951,17 +2090,18 @@
     function renderDesignPhraseTimeline() {
       if (!designPhrasePayload || !designPhraseBlocks.length) {
         phraseLaneTrack.innerHTML =
-          '<div class="phrase-empty">Play Line is empty. Play notes on the sound square or drag notes here.</div>';
+          '<div class="phrase-empty">Play Line is empty. Play notes to append them, drag notes here, or insert an explicit Rest.</div>';
         return;
       }
 
+      reflowPhraseSequence();
       const duration = getPhraseDurationBeats();
 
       const timelineWidth = Math.max(560, 96 + (Math.ceil(duration) + 1) * PHRASE_BEAT_WIDTH);
       phraseTimeline.style.width = timelineWidth + "px";
 
       phraseLaneLabel.firstChild.nodeValue = designPhrasePayload.laneName || "Lane";
-      phraseLaneSubtitle.textContent = "Design phrase";
+      phraseLaneSubtitle.textContent = designPhrasePayload?.isDefaultPlayerLine ? "Sequential sketch" : "Sequential phrase";
 
       phraseRuler.innerHTML = "";
       phraseRuler.style.width = Math.max(400, (Math.ceil(duration) + 1) * PHRASE_BEAT_WIDTH) + "px";
@@ -1983,12 +2123,15 @@
       phraseLaneTrack.style.width = Math.max(400, (Math.ceil(duration) + 1) * PHRASE_BEAT_WIDTH) + "px";
 
       designPhraseBlocks.forEach(block => {
+        const isRest = block.type === "rest" || block.midi === null || block.midi === undefined;
         const element = document.createElement("div");
-        element.className = "phrase-block editable " + midiToClassNameSafe(block.midi) + (block.liveCapture ? " live-capture" : "");
+        element.className = "phrase-block editable " +
+          (isRest ? "rest-block" : midiToClassNameSafe(block.midi)) +
+          (block.liveCapture ? " live-capture" : "");
         element.dataset.blockId = block.blockId;
         element.style.left = (block.relativeStartBeat * PHRASE_BEAT_WIDTH) + "px";
         element.style.width = Math.max(38, block.durationBeats * PHRASE_BEAT_WIDTH - 6) + "px";
-        element.textContent = block.name || midiToDisplayName(block.midi);
+        element.textContent = isRest ? "Rest" : (block.name || midiToDisplayName(block.midi));
 
         const resizeHandle = document.createElement("span");
         resizeHandle.className = "phrase-resize-handle";
@@ -2006,8 +2149,8 @@
         element.appendChild(deleteHint);
 
         element.title =
-          (block.name || midiToDisplayName(block.midi)) +
-          " · beat " +
+          (isRest ? "Rest" : (block.name || midiToDisplayName(block.midi))) +
+          " · sequence beat " +
           (block.relativeStartBeat + 1).toFixed(2).replace(/0+$/, "").replace(/\.$/, "") +
           " · drag right edge to resize · double-click to remove";
 
@@ -2022,10 +2165,11 @@
           beginPhraseDrag(event, {
             source: "play-line",
             blockId: block.blockId || block.id,
-            midi: block.midi,
-            name: block.name || midiToDisplayName(block.midi),
+            midi: isRest ? 60 : block.midi,
+            name: isRest ? "Rest" : (block.name || midiToDisplayName(block.midi)),
             voice: block.voice || null,
-            durationBeats: block.durationBeats || 1
+            durationBeats: block.durationBeats || 1,
+            isRest
           });
         });
 
@@ -2095,11 +2239,24 @@
 
       await ensureAudio();
 
-      stopDesignPhrasePlayback();
+      stopAllNotes();
+      resetAutoPhraseCaptureSession();
+      stopDesignPhrasePlayback(false);
+      reflowPhraseSequence();
 
       const baseTempo = Number(designPhrasePayload.context?.tempo || 120);
       const beatSeconds = 60 / Math.max(20, baseTempo);
       const { voice } = getSettingsFromUrl();
+
+      isPhrasePlaybackActive = true;
+      phrasePlaybackRunId += 1;
+      const runId = phrasePlaybackRunId;
+
+      if (playPhraseButton) {
+        playPhraseButton.disabled = true;
+        playPhraseButton.classList.add("playing-now");
+        playPhraseButton.textContent = "▶ Playing...";
+      }
 
       phrasePlaybackStartTime = audioContext.currentTime;
       phrasePlayhead.style.display = "block";
@@ -2108,10 +2265,19 @@
       const phraseDurationSeconds = getPhraseDurationBeats() * beatSeconds;
 
       designPhraseBlocks.forEach(block => {
+        const isRest = block.type === "rest" || block.midi === null || block.midi === undefined;
+        if (isRest) {
+          return;
+        }
+
         const startMs = Math.max(0, block.relativeStartBeat * beatSeconds * 1000);
         const durationMs = Math.max(80, block.durationBeats * beatSeconds * 1000);
 
         const timer = setTimeout(() => {
+          if (runId !== phrasePlaybackRunId || !isPhrasePlaybackActive) {
+            return;
+          }
+
           const now = audioContext.currentTime;
           const eventVoice =
             block.voice && ORUMI_CATALOG.voices[block.voice]
@@ -2145,6 +2311,10 @@
           }
 
           const stopTimer = setTimeout(() => {
+            if (runId !== phrasePlaybackRunId) {
+              return;
+            }
+
             ORUMI_VOICES.stopVoice(playedNote, audioContext, 0.16);
             phrasePlaybackNotes =
               phrasePlaybackNotes.filter(note => note !== playedNote);
@@ -2167,12 +2337,11 @@
         const beat = elapsed / beatSeconds;
         phrasePlayhead.style.left = (108 + beat * PHRASE_BEAT_WIDTH) + "px";
 
-        if (elapsed <= phraseDurationSeconds + 0.05) {
+        if (elapsed <= phraseDurationSeconds + 0.05 && runId === phrasePlaybackRunId && isPhrasePlaybackActive) {
           phrasePlayheadFrame = requestAnimationFrame(animatePlayhead);
         } else {
           stopDesignPhrasePlayback(false);
-      isPhraseCaptureMode = false;
-          statusText.textContent = "Phrase playback complete.";
+          statusText.textContent = "Play Line playback complete.";
         }
       }
 
@@ -2181,6 +2350,15 @@
     }
 
     function stopDesignPhrasePlayback(updateStatus = true) {
+      phrasePlaybackRunId += 1;
+      isPhrasePlaybackActive = false;
+
+      if (playPhraseButton) {
+        playPhraseButton.disabled = false;
+        playPhraseButton.classList.remove("playing-now");
+        playPhraseButton.textContent = "▶ Play Line";
+      }
+
       phrasePlaybackTimers.forEach(timer => clearTimeout(timer));
       phrasePlaybackTimers = [];
 
@@ -2208,7 +2386,7 @@
       }
 
       if (updateStatus && designPhrasePayload) {
-        statusText.textContent = "Phrase stopped.";
+        statusText.textContent = "Play Line stopped.";
       }
     }
 
@@ -2216,6 +2394,8 @@
       if (!designPhrasePayload) {
         return null;
       }
+
+      reflowPhraseSequence();
 
       return {
         mode: "replaceDesignSelection",
@@ -2236,13 +2416,14 @@
         replacementBlocks: designPhraseBlocks.map(block => ({
           id: block.id,
           blockId: block.blockId,
+          type: block.type || (block.midi === null || block.midi === undefined ? "rest" : "note"),
           laneId: designPhrasePayload.laneId || block.laneId,
-          midi: block.midi,
-          name: block.name || midiToDisplayName(block.midi),
+          midi: block.type === "rest" ? null : block.midi,
+          name: block.type === "rest" ? "Rest" : (block.name || midiToDisplayName(block.midi)),
           startBeat: designPhrasePayload.originalStartBeat + block.relativeStartBeat,
           durationBeats: block.durationBeats,
           velocity: block.velocity,
-          voice: block.voice || getActivePhraseVoice() || null
+          voice: block.type === "rest" ? null : (block.voice || getActivePhraseVoice() || null)
         })),
         context: designPhrasePayload.context
       };
@@ -3184,7 +3365,7 @@
       ];
 
       button.addEventListener("pointerdown", async event => {
-        if (designPhrasePayload && event.isPrimary) {
+        if (designPhrasePayload && event.isPrimary && !isPhrasePlaybackActive) {
           beginPhraseDrag(event, {
             source: "grid",
             midi: parseInt(button.dataset.midi, 10),
@@ -3239,7 +3420,7 @@
           phrasePreviewBlockId: null
         };
 
-        if (designPhrasePayload && phraseAddPlayedNotes) {
+        if (designPhrasePayload && phraseAddPlayedNotes && !isPhrasePlaybackActive) {
           const initialDurationBeats = sustainedVoices.includes(voice)
             ? 0.25
             : Math.max(0.25, secondsToPhraseBeats(Math.min(voiceNode.autoStopSeconds || 0.9, 1.2)));
@@ -3321,7 +3502,7 @@
           note.phrasePreviewBlockId,
           endedAt - note.startedAt
         );
-      } else {
+      } else if (!designPhrasePayload) {
         recordSingleNote(
           note.button,
           note.startedAt,
@@ -3371,6 +3552,14 @@
 
     if (capturePhraseButton) {
       capturePhraseButton.addEventListener("click", togglePhraseCapture);
+    }
+
+    if (insertRestButton) {
+      insertRestButton.addEventListener("click", () => addRestToPhraseLine(1));
+    }
+
+    if (tightenPhraseLineButton) {
+      tightenPhraseLineButton.addEventListener("click", tightenPhraseLine);
     }
 
     if (clearPhraseLineButton) {
