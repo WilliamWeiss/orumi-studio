@@ -302,6 +302,201 @@
       min-height: 18px;
     }
 
+
+
+    .suggest-harmony-section[hidden] {
+      display: none;
+    }
+
+    .standard-progression-section[hidden] {
+      display: none;
+    }
+
+    .harmony-summary-card {
+      padding: 12px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.10);
+      color: #fff7ea;
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.45;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    .harmony-summary-card .muted {
+      display: block;
+      color: #bdb4a6;
+      font-size: 12px;
+      margin-top: 4px;
+      font-weight: 700;
+    }
+
+    .melody-harmony-strip {
+      display: flex;
+      align-items: stretch;
+      gap: 14px;
+      overflow-x: auto;
+      padding: 8px 4px 18px;
+      scroll-snap-type: x proximity;
+    }
+
+    .melody-note-card {
+      flex: 0 0 230px;
+      min-height: 312px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 22px;
+      padding: 14px;
+      box-shadow: 0 8px 22px rgba(0,0,0,0.32);
+      scroll-snap-align: start;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .melody-note-card.skipped {
+      opacity: 0.72;
+      background: rgba(255,255,255,0.045);
+    }
+
+    .melody-note-card.harmonized {
+      border-color: rgba(155,235,215,0.72);
+      box-shadow:
+        0 0 20px rgba(155,235,215,0.20),
+        0 8px 22px rgba(0,0,0,0.32);
+    }
+
+    .melody-note-head {
+      display: grid;
+      grid-template-columns: 58px 1fr;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .melody-note-block {
+      width: 58px;
+      height: 46px;
+      border-radius: 13px;
+      display: grid;
+      place-items: center;
+      color: white;
+      font-size: 15px;
+      font-weight: 900;
+      box-shadow:
+        0 7px 14px rgba(0,0,0,0.38),
+        inset 0 1px 0 rgba(255,255,255,0.22);
+    }
+
+    .melody-note-block.light-text {
+      color: #222;
+      text-shadow: none;
+    }
+
+    .melody-note-title {
+      font-size: 19px;
+      font-weight: 900;
+      color: #fff;
+      line-height: 1.1;
+    }
+
+    .melody-note-meta {
+      color: #bdb4a6;
+      font-size: 12px;
+      line-height: 1.35;
+      margin-top: 3px;
+      font-weight: 700;
+    }
+
+    .harmony-state {
+      min-height: 34px;
+      padding: 9px 10px;
+      border-radius: 13px;
+      background: rgba(255,255,255,0.09);
+      border: 1px solid rgba(255,255,255,0.08);
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.35;
+      color: #fff7ea;
+    }
+
+    .harmony-state .muted {
+      color: #bdb4a6;
+      font-weight: 700;
+    }
+
+    .suggestion-list {
+      display: grid;
+      gap: 7px;
+      margin-top: auto;
+    }
+
+    .suggestion-button {
+      width: 100%;
+      border: none;
+      border-radius: 13px;
+      padding: 9px 10px;
+      background: rgba(255,255,255,0.15);
+      color: #fff7ea;
+      cursor: pointer;
+      font-family: inherit;
+      text-align: left;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.20);
+    }
+
+    .suggestion-button strong {
+      display: block;
+      font-size: 14px;
+      color: #fff;
+      margin-bottom: 2px;
+    }
+
+    .suggestion-button span {
+      display: block;
+      color: #bdb4a6;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+
+    .suggestion-button.selected {
+      background: rgba(155,235,215,0.92);
+      color: #102522;
+    }
+
+    .suggestion-button.selected strong,
+    .suggestion-button.selected span {
+      color: #102522;
+    }
+
+    .suggestion-button.skip {
+      text-align: center;
+      background: rgba(255,255,255,0.09);
+      color: #d8d0c4;
+      font-weight: 900;
+    }
+
+    .suggestion-button:hover,
+    .suggestion-button:active,
+    .action-button:hover,
+    .action-button:active,
+    .small-button:hover,
+    .small-button:active {
+      transform: scale(0.97);
+      filter: brightness(1.12);
+    }
+
+
+    .melody-note-card.previewing,
+    .harmony-note-card.previewing {
+      outline: 4px solid rgba(255,235,120,0.96);
+      outline-offset: 3px;
+      box-shadow:
+        0 0 34px rgba(255,235,120,0.78),
+        0 8px 22px rgba(0,0,0,0.32);
+    }
+
     .c  { background: #ff6b6b; }
     .db { background: linear-gradient(135deg, #ff6b6b, #f7b267); }
     .d  { background: #f7b267; }
@@ -381,7 +576,85 @@
 
   <div class="builder">
 
-    <div class="section">
+    <div
+      class="section suggest-harmony-section"
+      id="suggestHarmonySection"
+      hidden
+    >
+      <div class="section-title">Suggest Harmony</div>
+
+      <div
+        class="harmony-summary-card"
+        id="harmonySummary"
+      >
+        Melody phrase received from Design Studio.
+        <span class="muted">Choose which melody notes become harmonic anchors. Skip passing notes.</span>
+      </div>
+
+      <div
+        class="melody-harmony-strip"
+        id="melodyHarmonyStrip"
+      ></div>
+
+      <div class="main-actions">
+        <button
+          class="action-button"
+          id="playHarmonyBothButton"
+        >
+          ▶ Play Melody + Harmony
+        </button>
+
+        <button
+          class="action-button secondary"
+          id="playHarmonyMelodyButton"
+        >
+          ▶ Melody Only
+        </button>
+
+        <button
+          class="action-button secondary"
+          id="playHarmonyChordsButton"
+        >
+          ▶ Harmony Only
+        </button>
+
+        <button
+          class="action-button secondary"
+          id="stopHarmonyPreviewButton"
+        >
+          ■ Stop Preview
+        </button>
+
+        <button
+          class="action-button"
+          id="applyHarmonyButton"
+        >
+          ⤴ Send Harmony Plan to Design
+        </button>
+
+        <button
+          class="action-button secondary"
+          id="clearHarmonyChoicesButton"
+        >
+          ✕ Clear Choices
+        </button>
+
+        <a
+          class="action-button secondary"
+          href="design-studio.html"
+        >
+          ↩ Return to Design
+        </a>
+      </div>
+
+      <div
+        class="playback-status"
+        id="harmonyStatus"
+      ></div>
+    </div>
+
+
+    <div class="section standard-progression-section" id="standardProgressionSection">
       <div class="section-title">Chord Progression</div>
       <div
         class="progression-strip"
@@ -396,7 +669,7 @@
       </div>
     </div>
 
-    <div class="section">
+    <div class="section standard-progression-section" id="standardPlaybackSection">
       <div class="section-title">Playback</div>
 
       <div class="main-actions">
@@ -480,6 +753,53 @@
     const playbackStatus =
       document.getElementById("playbackStatus");
 
+    const suggestHarmonySection =
+      document.getElementById("suggestHarmonySection");
+
+    const standardProgressionSection =
+      document.getElementById("standardProgressionSection");
+
+    const standardPlaybackSection =
+      document.getElementById("standardPlaybackSection");
+
+    const melodyHarmonyStrip =
+      document.getElementById("melodyHarmonyStrip");
+
+    const harmonySummary =
+      document.getElementById("harmonySummary");
+
+    const harmonyStatus =
+      document.getElementById("harmonyStatus");
+
+    const applyHarmonyButton =
+      document.getElementById("applyHarmonyButton");
+
+    const clearHarmonyChoicesButton =
+      document.getElementById("clearHarmonyChoicesButton");
+
+    const playHarmonyBothButton =
+      document.getElementById("playHarmonyBothButton");
+
+    const playHarmonyMelodyButton =
+      document.getElementById("playHarmonyMelodyButton");
+
+    const playHarmonyChordsButton =
+      document.getElementById("playHarmonyChordsButton");
+
+    const stopHarmonyPreviewButton =
+      document.getElementById("stopHarmonyPreviewButton");
+
+    const HARMONY_PAYLOAD_KEYS = [
+      "orumiSuggestHarmonyPayload",
+      "orumiPendingSuggestHarmonyPayload",
+      "orumiHarmonySuggestionPayload",
+      "orumiDesignMelodyForProgression",
+      "orumiSelectedMelodyForProgression"
+    ];
+
+    let harmonyPayload = null;
+    let harmonyChoices = {};
+
     const pitchClasses =
       ORUMI_CATALOG.pitchClasses;
 
@@ -499,6 +819,885 @@
         window.location.href = "index.html";
       }
     });
+
+
+    function safeJsonParse(value) {
+      if (!value) return null;
+
+      try {
+        return JSON.parse(value);
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function getUrlParams() {
+      return new URLSearchParams(window.location.search);
+    }
+
+    function shouldOpenSuggestHarmonyMode() {
+      const params = getUrlParams();
+      const mode = String(params.get("mode") || "").toLowerCase();
+      const source = String(params.get("source") || "").toLowerCase();
+
+      return (
+        source === "design-studio" &&
+        [
+          "suggestharmony",
+          "suggest-harmony",
+          "harmonizemelody",
+          "harmonize-melody",
+          "harmonizeselection",
+          "harmonize-selection"
+        ].includes(mode)
+      );
+    }
+
+    function readHarmonyPayload() {
+      for (const key of HARMONY_PAYLOAD_KEYS) {
+        const parsed = safeJsonParse(localStorage.getItem(key));
+
+        if (parsed) {
+          parsed.storageKey = key;
+          return parsed;
+        }
+      }
+
+      return null;
+    }
+
+    function clearHarmonyPayloadStorage() {
+      HARMONY_PAYLOAD_KEYS.forEach(key => {
+        localStorage.removeItem(key);
+      });
+    }
+
+    function asFiniteNumber(value, fallback = 0) {
+      const number = Number(value);
+      return Number.isFinite(number) ? number : fallback;
+    }
+
+    function normalizeTimeSignature(value) {
+      if (typeof value === "string") {
+        const match = value.match(/^(\d+)\/(\d+)$/);
+        if (match) {
+          return {
+            numerator: Number(match[1]) || 4,
+            denominator: Number(match[2]) || 4
+          };
+        }
+      }
+
+      if (value && typeof value === "object") {
+        return {
+          numerator: Number(value.numerator || 4),
+          denominator: Number(value.denominator || 4)
+        };
+      }
+
+      return { numerator: 4, denominator: 4 };
+    }
+
+    function beatToMeasureLabel(beat, timeSignature) {
+      const signature = normalizeTimeSignature(timeSignature);
+      const beatsPerMeasure = Math.max(
+        0.25,
+        (signature.numerator * 4) / signature.denominator
+      );
+      const safeBeat = Math.max(0, Number(beat || 0));
+      const measure = Math.floor(safeBeat / beatsPerMeasure) + 1;
+      const beatWithin = safeBeat - ((measure - 1) * beatsPerMeasure) + 1;
+      const beatLabel =
+        Math.abs(beatWithin - Math.round(beatWithin)) < 0.001
+          ? String(Math.round(beatWithin))
+          : beatWithin.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+
+      return "M" + measure + " beat " + beatLabel;
+    }
+
+    function pcToName(pcNumber) {
+      return numberToPitchClass[
+        ((Number(pcNumber) % 12) + 12) % 12
+      ] || "C";
+    }
+
+    function pitchClassFromMidi(midi) {
+      return pcToName(Number(midi) % 12);
+    }
+
+    function pitchClassNumber(name) {
+      return pitchClasses[name]
+        ? pitchClasses[name].number
+        : 0;
+    }
+
+    function intervalLabel(rootPc, notePc) {
+      const interval =
+        (pitchClassNumber(notePc) - pitchClassNumber(rootPc) + 12) % 12;
+
+      const labels = {
+        0: "root",
+        1: "♭9",
+        2: "9th",
+        3: "minor 3rd",
+        4: "3rd",
+        5: "11th / sus4",
+        6: "♭5",
+        7: "5th",
+        8: "♯5 / ♭13",
+        9: "6th / 13th",
+        10: "♭7",
+        11: "major 7th"
+      };
+
+      return labels[interval] || "chord tone";
+    }
+
+    function noteClassNameFromMidi(midi) {
+      const pc = pitchClassFromMidi(midi);
+      return pitchClasses[pc] ? pitchClasses[pc].className : "c";
+    }
+
+    function isLightPitchClass(pc) {
+      return ["E", "Eb"].includes(pc);
+    }
+
+    function normalizeHarmonyPayload(payload) {
+      if (!payload || typeof payload !== "object") {
+        return null;
+      }
+
+      const rawNotes =
+        Array.isArray(payload.notes)
+          ? payload.notes
+          : Array.isArray(payload.blocks)
+            ? payload.blocks
+            : Array.isArray(payload.selectedBlocks)
+              ? payload.selectedBlocks
+              : Array.isArray(payload.melody)
+                ? payload.melody
+                : [];
+
+      const notes = rawNotes
+        .map((note, index) => {
+          const midi = Number(note.midi ?? note.noteMidi);
+
+          if (!Number.isFinite(midi)) {
+            return null;
+          }
+
+          const startBeat = asFiniteNumber(
+            note.startBeat !== undefined ? note.startBeat : note.start,
+            0
+          );
+
+          const durationBeats = Math.max(
+            0.25,
+            asFiniteNumber(
+              note.durationBeats !== undefined ? note.durationBeats : note.duration,
+              1
+            )
+          );
+
+          return {
+            id:
+              note.blockId ||
+              note.id ||
+              note.sourceId ||
+              "melody_note_" + index,
+            blockId:
+              note.blockId ||
+              note.id ||
+              note.sourceId ||
+              "melody_note_" + index,
+            laneId:
+              note.laneId ||
+              note.lane ||
+              payload.laneId ||
+              payload.selectedLaneId ||
+              "lead",
+            laneName:
+              note.laneName ||
+              payload.laneName ||
+              payload.selectedLaneName ||
+              "Lead",
+            midi,
+            name:
+              note.name ||
+              note.note ||
+              note.displayName ||
+              midiToDisplayName(midi),
+            pitchClass: pitchClassFromMidi(midi),
+            startBeat,
+            durationBeats,
+            velocity: asFiniteNumber(note.velocity, 86),
+            voice: note.voice === undefined ? null : note.voice
+          };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.startBeat - b.startBeat || a.midi - b.midi);
+
+      if (!notes.length) {
+        return null;
+      }
+
+      const context = payload.context || {};
+      const systemKey = context.system || payload.system || "western";
+      const system = systems[systemKey] || systems.western;
+      const root =
+        pitchClasses[context.root || payload.root]
+          ? context.root || payload.root
+          : system.defaultRoot || "C";
+      const familyKey = context.family || payload.family || system.defaultFamily;
+      const family =
+        system.families && system.families[familyKey]
+          ? system.families[familyKey]
+          : system.families && system.families[system.defaultFamily];
+      const modeKey = context.mode || payload.modeName || payload.scaleMode || system.defaultMode;
+      const mode =
+        family && family.modes && family.modes[modeKey]
+          ? family.modes[modeKey]
+          : family && family.modes
+            ? family.modes[Object.keys(family.modes)[0]]
+            : null;
+
+      return {
+        mode: "suggestHarmony",
+        source: payload.source || "design-studio",
+        projectId: payload.projectId || null,
+        projectTitle: payload.projectTitle || payload.title || "Untitled Design",
+        laneId: payload.laneId || payload.selectedLaneId || notes[0].laneId,
+        laneName: payload.laneName || payload.selectedLaneName || notes[0].laneName || "Lead",
+        context: {
+          system: systemKey,
+          root,
+          family: familyKey,
+          mode: modeKey,
+          modeLabel: mode ? mode.label || modeKey : modeKey,
+          tempo: asFiniteNumber(context.tempo || payload.tempo, 120),
+          timeSignature:
+            context.timeSignature ||
+            payload.timeSignature ||
+            { numerator: 4, denominator: 4 }
+        },
+        notes
+      };
+    }
+
+    function getScaleFormulaForHarmony() {
+      if (!harmonyPayload) {
+        return [0, 2, 4, 5, 7, 9, 11];
+      }
+
+      const context = harmonyPayload.context || {};
+      const system = systems[context.system] || systems.western;
+      const family =
+        system.families && system.families[context.family]
+          ? system.families[context.family]
+          : system.families && system.families[system.defaultFamily];
+      const mode =
+        family && family.modes && family.modes[context.mode]
+          ? family.modes[context.mode]
+          : family && family.modes
+            ? family.modes[Object.keys(family.modes)[0]]
+            : null;
+
+      return Array.isArray(mode && mode.formula)
+        ? mode.formula.slice()
+        : [0, 2, 4, 5, 7, 9, 11];
+    }
+
+    function chordSymbolFromIntervals(rootPc, intervals) {
+      const has = interval =>
+        intervals.includes(((interval % 12) + 12) % 12);
+
+      const thirdMinor = has(3);
+      const thirdMajor = has(4);
+      const fifthDim = has(6);
+      const fifthPerfect = has(7);
+      const fifthAug = has(8);
+      const flat7 = has(10);
+      const maj7 = has(11);
+
+      if (thirdMajor && fifthPerfect && maj7) return rootPc + "M7";
+      if (thirdMajor && fifthPerfect && flat7) return rootPc + "7";
+      if (thirdMinor && fifthPerfect && flat7) return rootPc + "m7";
+      if (thirdMinor && fifthDim && flat7) return rootPc + "m7b5";
+      if (thirdMinor && fifthDim) return rootPc + "dim";
+      if (thirdMajor && fifthAug) return rootPc + "aug";
+      if (thirdMinor && fifthPerfect) return rootPc + "m";
+      if (thirdMajor && fifthPerfect) return rootPc;
+      if (has(5) && fifthPerfect) return rootPc + "sus4";
+      if (has(2) && fifthPerfect) return rootPc + "sus2";
+
+      return rootPc;
+    }
+
+    function qualityFromSymbol(symbol) {
+      if (/m7b5$/.test(symbol)) return "halfDiminished7";
+      if (/dim7$/.test(symbol)) return "diminished7";
+      if (/dim$/.test(symbol)) return "diminished";
+      if (/aug$/.test(symbol)) return "augmented";
+      if (/M7$/.test(symbol)) return "major7";
+      if (/m7$/.test(symbol)) return "minor7";
+      if (/7$/.test(symbol)) return "dominant7";
+      if (/m$/.test(symbol)) return "minor";
+      if (/sus2$/.test(symbol)) return "sus2";
+      if (/sus4$/.test(symbol)) return "sus4";
+      return "major";
+    }
+
+    function rootFromSymbol(symbol) {
+      const match = String(symbol || "C").match(/^([A-G][b]?)/);
+      return match ? match[1] : "C";
+    }
+
+    function generateHarmonySuggestionsForNote(note) {
+      const formula = getScaleFormulaForHarmony();
+      const rootNumber = pitchClassNumber(harmonyPayload?.context?.root || "C");
+      const scalePcs = formula.map(interval => pcToName(rootNumber + interval));
+      const selectedPc = note.pitchClass;
+      const candidates = [];
+      const seen = new Set();
+
+      scalePcs.forEach((rootPc, degreeIndex) => {
+        const degreePcs = [0, 2, 4, 6]
+          .map(offset => scalePcs[(degreeIndex + offset) % scalePcs.length]);
+
+        const triadPcs = degreePcs.slice(0, 3);
+        const seventhPcs = degreePcs.slice(0, 4);
+
+        [triadPcs, seventhPcs].forEach((pcs, variantIndex) => {
+          if (!pcs.includes(selectedPc)) return;
+
+          const intervals = pcs.map(pc =>
+            (pitchClassNumber(pc) - pitchClassNumber(rootPc) + 12) % 12
+          );
+          const symbol = chordSymbolFromIntervals(rootPc, intervals);
+
+          if (seen.has(symbol)) return;
+          seen.add(symbol);
+
+          candidates.push({
+            symbol,
+            root: rootPc,
+            quality: qualityFromSymbol(symbol),
+            tones: pcs,
+            noteFunction: intervalLabel(rootPc, selectedPc),
+            description:
+              selectedPc +
+              " as " +
+              intervalLabel(rootPc, selectedPc) +
+              (variantIndex === 1 ? " · richer color" : ""),
+            score:
+              (variantIndex === 0 ? 20 : 10) +
+              (degreeIndex === 0 ? 8 : 0) +
+              (pcs.indexOf(selectedPc) === 0 ? 4 : 0)
+          });
+        });
+      });
+
+      const colorRoots = [
+        { interval: 2, suffix: "9", quality: "add9", label: "as 9th color" },
+        { interval: 5, suffix: "sus4", quality: "sus4", label: "as suspended 4th" },
+        { interval: 9, suffix: "6", quality: "major6", label: "as 6th / 13th color" }
+      ];
+
+      colorRoots.forEach(color => {
+        const rootPc = pcToName(pitchClassNumber(selectedPc) - color.interval);
+        if (!scalePcs.includes(rootPc)) return;
+        const symbol = rootPc + color.suffix;
+        if (seen.has(symbol)) return;
+        seen.add(symbol);
+        candidates.push({
+          symbol,
+          root: rootPc,
+          quality: color.quality,
+          tones: [],
+          noteFunction: color.label,
+          description: selectedPc + " " + color.label,
+          score: 5
+        });
+      });
+
+      return candidates
+        .sort((a, b) => b.score - a.score || a.symbol.localeCompare(b.symbol))
+        .slice(0, 6);
+    }
+
+    function setHarmonyChoice(noteId, choice) {
+      harmonyChoices[noteId] = choice;
+      renderSuggestHarmony();
+    }
+
+    function clearHarmonyChoices() {
+      harmonyChoices = {};
+      renderSuggestHarmony();
+      harmonyStatus.textContent = "Harmony choices cleared.";
+    }
+
+    function createMelodyNoteBlock(note) {
+      const block = document.createElement("div");
+      const pc = note.pitchClass || pitchClassFromMidi(note.midi);
+
+      block.classList.add("melody-note-block", noteClassNameFromMidi(note.midi));
+
+      if (isLightPitchClass(pc)) {
+        block.classList.add("light-text");
+      }
+
+      block.textContent = note.name || midiToDisplayName(note.midi);
+      return block;
+    }
+
+    function createMelodyHarmonyCard(note, index) {
+      const choice = harmonyChoices[note.id || note.blockId];
+      const suggestions = generateHarmonySuggestionsForNote(note);
+      const card = document.createElement("article");
+
+      card.classList.add("melody-note-card");
+      card.dataset.noteId = note.id || note.blockId;
+
+      if (choice && choice.skipped) {
+        card.classList.add("skipped");
+      } else if (choice && choice.chordSymbol) {
+        card.classList.add("harmonized");
+      }
+
+      const head = document.createElement("div");
+      head.classList.add("melody-note-head");
+      head.appendChild(createMelodyNoteBlock(note));
+
+      const titleWrap = document.createElement("div");
+      const title = document.createElement("div");
+      title.classList.add("melody-note-title");
+      title.textContent = note.name || midiToDisplayName(note.midi);
+
+      const meta = document.createElement("div");
+      meta.classList.add("melody-note-meta");
+      meta.textContent =
+        beatToMeasureLabel(note.startBeat, harmonyPayload.context.timeSignature) +
+        " · " +
+        note.durationBeats +
+        " beat" +
+        (note.durationBeats === 1 ? "" : "s");
+
+      titleWrap.appendChild(title);
+      titleWrap.appendChild(meta);
+      head.appendChild(titleWrap);
+
+      const state = document.createElement("div");
+      state.classList.add("harmony-state");
+
+      if (choice && choice.skipped) {
+        state.innerHTML = "Skipped<br><span class=\"muted\">Treat as passing or decorative motion.</span>";
+      } else if (choice && choice.chordSymbol) {
+        state.innerHTML =
+          "Chosen: <strong>" +
+          choice.chordSymbol +
+          "</strong><br><span class=\"muted\">" +
+          choice.description +
+          "</span>";
+      } else {
+        state.innerHTML = "Unassigned<br><span class=\"muted\">Choose a chord or skip this note.</span>";
+      }
+
+      const list = document.createElement("div");
+      list.classList.add("suggestion-list");
+
+      const skipButton = document.createElement("button");
+      skipButton.classList.add("suggestion-button", "skip");
+      if (choice && choice.skipped) {
+        skipButton.classList.add("selected");
+      }
+      skipButton.textContent = "Skip / Passing Note";
+      skipButton.addEventListener("click", () => {
+        setHarmonyChoice(note.id || note.blockId, {
+          skipped: true,
+          noteId: note.id || note.blockId
+        });
+      });
+      list.appendChild(skipButton);
+
+      suggestions.forEach(suggestion => {
+        const button = document.createElement("button");
+        button.classList.add("suggestion-button");
+
+        if (choice && choice.chordSymbol === suggestion.symbol) {
+          button.classList.add("selected");
+        }
+
+        button.innerHTML =
+          "<strong>" +
+          suggestion.symbol +
+          "</strong><span>" +
+          suggestion.description +
+          "</span>";
+
+        button.addEventListener("click", () => {
+          setHarmonyChoice(note.id || note.blockId, {
+            skipped: false,
+            noteId: note.id || note.blockId,
+            melodyBlockId: note.blockId,
+            melodyNote: note.name,
+            midi: note.midi,
+            startBeat: note.startBeat,
+            durationBeats: note.durationBeats,
+            chordSymbol: suggestion.symbol,
+            root: suggestion.root,
+            quality: suggestion.quality,
+            noteFunction: suggestion.noteFunction,
+            description: suggestion.description,
+            tones: suggestion.tones
+          });
+        });
+
+        list.appendChild(button);
+      });
+
+      card.appendChild(head);
+      card.appendChild(state);
+      card.appendChild(list);
+
+      return card;
+    }
+
+    function renderSuggestHarmony() {
+      if (!harmonyPayload) return;
+
+      melodyHarmonyStrip.innerHTML = "";
+
+      harmonyPayload.notes.forEach((note, index) => {
+        melodyHarmonyStrip.appendChild(
+          createMelodyHarmonyCard(note, index)
+        );
+      });
+
+      const chosen = Object.values(harmonyChoices).filter(
+        choice => choice && choice.chordSymbol
+      );
+      const skipped = Object.values(harmonyChoices).filter(
+        choice => choice && choice.skipped
+      );
+
+      harmonySummary.innerHTML =
+        "Suggesting harmony for <strong>" +
+        harmonyPayload.laneName +
+        "</strong> · " +
+        harmonyPayload.notes.length +
+        " melody note" +
+        (harmonyPayload.notes.length === 1 ? "" : "s") +
+        "<span class=\"muted\">" +
+        harmonyPayload.projectTitle +
+        " · " +
+        harmonyPayload.context.root +
+        " · " +
+        harmonyPayload.context.modeLabel +
+        " · ♩ " +
+        harmonyPayload.context.tempo +
+        " · " +
+        chosen.length +
+        " harmonized · " +
+        skipped.length +
+        " skipped</span>";
+
+      harmonyStatus.textContent =
+        chosen.length > 0
+          ? chosen.length + " harmonic anchor" + (chosen.length === 1 ? "" : "s") + " selected."
+          : "Choose chords for structural notes. Skip passing notes.";
+    }
+
+    function buildHarmonyPlanPayload() {
+      if (!harmonyPayload) return null;
+
+      const anchors = harmonyPayload.notes.map(note => {
+        const choice = harmonyChoices[note.id || note.blockId];
+
+        if (!choice) {
+          return {
+            melodyBlockId: note.blockId,
+            noteId: note.id,
+            melodyNote: note.name,
+            midi: note.midi,
+            startBeat: note.startBeat,
+            durationBeats: note.durationBeats,
+            skipped: false,
+            unassigned: true
+          };
+        }
+
+        if (choice.skipped) {
+          return {
+            melodyBlockId: note.blockId,
+            noteId: note.id,
+            melodyNote: note.name,
+            midi: note.midi,
+            startBeat: note.startBeat,
+            durationBeats: note.durationBeats,
+            skipped: true
+          };
+        }
+
+        return {
+          melodyBlockId: note.blockId,
+          noteId: note.id,
+          melodyNote: note.name,
+          midi: note.midi,
+          startBeat: note.startBeat,
+          durationBeats: note.durationBeats,
+          skipped: false,
+          chordSymbol: choice.chordSymbol,
+          root: choice.root,
+          quality: choice.quality,
+          noteFunction: choice.noteFunction,
+          description: choice.description,
+          tones: choice.tones || []
+        };
+      });
+
+      return {
+        mode: "applySuggestedHarmony",
+        source: "progression-builder",
+        createdAt: new Date().toISOString(),
+        projectId: harmonyPayload.projectId,
+        projectTitle: harmonyPayload.projectTitle,
+        melodyLaneId: harmonyPayload.laneId,
+        melodyLaneName: harmonyPayload.laneName,
+        context: harmonyPayload.context,
+        melodyNotes: harmonyPayload.notes,
+        anchors,
+        harmonizedAnchors: anchors.filter(anchor => anchor.chordSymbol),
+        skippedAnchors: anchors.filter(anchor => anchor.skipped)
+      };
+    }
+
+
+
+    function pitchClassToHarmonyMidi(pitchClass, octave) {
+      const pitch = pitchClasses[pitchClass] ? pitchClass : "C";
+      return 12 * (Number(octave) + 1) + pitchClasses[pitch].number;
+    }
+
+    function chordTonesFromHarmonyAnchor(anchor) {
+      if (Array.isArray(anchor.tones) && anchor.tones.length > 0) {
+        return anchor.tones.filter(tone => pitchClasses[tone]);
+      }
+
+      const root = pitchClasses[anchor.root]
+        ? anchor.root
+        : rootFromSymbol(anchor.chordSymbol);
+
+      const quality = String(anchor.quality || "major").toLowerCase();
+      const intervalMap = {
+        major: [0, 4, 7],
+        minor: [0, 3, 7],
+        diminished: [0, 3, 6],
+        augmented: [0, 4, 8],
+        sus2: [0, 2, 7],
+        sus4: [0, 5, 7],
+        dominant7: [0, 4, 7, 10],
+        major7: [0, 4, 7, 11],
+        minor7: [0, 3, 7, 10],
+        halfdiminished7: [0, 3, 6, 10],
+        diminished7: [0, 3, 6, 9],
+        major6: [0, 4, 7, 9],
+        minor6: [0, 3, 7, 9],
+        add9: [0, 2, 4, 7]
+      };
+
+      const rootNumber = pitchClasses[root].number;
+      const intervals = intervalMap[quality] || [0, 4, 7];
+      return intervals.map(interval => pcToName(rootNumber + interval));
+    }
+
+    function makePreviewChordMidis(anchor) {
+      const root = pitchClasses[anchor.root]
+        ? anchor.root
+        : rootFromSymbol(anchor.chordSymbol);
+      const tones = chordTonesFromHarmonyAnchor(anchor);
+      const upperTones = tones.length ? tones : [root];
+      const midis = [pitchClassToHarmonyMidi(root, 2)];
+
+      upperTones.forEach((tone, index) => {
+        midis.push(pitchClassToHarmonyMidi(tone, index === 0 ? 3 : 4));
+      });
+
+      return [...new Set(midis)].sort((a, b) => a - b);
+    }
+
+    function stopHarmonyPreview(updateStatus = true) {
+      clearPlaybackTimers();
+      stopActiveChord();
+
+      if (melodyHarmonyStrip) {
+        melodyHarmonyStrip
+          .querySelectorAll(".melody-note-card.previewing")
+          .forEach(card => card.classList.remove("previewing"));
+      }
+
+      if (updateStatus && harmonyStatus) {
+        harmonyStatus.textContent = "Harmony preview stopped.";
+      }
+    }
+
+    async function playHarmonyPreview(mode = "both") {
+      if (!harmonyPayload) {
+        harmonyStatus.textContent = "No melody phrase to preview.";
+        return;
+      }
+
+      await ensureAudio();
+      stopHarmonyPreview(false);
+
+      const plan = buildHarmonyPlanPayload();
+      const anchorsById = new Map();
+
+      (plan?.anchors || []).forEach(anchor => {
+        anchorsById.set(anchor.noteId || anchor.melodyBlockId, anchor);
+      });
+
+      const tempo = Math.max(20, Number(harmonyPayload.context?.tempo || 120));
+      const beatMs = 60000 / tempo;
+      const startBeat = Math.min(...harmonyPayload.notes.map(note => Number(note.startBeat || 0)));
+      const previewVoice = harmonyPayload.voice && voices[harmonyPayload.voice]
+        ? harmonyPayload.voice
+        : "softKeys";
+
+      harmonyStatus.textContent =
+        mode === "melody"
+          ? "Playing melody only..."
+          : mode === "harmony"
+            ? "Playing selected harmony only..."
+            : "Playing melody + selected harmony...";
+
+      harmonyPayload.notes.forEach(note => {
+        const noteKey = note.id || note.blockId;
+        const anchor = anchorsById.get(noteKey);
+        const delay = Math.max(0, (Number(note.startBeat || 0) - startBeat) * beatMs);
+        const duration = Math.max(180, Number(note.durationBeats || 1) * beatMs);
+
+        const timer = setTimeout(() => {
+          const card = melodyHarmonyStrip.querySelector('[data-note-id="' + CSS.escape(noteKey) + '"]');
+          if (card) card.classList.add("previewing");
+
+          const now = audioContext.currentTime;
+          const played = [];
+
+          if (mode !== "harmony") {
+            const melodyNode = ORUMI_VOICES.buildVoice(
+              audioContext,
+              previewVoice,
+              midiToFrequency(note.midi),
+              now
+            );
+            played.push({
+              voice: previewVoice,
+              gain: melodyNode.gain,
+              oscillators: melodyNode.oscillators || [],
+              noiseSources: melodyNode.noiseSources || []
+            });
+          }
+
+          if (mode !== "melody" && anchor && anchor.chordSymbol && !anchor.skipped) {
+            makePreviewChordMidis(anchor).forEach(midi => {
+              const chordNode = ORUMI_VOICES.buildVoice(
+                audioContext,
+                "softKeys",
+                midiToFrequency(midi),
+                now
+              );
+              played.push({
+                voice: "softKeys",
+                gain: chordNode.gain,
+                oscillators: chordNode.oscillators || [],
+                noiseSources: chordNode.noiseSources || []
+              });
+            });
+          }
+
+          activeChordNotes.push(...played);
+
+          const stopTimer = setTimeout(() => {
+            played.forEach(playedNote => {
+              ORUMI_VOICES.stopVoice(playedNote, audioContext, 0.16);
+            });
+            activeChordNotes = activeChordNotes.filter(noteRef => !played.includes(noteRef));
+            if (card) card.classList.remove("previewing");
+          }, duration);
+
+          playbackTimers.push(stopTimer);
+        }, delay);
+
+        playbackTimers.push(timer);
+      });
+
+      const totalDuration = Math.max(
+        ...harmonyPayload.notes.map(note =>
+          (Number(note.startBeat || 0) - startBeat + Number(note.durationBeats || 1)) * beatMs
+        ),
+        1000
+      );
+
+      playbackTimers.push(setTimeout(() => {
+        stopHarmonyPreview(false);
+        harmonyStatus.textContent = "Harmony preview complete.";
+      }, totalDuration + 180));
+    }
+
+    function applyHarmonyPlanToDesign() {
+      const plan = buildHarmonyPlanPayload();
+
+      if (!plan) {
+        harmonyStatus.textContent = "No harmony plan to send.";
+        return;
+      }
+
+      if (plan.harmonizedAnchors.length === 0) {
+        const confirmed = window.confirm(
+          "No chords have been selected yet. Return to Design with an empty harmony plan?"
+        );
+
+        if (!confirmed) return;
+      }
+
+      localStorage.setItem("orumiSuggestedHarmonyPlan", JSON.stringify(plan));
+      localStorage.setItem("orumiPendingHarmonyPlanForDesign", JSON.stringify(plan));
+      localStorage.setItem("orumiProgressionHarmonyPlan", JSON.stringify(plan));
+      clearHarmonyPayloadStorage();
+      window.location.href = "design-studio.html?mode=applySuggestedHarmony&source=progression-builder";
+    }
+
+    function initializeSuggestHarmonyMode() {
+      if (!shouldOpenSuggestHarmonyMode()) {
+        return false;
+      }
+
+      const payload = normalizeHarmonyPayload(readHarmonyPayload());
+
+      if (!payload) {
+        suggestHarmonySection.hidden = false;
+        standardProgressionSection.hidden = true;
+        standardPlaybackSection.hidden = true;
+        harmonySummary.innerHTML =
+          "No melody phrase was found." +
+          "<span class=\"muted\">Return to Design Studio, select a melody phrase, then choose Suggest Harmony.</span>";
+        harmonyStatus.textContent = "Waiting for a melody phrase from Design Studio.";
+        return true;
+      }
+
+      harmonyPayload = payload;
+      harmonyChoices = {};
+      suggestHarmonySection.hidden = false;
+      standardProgressionSection.hidden = true;
+      standardPlaybackSection.hidden = true;
+
+      document.querySelector("h1").textContent = "Suggest Harmony";
+      document.querySelector(".subtitle").textContent =
+        "Choose which melody notes should become harmonic anchors. Skip passing notes, then send the harmony plan back to Design Studio.";
+
+      renderSuggestHarmony();
+      return true;
+    }
 
     function getProgression() {
       return JSON.parse(
@@ -1003,7 +2202,11 @@
         temp;
 
       saveProgression(progression);
+      const suggestModeActive = initializeSuggestHarmonyMode();
+
+    if (!suggestModeActive) {
       renderProgression();
+    }
     }
 
     function removeChord(index) {
@@ -1013,7 +2216,11 @@
       progression.splice(index, 1);
 
       saveProgression(progression);
+      const suggestModeActive = initializeSuggestHarmonyMode();
+
+    if (!suggestModeActive) {
       renderProgression();
+    }
     }
 
     function clearProgression() {
@@ -1038,7 +2245,11 @@
       clearPlaybackTimers();
 
       saveProgression([]);
+      const suggestModeActive = initializeSuggestHarmonyMode();
+
+    if (!suggestModeActive) {
       renderProgression();
+    }
     }
 
     async function ensureAudio() {
@@ -1283,6 +2494,38 @@
       toggleDrone
     );
 
+
+    if (applyHarmonyButton) {
+      applyHarmonyButton.addEventListener(
+        "click",
+        applyHarmonyPlanToDesign
+      );
+    }
+
+    if (clearHarmonyChoicesButton) {
+      clearHarmonyChoicesButton.addEventListener(
+        "click",
+        clearHarmonyChoices
+      );
+    }
+
+
+    if (playHarmonyBothButton) {
+      playHarmonyBothButton.addEventListener("click", () => playHarmonyPreview("both"));
+    }
+
+    if (playHarmonyMelodyButton) {
+      playHarmonyMelodyButton.addEventListener("click", () => playHarmonyPreview("melody"));
+    }
+
+    if (playHarmonyChordsButton) {
+      playHarmonyChordsButton.addEventListener("click", () => playHarmonyPreview("harmony"));
+    }
+
+    if (stopHarmonyPreviewButton) {
+      stopHarmonyPreviewButton.addEventListener("click", () => stopHarmonyPreview(true));
+    }
+
     window.addEventListener(
       "beforeunload",
       () => {
@@ -1292,7 +2535,11 @@
       }
     );
 
-    renderProgression();
+    const suggestModeActive = initializeSuggestHarmonyMode();
+
+    if (!suggestModeActive) {
+      renderProgression();
+    }
   </script>
 
 </body>

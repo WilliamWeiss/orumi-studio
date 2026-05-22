@@ -369,6 +369,19 @@
       box-shadow: 0 0 20px rgba(255,255,255,0.45);
     }
 
+    .lane-label.dragging-lane {
+      filter: brightness(1.18);
+      box-shadow:
+        0 0 24px rgba(255,255,255,0.48),
+        inset 0 0 0 2px rgba(255,255,255,0.22);
+    }
+
+    .drag-ghost.lane-ghost {
+      min-width: 128px;
+      background: rgba(255,255,255,0.92);
+      color: #111;
+    }
+
     .lane-role {
       font-size: 11px;
       color: var(--muted);
@@ -1104,6 +1117,7 @@
         <button class="control-button secondary" id="copySelectionButton">⧉ Copy Selection</button>
         <button class="control-button secondary" id="replaceSelectedChordButton">✧ Edit Selected Chord</button>
         <button class="control-button secondary" id="editSelectionInPlayerButton">▶ Edit Selection in Player</button>
+        <button class="control-button secondary" id="suggestHarmonyButton">✧ Suggest Harmony</button>
         <button class="control-button secondary" id="pasteSelectionButton">⧆ Paste at End</button>
         <button class="control-button secondary" id="pasteAtMeasureButton">📍 Paste at Selected Location</button>
         <button class="control-button secondary" id="insertPasteAtLocationButton">⤓ Insert Paste at Selected Location</button>
@@ -1328,6 +1342,7 @@
     const copySelectionButton = document.getElementById("copySelectionButton");
     const replaceSelectedChordButton = document.getElementById("replaceSelectedChordButton");
     const editSelectionInPlayerButton = document.getElementById("editSelectionInPlayerButton");
+    const suggestHarmonyButton = document.getElementById("suggestHarmonyButton");
     const pasteSelectionButton = document.getElementById("pasteSelectionButton");
     const pasteAtMeasureButton = document.getElementById("pasteAtMeasureButton");
     const insertPasteAtLocationButton = document.getElementById("insertPasteAtLocationButton");
@@ -2476,10 +2491,23 @@
           "<div>" + escapeHtml(lane.name) + "</div>" +
           "<div class='lane-role'>" + escapeHtml(lane.role || "part") + "</div>";
 
+        label.title = "Click to select this lane. Drag this lane label to the trash to delete the whole track.";
+
         label.addEventListener("click", () => {
           selectedLaneId = lane.id;
           clearBlockSelection();
           render();
+        });
+
+        label.addEventListener("pointerdown", event => {
+          if (event.button !== undefined && event.button !== 0) {
+            return;
+          }
+
+          event.preventDefault();
+          selectedLaneId = lane.id;
+          clearBlockSelection();
+          beginLaneDrag(event, lane.id);
         });
 
         const track = document.createElement("div");
@@ -2901,6 +2929,15 @@
           ? "Open this same-lane phrase in Player."
           : "Select one or more notes in a single lane to use Player.";
       }
+
+      if (suggestHarmonyButton) {
+        suggestHarmonyButton.disabled = !canEditPlayer;
+        suggestHarmonyButton.classList.toggle("tool-action-unavailable", !canEditPlayer);
+        suggestHarmonyButton.textContent = "✧ Suggest Harmony";
+        suggestHarmonyButton.title = canEditPlayer
+          ? "Send this melody phrase to Progression Builder for harmony suggestions."
+          : "Select one or more melody notes in a single lane to suggest harmony.";
+      }
     }
 
     function buildPlayerEditPayload(selectedBlocks) {
@@ -2983,6 +3020,102 @@
 
       window.setTimeout(() => {
         window.location.href = "player.html?mode=editDesignSelection&source=design-studio";
+      }, 220);
+    }
+
+    function buildSuggestHarmonyPayload(selectedBlocks) {
+      const minStart = Math.min(...selectedBlocks.map(block => Number(block.startBeat || 0)));
+      const maxEnd = Math.max(...selectedBlocks.map(block => Number(block.startBeat || 0) + Number(block.durationBeats || MIN_DURATION)));
+      const lane = project.lanes.find(item => item.id === selectedBlocks[0].laneId);
+      const location = beatToMeasureInfo(minStart);
+      const returnFile = window.location.pathname.split("/").pop() || "design-studio.html";
+      const currentMode = getCurrentMode();
+      const currentFamily = getCurrentFamily();
+      const currentSystem = getCurrentSystem();
+
+      return {
+        version: 1,
+        source: "design-studio",
+        mode: "suggestHarmony",
+        createdAt: new Date().toISOString(),
+        returnUrl: returnFile,
+        projectId: currentProjectId,
+        projectTitle: project.title || "Untitled Design",
+        laneId: selectedBlocks[0].laneId,
+        laneName: lane ? lane.name : selectedBlocks[0].laneId,
+        laneVoice: lane ? lane.voice : null,
+        voice: lane ? lane.voice : null,
+        startBeat: minStart,
+        endBeat: maxEnd,
+        durationBeats: Math.max(MIN_DURATION, snapBeat(maxEnd - minStart)),
+        locationLabel: "M" + location.measure + " beat " + formatBeatValue(location.beatWithinMeasure),
+        selectedBlockIds: selectedBlocks.map(block => block.id),
+        notes: selectedBlocks.map(block => {
+          const noteLocation = beatToMeasureInfo(Number(block.startBeat || 0));
+
+          return {
+            id: block.id,
+            blockId: block.id,
+            laneId: block.laneId,
+            laneName: lane ? lane.name : block.laneId,
+            midi: block.midi,
+            name: block.name || midiToDisplayName(block.midi),
+            note: block.name || midiToDisplayName(block.midi),
+            startBeat: Number(block.startBeat || 0),
+            relativeStartBeat: Number(block.startBeat || 0) - minStart,
+            durationBeats: Number(block.durationBeats || MIN_DURATION),
+            velocity: Number(block.velocity || 82),
+            voice: block.voice || null,
+            system: block.system || project.context.system,
+            locationLabel: "M" + noteLocation.measure + " beat " + formatBeatValue(noteLocation.beatWithinMeasure)
+          };
+        }),
+        context: {
+          tempo: Number(project.tempo || 120),
+          timeSignature: JSON.parse(JSON.stringify(project.context.timeSignature || DEFAULT_TIME_SIGNATURE)),
+          system: project.context.system,
+          systemLabel: currentSystem ? currentSystem.label : project.context.system,
+          root: project.context.root,
+          family: project.context.family,
+          familyLabel: currentFamily ? currentFamily.label : project.context.family,
+          mode: project.context.mode,
+          modeLabel: currentMode ? currentMode.label || project.context.mode : project.context.mode,
+          voice: project.context.voice
+        }
+      };
+    }
+
+    function beginSuggestHarmonyInProgression() {
+      const selectedBlocks = getHorizontalPhraseSelection();
+
+      if (!selectedBlocks) {
+        flashStatus("Select a melody phrase in one lane before asking for harmony suggestions.");
+        window.alert("Select one or more melody notes in a single lane, then choose Suggest Harmony.");
+        return;
+      }
+
+      if (getVerticalChordSelection()) {
+        flashStatus("That selection is a chord stack. Select a melody phrase in one lane for harmony suggestions.");
+        return;
+      }
+
+      const payload = buildSuggestHarmonyPayload(selectedBlocks);
+
+      localStorage.setItem("orumiSuggestHarmonyPayload", JSON.stringify(payload));
+      localStorage.setItem("orumiPendingSuggestHarmonyPayload", JSON.stringify(payload));
+      localStorage.setItem("orumiHarmonySuggestionPayload", JSON.stringify(payload));
+      localStorage.setItem("orumiDesignMelodyForProgression", JSON.stringify(payload));
+      localStorage.setItem("orumiSelectedMelodyForProgression", JSON.stringify(payload));
+      localStorage.setItem("orumiDesignStudioProjectForProgression", JSON.stringify({
+        currentProjectId,
+        project: JSON.parse(JSON.stringify(project))
+      }));
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+
+      flashStatus("Opening Progression Builder to suggest harmony for " + selectedBlocks.length + " melody note" + (selectedBlocks.length === 1 ? "" : "s") + "…");
+
+      window.setTimeout(() => {
+        window.location.href = "progression-builder.html?mode=suggestHarmony&source=design-studio";
       }, 220);
     }
 
@@ -3198,6 +3331,14 @@
           editInPlayerButton.title = "Open the selected same-lane phrase in Player.";
           editInPlayerButton.addEventListener("click", beginEditSelectionInPlayer);
           blockInspector.appendChild(editInPlayerButton);
+
+          const suggestHarmonyInspectorButton = document.createElement("button");
+          suggestHarmonyInspectorButton.classList.add("control-button", "secondary");
+          suggestHarmonyInspectorButton.style.marginTop = "8px";
+          suggestHarmonyInspectorButton.textContent = "✧ Suggest Harmony";
+          suggestHarmonyInspectorButton.title = "Open Progression Builder to suggest chords for this melody phrase.";
+          suggestHarmonyInspectorButton.addEventListener("click", beginSuggestHarmonyInProgression);
+          blockInspector.appendChild(suggestHarmonyInspectorButton);
         }
 
         const copySelectionButton = document.createElement("button");
@@ -4275,22 +4416,12 @@
       const deleteLaneButton = document.createElement("button");
       deleteLaneButton.classList.add("control-button", "danger");
       deleteLaneButton.style.marginTop = "8px";
-      deleteLaneButton.textContent = "Delete Empty Lane";
-      deleteLaneButton.disabled =
-        project.blocks.some(block => block.laneId === lane.id) ||
-        project.lanes.length <= 1;
+      deleteLaneButton.textContent = "🗑 Delete Track";
+      deleteLaneButton.title = "Delete this track and any notes in it. You can also drag the lane label to the trash.";
+      deleteLaneButton.disabled = project.lanes.length <= 1;
 
       deleteLaneButton.addEventListener("click", () => {
-        if (project.blocks.some(block => block.laneId === lane.id)) {
-          status.textContent = "Lane must be empty before deletion.";
-          return;
-        }
-
-        saveHistory();
-        project.lanes = project.lanes.filter(item => item.id !== lane.id);
-        selectedLaneId = project.lanes[0].id;
-        localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
-        render();
+        deleteLaneAndBlocks(lane.id);
       });
 
       laneInspector.appendChild(deleteLaneButton);
@@ -4389,6 +4520,34 @@
       window.addEventListener("pointerup", handleGlobalPointerUp);
     }
 
+    function beginLaneDrag(event, laneId) {
+      const lane = project.lanes.find(item => item.id === laneId);
+      if (!lane) return;
+
+      dragState = {
+        source: "lane",
+        item: { ...lane, type: "lane" },
+        laneId,
+        currentTarget: null
+      };
+
+      const labelElement = document.querySelector('.lane[data-lane-id="' + CSS.escape(laneId) + '"] .lane-label');
+      if (labelElement) {
+        labelElement.classList.add("dragging-lane");
+      }
+
+      createGhost("Track: " + (lane.name || "Lane"), { type: "lane" });
+      if (ghost) {
+        ghost.classList.add("lane-ghost");
+      }
+
+      moveGhost(event.clientX, event.clientY);
+      trashCan.classList.add("visible");
+
+      window.addEventListener("pointermove", handleGlobalPointerMove);
+      window.addEventListener("pointerup", handleGlobalPointerUp);
+    }
+
     function createGhost(label, item) {
       removeGhost();
 
@@ -4472,8 +4631,67 @@
       }
     }
 
+    function deleteLaneAndBlocks(laneId) {
+      const lane = project.lanes.find(item => item.id === laneId);
+
+      if (!lane) {
+        status.textContent = "Track could not be found.";
+        return;
+      }
+
+      if (project.lanes.length <= 1) {
+        status.textContent = "You need at least one track in the design.";
+        return;
+      }
+
+      const laneBlocks = project.blocks.filter(block => block.laneId === laneId);
+      const confirmed = window.confirm(
+        "Delete track “" +
+          (lane.name || "Lane") +
+          "”" +
+          (laneBlocks.length
+            ? " and " + laneBlocks.length + " note" + (laneBlocks.length === 1 ? "" : "s")
+            : "") +
+          "?\n\nUndo will be available."
+      );
+
+      if (!confirmed) {
+        status.textContent = "Track deletion cancelled.";
+        return;
+      }
+
+      saveHistory();
+
+      project.blocks = project.blocks.filter(block => block.laneId !== laneId);
+      project.lanes = project.lanes.filter(item => item.id !== laneId);
+
+      if (selectedLaneId === laneId || !project.lanes.some(item => item.id === selectedLaneId)) {
+        selectedLaneId = project.lanes[0]?.id || "lead";
+      }
+
+      selectedBlockId = null;
+      selectedBlockIds.clear();
+
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+      render();
+
+      status.textContent =
+        "Deleted track “" +
+        (lane.name || "Lane") +
+        "”" +
+        (laneBlocks.length
+          ? " and " + laneBlocks.length + " note" + (laneBlocks.length === 1 ? "" : "s")
+          : "") +
+        ". Undo is available.";
+    }
+
     function dropOnTrash() {
       if (!dragState) return;
+
+      if (dragState.source === "lane" && dragState.laneId) {
+        deleteLaneAndBlocks(dragState.laneId);
+        return;
+      }
 
       if (
         dragState.source === "group" &&
@@ -4507,6 +4725,10 @@
     }
 
     function finishDrag() {
+      document
+        .querySelectorAll(".lane-label.dragging-lane")
+        .forEach(element => element.classList.remove("dragging-lane"));
+
       dragState = null;
       removeGhost();
       clearDropFeedback();
@@ -7179,6 +7401,268 @@
       return true;
     }
 
+
+    const PLAYER_LINE_IMPORT_KEYS = [
+      "orumiPlayerLineForDesign",
+      "orumiPendingPlayerLine"
+    ];
+
+    const SUGGESTED_HARMONY_KEYS = [
+      "orumiSuggestedHarmonyPlan",
+      "orumiPendingHarmonyPlanForDesign",
+      "orumiProgressionHarmonyPlan"
+    ];
+
+    function readJsonFromKeys(keys) {
+      for (const key of keys) {
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed) {
+            parsed.storageKey = key;
+            return parsed;
+          }
+        } catch (error) {
+          // Ignore malformed payloads and keep checking.
+        }
+      }
+
+      return null;
+    }
+
+    function clearJsonKeys(keys) {
+      keys.forEach(key => localStorage.removeItem(key));
+    }
+
+    function getOrCreateImportLane(requestedLaneId, requestedLaneName, voice = null) {
+      const safeRequestedId = String(requestedLaneId || "").trim();
+      const existing = project.lanes.find(lane => lane.id === safeRequestedId);
+
+      if (existing) {
+        return existing.id;
+      }
+
+      const baseId = safeRequestedId && safeRequestedId !== "player-line"
+        ? safeRequestedId
+        : "play_line";
+
+      let laneId = baseId.replace(/[^a-zA-Z0-9_-]+/g, "_").toLowerCase() || "play_line";
+      let suffix = 2;
+
+      while (project.lanes.some(lane => lane.id === laneId)) {
+        laneId = baseId.replace(/[^a-zA-Z0-9_-]+/g, "_").toLowerCase() + "_" + suffix;
+        suffix += 1;
+      }
+
+      project.lanes.push({
+        id: laneId,
+        name: requestedLaneName || "Play Line",
+        role: "imported melody",
+        voice: voice && voices[voice] ? voice : project.context.voice
+      });
+
+      return laneId;
+    }
+
+    function applyPendingPlayerLineImport() {
+      const payload = readJsonFromKeys(PLAYER_LINE_IMPORT_KEYS);
+
+      if (!payload || payload.source !== "player") {
+        return false;
+      }
+
+      const incomingBlocks = Array.isArray(payload.blocks) ? payload.blocks : [];
+
+      if (incomingBlocks.length === 0) {
+        clearJsonKeys(PLAYER_LINE_IMPORT_KEYS);
+        return false;
+      }
+
+      saveHistory();
+
+      const laneId = getOrCreateImportLane(
+        payload.laneId || "player-line",
+        payload.laneName || "Play Line",
+        payload.voice || incomingBlocks[0]?.voice || null
+      );
+
+      const startOffset = project.blocks.length === 0
+        ? 0
+        : getSelectedLocationBeat();
+
+      const newIds = [];
+
+      incomingBlocks.forEach(block => {
+        const midi = Number.isFinite(Number(block.midi)) ? Number(block.midi) : 60;
+        const nextId = createId("block");
+        newIds.push(nextId);
+
+        project.blocks.push({
+          id: nextId,
+          type: "note",
+          laneId,
+          midi,
+          name: block.name || midiToDisplayName(midi),
+          startBeat: startOffset + Math.max(0, Number(block.startBeat || 0)),
+          durationBeats: Math.max(MIN_DURATION, Number(block.durationBeats || 1)),
+          velocity: Math.max(20, Math.min(127, Number(block.velocity || 86))),
+          voice: block.voice === undefined ? payload.voice || null : block.voice,
+          system: project.context.system,
+          source: "player-play-line",
+          sourceId: block.blockId || block.id || null
+        });
+      });
+
+      selectedLaneId = laneId;
+      selectedBlockIds = new Set(newIds);
+      selectedBlockId = newIds[0] || null;
+
+      project.blocks.sort((a, b) =>
+        a.startBeat - b.startBeat ||
+        String(a.laneId).localeCompare(String(b.laneId)) ||
+        a.midi - b.midi
+      );
+
+      saveProjectSnapshotSilently();
+      clearJsonKeys(PLAYER_LINE_IMPORT_KEYS);
+      render();
+      flashStatus("Player Play Line imported into Design. Use Undo to remove it.");
+      return true;
+    }
+
+    function getPitchClassFromMidi(midi) {
+      return pcToName(((Number(midi) % 12) + 12) % 12);
+    }
+
+    function pitchClassToMidiInOctave(pitchClass, octave) {
+      const pitch = pitchClasses[pitchClass] ? pitchClass : "C";
+      return 12 * (Number(octave) + 1) + pitchClasses[pitch].number;
+    }
+
+    function chordTonesForHarmonyAnchor(anchor) {
+      if (Array.isArray(anchor.tones) && anchor.tones.length > 0) {
+        return anchor.tones.filter(tone => pitchClasses[tone]);
+      }
+
+      const root = pitchClasses[anchor.root] ? anchor.root : rootFromChordSymbol(anchor.chordSymbol);
+      const quality = String(anchor.quality || "major").toLowerCase();
+
+      const intervalMap = {
+        major: [0, 4, 7],
+        minor: [0, 3, 7],
+        diminished: [0, 3, 6],
+        augmented: [0, 4, 8],
+        sus2: [0, 2, 7],
+        sus4: [0, 5, 7],
+        dominant7: [0, 4, 7, 10],
+        major7: [0, 4, 7, 11],
+        minor7: [0, 3, 7, 10],
+        halfdiminished7: [0, 3, 6, 10],
+        diminished7: [0, 3, 6, 9],
+        major6: [0, 4, 7, 9],
+        minor6: [0, 3, 7, 9],
+        add9: [0, 2, 4, 7]
+      };
+
+      const intervals = intervalMap[quality] || [0, 4, 7];
+      const rootNumber = pitchClasses[root].number;
+      return intervals.map(interval => pcToName(rootNumber + interval));
+    }
+
+    function rootFromChordSymbol(symbol) {
+      const match = String(symbol || "C").match(/^([A-G][b]?)/);
+      return match && pitchClasses[match[1]] ? match[1] : "C";
+    }
+
+    function chooseHarmonyLaneOctave(lane) {
+      const text = ((lane && (lane.name || lane.id || lane.role)) || "").toLowerCase();
+      if (text.includes("bass")) return 2;
+      if (text.includes("tenor")) return 4;
+      if (text.includes("lead")) return 4;
+      return 3;
+    }
+
+    function applyPendingSuggestedHarmonyPlan() {
+      const plan = readJsonFromKeys(SUGGESTED_HARMONY_KEYS);
+
+      if (!plan || plan.source !== "progression-builder") {
+        return false;
+      }
+
+      const anchors = Array.isArray(plan.harmonizedAnchors)
+        ? plan.harmonizedAnchors
+        : Array.isArray(plan.anchors)
+          ? plan.anchors.filter(anchor => anchor && anchor.chordSymbol && !anchor.skipped)
+          : [];
+
+      if (anchors.length === 0) {
+        clearJsonKeys(SUGGESTED_HARMONY_KEYS);
+        flashStatus("Harmony plan returned with no selected chords.");
+        return false;
+      }
+
+      saveHistory();
+
+      const melodyLaneId = plan.melodyLaneId || plan.laneId || "lead";
+      const supportLanes = project.lanes.filter(lane => lane.id !== melodyLaneId);
+      const newIds = [];
+
+      anchors.forEach(anchor => {
+        const root = pitchClasses[anchor.root] ? anchor.root : rootFromChordSymbol(anchor.chordSymbol);
+        const tones = chordTonesForHarmonyAnchor(anchor);
+        const melodyPc = getPitchClassFromMidi(anchor.midi);
+        const nonMelodyTones = tones.filter(tone => tone !== melodyPc);
+        const usableTones = nonMelodyTones.length > 0 ? nonMelodyTones : tones;
+        let toneIndex = 0;
+
+        supportLanes.forEach(lane => {
+          const laneText = ((lane.name || lane.id || lane.role) || "").toLowerCase();
+          const isBass = laneText.includes("bass");
+          const pitchClass = isBass
+            ? root
+            : usableTones[toneIndex++ % usableTones.length] || root;
+          const octave = chooseHarmonyLaneOctave(lane);
+          const midi = pitchClassToMidiInOctave(pitchClass, octave);
+          const nextId = createId("block");
+          newIds.push(nextId);
+
+          project.blocks.push({
+            id: nextId,
+            type: "note",
+            laneId: lane.id,
+            midi,
+            name: midiToDisplayName(midi),
+            startBeat: Math.max(0, Number(anchor.startBeat || 0)),
+            durationBeats: Math.max(MIN_DURATION, Number(anchor.durationBeats || 1)),
+            velocity: 82,
+            voice: lane.voice === undefined ? null : lane.voice,
+            system: project.context.system,
+            source: "suggested-harmony",
+            sourceId: anchor.melodyBlockId || anchor.noteId || null,
+            chordSymbol: anchor.chordSymbol || null
+          });
+        });
+      });
+
+      project.blocks.sort((a, b) =>
+        a.startBeat - b.startBeat ||
+        String(a.laneId).localeCompare(String(b.laneId)) ||
+        a.midi - b.midi
+      );
+
+      selectedBlockIds = new Set(newIds);
+      selectedBlockId = newIds[0] || null;
+      selectedLaneId = project.blocks.find(block => block.id === selectedBlockId)?.laneId || selectedLaneId;
+
+      saveProjectSnapshotSilently();
+      clearJsonKeys(SUGGESTED_HARMONY_KEYS);
+      render();
+      flashStatus("Suggested harmony applied to Design. Use Undo to remove it.");
+      return true;
+    }
+
     backMeasureButton.addEventListener("click", () => jumpPlaybackByMeasures(-1));
     playButton.addEventListener("click", playProject);
     playFromLocationButton.addEventListener("click", playFromSelectedLocation);
@@ -7200,6 +7684,9 @@
     replaceSelectedChordButton.addEventListener("click", beginReplaceSelectedChord);
     if (editSelectionInPlayerButton) {
       editSelectionInPlayerButton.addEventListener("click", beginEditSelectionInPlayer);
+    }
+    if (suggestHarmonyButton) {
+      suggestHarmonyButton.addEventListener("click", beginSuggestHarmonyInProgression);
     }
     pasteSelectionButton.addEventListener("click", pasteClipboardAtEnd);
     pasteAtMeasureButton.addEventListener("click", pasteClipboardAtSelectedLocation);
@@ -7232,6 +7719,8 @@
     loadStartupProject();
     render();
     applyPendingPlayerReplacement();
+    applyPendingPlayerLineImport();
+    applyPendingSuggestedHarmonyPlan();
 
     setTimeout(() => {
       if (!pendingChordChecked) {
