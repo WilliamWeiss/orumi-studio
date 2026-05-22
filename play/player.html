@@ -521,7 +521,7 @@
       position: absolute;
       top: 50%;
       transform: translateY(-50%);
-      min-width: 38px;
+      min-width: 0;
       height: 48px;
       border-radius: 13px;
       display: grid;
@@ -537,6 +537,23 @@
       box-sizing: border-box;
       padding: 0 7px;
       white-space: nowrap;
+    }
+
+    .phrase-block.compact-block {
+      font-size: 11px;
+      padding: 0 2px;
+      letter-spacing: -0.04em;
+    }
+
+    .phrase-block.micro-block {
+      font-size: 0;
+      padding: 0;
+    }
+
+    .phrase-block.micro-block::after {
+      content: attr(data-short-label);
+      font-size: 10px;
+      font-weight: 900;
     }
 
     .phrase-block.playing {
@@ -556,7 +573,7 @@
       border-radius: 999px;
       background: rgba(255,235,120,0.96);
       box-shadow: 0 0 18px rgba(255,235,120,0.95);
-      z-index: 20;
+      z-index: 80;
       display: none;
       pointer-events: none;
     }
@@ -575,10 +592,20 @@
     body.design-edit-mode .transport-row,
     body.design-edit-mode #playChordButton,
     body.design-edit-mode #clearChordButton,
-    body.playline-mode .transport-row,
     body.playline-mode #playChordButton,
     body.playline-mode #clearChordButton {
       display: none !important;
+    }
+
+    body.playline-mode .transport-row {
+      order: 5;
+      display: flex;
+      background: rgba(255,255,255,0.055);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px;
+      padding: 10px;
+      max-width: min(94vw, 980px);
+      box-sizing: border-box;
     }
 
     body.design-edit-mode #designPhrasePanel,
@@ -634,14 +661,14 @@
 
     .phrase-resize-handle {
       position: absolute;
-      right: -2px;
+      right: -3px;
       top: 0;
-      width: 12px;
+      width: 16px;
       height: 100%;
       border-radius: 0 13px 13px 0;
       background: rgba(255,255,255,0.26);
       cursor: ew-resize;
-      z-index: 3;
+      z-index: 8;
     }
 
     .phrase-block:hover .phrase-resize-handle {
@@ -726,6 +753,41 @@
       color: #111;
       text-shadow: none;
       border: 2px dashed rgba(0,0,0,0.32);
+    }
+
+    .phrase-insert-marker {
+      position: absolute;
+      top: 8px;
+      bottom: 8px;
+      width: 4px;
+      border-radius: 999px;
+      background: rgba(255,235,120,0.98);
+      box-shadow:
+        0 0 18px rgba(255,235,120,0.96),
+        0 0 8px rgba(255,255,255,0.72);
+      z-index: 18;
+      pointer-events: none;
+    }
+
+    .phrase-insert-marker::before {
+      content: "Insert";
+      position: absolute;
+      top: -22px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 3px 7px;
+      border-radius: 999px;
+      background: rgba(255,235,120,0.95);
+      color: #111;
+      font-size: 10px;
+      font-weight: 900;
+      white-space: nowrap;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.26);
+    }
+
+    .phrase-lane-track.insert-selected {
+      outline: 2px solid rgba(255,235,120,0.58);
+      outline-offset: -2px;
     }
 
     @media (max-width: 760px) {
@@ -899,6 +961,15 @@
         <button id="stopPhraseButton" class="phrase-action-button" type="button">
           ■ Stop
         </button>
+        <button id="addTakeToPlayLineButton" class="phrase-action-button primary" type="button">
+          ⤓ Add Take to Play Line
+        </button>
+        <button id="saveMelodyButton" class="phrase-action-button" type="button">
+          💾 Save Melody
+        </button>
+        <button id="loadMelodyButton" class="phrase-action-button" type="button">
+          📂 Load Melody
+        </button>
         <button id="undoPhraseButton" class="phrase-action-button" type="button" disabled>
           ↶ Undo
         </button>
@@ -944,7 +1015,7 @@
     </div>
 
     <div class="phrase-editor-note">
-      Play notes to append them in sequence. Pauses are ignored unless you insert a Rest. Drag notes into the line to insert/reorder, drag right edges to resize, or use Undo if the edit goes wrong.
+      Record a take, add it to the Play Line, then save or send it to Design. Rests are explicit blocks; drag right edges to resize, or use Undo if the edit goes wrong.
     </div>
   </section>
 
@@ -960,8 +1031,11 @@
     let droneNotes = [];
 
     let isRecording = false;
-    let recordingStartTime = 0;
+    let recordingStartTime = null;
     let recordedEvents = [];
+    let isRecordingPlaybackActive = false;
+    let recordingPlaybackTimers = [];
+    let recordingPlaybackNotes = [];
 
     const backButton = document.getElementById("backButton");
     const playChordButton = document.getElementById("playChordButton");
@@ -992,6 +1066,9 @@
     const phrasePlayhead = document.getElementById("phrasePlayhead");
     const playPhraseButton = document.getElementById("playPhraseButton");
     const stopPhraseButton = document.getElementById("stopPhraseButton");
+    const addTakeToPlayLineButton = document.getElementById("addTakeToPlayLineButton");
+    const saveMelodyButton = document.getElementById("saveMelodyButton");
+    const loadMelodyButton = document.getElementById("loadMelodyButton");
     const undoPhraseButton = document.getElementById("undoPhraseButton");
     const redoPhraseButton = document.getElementById("redoPhraseButton");
     const applyPhraseButton = document.getElementById("applyPhraseButton");
@@ -1010,6 +1087,7 @@
       "orumiDesignSelectionForPlayer",
       "orumiDesignStudioSelectionForPlayer"
     ];
+    const PLAYER_MELODY_LIBRARY_KEY = "orumiPlayerMelodyLibrary";
 
     let designPhrasePayload = null;
     let designPhraseBlocks = [];
@@ -1032,6 +1110,7 @@
     let phraseAutoCaptureIdleTimer = null;
     let isPhrasePlaybackActive = false;
     let phrasePlaybackRunId = 0;
+    let phraseInsertIndex = null;
 
 
     const activeNotes = new Map();
@@ -1364,6 +1443,76 @@
       );
     }
 
+    function isDefaultPlayerLineMode() {
+      return !!(designPhrasePayload && designPhrasePayload.isDefaultPlayerLine);
+    }
+
+    function quantizeBeat(value, step = 0.25) {
+      const safeStep = Math.max(0.0625, Number(step || 0.25));
+      return Math.round(Math.max(0, Number(value || 0)) / safeStep) * safeStep;
+    }
+
+    function clampPhraseInsertIndex(index) {
+      const numeric = Number(index);
+
+      if (!Number.isFinite(numeric)) {
+        return null;
+      }
+
+      return Math.max(0, Math.min(designPhraseBlocks.length, Math.round(numeric)));
+    }
+
+    function getActivePhraseInsertIndex() {
+      const clamped = clampPhraseInsertIndex(phraseInsertIndex);
+      return clamped === null ? designPhraseBlocks.length : clamped;
+    }
+
+    function getSequenceBeatAtIndex(index) {
+      const clamped = Math.max(0, Math.min(designPhraseBlocks.length, Math.round(Number(index) || 0)));
+      let beat = 0;
+
+      for (let i = 0; i < clamped; i++) {
+        beat += Math.max(0.25, Number(designPhraseBlocks[i]?.durationBeats || 1));
+      }
+
+      return beat;
+    }
+
+    function setPhraseInsertIndex(index, message = null, shouldRender = true) {
+      phraseInsertIndex = clampPhraseInsertIndex(index);
+
+      if (shouldRender) {
+        renderDesignPhraseTimeline();
+      }
+
+      if (message) {
+        statusText.textContent = message;
+      }
+    }
+
+    function advancePhraseInsertIndex(fromIndex) {
+      phraseInsertIndex = clampPhraseInsertIndex((Number(fromIndex) || 0) + 1);
+    }
+
+    function renderPhraseInsertMarker() {
+      if (!phraseLaneTrack || !designPhrasePayload) return;
+
+      phraseLaneTrack.querySelectorAll(".phrase-insert-marker").forEach(marker => marker.remove());
+
+      if (phraseInsertIndex === null || phraseInsertIndex === undefined) {
+        phraseLaneTrack.classList.remove("insert-selected");
+        return;
+      }
+
+      const insertIndex = getActivePhraseInsertIndex();
+      const marker = document.createElement("div");
+      marker.className = "phrase-insert-marker";
+      marker.style.left = (getSequenceBeatAtIndex(insertIndex) * PHRASE_BEAT_WIDTH) + "px";
+      marker.title = "New notes and rests will insert here.";
+      phraseLaneTrack.appendChild(marker);
+      phraseLaneTrack.classList.add("insert-selected");
+    }
+
     function resetAutoPhraseCaptureSession() {
       phraseAutoCaptureSession = null;
 
@@ -1389,7 +1538,7 @@
         return 0;
       }
 
-      return getPhraseEndBeat();
+      return getSequenceBeatAtIndex(getActivePhraseInsertIndex());
     }
 
     function beginAutoCapturedPhraseNote(button, startedAt, voice, initialDurationBeats = 0.25) {
@@ -1412,8 +1561,9 @@
       );
 
       preview.liveCapture = true;
-      designPhraseBlocks.push(preview);
-      sortPhraseBlocks();
+      const insertIndex = getActivePhraseInsertIndex();
+      insertPhraseBlockAtIndex(preview, insertIndex);
+      advancePhraseInsertIndex(insertIndex);
       renderDesignPhraseTimeline();
 
       statusText.textContent = "Added " + displayName + " to the Play Line.";
@@ -1561,12 +1711,13 @@
 
       const insertIndex = Number.isFinite(Number(relativeStartBeat))
         ? designPhraseBlocks.filter(block => Number(block.relativeStartBeat || 0) < Number(relativeStartBeat)).length
-        : designPhraseBlocks.length;
+        : getActivePhraseInsertIndex();
 
       insertPhraseBlockAtIndex(
-        createPhraseBlockFromMidi(midi, getPhraseEndBeat(), durationBeats, name, voice),
+        createPhraseBlockFromMidi(midi, 0, durationBeats, name, voice),
         insertIndex
       );
+      advancePhraseInsertIndex(insertIndex);
 
       renderDesignPhraseTimeline();
       statusText.textContent = "Added " + (name || midiToDisplayName(midi)) + " to the Play Line.";
@@ -1576,10 +1727,11 @@
       if (!designPhrasePayload) return;
 
       savePhraseHistory();
-      designPhraseBlocks.push(createPhraseRestBlock(getPhraseEndBeat(), durationBeats));
-      reflowPhraseSequence();
+      const insertIndex = getActivePhraseInsertIndex();
+      insertPhraseBlockAtIndex(createPhraseRestBlock(0, durationBeats), insertIndex);
+      advancePhraseInsertIndex(insertIndex);
       renderDesignPhraseTimeline();
-      statusText.textContent = "Inserted a rest. Drag the right edge to change its length.";
+      statusText.textContent = "Inserted a rest at the Play Line cursor. Drag the right edge to change its length.";
     }
 
     function tightenPhraseLine() {
@@ -1591,12 +1743,87 @@
       statusText.textContent = "Play Line tightened. Only explicit rests keep silence.";
     }
 
+    function addCurrentTakeToPlayLine() {
+      if (!designPhrasePayload) return;
+
+      const sourceEvents = trimRecordedEventsToFirstNote(
+        Array.isArray(recordedEvents) && recordedEvents.length
+          ? recordedEvents
+          : safeJsonParse(localStorage.getItem("orumiCurrentRecording")) || []
+      );
+
+      if (!Array.isArray(sourceEvents) || sourceEvents.length === 0) {
+        statusText.textContent = "No recorded take to add. Record a take first.";
+        return;
+      }
+
+      const tempo = Math.max(20, Number(designPhrasePayload?.context?.tempo || 120));
+      const beatSeconds = 60 / tempo;
+      const restThresholdBeats = 0.25;
+
+      const normalizedEvents = sourceEvents
+        .filter(event => event && Array.isArray(event.notes) && event.notes.length > 0)
+        .map(event => ({
+          ...event,
+          startBeat: quantizeBeat(Number(event.start || 0) / beatSeconds),
+          durationBeats: Math.max(0.25, quantizeBeat(Number(event.duration || 0.25) / beatSeconds))
+        }))
+        .sort((a, b) => a.startBeat - b.startBeat);
+
+      if (!normalizedEvents.length) {
+        statusText.textContent = "The recorded take did not contain playable notes.";
+        return;
+      }
+
+      savePhraseHistory();
+
+      const nextBlocks = [];
+      let cursor = 0;
+
+      normalizedEvents.forEach(event => {
+        const gap = event.startBeat - cursor;
+
+        if (gap >= restThresholdBeats) {
+          nextBlocks.push(createPhraseRestBlock(0, quantizeBeat(gap)));
+          cursor += quantizeBeat(gap);
+        }
+
+        const firstNote = event.notes[0];
+        const midi = Number(firstNote.midi);
+
+        if (!Number.isFinite(midi)) {
+          return;
+        }
+
+        const noteBlock = createPhraseBlockFromMidi(
+          midi,
+          0,
+          Math.max(0.25, event.durationBeats),
+          firstNote.name || midiToDisplayName(midi),
+          event.voice || getActivePhraseVoice()
+        );
+
+        nextBlocks.push(noteBlock);
+        cursor += Math.max(0.25, event.durationBeats);
+      });
+
+      designPhraseBlocks = nextBlocks;
+      phraseInsertIndex = designPhraseBlocks.length;
+      reflowPhraseSequence();
+      renderDesignPhraseTimeline();
+      updatePhraseUndoRedoButtons();
+
+      statusText.textContent =
+        "Take added to Play Line with explicit rests. Edit it, then send to Design.";
+    }
+
     function removePhraseBlock(blockId) {
       const before = designPhraseBlocks.length;
       designPhraseBlocks = designPhraseBlocks.filter(block => block.blockId !== blockId && block.id !== blockId);
 
       if (designPhraseBlocks.length !== before) {
         savePhraseHistory();
+        phraseInsertIndex = clampPhraseInsertIndex(phraseInsertIndex);
         reflowPhraseSequence();
         renderDesignPhraseTimeline();
         statusText.textContent = "Removed item from Play Line.";
@@ -1612,6 +1839,7 @@
       resetAutoPhraseCaptureSession();
       savePhraseHistory();
       designPhraseBlocks = [];
+      phraseInsertIndex = 0;
       renderDesignPhraseTimeline();
       statusText.textContent = "Play Line cleared. Play notes or drag notes in to build a new melody.";
     }
@@ -1714,6 +1942,12 @@
     function beginPhraseDrag(event, data) {
       if (!designPhrasePayload || !data || !Number.isFinite(Number(data.midi))) return;
 
+      try {
+        if (event.target && event.target.setPointerCapture) {
+          event.target.setPointerCapture(event.pointerId);
+        }
+      } catch (error) {}
+
       phraseDragState = {
         pointerId: event.pointerId,
         startX: event.clientX,
@@ -1743,6 +1977,7 @@
 
       if (!phraseDragState.active && Math.hypot(dx, dy) > dragThreshold) {
         phraseDragState.active = true;
+        phraseDragState.startedDrag = true;
 
         if (phraseDragState.source === "grid" && phraseDragState.previewBlockId) {
           cancelAutoCapturedPhrasePreview(phraseDragState.previewBlockId);
@@ -1751,6 +1986,9 @@
 
         createPhraseDragGhost(phraseDragState.name, phraseDragState.midi);
         phraseLaneTrack.classList.add("drop-ready");
+        if (phraseDragState.source === "grid") {
+          statusText.textContent = "Drop " + phraseDragState.name + " into the Play Line.";
+        }
         if (phraseDragState.source === "play-line") {
           showPhraseTrash();
         }
@@ -1798,6 +2036,7 @@
             const [block] = designPhraseBlocks.splice(existingIndex, 1);
             const adjustedIndex = existingIndex < insertIndex ? insertIndex - 1 : insertIndex;
             insertPhraseBlockAtIndex(block, adjustedIndex);
+            advancePhraseInsertIndex(adjustedIndex);
             renderDesignPhraseTimeline();
             statusText.textContent = "Moved " + drag.name + " in the Play Line.";
           }
@@ -1807,6 +2046,7 @@
             createPhraseBlockFromMidi(drag.midi, 0, drag.durationBeats, drag.name, drag.voice),
             insertIndex
           );
+          advancePhraseInsertIndex(insertIndex);
           renderDesignPhraseTimeline();
           statusText.textContent = "Inserted " + drag.name + " in the Play Line.";
         }
@@ -1830,6 +2070,17 @@
         phraseLaneTrack.classList.remove("drop-ready");
       });
 
+      phraseLaneTrack.addEventListener("pointerdown", event => {
+        if (!designPhrasePayload) return;
+
+        if (event.target && event.target.closest && event.target.closest(".phrase-block")) {
+          return;
+        }
+
+        const insertIndex = getSequenceInsertIndexFromClientX(event.clientX);
+        setPhraseInsertIndex(insertIndex, "Play Line cursor set. New notes and rests will insert here.");
+      });
+
       phraseLaneTrack.addEventListener("drop", event => {
         if (!designPhrasePayload) return;
 
@@ -1845,6 +2096,7 @@
         }
 
         savePhraseHistory();
+        const insertIndex = getSequenceInsertIndexFromClientX(event.clientX);
         insertPhraseBlockAtIndex(
           createPhraseBlockFromMidi(
             Number(parsed.midi),
@@ -1853,8 +2105,9 @@
             parsed.name || parsed.displayName || midiToDisplayName(Number(parsed.midi)),
             parsed.voice || null
           ),
-          getSequenceInsertIndexFromClientX(event.clientX)
+          insertIndex
         );
+        advancePhraseInsertIndex(insertIndex);
         renderDesignPhraseTimeline();
         statusText.textContent = "Inserted " + (parsed.name || parsed.displayName || midiToDisplayName(Number(parsed.midi))) + " in the Play Line.";
       });
@@ -1910,6 +2163,7 @@
       if (stopRecordingButton) stopRecordingButton.disabled = true;
       isPhraseCaptureMode = false;
       phraseAddPlayedNotes = true;
+      phraseInsertIndex = 0;
       resetAutoPhraseCaptureSession();
       updatePhraseCaptureButton();
       updatePhraseUndoRedoButtons();
@@ -1940,8 +2194,16 @@
         resetPhraseLineButton.style.display = "none";
       }
 
+      if (addTakeToPlayLineButton) {
+        addTakeToPlayLineButton.style.display = "";
+      }
+
+      if (recordingStudioLink) {
+        recordingStudioLink.textContent = "Open Design Studio";
+      }
+
       statusText.textContent =
-        "Press Begin Sound, then play notes to append them. Use ＋ Rest for silence.";
+        "Press Begin Sound, record a take, play it back, then add the take to the Play Line.";
 
       renderDesignPhraseTimeline();
     }
@@ -1973,6 +2235,157 @@
         }));
     }
 
+
+    function getSavedPlayerMelodyLibrary() {
+      const parsed = safeJsonParse(localStorage.getItem(PLAYER_MELODY_LIBRARY_KEY));
+      return parsed && typeof parsed === "object" ? parsed : {};
+    }
+
+    function setSavedPlayerMelodyLibrary(library) {
+      localStorage.setItem(PLAYER_MELODY_LIBRARY_KEY, JSON.stringify(library || {}));
+    }
+
+    function getDefaultMelodyName() {
+      const now = new Date();
+      return "Melody " + now.toLocaleDateString() + " " + now.toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit"
+      });
+    }
+
+    function buildSavedPlayerMelodyPayload(name) {
+      if (!designPhrasePayload) return null;
+
+      reflowPhraseSequence();
+
+      return {
+        id: "melody_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2),
+        name: name || getDefaultMelodyName(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        source: "player-play-line",
+        laneName: designPhrasePayload.laneName || "Play Line",
+        voice: getActivePhraseVoice(),
+        context: designPhrasePayload.context || buildDefaultPlayerLinePayload().context,
+        blocks: designPhraseBlocks.map(block => ({
+          type: block.type || (block.midi === null || block.midi === undefined ? "rest" : "note"),
+          laneId: block.laneId || designPhrasePayload.laneId || "player-line",
+          midi: block.type === "rest" ? null : block.midi,
+          name: block.type === "rest" ? "Rest" : (block.name || midiToDisplayName(block.midi)),
+          relativeStartBeat: Number(block.relativeStartBeat || 0),
+          startBeat: Number(block.relativeStartBeat || 0),
+          durationBeats: Math.max(0.25, Number(block.durationBeats || 1)),
+          velocity: block.velocity || 86,
+          voice: block.type === "rest" ? null : (block.voice || getActivePhraseVoice())
+        }))
+      };
+    }
+
+    function saveCurrentMelody() {
+      if (!designPhraseBlocks.length) {
+        statusText.textContent = "Play Line is empty. Add notes before saving.";
+        return;
+      }
+
+      const defaultName = getDefaultMelodyName();
+      const name = window.prompt("Save this melody as:", defaultName);
+
+      if (!name) {
+        statusText.textContent = "Save Melody cancelled.";
+        return;
+      }
+
+      const payload = buildSavedPlayerMelodyPayload(name.trim() || defaultName);
+      const library = getSavedPlayerMelodyLibrary();
+      library[payload.id] = payload;
+      setSavedPlayerMelodyLibrary(library);
+      localStorage.setItem("orumiPlayerLastSavedMelodyId", payload.id);
+
+      statusText.textContent = "Saved melody “" + payload.name + ".”";
+    }
+
+    function loadSavedMelody() {
+      const library = getSavedPlayerMelodyLibrary();
+      const melodies = Object.values(library)
+        .sort((a, b) => String(b.updatedAt || b.createdAt || "").localeCompare(String(a.updatedAt || a.createdAt || "")));
+
+      if (melodies.length === 0) {
+        statusText.textContent = "No saved Player melodies found.";
+        return;
+      }
+
+      const listText = melodies.map((item, index) => {
+        const date = item.updatedAt || item.createdAt
+          ? new Date(item.updatedAt || item.createdAt).toLocaleString()
+          : "unknown date";
+        const count = Array.isArray(item.blocks) ? item.blocks.length : 0;
+        return (index + 1) + ". " + (item.name || "Untitled Melody") + " — " + count + " item" + (count === 1 ? "" : "s") + " — " + date;
+      }).join("\n");
+
+      const answer = window.prompt(
+        "Load which melody?\n\n" + listText + "\n\nEnter a number:",
+        "1"
+      );
+
+      if (!answer) {
+        statusText.textContent = "Load Melody cancelled.";
+        return;
+      }
+
+      const chosen = melodies[parseInt(answer, 10) - 1];
+
+      if (!chosen || !Array.isArray(chosen.blocks)) {
+        statusText.textContent = "No melody loaded.";
+        return;
+      }
+
+      if (designPhraseBlocks.length > 0) {
+        const confirmed = window.confirm("Replace the current Play Line with “" + (chosen.name || "Untitled Melody") + "”?");
+        if (!confirmed) {
+          statusText.textContent = "Load Melody cancelled.";
+          return;
+        }
+      }
+
+      stopDesignPhrasePlayback(false);
+      stopAllNotes();
+      resetAutoPhraseCaptureSession();
+      savePhraseHistory();
+
+      if (!designPhrasePayload) {
+        designPhrasePayload = buildDefaultPlayerLinePayload();
+      }
+
+      designPhrasePayload.context = chosen.context || designPhrasePayload.context;
+      designPhrasePayload.voice = chosen.voice || designPhrasePayload.voice || getActivePhraseVoice();
+      designPhrasePayload.laneName = chosen.laneName || designPhrasePayload.laneName || "Play Line";
+
+      designPhraseBlocks = chosen.blocks.map(block => {
+        const isRest = block.type === "rest" || block.midi === null || block.midi === undefined;
+        const id = makePhraseBlockId();
+        return {
+          id,
+          blockId: id,
+          type: isRest ? "rest" : "note",
+          laneId: block.laneId || designPhrasePayload.laneId || "player-line",
+          midi: isRest ? null : Number(block.midi),
+          name: isRest ? "Rest" : (block.name || midiToDisplayName(Number(block.midi))),
+          startBeat: Number(block.startBeat || block.relativeStartBeat || 0),
+          relativeStartBeat: Number(block.relativeStartBeat || block.startBeat || 0),
+          durationBeats: Math.max(0.25, Number(block.durationBeats || 1)),
+          velocity: isRest ? 0 : (block.velocity || 86),
+          voice: isRest ? null : (block.voice || chosen.voice || getActivePhraseVoice()),
+          source: "saved-player-melody"
+        };
+      });
+
+      phraseInsertIndex = designPhraseBlocks.length;
+      reflowPhraseSequence();
+      renderDesignPhraseTimeline();
+      updatePhraseUndoRedoButtons();
+      statusText.textContent = "Loaded melody “" + (chosen.name || "Untitled Melody") + ".”";
+    }
+
     function sendDefaultPlayerLineToDesign() {
       if (!designPhraseBlocks.length) {
         statusText.textContent = "Play Line is empty. Play notes before sending to Design.";
@@ -1989,7 +2402,11 @@
         projectTitle: "Player Play Line",
         laneName: "Play Line",
         voice: getActivePhraseVoice(),
-        context: designPhrasePayload?.context || {},
+        context: {
+          ...(designPhrasePayload?.context || {}),
+          beatUnit: "orumi-beat",
+          preserveBeatValues: true
+        },
         blocks: designPhraseBlocks.map(block => ({
           type: block.type || (block.midi === null || block.midi === undefined ? "rest" : "note"),
           laneId: block.laneId || "player-line",
@@ -2036,6 +2453,7 @@
       phraseRedoStack = [];
       isPhraseCaptureMode = false;
       phraseAddPlayedNotes = true;
+      phraseInsertIndex = 0;
       resetAutoPhraseCaptureSession();
       updatePhraseCaptureButton();
       updatePhraseUndoRedoButtons();
@@ -2057,6 +2475,10 @@
 
       if (resetPhraseLineButton) {
         resetPhraseLineButton.style.display = "";
+      }
+
+      if (addTakeToPlayLineButton) {
+        addTakeToPlayLineButton.style.display = "none";
       }
 
       const context = payload.context || {};
@@ -2087,10 +2509,28 @@
       renderDesignPhraseTimeline();
     }
 
+
+    function getPhraseBlockVisualWidth(block) {
+      const duration = Math.max(0.25, Number(block?.durationBeats || 1));
+      const actualWidth = duration * PHRASE_BEAT_WIDTH;
+
+      // Keep the visual block inside its true rhythmic slot so the next block never
+      // covers the right resize handle. Quarter-beat items stay small instead of
+      // forcing a wide minimum that overlaps the following item.
+      return Math.max(16, Math.max(8, actualWidth - 6));
+    }
+
+    function getPhraseBlockShortLabel(block, isRest) {
+      if (isRest) return "R";
+      const label = block?.name || midiToDisplayName(block?.midi || 60);
+      return String(label).replace(/-?\d+$/, "").slice(0, 2) || "N";
+    }
+
     function renderDesignPhraseTimeline() {
       if (!designPhrasePayload || !designPhraseBlocks.length) {
         phraseLaneTrack.innerHTML =
           '<div class="phrase-empty">Play Line is empty. Play notes to append them, drag notes here, or insert an explicit Rest.</div>';
+        renderPhraseInsertMarker();
         return;
       }
 
@@ -2130,8 +2570,18 @@
           (block.liveCapture ? " live-capture" : "");
         element.dataset.blockId = block.blockId;
         element.style.left = (block.relativeStartBeat * PHRASE_BEAT_WIDTH) + "px";
-        element.style.width = Math.max(38, block.durationBeats * PHRASE_BEAT_WIDTH - 6) + "px";
-        element.textContent = isRest ? "Rest" : (block.name || midiToDisplayName(block.midi));
+
+        const visualWidth = getPhraseBlockVisualWidth(block);
+        element.style.width = visualWidth + "px";
+        element.dataset.shortLabel = getPhraseBlockShortLabel(block, isRest);
+        element.classList.toggle("compact-block", visualWidth < 46);
+        element.classList.toggle("micro-block", visualWidth < 26);
+        element.textContent =
+          visualWidth < 46
+            ? getPhraseBlockShortLabel(block, isRest)
+            : isRest
+              ? "Rest"
+              : (block.name || midiToDisplayName(block.midi));
 
         const resizeHandle = document.createElement("span");
         resizeHandle.className = "phrase-resize-handle";
@@ -2175,6 +2625,8 @@
 
         phraseLaneTrack.appendChild(element);
       });
+
+      renderPhraseInsertMarker();
     }
 
     function beginPhraseResize(event, blockId) {
@@ -2227,6 +2679,33 @@
       return pitchClasses[pc] ? pitchClasses[pc].className : "c";
     }
 
+    function getPhrasePlayheadLeft(beat) {
+      const safeBeat = Math.max(0, Number(beat || 0));
+      const trackLeft = phraseLaneTrack ? phraseLaneTrack.offsetLeft : 108;
+      return trackLeft + safeBeat * PHRASE_BEAT_WIDTH;
+    }
+
+    function scrollPhraseTimelineWithPlayhead(beat, force = false) {
+      const shell = phraseTimeline ? phraseTimeline.parentElement : null;
+      if (!shell) return;
+
+      const playheadLeft = getPhrasePlayheadLeft(beat);
+      const visibleLeft = shell.scrollLeft;
+      const visibleRight = visibleLeft + shell.clientWidth;
+      const margin = Math.max(90, Math.min(220, shell.clientWidth * 0.34));
+
+      if (force) {
+        shell.scrollLeft = Math.max(0, playheadLeft - margin);
+        return;
+      }
+
+      if (playheadLeft > visibleRight - margin) {
+        shell.scrollLeft = Math.max(0, playheadLeft - shell.clientWidth + margin);
+      } else if (playheadLeft < visibleLeft + 70) {
+        shell.scrollLeft = Math.max(0, playheadLeft - 70);
+      }
+    }
+
     async function playDesignPhrase() {
       if (!designPhrasePayload || !designPhraseBlocks.length) {
         statusText.textContent = "No Play Line to play.";
@@ -2260,7 +2739,8 @@
 
       phrasePlaybackStartTime = audioContext.currentTime;
       phrasePlayhead.style.display = "block";
-      phrasePlayhead.style.left = "108px";
+      phrasePlayhead.style.left = getPhrasePlayheadLeft(0) + "px";
+      scrollPhraseTimelineWithPlayhead(0, true);
 
       const phraseDurationSeconds = getPhraseDurationBeats() * beatSeconds;
 
@@ -2335,7 +2815,8 @@
 
         const elapsed = audioContext.currentTime - phrasePlaybackStartTime;
         const beat = elapsed / beatSeconds;
-        phrasePlayhead.style.left = (108 + beat * PHRASE_BEAT_WIDTH) + "px";
+        phrasePlayhead.style.left = getPhrasePlayheadLeft(beat) + "px";
+        scrollPhraseTimelineWithPlayhead(beat);
 
         if (elapsed <= phraseDurationSeconds + 0.05 && runId === phrasePlaybackRunId && isPhrasePlaybackActive) {
           phrasePlayheadFrame = requestAnimationFrame(animatePlayhead);
@@ -2916,10 +3397,72 @@
           : "Tap a square to play" + droneText + recordingText;
     }
 
+    function clearRecordingPlaybackTimers() {
+      recordingPlaybackTimers.forEach(timer => clearTimeout(timer));
+      recordingPlaybackTimers = [];
+    }
+
+    function stopCurrentRecordingPlayback(updateStatus = true) {
+      clearRecordingPlaybackTimers();
+
+      if (audioContext) {
+        recordingPlaybackNotes.forEach(note => {
+          ORUMI_VOICES.stopVoice(note, audioContext, 0.12);
+        });
+      }
+
+      recordingPlaybackNotes = [];
+      isRecordingPlaybackActive = false;
+
+      if (stopRecordingButton) {
+        stopRecordingButton.disabled = !isRecording;
+      }
+
+      if (updateStatus) {
+        statusText.textContent = isRecording
+          ? "Take playback stopped. Recording is still armed."
+          : "Take playback stopped.";
+      }
+    }
+
+    function ensureRecordingClock(firstNoteTime) {
+      if (!isRecording) {
+        return false;
+      }
+
+      if (!Number.isFinite(recordingStartTime)) {
+        recordingStartTime = Number(firstNoteTime || nowSeconds());
+        statusText.textContent = "Recording started with first note...";
+      }
+
+      return true;
+    }
+
+    function trimRecordedEventsToFirstNote(events = recordedEvents) {
+      if (!Array.isArray(events) || events.length === 0) {
+        return [];
+      }
+
+      const firstStart = Math.min(
+        ...events
+          .map(event => Number(event.start || 0))
+          .filter(value => Number.isFinite(value))
+      );
+
+      const offset = Number.isFinite(firstStart) ? Math.max(0, firstStart) : 0;
+
+      return events.map(event => ({
+        ...event,
+        start: Math.max(0, Number(event.start || 0) - offset)
+      }));
+    }
+
     function startRecording() {
       if (!requireAudioReady()) {
         return;
       }
+
+      stopCurrentRecordingPlayback(false);
 
       recordedEvents = [];
       localStorage.setItem(
@@ -2927,7 +3470,7 @@
         JSON.stringify(recordedEvents)
       );
 
-      recordingStartTime = nowSeconds();
+      recordingStartTime = null;
       isRecording = true;
 
       recordButton.classList.add("recording");
@@ -2935,7 +3478,7 @@
 
       stopRecordingButton.disabled = false;
 
-      statusText.textContent = "Recording...";
+      statusText.textContent = "Recording armed. Timing starts on the first note, so no leading rest is created.";
     }
 
     function stopRecording() {
@@ -2943,23 +3486,27 @@
         return;
       }
 
+      stopAllNotes();
       isRecording = false;
 
       recordButton.classList.remove("recording");
       recordButton.disabled = false;
 
-      stopRecordingButton.disabled = true;
+      stopRecordingButton.disabled = !isRecordingPlaybackActive;
 
+      recordedEvents = trimRecordedEventsToFirstNote(recordedEvents);
       saveCurrentRecording();
 
-      statusText.textContent =
-        recordedEvents.length +
-        " event" +
-        (recordedEvents.length === 1 ? "" : "s") +
-        " recorded. Open Design Studio and choose Import Recording.";
+      statusText.textContent = recordedEvents.length
+        ? recordedEvents.length +
+          " event" +
+          (recordedEvents.length === 1 ? "" : "s") +
+          " recorded. Play the take back, then use Add Take to Play Line if you like it."
+        : "Recording stopped. No notes were captured.";
     }
 
     function clearCurrentRecording() {
+      stopCurrentRecordingPlayback(false);
       recordedEvents = [];
       localStorage.setItem(
         "orumiCurrentRecording",
@@ -2967,6 +3514,7 @@
       );
 
       isRecording = false;
+      recordingStartTime = null;
 
       recordButton.classList.remove("recording");
       recordButton.disabled = false;
@@ -2977,9 +3525,13 @@
     }
 
     function saveCurrentRecording() {
+      const eventsToSave = isRecording
+        ? recordedEvents
+        : trimRecordedEventsToFirstNote(recordedEvents);
+
       localStorage.setItem(
         "orumiCurrentRecording",
-        JSON.stringify(recordedEvents)
+        JSON.stringify(eventsToSave)
       );
     }
 
@@ -3013,6 +3565,10 @@
 
       const { voice } = getSettingsFromUrl();
 
+      stopCurrentRecordingPlayback(false);
+      events = trimRecordedEventsToFirstNote(events);
+      isRecordingPlaybackActive = true;
+      stopRecordingButton.disabled = false;
       statusText.textContent = "Playing recorded take...";
 
       let latestEndMs = 0;
@@ -3023,8 +3579,8 @@
 
         latestEndMs = Math.max(latestEndMs, startMs + durationMs);
 
-        setTimeout(() => {
-          if (!event.notes || event.notes.length === 0) {
+        const startTimer = setTimeout(() => {
+          if (!isRecordingPlaybackActive || !event.notes || event.notes.length === 0) {
             return;
           }
 
@@ -3051,31 +3607,46 @@
                 now
               );
 
-            playedNotes.push({
+            const playedNote = {
               voice: eventVoice,
               gain: voiceNode.gain,
               oscillators: voiceNode.oscillators || [],
               noiseSources: voiceNode.noiseSources || []
-            });
+            };
+
+            playedNotes.push(playedNote);
+            recordingPlaybackNotes.push(playedNote);
           });
 
-          setTimeout(() => {
+          const stopTimer = setTimeout(() => {
             playedNotes.forEach(note => {
               ORUMI_VOICES.stopVoice(note, audioContext, 0.2);
+              recordingPlaybackNotes = recordingPlaybackNotes.filter(item => item !== note);
             });
           }, durationMs);
+
+          recordingPlaybackTimers.push(stopTimer);
         }, startMs);
+
+        recordingPlaybackTimers.push(startTimer);
       });
 
-      setTimeout(() => {
+      const doneTimer = setTimeout(() => {
+        isRecordingPlaybackActive = false;
+        recordingPlaybackNotes = [];
+        clearRecordingPlaybackTimers();
+        stopRecordingButton.disabled = !isRecording;
+
         if (!isRecording) {
           statusText.textContent = "Playback complete.";
         }
       }, latestEndMs + 250);
+
+      recordingPlaybackTimers.push(doneTimer);
     }
 
     function recordSingleNote(button, startedAt, endedAt, voice) {
-      if (!isRecording) {
+      if (!ensureRecordingClock(startedAt)) {
         return;
       }
 
@@ -3202,7 +3773,7 @@
         });
       }, 1800);
 
-      if (isRecording) {
+      if (isRecording && ensureRecordingClock(now)) {
         recordedEvents.push({
           type: "chord",
           name: nameChordFromButtons(highlightedButtons),
@@ -3364,6 +3935,23 @@
         "orumiWarmPad"
       ];
 
+      button.draggable = true;
+      button.addEventListener("dragstart", event => {
+        if (!designPhrasePayload || !Number.isFinite(Number(button.dataset.midi))) return;
+
+        const payload = {
+          midi: parseInt(button.dataset.midi, 10),
+          name: button.dataset.displayName,
+          displayName: button.dataset.displayName,
+          voice: getActivePhraseVoice(),
+          durationBeats: 1
+        };
+
+        event.dataTransfer.setData("application/x-orumi-note", JSON.stringify(payload));
+        event.dataTransfer.setData("text/plain", JSON.stringify(payload));
+        event.dataTransfer.effectAllowed = "copy";
+      });
+
       button.addEventListener("pointerdown", async event => {
         if (designPhrasePayload && event.isPrimary && !isPhrasePlaybackActive) {
           beginPhraseDrag(event, {
@@ -3420,7 +4008,7 @@
           phrasePreviewBlockId: null
         };
 
-        if (designPhrasePayload && phraseAddPlayedNotes && !isPhrasePlaybackActive) {
+        if (designPhrasePayload && !isDefaultPlayerLineMode() && phraseAddPlayedNotes && !isPhrasePlaybackActive) {
           const initialDurationBeats = sustainedVoices.includes(voice)
             ? 0.25
             : Math.max(0.25, secondsToPhraseBeats(Math.min(voiceNode.autoStopSeconds || 0.9, 1.2)));
@@ -3439,7 +4027,7 @@
           const autoDuration =
             voiceNode.autoStopSeconds || 0.9;
 
-          if (!designPhrasePayload) {
+          if (!designPhrasePayload || isDefaultPlayerLineMode()) {
             recordFixedNote(
               button,
               now,
@@ -3476,6 +4064,12 @@
       });
 
       button.addEventListener("pointerleave", event => {
+        // In Play Line mode, leaving the square may mean the user is dragging it
+        // toward the Play Line. Wait for pointerup/cancel so the drag can resolve.
+        if (designPhrasePayload) {
+          return;
+        }
+
         stopHeldNote(event.pointerId);
       });
 
@@ -3498,11 +4092,21 @@
       ORUMI_VOICES.stopVoice(note, audioContext, 0.12);
 
       if (note.phrasePreviewBlockId) {
-        finalizeAutoCapturedPhraseNote(
-          note.phrasePreviewBlockId,
-          endedAt - note.startedAt
-        );
-      } else if (!designPhrasePayload) {
+        const activeGridDrag =
+          phraseDragState &&
+          phraseDragState.pointerId === pointerId &&
+          phraseDragState.source === "grid" &&
+          phraseDragState.active;
+
+        if (activeGridDrag) {
+          cancelAutoCapturedPhrasePreview(note.phrasePreviewBlockId);
+        } else {
+          finalizeAutoCapturedPhraseNote(
+            note.phrasePreviewBlockId,
+            endedAt - note.startedAt
+          );
+        }
+      } else if (!designPhrasePayload || isDefaultPlayerLineMode()) {
         recordSingleNote(
           note.button,
           note.startedAt,
@@ -3532,6 +4136,18 @@
       stopPhraseButton.addEventListener("click", () => {
         stopDesignPhrasePlayback(true);
       });
+    }
+
+    if (addTakeToPlayLineButton) {
+      addTakeToPlayLineButton.addEventListener("click", addCurrentTakeToPlayLine);
+    }
+
+    if (saveMelodyButton) {
+      saveMelodyButton.addEventListener("click", saveCurrentMelody);
+    }
+
+    if (loadMelodyButton) {
+      loadMelodyButton.addEventListener("click", loadSavedMelody);
     }
 
     if (undoPhraseButton) {
@@ -3573,7 +4189,15 @@
     setupPhraseDropTarget();
 
     recordButton.addEventListener("click", startRecording);
-    stopRecordingButton.addEventListener("click", stopRecording);
+    stopRecordingButton.addEventListener("click", () => {
+      if (isRecordingPlaybackActive) {
+        stopCurrentRecordingPlayback(true);
+      }
+
+      if (isRecording) {
+        stopRecording();
+      }
+    });
     clearRecordingButton.addEventListener("click", clearCurrentRecording);
     playRecordingButton.addEventListener("click", playCurrentRecording);
 
@@ -3589,6 +4213,7 @@
       stopAllNotes();
       stopDrone();
       saveCurrentRecording();
+      stopCurrentRecordingPlayback(false);
       stopDesignPhrasePlayback(false);
       isPhraseCaptureMode = false;
       resetAutoPhraseCaptureSession();
