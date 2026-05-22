@@ -1084,8 +1084,22 @@
           <option value="4/4">4/4 Common Time</option>
           <option value="3/4">3/4 Waltz</option>
           <option value="2/4">2/4 March</option>
+          <option value="2/2">2/2 Cut Time</option>
+          <option value="4/8">4/8 Simple Eighth Meter</option>
           <option value="6/8">6/8 Compound Duple</option>
+          <option value="8/8">8/8 Eighth Meter</option>
           <option value="custom">Custom...</option>
+        </select>
+
+        <label for="snapGridSelect">Snap Grid</label>
+        <select id="snapGridSelect">
+          <option value="beat">1 beat</option>
+          <option value="half">1/2 beat</option>
+          <option value="quarter">1/4 beat</option>
+          <option value="eighth">1/8 beat</option>
+          <option value="triplet">Triplet — 1/3 beat</option>
+          <option value="sixth">Triplet subdivision — 1/6 beat</option>
+          <option value="free">Free / fine</option>
         </select>
 
         <label for="projectVoiceSelect">Default Voice</label>
@@ -1282,7 +1296,7 @@
     const MAX_BEAT_WIDTH = 180;
     const READABLE_BEAT_WIDTH = 120;
     const ZOOM_STEP = 24;
-    const MIN_DURATION = 0.25;
+    const MIN_DURATION = 0.125;
     const MAX_HISTORY = 60;
     const DEFAULT_DURATION = 1;
     const DEFAULT_TIME_SIGNATURE = { numerator: 4, denominator: 4 };
@@ -1312,6 +1326,7 @@
     const setSelect = document.getElementById("setSelect");
     const tempoInput = document.getElementById("tempoInput");
     const timeSignatureSelect = document.getElementById("timeSignatureSelect");
+    const snapGridSelect = document.getElementById("snapGridSelect");
     const projectVoiceSelect = document.getElementById("projectVoiceSelect");
 
     const blockInspector = document.getElementById("blockInspector");
@@ -1431,6 +1446,7 @@
           mode: "ionian",
           set: "full",
           timeSignature: { numerator: 4, denominator: 4 },
+          snapGrid: "quarter",
           voice: "orumiVocalAh",
           paletteOctave: 4
         },
@@ -1843,7 +1859,7 @@
 
     function getBeatsPerMeasure() {
       const signature = getTimeSignature();
-      return (signature.numerator * 4) / signature.denominator;
+      return Math.max(1, Number(signature.numerator || 4));
     }
 
     function getMeasureStartBeat(measureNumber) {
@@ -1864,8 +1880,48 @@
       if (!timeSignatureSelect) return;
 
       const label = getTimeSignatureLabel();
-      const builtInValues = ["4/4", "3/4", "2/4", "6/8"];
+      const builtInValues = ["4/4", "3/4", "2/4", "2/2", "4/8", "6/8", "8/8"];
       timeSignatureSelect.value = builtInValues.includes(label) ? label : "custom";
+    }
+
+    function formatTimeSignatureValue(signature) {
+      const normalized = normalizeTimeSignature(signature);
+      return normalized.numerator + "/" + normalized.denominator;
+    }
+
+    function roundBeatForStorage(value) {
+      return Math.round(Number(value || 0) * 1000000) / 1000000;
+    }
+
+    function convertExistingTimingToNewBeatUnit(currentSignature, nextSignature) {
+      const oldDenominator = Number(currentSignature.denominator || 4);
+      const newDenominator = Number(nextSignature.denominator || 4);
+      const factor = newDenominator / oldDenominator;
+
+      if (!Number.isFinite(factor) || Math.abs(factor - 1) < 0.000001) {
+        return 0;
+      }
+
+      let convertedCount = 0;
+
+      project.blocks.forEach(block => {
+        block.startBeat = roundBeatForStorage(Number(block.startBeat || 0) * factor);
+        block.durationBeats = Math.max(MIN_DURATION, roundBeatForStorage(Number(block.durationBeats || MIN_DURATION) * factor));
+        convertedCount += 1;
+      });
+
+      selectedInsertBeat = roundBeatForStorage(Number(selectedInsertBeat || 0) * factor);
+      pausedBeat = roundBeatForStorage(Number(pausedBeat || 0) * factor);
+      playbackStartBeat = roundBeatForStorage(Number(playbackStartBeat || 0) * factor);
+
+      blockClipboard = blockClipboard.map(item => ({
+        ...item,
+        startBeat: item.startBeat === undefined ? item.startBeat : roundBeatForStorage(Number(item.startBeat || 0) * factor),
+        relativeStartBeat: item.relativeStartBeat === undefined ? item.relativeStartBeat : roundBeatForStorage(Number(item.relativeStartBeat || 0) * factor),
+        durationBeats: item.durationBeats === undefined ? item.durationBeats : Math.max(MIN_DURATION, roundBeatForStorage(Number(item.durationBeats || MIN_DURATION) * factor))
+      }));
+
+      return convertedCount;
     }
 
     function handleTimeSignatureChange() {
@@ -1875,7 +1931,7 @@
       if (value === "custom") {
         const current = getTimeSignatureLabel();
         const answer = window.prompt(
-          "Enter global time signature as numerator/denominator, such as 5/4, 5/8, or 7/8:",
+          "Enter global time signature as numerator/denominator, such as 5/4, 5/8, 7/8, or 2/2:",
           current
         );
 
@@ -1909,11 +1965,37 @@
         return;
       }
 
+      let shouldConvertBeatUnit = false;
+      let convertedCount = 0;
+
+      if (project.blocks.length > 0 && currentSignature.denominator !== nextSignature.denominator) {
+        shouldConvertBeatUnit = window.confirm(
+          "The beat unit is changing from " +
+          formatTimeSignatureValue(currentSignature) +
+          " to " +
+          formatTimeSignatureValue(nextSignature) +
+          ".\n\n" +
+          "Convert existing notes so their musical note values stay the same?\n\n" +
+          "Example: 0.5 beats in 4/4 becomes 1 beat in 6/8, so an eighth note still reads as an eighth note.\n\n" +
+          "OK = convert note timing\nCancel = only regroup the measures"
+        );
+      }
+
       saveHistory();
+
+      if (shouldConvertBeatUnit) {
+        convertedCount = convertExistingTimingToNewBeatUnit(currentSignature, nextSignature);
+      }
+
       project.context.timeSignature = nextSignature;
       localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
       render();
-      flashStatus("Global time signature set to " + getTimeSignatureLabel() + ".");
+
+      flashStatus(
+        "Global time signature set to " +
+        getTimeSignatureLabel() +
+        (convertedCount ? ". Converted " + convertedCount + " block" + (convertedCount === 1 ? "" : "s") + " to the new beat unit." : ".")
+      );
     }
 
     function normalizeProject() {
@@ -1954,6 +2036,11 @@
 
       project.context.timeSignature = normalizeTimeSignature(project.context.timeSignature);
 
+      project.context.snapGrid =
+        ["beat", "half", "quarter", "eighth", "triplet", "sixth", "free"].includes(project.context.snapGrid)
+          ? project.context.snapGrid
+          : "quarter";
+
       project.context.voice =
         voices[project.context.voice]
           ? project.context.voice
@@ -1974,20 +2061,25 @@
         project.blocks = [];
       }
 
-      project.blocks = project.blocks.map(block => ({
-        id: block.id || createId("block"),
-        type: block.type || "note",
-        laneId: block.laneId || project.lanes[0].id,
-        midi: Number.isFinite(block.midi) ? block.midi : 60,
-        name: block.name || midiToDisplayName(block.midi || 60),
-        startBeat: Number.isFinite(block.startBeat) ? block.startBeat : 0,
-        durationBeats: Math.max(MIN_DURATION, Number(block.durationBeats || 1)),
-        velocity: Math.max(20, Math.min(127, Number(block.velocity || 82))),
-        voice: block.voice === undefined ? null : block.voice,
-        system: block.system || project.context.system,
-        source: block.source || null,
-        sourceId: block.sourceId || null
-      }));
+      project.blocks = project.blocks.map(block => {
+        const isRest = block.type === "rest" || block.midi === null || block.midi === undefined;
+        const midi = isRest ? null : (Number.isFinite(Number(block.midi)) ? Number(block.midi) : 60);
+
+        return {
+          id: block.id || createId(isRest ? "rest" : "block"),
+          type: isRest ? "rest" : (block.type || "note"),
+          laneId: block.laneId || project.lanes[0].id,
+          midi,
+          name: isRest ? "Rest" : (block.name || midiToDisplayName(midi || 60)),
+          startBeat: Number.isFinite(Number(block.startBeat)) ? Number(block.startBeat) : 0,
+          durationBeats: Math.max(MIN_DURATION, Number(block.durationBeats || 1)),
+          velocity: isRest ? 0 : Math.max(20, Math.min(127, Number(block.velocity || 82))),
+          voice: isRest ? null : (block.voice === undefined ? null : block.voice),
+          system: block.system || project.context.system,
+          source: block.source || null,
+          sourceId: block.sourceId || null
+        };
+      });
     }
 
     function clearProject() {
@@ -2106,6 +2198,9 @@
       setSelect.value = project.context.set;
       tempoInput.value = project.tempo;
       syncTimeSignatureControl();
+      if (snapGridSelect) {
+        snapGridSelect.value = project.context.snapGrid || "quarter";
+      }
       projectVoiceSelect.value = project.context.voice;
       paletteOctaveSelect.value = project.context.paletteOctave;
       updateContextSummary();
@@ -2163,6 +2258,7 @@
       project.context.mode = modeSelect.value;
       project.context.set = setSelect.value;
       project.context.timeSignature = normalizeTimeSignature(project.context.timeSignature);
+      project.context.snapGrid = snapGridSelect ? snapGridSelect.value : (project.context.snapGrid || "quarter");
       project.context.voice = projectVoiceSelect.value;
       project.context.paletteOctave = Math.max(1, Math.min(6, Number(paletteOctaveSelect.value || 4)));
       project.tempo = Math.max(40, Math.min(240, Number(tempoInput.value || 120)));
@@ -2180,6 +2276,9 @@
     setSelect.addEventListener("change", handleContextChange);
     tempoInput.addEventListener("change", handleContextChange);
     timeSignatureSelect.addEventListener("change", handleTimeSignatureChange);
+    if (snapGridSelect) {
+      snapGridSelect.addEventListener("change", handleContextChange);
+    }
     projectVoiceSelect.addEventListener("change", handleContextChange);
     paletteOctaveSelect.addEventListener("change", handleContextChange);
 
@@ -2976,7 +3075,7 @@
           relativeStartBeat: Number(block.startBeat || 0) - minStart,
           durationBeats: Number(block.durationBeats || MIN_DURATION),
           velocity: Number(block.velocity || 82),
-          voice: block.voice || null,
+          voice: block.voice || (lane ? lane.voice : null) || null,
           system: block.system || project.context.system
         })),
         context: {
@@ -3217,22 +3316,105 @@
     }
 
 
-    function getDurationOptions() {
-      return [
-        { value: 0.125, notation: "1/32", label: "Thirty-second note" },
-        { value: 0.25, notation: "1/16", label: "Sixteenth note" },
-        { value: 1 / 3, notation: "1/8T", label: "Eighth-note triplet" },
-        { value: 0.5, notation: "1/8", label: "Eighth note" },
-        { value: 2 / 3, notation: "1/4T", label: "Quarter-note triplet" },
-        { value: 0.75, notation: "1/8.", label: "Dotted eighth note" },
-        { value: 1, notation: "1/4", label: "Quarter note" },
-        { value: 1.5, notation: "1/4.", label: "Dotted quarter note" },
-        { value: 2, notation: "1/2", label: "Half note" },
-        { value: 3, notation: "1/2.", label: "Dotted half note" },
-        { value: 4, notation: "1/1", label: "Whole note" },
-        { value: 6, notation: "1/1.", label: "Dotted whole note" },
-        { value: 8, notation: "2/1", label: "Double whole note" }
+    function getNoteNameForDenominator(denominator) {
+      const names = {
+        1: "Whole note",
+        2: "Half note",
+        4: "Quarter note",
+        8: "Eighth note",
+        16: "Sixteenth note",
+        32: "Thirty-second note",
+        64: "Sixty-fourth note"
+      };
+
+      return names[denominator] || ("1/" + denominator + " note");
+    }
+
+    function getNotationForBeatValue(beats) {
+      const signature = getTimeSignature();
+      const beatDenominator = Number(signature.denominator || 4);
+      const value = Number(beats || 0);
+
+      if (Math.abs(value - (1 / 6)) < 0.015) {
+        return { notation: "1/3T", label: "Triplet subdivision" };
+      }
+
+      if (Math.abs(value - (1 / 3)) < 0.015) {
+        return { notation: "1T", label: "One beat triplet" };
+      }
+
+      if (Math.abs(value - (2 / 3)) < 0.015) {
+        return { notation: "2T", label: "Two triplet beats" };
+      }
+
+      const dottedCandidates = [
+        { beats: 0.75, multiplier: 1.5 },
+        { beats: 1.5, multiplier: 1.5 },
+        { beats: 3, multiplier: 1.5 },
+        { beats: 6, multiplier: 1.5 }
       ];
+
+      const dotted = dottedCandidates.find(item => Math.abs(value - item.beats) < 0.015);
+      if (dotted) {
+        const baseBeats = dotted.beats / dotted.multiplier;
+        const denominator = Math.round(beatDenominator / baseBeats);
+        return {
+          notation: "1/" + denominator + ".",
+          label: "Dotted " + getNoteNameForDenominator(denominator).toLowerCase()
+        };
+      }
+
+      if (value > 0) {
+        const denominator = beatDenominator / value;
+        if (Math.abs(denominator - Math.round(denominator)) < 0.001 && denominator >= 1 && denominator <= 128) {
+          const roundedDenominator = Math.round(denominator);
+          return {
+            notation: "1/" + roundedDenominator,
+            label: getNoteNameForDenominator(roundedDenominator)
+          };
+        }
+
+        const multiple = value / beatDenominator;
+        if (value > beatDenominator && Math.abs(multiple - Math.round(multiple)) < 0.001) {
+          return {
+            notation: Math.round(multiple) + "/1",
+            label: Math.round(multiple) + " whole notes"
+          };
+        }
+      }
+
+      return {
+        notation: formatBeatValue(value) + "b",
+        label: formatBeatValue(value) + " beats"
+      };
+    }
+
+    function getDurationOptions() {
+      const values = [
+        0.125,
+        1 / 6,
+        0.25,
+        1 / 3,
+        0.5,
+        2 / 3,
+        0.75,
+        1,
+        1.5,
+        2,
+        3,
+        4,
+        6,
+        8
+      ];
+
+      return values.map(value => {
+        const info = getNotationForBeatValue(value);
+        return {
+          value,
+          notation: info.notation,
+          label: info.label
+        };
+      });
     }
 
     function getDurationName(beats) {
@@ -4672,7 +4854,7 @@
       selectedBlockId = null;
       selectedBlockIds.clear();
 
-      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+      saveProjectSnapshotSilently();
       render();
 
       status.textContent =
@@ -5104,8 +5286,23 @@
       };
     }
 
+    function getSnapGridSize() {
+      const grid = project?.context?.snapGrid || "quarter";
+
+      if (grid === "beat") return 1;
+      if (grid === "half") return 0.5;
+      if (grid === "quarter") return 0.25;
+      if (grid === "eighth") return 0.125;
+      if (grid === "triplet") return 1 / 3;
+      if (grid === "sixth") return 1 / 6;
+      if (grid === "free") return 0.001;
+
+      return 0.25;
+    }
+
     function snapBeat(value) {
-      return Math.max(0, Math.round(value * 4) / 4);
+      const gridSize = getSnapGridSize();
+      return Math.max(0, Math.round(Number(value || 0) / gridSize) * gridSize);
     }
 
     function clearDropFeedback() {
@@ -5369,15 +5566,27 @@
     }
 
     function getQuantizeGridInfo(gridSize) {
-      if (gridSize === 1) {
-        return { label: "quarter notes", answer: "4" };
+      if (Math.abs(gridSize - 1) < 0.0001) {
+        return { label: "1 beat", answer: "1" };
       }
 
-      if (gridSize === 0.5) {
-        return { label: "eighth notes", answer: "8" };
+      if (Math.abs(gridSize - 0.5) < 0.0001) {
+        return { label: "1/2 beat", answer: "2" };
       }
 
-      return { label: "sixteenth notes", answer: "16" };
+      if (Math.abs(gridSize - 0.25) < 0.0001) {
+        return { label: "1/4 beat", answer: "4" };
+      }
+
+      if (Math.abs(gridSize - (1 / 3)) < 0.0001) {
+        return { label: "triplet grid — 1/3 beat", answer: "T" };
+      }
+
+      if (Math.abs(gridSize - (1 / 6)) < 0.0001) {
+        return { label: "triplet subdivision — 1/6 beat", answer: "6" };
+      }
+
+      return { label: "1/8 beat", answer: "8" };
     }
 
     function getSuggestedQuantizeGrid(analysis) {
@@ -5386,8 +5595,20 @@
         analysis.smallestStartGap || analysis.smallestDuration || 1
       );
 
+      if (smallestUsefulValue <= 0.125 + 0.0001) {
+        return 0.125;
+      }
+
+      if (Math.abs(smallestUsefulValue - (1 / 6)) < 0.035) {
+        return 1 / 6;
+      }
+
       if (smallestUsefulValue <= 0.25 + 0.0001) {
         return 0.25;
+      }
+
+      if (Math.abs(smallestUsefulValue - (1 / 3)) < 0.035) {
+        return 1 / 3;
       }
 
       if (smallestUsefulValue <= 0.5 + 0.0001) {
@@ -5514,9 +5735,12 @@
       const analysis = analyzeQuantizeTargets(targetBlocks);
       const suggestedGrid = getSuggestedQuantizeGrid(analysis);
       const suggestedInfo = getQuantizeGridInfo(suggestedGrid);
-      const quarterPreview = countQuantizeChanges(targetBlocks, 1);
-      const eighthPreview = countQuantizeChanges(targetBlocks, 0.5);
-      const sixteenthPreview = countQuantizeChanges(targetBlocks, 0.25);
+      const beatPreview = countQuantizeChanges(targetBlocks, 1);
+      const halfBeatPreview = countQuantizeChanges(targetBlocks, 0.5);
+      const quarterBeatPreview = countQuantizeChanges(targetBlocks, 0.25);
+      const tripletPreview = countQuantizeChanges(targetBlocks, 1 / 3);
+      const sixthPreview = countQuantizeChanges(targetBlocks, 1 / 6);
+      const eighthBeatPreview = countQuantizeChanges(targetBlocks, 0.125);
 
       const gridAnswer = window.prompt(
         "Timing analysis for " + scopeLabel + ":\n\n" +
@@ -5541,15 +5765,24 @@
       let gridSize = null;
       let gridLabel = "";
 
-      if (normalizedGrid === "4" || normalizedGrid === "q" || normalizedGrid === "quarter" || normalizedGrid === "quarter notes") {
+      if (normalizedGrid === "1" || normalizedGrid === "beat" || normalizedGrid === "one beat") {
         gridSize = 1;
-        gridLabel = "quarter notes";
-      } else if (normalizedGrid === "8" || normalizedGrid === "e" || normalizedGrid === "eighth" || normalizedGrid === "eighth notes") {
+        gridLabel = "1 beat";
+      } else if (normalizedGrid === "2" || normalizedGrid === "half" || normalizedGrid === "half beat") {
         gridSize = 0.5;
-        gridLabel = "eighth notes";
-      } else if (normalizedGrid === "16" || normalizedGrid === "s" || normalizedGrid === "sixteenth" || normalizedGrid === "sixteenth notes") {
+        gridLabel = "1/2 beat";
+      } else if (normalizedGrid === "4" || normalizedGrid === "q" || normalizedGrid === "quarter" || normalizedGrid === "quarter beat") {
         gridSize = 0.25;
-        gridLabel = "sixteenth notes";
+        gridLabel = "1/4 beat";
+      } else if (normalizedGrid === "8" || normalizedGrid === "e" || normalizedGrid === "eighth" || normalizedGrid === "eighth beat") {
+        gridSize = 0.125;
+        gridLabel = "1/8 beat";
+      } else if (normalizedGrid === "t" || normalizedGrid === "triplet" || normalizedGrid === "1/3") {
+        gridSize = 1 / 3;
+        gridLabel = "triplet grid — 1/3 beat";
+      } else if (normalizedGrid === "6" || normalizedGrid === "sixth" || normalizedGrid === "1/6") {
+        gridSize = 1 / 6;
+        gridLabel = "triplet subdivision — 1/6 beat";
       } else {
         status.textContent = "Quantize cancelled.";
         return;
@@ -7350,28 +7583,35 @@
       }
 
       saveHistory();
+      clearJsonKeys(PLAYER_LINE_IMPORT_KEYS);
 
       const replacementIds = [];
       const laneId = payload.laneId || replacements[0]?.laneId || selectedLaneId || project.lanes[0]?.id || "lead";
+      const targetLane = project.lanes.find(lane => lane.id === laneId);
+      const targetLaneVoice =
+        targetLane && targetLane.voice
+          ? targetLane.voice
+          : payload.laneVoice || payload.voice || null;
 
       project.blocks = project.blocks.filter(block => !originalIds.has(block.id));
 
       replacements.forEach(block => {
         const nextId = createId("block");
-        const midi = Number.isFinite(Number(block.midi)) ? Number(block.midi) : 60;
+        const isRest = block.type === "rest" || block.midi === null || block.midi === undefined;
+        const midi = isRest ? null : (Number.isFinite(Number(block.midi)) ? Number(block.midi) : 60);
 
         replacementIds.push(nextId);
 
         project.blocks.push({
           id: nextId,
-          type: block.type || "note",
+          type: isRest ? "rest" : (block.type || "note"),
           laneId: block.laneId || laneId,
           midi,
-          name: block.name || midiToDisplayName(midi),
+          name: isRest ? "Rest" : (block.name || midiToDisplayName(midi)),
           startBeat: Number.isFinite(Number(block.startBeat)) ? Number(block.startBeat) : Number(payload.originalStartBeat || 0),
           durationBeats: Math.max(MIN_DURATION, Number(block.durationBeats || 1)),
-          velocity: Math.max(20, Math.min(127, Number(block.velocity || 86))),
-          voice: block.voice === undefined ? null : block.voice,
+          velocity: isRest ? 0 : Math.max(20, Math.min(127, Number(block.velocity || 86))),
+          voice: isRest ? null : targetLaneVoice,
           system: block.system || project.context.system,
           source: "player-phrase-editor",
           sourceId: block.blockId || block.id || null
@@ -7467,6 +7707,15 @@
     }
 
     function applyPendingPlayerLineImport() {
+      const params = new URLSearchParams(window.location.search);
+      const returnMode = String(params.get("mode") || "").toLowerCase();
+      const returnSource = String(params.get("source") || "").toLowerCase();
+
+      if (returnSource === "player" && returnMode === "applyplayerselection") {
+        clearJsonKeys(PLAYER_LINE_IMPORT_KEYS);
+        return false;
+      }
+
       const payload = readJsonFromKeys(PLAYER_LINE_IMPORT_KEYS);
 
       if (!payload || payload.source !== "player") {
@@ -7481,6 +7730,7 @@
       }
 
       saveHistory();
+      clearPendingPlayerReplacementPayloads();
 
       const laneId = getOrCreateImportLane(
         payload.laneId || "player-line",
@@ -7495,20 +7745,21 @@
       const newIds = [];
 
       incomingBlocks.forEach(block => {
-        const midi = Number.isFinite(Number(block.midi)) ? Number(block.midi) : 60;
-        const nextId = createId("block");
+        const isRest = block.type === "rest" || block.midi === null || block.midi === undefined;
+        const midi = isRest ? null : (Number.isFinite(Number(block.midi)) ? Number(block.midi) : 60);
+        const nextId = createId(isRest ? "rest" : "block");
         newIds.push(nextId);
 
         project.blocks.push({
           id: nextId,
-          type: "note",
+          type: isRest ? "rest" : "note",
           laneId,
           midi,
-          name: block.name || midiToDisplayName(midi),
+          name: isRest ? "Rest" : (block.name || midiToDisplayName(midi)),
           startBeat: startOffset + Math.max(0, Number(block.startBeat || 0)),
           durationBeats: Math.max(MIN_DURATION, Number(block.durationBeats || 1)),
-          velocity: Math.max(20, Math.min(127, Number(block.velocity || 86))),
-          voice: block.voice === undefined ? payload.voice || null : block.voice,
+          velocity: isRest ? 0 : Math.max(20, Math.min(127, Number(block.velocity || 86))),
+          voice: isRest ? null : (block.voice === undefined ? payload.voice || null : block.voice),
           system: project.context.system,
           source: "player-play-line",
           sourceId: block.blockId || block.id || null
