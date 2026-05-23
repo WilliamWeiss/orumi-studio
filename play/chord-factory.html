@@ -124,6 +124,60 @@
       min-width: 0;
     }
 
+
+    .tool-mode-section {
+      background: rgba(255,255,255,0.075);
+      border-color: rgba(255,255,255,0.10);
+    }
+
+    .tool-mode-row {
+      display: grid;
+      grid-template-columns: minmax(150px, auto) minmax(240px, 420px);
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      margin: 4px auto 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .tool-mode-row select {
+      width: 100%;
+      border: none;
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: rgba(255,255,255,0.16);
+      color: #f5f0e8;
+      font-weight: 900;
+      font-family: inherit;
+    }
+
+    .tool-mode-row option {
+      color: #111;
+    }
+
+    .tool-mode-summary {
+      max-width: 780px;
+      margin: 0 auto;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+      text-align: center;
+    }
+
+    .factory-console {
+      grid-template-columns: 1fr;
+    }
+
+    .factory-console.characteristics-open {
+      grid-template-columns: minmax(240px, 0.72fr) minmax(420px, 1.4fr) minmax(240px, 0.72fr);
+    }
+
+    .tool-panel-hidden {
+      display: none !important;
+    }
+
     .builder-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -233,9 +287,13 @@
 
     .factory-console {
       display: grid;
-      grid-template-columns: minmax(240px, 0.72fr) minmax(420px, 1.4fr) minmax(240px, 0.72fr);
+      grid-template-columns: 1fr;
       gap: 12px;
       align-items: stretch;
+    }
+
+    .factory-console.characteristics-open {
+      grid-template-columns: minmax(240px, 0.72fr) minmax(420px, 1.4fr) minmax(240px, 0.72fr);
     }
 
     .console-card {
@@ -343,10 +401,10 @@
 
     .compact-action-grid {
       display: grid;
-      grid-template-columns: minmax(180px, 0.8fr) minmax(220px, 1fr) minmax(130px, 0.55fr);
+      grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
       gap: 9px;
       margin: 14px auto 0;
-      width: min(100%, 660px);
+      width: min(100%, 820px);
       align-items: stretch;
     }
 
@@ -419,6 +477,293 @@
       font-family: inherit;
     }
 
+
+    .stack-comparison {
+      margin: 12px auto 6px;
+      width: min(100%, 820px);
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      text-align: left;
+    }
+
+    .stack-comparison[hidden] {
+      display: none;
+    }
+
+    .stack-card {
+      border-radius: 18px;
+      padding: 12px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.10);
+      min-width: 0;
+    }
+
+    .stack-card.new-stack {
+      background: rgba(155,235,215,0.09);
+      border-color: rgba(155,235,215,0.22);
+    }
+
+    .stack-title {
+      color: #fff7ea;
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      text-align: center;
+      margin-bottom: 4px;
+    }
+
+    .stack-subtitle {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 850;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      text-align: center;
+      margin: 0 0 9px;
+    }
+
+    .stack-row {
+      display: grid;
+      grid-template-columns: 86px minmax(72px, 1fr);
+      gap: 9px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .stack-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .stack-lane-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-align: right;
+    }
+
+    .stack-note-block {
+      min-height: 48px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      color: white;
+      font-size: 17px;
+      font-weight: 900;
+      box-shadow:
+        0 7px 16px rgba(0,0,0,0.38),
+        inset 0 1px 0 rgba(255,255,255,0.24);
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+
+    .stack-note-block.empty {
+      background: rgba(255,255,255,0.08);
+      color: var(--muted);
+      border-style: dashed;
+      box-shadow: none;
+    }
+
+    .stack-note-block.changed {
+      outline: 3px solid rgba(255,235,120,0.9);
+      outline-offset: 2px;
+    }
+
+    .stack-note-block.light-text {
+      color: #222;
+      text-shadow: none;
+    }
+
+
+    .current-stack {
+      background: rgba(255,255,255,0.045);
+      border-color: rgba(255,255,255,0.08);
+    }
+
+    .current-stack .stack-note-block {
+      opacity: 0.52;
+      filter: grayscale(0.55) brightness(0.82);
+      cursor: not-allowed;
+      position: relative;
+    }
+
+    .current-stack .stack-note-block::after {
+      content: "locked";
+      position: absolute;
+      right: 7px;
+      bottom: 5px;
+      font-size: 9px;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.62);
+      text-shadow: 0 1px 2px rgba(0,0,0,0.55);
+    }
+
+    .current-stack .stack-note-block.light-text::after {
+      color: rgba(0,0,0,0.50);
+      text-shadow: none;
+    }
+
+    .new-stack .stack-note-block {
+      cursor: copy;
+    }
+
+    .new-stack .stack-note-block.empty,
+    .new-stack .stack-row {
+      cursor: copy;
+    }
+
+    .new-stack .stack-row.drop-ready .stack-note-block,
+    .new-stack .stack-note-block.drop-ready {
+      outline: 4px solid rgba(155,235,215,0.98);
+      outline-offset: 3px;
+      box-shadow:
+        0 0 28px rgba(155,235,215,0.88),
+        0 7px 16px rgba(0,0,0,0.38),
+        inset 0 1px 0 rgba(255,255,255,0.24);
+    }
+
+    .note-chip,
+    .note-square {
+      user-select: none;
+    }
+
+    .note-chip[draggable="true"],
+    .note-square[draggable="true"] {
+      cursor: grab;
+    }
+
+    .note-chip[draggable="true"]:active,
+    .note-square[draggable="true"]:active {
+      cursor: grabbing;
+    }
+
+    .stack-comparison-note {
+      grid-column: 1 / -1;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      line-height: 1.35;
+      text-align: center;
+      margin-top: 2px;
+    }
+
+
+    .voice-perspective-row {
+      display: grid;
+      grid-template-columns: minmax(86px, auto) minmax(160px, 260px);
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin: 0 auto 12px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .voice-perspective-row select {
+      width: 100%;
+      border: none;
+      border-radius: 11px;
+      padding: 8px 10px;
+      background: rgba(255,255,255,0.16);
+      color: #f5f0e8;
+      font-weight: 900;
+      font-family: inherit;
+    }
+
+    .voice-perspective-row option {
+      color: #111;
+    }
+
+    .voice-suggestions-section {
+      background: rgba(155,235,215,0.075);
+      border-color: rgba(155,235,215,0.16);
+    }
+
+    .voice-suggestion-intro {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+      margin: -2px 0 12px;
+      text-align: center;
+    }
+
+    .voice-suggestion-groups {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 10px;
+    }
+
+    .voice-suggestion-group {
+      border-radius: 16px;
+      padding: 10px;
+      background: rgba(255,255,255,0.075);
+      border: 1px solid rgba(255,255,255,0.09);
+      min-width: 0;
+    }
+
+    .voice-suggestion-group.keep-voice {
+      background: rgba(155,235,215,0.12);
+      border-color: rgba(155,235,215,0.32);
+    }
+
+    .voice-suggestion-title {
+      font-size: 13px;
+      font-weight: 900;
+      color: #fff7ea;
+      margin-bottom: 7px;
+      text-align: center;
+    }
+
+    .voice-suggestion-list {
+      display: grid;
+      gap: 7px;
+    }
+
+    .voice-suggestion-button {
+      width: 100%;
+      border: none;
+      border-radius: 13px;
+      padding: 9px 10px;
+      text-align: left;
+      background: rgba(255,255,255,0.14);
+      color: #fff7ea;
+      font-family: inherit;
+      font-weight: 850;
+      line-height: 1.25;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.20);
+    }
+
+    .voice-suggestion-button:hover,
+    .voice-suggestion-button:active {
+      transform: scale(0.985);
+      filter: brightness(1.12);
+    }
+
+    .voice-suggestion-button.selected-suggestion {
+      background: rgba(255,255,255,0.92);
+      color: #111;
+      box-shadow: 0 0 18px rgba(255,255,255,0.45);
+    }
+
+    .voice-suggestion-detail {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 750;
+    }
+
+    .voice-suggestion-button.selected-suggestion .voice-suggestion-detail {
+      color: #333;
+    }
+
     .note-picker-section {
       background: rgba(255,255,255,0.075);
     }
@@ -467,7 +812,8 @@
       .factory-layout,
       .factory-console,
       .builder-grid,
-      .compact-action-grid {
+      .compact-action-grid,
+      .stack-comparison {
         grid-template-columns: 1fr;
       }
 
@@ -540,9 +886,9 @@
   <div class="factory">
 
     <div class="result">
-      <div class="factory-console">
-        <div class="console-card characteristics-card">
-          <div class="console-label">Chord Characteristics</div>
+      <div class="factory-console" id="factoryConsole">
+        <div class="console-card characteristics-card tool-panel-hidden" id="chordCharacteristicsPanel">
+          <div class="console-label">Customize Chord Characteristics</div>
           <div id="keyLabel"></div>
 
           <div class="mini-characteristic-label">Root</div>
@@ -563,6 +909,22 @@
             Notes: C3 · E3 · G3
           </div>
 
+          <div class="stack-comparison" id="stackComparisonPanel" hidden>
+            <div class="stack-card current-stack">
+              <div class="stack-title">Current</div>
+              <div class="stack-subtitle">locked reference</div>
+              <div id="currentStackRows"></div>
+            </div>
+            <div class="stack-card new-stack">
+              <div class="stack-title">New</div>
+              <div class="stack-subtitle">choose or edit to create</div>
+              <div id="newStackRows"></div>
+            </div>
+            <div class="stack-comparison-note" id="stackComparisonNote">
+              Yellow outline marks notes that will change. Drag a note chip or note-picker block onto New to replace that voice.
+            </div>
+          </div>
+
           <div
             class="note-chip-row"
             id="selectedNotesRow"
@@ -570,10 +932,19 @@
 
           <div class="compact-action-grid">
             <button
+              class="action-button secondary-button primary-play-button"
+              id="playCurrentChordButton"
+              title="Play the original chord from Design"
+            >
+              ▶ Play Current
+            </button>
+
+            <button
               class="action-button primary-play-button"
               id="playChordButton"
+              title="Play the new/edited chord selection"
             >
-              ▶ Play Chord
+              ▶ Play New
             </button>
 
             <button
@@ -594,7 +965,7 @@
           <div id="factoryStatus"></div>
         </div>
 
-        <div class="console-card current-chord-card">
+        <div class="console-card current-chord-card tool-panel-hidden" id="chordVoicingPanel">
           <div class="console-label">Current Chord</div>
           <div id="chordName">CMv1</div>
           <div id="styleLabel">
@@ -618,9 +989,37 @@
       </div>
     </div>
 
+    <div class="section tool-mode-section">
+      <div class="section-title">Chord Tool</div>
+      <div class="tool-mode-row">
+        <span>Choose Tool</span>
+        <select id="toolModeSelect">
+          <option value="suggestions">Review Chord Suggestions</option>
+          <option value="characteristics">Customize Chord Characteristics</option>
+          <option value="notes">Customize Notes in Chord</option>
+        </select>
+      </div>
+      <div class="tool-mode-summary" id="toolModeSummary">
+        Review voice-aware alternatives, compare Current and New, then play or apply the edited chord.
+      </div>
+    </div>
+
     <div class="factory-layout">
+
+      <div class="section voice-suggestions-section" id="voiceSuggestionPanel">
+        <div class="section-title">Voice-Aware Chord Suggestions</div>
+        <div class="voice-suggestion-intro" id="voiceSuggestionIntro">
+          Select a Design note or chord to see alternatives grouped by the voice that carries the selected note.
+        </div>
+        <div class="voice-perspective-row" id="voicePerspectiveRow" hidden>
+          <span>Perspective</span>
+          <select id="voicePerspectiveSelect"></select>
+        </div>
+        <div class="voice-suggestion-groups" id="voiceSuggestionGroups"></div>
+      </div>
+
       <div class="section note-picker-section">
-        <div class="section-title">Add / Remove Notes</div>
+        <div class="section-title">Customize Notes in Chord</div>
         <div id="noteGrid"></div>
       </div>
     </div>
@@ -654,12 +1053,27 @@
     const systems = ORUMI_CATALOG.systems;
     const voices = ORUMI_CATALOG.voices;
 
+    const factoryConsole = document.getElementById("factoryConsole");
+    const chordCharacteristicsPanel = document.getElementById("chordCharacteristicsPanel");
+    const chordVoicingPanel = document.getElementById("chordVoicingPanel");
+    const toolModeSelect = document.getElementById("toolModeSelect");
+    const toolModeSummary = document.getElementById("toolModeSummary");
+
     const rootGrid = document.getElementById("rootGrid");
     const qualityGrid = document.getElementById("qualityGrid");
     const voicingGrid = document.getElementById("voicingGrid");
     const octaveGrid = document.getElementById("octaveGrid");
     const noteGrid = document.getElementById("noteGrid");
     const selectedNotesRow = document.getElementById("selectedNotesRow");
+    const stackComparisonPanel = document.getElementById("stackComparisonPanel");
+    const currentStackRows = document.getElementById("currentStackRows");
+    const newStackRows = document.getElementById("newStackRows");
+    const stackComparisonNote = document.getElementById("stackComparisonNote");
+    const voiceSuggestionPanel = document.getElementById("voiceSuggestionPanel");
+    const voiceSuggestionIntro = document.getElementById("voiceSuggestionIntro");
+    const voiceSuggestionGroups = document.getElementById("voiceSuggestionGroups");
+    const voicePerspectiveRow = document.getElementById("voicePerspectiveRow");
+    const voicePerspectiveSelect = document.getElementById("voicePerspectiveSelect");
 
     const chordName = document.getElementById("chordName");
     const noteList = document.getElementById("noteList");
@@ -669,6 +1083,9 @@
 
     const playChordButton =
       document.getElementById("playChordButton");
+
+    const playCurrentChordButton =
+      document.getElementById("playCurrentChordButton");
 
     const clearButton =
       document.getElementById("clearButton");
@@ -759,7 +1176,11 @@
       "3,4";
 
     let selectedNoteMidis = [];
+    let selectedVoiceAwareSuggestion = null;
+    let chordEditStarted = false;
+    let selectedPerspectiveLaneId = null;
     let designEditPayload = null;
+    let activeToolMode = "suggestions";
 
     const DESIGN_EDIT_PAYLOAD_KEYS = [
       "orumiChordFactoryPayload",
@@ -801,6 +1222,24 @@
         label: "Add 9",
         symbol: "add9",
         intervals: [0,2,4,7]
+      },
+
+      dominant9: {
+        label: "Dominant 9",
+        symbol: "9",
+        intervals: [0,2,4,7,10]
+      },
+
+      major9: {
+        label: "Major 9",
+        symbol: "M9",
+        intervals: [0,2,4,7,11]
+      },
+
+      minor9: {
+        label: "Minor 9",
+        symbol: "m9",
+        intervals: [0,2,3,7,10]
       },
 
       diminished: {
@@ -1029,6 +1468,9 @@
       if (/aug/i.test(label)) return "augmented";
       if (/sus2/i.test(label)) return "sus2";
       if (/sus4/i.test(label)) return "sus4";
+      if (/maj9|M9/i.test(label)) return "major9";
+      if (/m9/.test(label)) return "minor9";
+      if (/9/.test(label)) return "dominant9";
       if (/maj7|M7/i.test(label)) return "major7";
       if (/m7/.test(label)) return "minor7";
       if (/7/.test(label)) return "dominant7";
@@ -1064,6 +1506,7 @@
       }
 
       designEditPayload = payload;
+      selectedPerspectiveLaneId = payload.anchorLaneId || null;
 
       const context = payload.context || {};
 
@@ -1132,6 +1575,7 @@
           (payload.detectedChord || payload.chordSymbol || "selected chord") +
           " from Design Studio" +
           (payload.locationLabel ? " at " + payload.locationLabel : "") +
+          (payload.anchorLaneName ? ". Perspective: " + payload.anchorLaneName : "") +
           ". Adjust the notes here, then apply changes back to the selected blocks.";
       }
 
@@ -1150,6 +1594,13 @@
         return {
           project: directProject,
           source: "orumiDesignStudioProjectForChordFactory"
+        };
+      }
+
+      if (directProject && directProject.project && Array.isArray(directProject.project.blocks)) {
+        return {
+          project: directProject.project,
+          source: "orumiDesignStudioProjectForChordFactory.project"
         };
       }
 
@@ -1196,6 +1647,718 @@
       return "lead";
     }
 
+
+    const DEFAULT_VOICE_LANES_HIGH_TO_LOW = ["tenor", "lead", "baritone", "bass"];
+    const DEFAULT_VOICE_LANES_LOW_TO_HIGH = ["bass", "baritone", "lead", "tenor"];
+
+    function getLaneLabel(laneId) {
+      const projectInfo = getDesignProjectForEdit();
+      const lanes = projectInfo.project && Array.isArray(projectInfo.project.lanes)
+        ? projectInfo.project.lanes
+        : [];
+      const found = lanes.find(lane => lane && lane.id === laneId);
+
+      if (found) {
+        return found.name || found.label || found.id;
+      }
+
+      const fallback = {
+        tenor: "Tenor",
+        lead: "Lead",
+        baritone: "Baritone",
+        bass: "Bass"
+      };
+
+      return fallback[laneId] || laneId || "Voice";
+    }
+
+    function getDesignVoiceLanesLowToHigh() {
+      const projectInfo = getDesignProjectForEdit();
+      const lanes = projectInfo.project && Array.isArray(projectInfo.project.lanes)
+        ? projectInfo.project.lanes
+        : [];
+      const laneIds = lanes.map(lane => lane && lane.id).filter(Boolean);
+
+      const orderedDefaults = DEFAULT_VOICE_LANES_LOW_TO_HIGH.filter(id => laneIds.includes(id));
+      const extras = laneIds.filter(id => !orderedDefaults.includes(id));
+      const result = [...orderedDefaults, ...extras];
+
+      return result.length ? result : DEFAULT_VOICE_LANES_LOW_TO_HIGH.slice();
+    }
+
+    function getBlockAnchorInfo(block, fallbackLaneId = "lead") {
+      const midi = Number(midiFromPayloadBlock(block));
+
+      if (!Number.isFinite(midi)) {
+        return null;
+      }
+
+      return {
+        midi,
+        laneId: block.laneId || fallbackLaneId || "lead",
+        name: block.name || block.note || block.displayName || midiToDisplayName(midi),
+        blockId: block.id || block.blockId || null,
+        laneName: block.laneName || getLaneLabel(block.laneId || fallbackLaneId || "lead")
+      };
+    }
+
+    function getSuggestionAnchorBlock() {
+      if (designEditPayload && Array.isArray(designEditPayload.selectedBlocks) && designEditPayload.selectedBlocks.length) {
+        const selectedBlocks = designEditPayload.selectedBlocks;
+
+        if (selectedPerspectiveLaneId) {
+          const perspectiveBlock = selectedBlocks.find(block => block.laneId === selectedPerspectiveLaneId);
+          const info = perspectiveBlock ? getBlockAnchorInfo(perspectiveBlock, selectedPerspectiveLaneId) : null;
+          if (info) return info;
+        }
+
+        const anchorById = designEditPayload.anchorBlockId
+          ? selectedBlocks.find(block =>
+              block.id === designEditPayload.anchorBlockId ||
+              block.blockId === designEditPayload.anchorBlockId
+            )
+          : null;
+
+        const explicitAnchor =
+          anchorById ||
+          selectedBlocks.find(block => block.isAnchor);
+
+        const explicitInfo = explicitAnchor
+          ? getBlockAnchorInfo(explicitAnchor, designEditPayload.anchorLaneId || designEditPayload.laneId || "lead")
+          : null;
+
+        if (explicitInfo) {
+          return explicitInfo;
+        }
+
+        if (Number.isFinite(Number(designEditPayload.anchorMidi))) {
+          return {
+            midi: Number(designEditPayload.anchorMidi),
+            laneId: designEditPayload.anchorLaneId || designEditPayload.laneId || "lead",
+            name: designEditPayload.anchorNoteName || midiToDisplayName(Number(designEditPayload.anchorMidi)),
+            blockId: designEditPayload.anchorBlockId || null,
+            laneName: designEditPayload.anchorLaneName || getLaneLabel(designEditPayload.anchorLaneId || designEditPayload.laneId || "lead")
+          };
+        }
+
+        const melodicBlock = selectedBlocks
+          .slice()
+          .sort((a, b) => {
+            const startA = Number(a.startBeat || 0);
+            const startB = Number(b.startBeat || 0);
+            if (startA !== startB) return startA - startB;
+            return String(a.laneId || "").localeCompare(String(b.laneId || ""));
+          })
+          .find(block => Number.isFinite(midiFromPayloadBlock(block)));
+
+        const melodicInfo = melodicBlock
+          ? getBlockAnchorInfo(melodicBlock, designEditPayload.laneId || "lead")
+          : null;
+
+        if (melodicInfo) {
+          return melodicInfo;
+        }
+      }
+
+      if (selectedNoteMidis.length) {
+        const midi = selectedNoteMidis[Math.floor(selectedNoteMidis.length / 2)];
+        return { midi, laneId: selectedPerspectiveLaneId || "lead", name: midiToDisplayName(midi) };
+      }
+
+      return null;
+    }
+
+    function midiForPitchClassNear(pc, desiredMidi, options = {}) {
+      const maxDistance = Number(options.maxDistance || 36);
+      const candidates = [];
+
+      for (let octaveShift = -5; octaveShift <= 5; octaveShift++) {
+        const baseOctave = Math.floor(desiredMidi / 12) + octaveShift;
+        const midi = baseOctave * 12 + pc;
+
+        if (options.below !== undefined && !(midi < options.below)) continue;
+        if (options.above !== undefined && !(midi > options.above)) continue;
+
+        candidates.push(midi);
+      }
+
+      candidates.sort((a, b) => Math.abs(a - desiredMidi) - Math.abs(b - desiredMidi));
+      return candidates.find(midi => Math.abs(midi - desiredMidi) <= maxDistance) || candidates[0] || desiredMidi;
+    }
+
+    function chordPitchClasses(rootName, qualityKey) {
+      const rootNumber = pitchClasses[rootName].number;
+      const quality = qualities[qualityKey];
+      return quality.intervals.map(interval => (rootNumber + interval) % 12);
+    }
+
+    function getChordMemberName(rootName, qualityKey, midi) {
+      const rootNumber = pitchClasses[rootName].number;
+      const pc = ((midi % 12) + 12) % 12;
+      const interval = ((pc - rootNumber) + 12) % 12;
+      const names = {
+        0: "root",
+        2: "9th",
+        3: "minor 3rd",
+        4: "3rd",
+        5: "4th",
+        6: "flat 5th",
+        7: "5th",
+        8: "aug. 5th",
+        9: "6th",
+        10: "7th",
+        11: "major 7th"
+      };
+      return names[interval] || "chord tone";
+    }
+
+    function buildVoiceAwareVoicing(rootName, qualityKey, anchorMidi, targetLaneId) {
+      const lanesLowToHigh = getDesignVoiceLanesLowToHigh();
+      const targetIndex = Math.max(0, lanesLowToHigh.indexOf(targetLaneId));
+      const pcs = chordPitchClasses(rootName, qualityKey);
+      const anchorPc = ((anchorMidi % 12) + 12) % 12;
+
+      if (!pcs.includes(anchorPc)) {
+        return null;
+      }
+
+      const notesByLane = new Map();
+      notesByLane.set(targetLaneId, anchorMidi);
+
+      let lastBelow = anchorMidi;
+      for (let i = targetIndex - 1; i >= 0; i--) {
+        const laneId = lanesLowToHigh[i];
+        const desired = anchorMidi - ((targetIndex - i) * 5);
+        let best = null;
+
+        pcs.forEach(pc => {
+          const midi = midiForPitchClassNear(pc, desired, { below: lastBelow });
+          if (best === null || Math.abs(midi - desired) < Math.abs(best - desired)) {
+            best = midi;
+          }
+        });
+
+        notesByLane.set(laneId, best);
+        lastBelow = best;
+      }
+
+      let lastAbove = anchorMidi;
+      for (let i = targetIndex + 1; i < lanesLowToHigh.length; i++) {
+        const laneId = lanesLowToHigh[i];
+        const desired = anchorMidi + ((i - targetIndex) * 4);
+        let best = null;
+
+        pcs.forEach(pc => {
+          const midi = midiForPitchClassNear(pc, desired, { above: lastAbove });
+          if (best === null || Math.abs(midi - desired) < Math.abs(best - desired)) {
+            best = midi;
+          }
+        });
+
+        notesByLane.set(laneId, best);
+        lastAbove = best;
+      }
+
+      const notes = lanesLowToHigh
+        .map(laneId => ({
+          laneId,
+          midi: notesByLane.get(laneId),
+          displayName: midiToDisplayName(notesByLane.get(laneId))
+        }))
+        .filter(note => Number.isFinite(note.midi))
+        .sort((a, b) => a.midi - b.midi);
+
+      return {
+        root: rootName,
+        quality: qualityKey,
+        qualityLabel: qualities[qualityKey].label,
+        symbol: rootName + qualities[qualityKey].symbol,
+        targetLaneId,
+        targetLaneLabel: getLaneLabel(targetLaneId),
+        anchorMidi,
+        anchorMember: getChordMemberName(rootName, qualityKey, anchorMidi),
+        notes
+      };
+    }
+
+    function buildVoiceAwareSuggestions() {
+      const anchor = getSuggestionAnchorBlock();
+      if (!anchor) return [];
+
+      const anchorPc = ((anchor.midi % 12) + 12) % 12;
+      const targetLanes = getDesignVoiceLanesLowToHigh().slice().reverse();
+      const suggestions = [];
+
+      Object.keys(pitchClasses).forEach(rootName => {
+        Object.keys(qualities).forEach(qualityKey => {
+          const pcs = chordPitchClasses(rootName, qualityKey);
+          if (!pcs.includes(anchorPc)) return;
+
+          targetLanes.forEach(laneId => {
+            const voicing = buildVoiceAwareVoicing(rootName, qualityKey, anchor.midi, laneId);
+            if (voicing) suggestions.push(voicing);
+          });
+        });
+      });
+
+      const qualityRank = {
+        major: 1,
+        minor: 2,
+        major6: 3,
+        minor6: 4,
+        dominant7: 5,
+        major7: 6,
+        minor7: 7,
+        add9: 8,
+        dominant9: 9,
+        major9: 10,
+        minor9: 11,
+        diminished: 12,
+        halfDiminished7: 13,
+        diminished7: 14,
+        sus2: 15,
+        sus4: 16,
+        augmented: 17
+      };
+
+      suggestions.sort((a, b) => {
+        const keepA = a.targetLaneId === anchor.laneId ? 0 : 1;
+        const keepB = b.targetLaneId === anchor.laneId ? 0 : 1;
+        if (keepA !== keepB) return keepA - keepB;
+
+        const laneA = targetLanes.indexOf(a.targetLaneId);
+        const laneB = targetLanes.indexOf(b.targetLaneId);
+        if (laneA !== laneB) return laneA - laneB;
+
+        const rankA = qualityRank[a.quality] || 99;
+        const rankB = qualityRank[b.quality] || 99;
+        if (rankA !== rankB) return rankA - rankB;
+
+        return a.symbol.localeCompare(b.symbol);
+      });
+
+      return suggestions;
+    }
+
+    function applyVoiceAwareSuggestion(suggestion) {
+      selectedRoot = suggestion.root;
+      selectedQuality = suggestion.quality;
+      selectedVoicing = 1;
+      selectedOctave = Math.max(3, Math.min(4, Math.floor(Math.min(...suggestion.notes.map(note => note.midi)) / 12) - 1));
+      selectedNoteMidis = suggestion.notes.map(note => note.midi).sort((a, b) => a - b);
+      selectedVoiceAwareSuggestion = JSON.parse(JSON.stringify(suggestion));
+      chordEditStarted = true;
+      buildAll();
+      factoryStatus.textContent =
+        "Loaded " + suggestion.symbol + " with " +
+        midiToDisplayName(suggestion.anchorMidi) +
+        " as " + suggestion.targetLaneLabel + ".";
+    }
+
+    function updateVoicePerspectiveControl() {
+      if (!voicePerspectiveRow || !voicePerspectiveSelect) return;
+
+      if (!designEditPayload || !Array.isArray(designEditPayload.selectedBlocks)) {
+        voicePerspectiveRow.hidden = true;
+        return;
+      }
+
+      const available = designEditPayload.selectedBlocks
+        .map(block => getBlockAnchorInfo(block, block.laneId || "lead"))
+        .filter(Boolean);
+
+      if (!available.length) {
+        voicePerspectiveRow.hidden = true;
+        return;
+      }
+
+      voicePerspectiveRow.hidden = false;
+      const currentValue = selectedPerspectiveLaneId || available[0].laneId;
+      voicePerspectiveSelect.innerHTML = "";
+
+      available.forEach(item => {
+        const option = document.createElement("option");
+        option.value = item.laneId;
+        option.textContent = getLaneLabel(item.laneId) + " — " + item.name;
+        voicePerspectiveSelect.appendChild(option);
+      });
+
+      selectedPerspectiveLaneId = available.some(item => item.laneId === currentValue)
+        ? currentValue
+        : available[0].laneId;
+
+      voicePerspectiveSelect.value = selectedPerspectiveLaneId;
+    }
+
+    function renderVoiceAwareSuggestions() {
+      if (!voiceSuggestionPanel || !voiceSuggestionGroups || !voiceSuggestionIntro) return;
+
+      updateVoicePerspectiveControl();
+
+      const anchor = getSuggestionAnchorBlock();
+      if (!anchor) {
+        voiceSuggestionIntro.textContent =
+          "Choose a note, or open Chord Factory from a Design selection, to see voice-aware alternatives.";
+        voiceSuggestionGroups.innerHTML = "";
+        return;
+      }
+
+      const allSuggestions = buildVoiceAwareSuggestions();
+      const lanesHighToLow = getDesignVoiceLanesLowToHigh().slice().reverse();
+      const byLane = new Map();
+      lanesHighToLow.forEach(laneId => byLane.set(laneId, []));
+
+      allSuggestions.forEach(suggestion => {
+        if (!byLane.has(suggestion.targetLaneId)) {
+          byLane.set(suggestion.targetLaneId, []);
+        }
+        byLane.get(suggestion.targetLaneId).push(suggestion);
+      });
+
+      voiceSuggestionIntro.textContent =
+        "Selected note: " + midiToDisplayName(anchor.midi) +
+        " · current voice: " + getLaneLabel(anchor.laneId) +
+        ". Pick a chord by where that note should live.";
+
+      voiceSuggestionGroups.innerHTML = "";
+
+      lanesHighToLow.forEach(laneId => {
+        const groupSuggestions = (byLane.get(laneId) || []).slice(0, laneId === anchor.laneId ? 12 : 8);
+        if (!groupSuggestions.length) return;
+
+        const group = document.createElement("div");
+        group.className = "voice-suggestion-group" + (laneId === anchor.laneId ? " keep-voice" : "");
+
+        const title = document.createElement("div");
+        title.className = "voice-suggestion-title";
+        title.textContent =
+          (laneId === anchor.laneId ? "Keep note as " : "Use note as ") +
+          getLaneLabel(laneId);
+        group.appendChild(title);
+
+        const list = document.createElement("div");
+        list.className = "voice-suggestion-list";
+
+        groupSuggestions.forEach(suggestion => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "voice-suggestion-button";
+
+          const isSelected =
+            selectedVoiceAwareSuggestion &&
+            selectedVoiceAwareSuggestion.root === suggestion.root &&
+            selectedVoiceAwareSuggestion.quality === suggestion.quality &&
+            selectedVoiceAwareSuggestion.targetLaneId === suggestion.targetLaneId &&
+            selectedVoiceAwareSuggestion.anchorMidi === suggestion.anchorMidi;
+
+          if (isSelected) {
+            button.classList.add("selected-suggestion");
+          }
+
+          const voicingText = suggestion.notes
+            .map(note => getLaneLabel(note.laneId) + " " + note.displayName)
+            .join(" · ");
+
+          button.innerHTML =
+            suggestion.symbol +
+            ' <span class="voice-suggestion-detail">' +
+            midiToDisplayName(suggestion.anchorMidi) +
+            " as " + suggestion.anchorMember +
+            " · " + voicingText +
+            "</span>";
+
+          button.addEventListener("click", () => applyVoiceAwareSuggestion(suggestion));
+          list.appendChild(button);
+        });
+
+        group.appendChild(list);
+        voiceSuggestionGroups.appendChild(group);
+      });
+    }
+
+    function getPayloadStackAssignments() {
+      if (!designEditPayload || !Array.isArray(designEditPayload.selectedBlocks)) {
+        return [];
+      }
+
+      return designEditPayload.selectedBlocks
+        .map((block, index) => {
+          const midi = midiFromPayloadBlock(block);
+          if (!Number.isFinite(Number(midi))) return null;
+
+          return {
+            laneId: block.laneId || designEditPayload.laneId || getDesignVoiceLanesLowToHigh()[index] || "lead",
+            midi: Number(midi),
+            displayName: block.name || block.note || block.displayName || midiToDisplayName(Number(midi)),
+            sourceIndex: index
+          };
+        })
+        .filter(Boolean);
+    }
+
+    function getCurrentSelectionStackAssignments() {
+      const currentNotes = getCurrentNotes();
+
+      if (designEditPayload && !hasPendingNewChordSelection()) {
+        return [];
+      }
+
+      if (selectedVoiceAwareSuggestion && Array.isArray(selectedVoiceAwareSuggestion.notes)) {
+        return selectedVoiceAwareSuggestion.notes.map(note => ({
+          laneId: note.laneId || "lead",
+          midi: Number(note.midi),
+          displayName: note.displayName || midiToDisplayName(Number(note.midi))
+        }));
+      }
+
+      const original = getPayloadStackAssignments();
+      const lowToHigh = getDesignVoiceLanesLowToHigh();
+      const originalByLane = new Map(original.map(item => [item.laneId, item]));
+      const lanesToUse = original.length
+        ? lowToHigh.filter(laneId => originalByLane.has(laneId))
+        : lowToHigh.slice(0, Math.max(1, currentNotes.length));
+
+      const notesLowToHigh = currentNotes.slice().sort((a, b) => a.midi - b.midi);
+
+      return notesLowToHigh.map((note, index) => ({
+        laneId: lanesToUse[index] || lowToHigh[index] || "lead",
+        midi: note.midi,
+        displayName: note.displayName
+      }));
+    }
+
+    function getComparisonLaneOrder(currentStack, newStack) {
+      const lowToHigh = getDesignVoiceLanesLowToHigh();
+      const allLaneIds = new Set([
+        ...currentStack.map(item => item.laneId),
+        ...newStack.map(item => item.laneId)
+      ]);
+      const ordered = lowToHigh.filter(laneId => allLaneIds.has(laneId)).reverse();
+      const extras = Array.from(allLaneIds).filter(laneId => !lowToHigh.includes(laneId)).sort();
+      return [...ordered, ...extras];
+    }
+
+    function readDraggedMidi(event) {
+      const raw =
+        event.dataTransfer.getData("application/x-orumi-midi") ||
+        event.dataTransfer.getData("text/plain");
+
+      const midi = Number(raw);
+      return Number.isFinite(midi) ? midi : null;
+    }
+
+    function setMidiDragData(event, midi) {
+      if (!event || !event.dataTransfer || !Number.isFinite(Number(midi))) {
+        return;
+      }
+
+      const value = String(Number(midi));
+      event.dataTransfer.setData("application/x-orumi-midi", value);
+      event.dataTransfer.setData("text/plain", value);
+      event.dataTransfer.effectAllowed = "copy";
+    }
+
+    function replaceNewStackLaneMidi(laneId, midi) {
+      if (!laneId || !Number.isFinite(Number(midi))) {
+        return;
+      }
+
+      const assignments = getCurrentSelectionStackAssignments()
+        .map(item => ({
+          laneId: item.laneId || "lead",
+          midi: Number(item.midi),
+          displayName: item.displayName || midiToDisplayName(Number(item.midi))
+        }))
+        .filter(item => Number.isFinite(item.midi));
+
+      const existing = assignments.find(item => item.laneId === laneId);
+
+      if (existing) {
+        existing.midi = Number(midi);
+        existing.displayName = midiToDisplayName(Number(midi));
+      } else {
+        assignments.push({
+          laneId,
+          midi: Number(midi),
+          displayName: midiToDisplayName(Number(midi))
+        });
+      }
+
+      const lowToHigh = getDesignVoiceLanesLowToHigh();
+      assignments.sort((a, b) => {
+        const laneA = lowToHigh.indexOf(a.laneId);
+        const laneB = lowToHigh.indexOf(b.laneId);
+        if (laneA !== laneB) return laneA - laneB;
+        return a.midi - b.midi;
+      });
+
+      chordEditStarted = true;
+      selectedVoiceAwareSuggestion = {
+        root: selectedRoot,
+        quality: selectedQuality,
+        qualityLabel: qualities[selectedQuality]?.label || selectedQuality,
+        symbol: selectedRoot + (qualities[selectedQuality]?.symbol || ""),
+        targetLaneId: selectedPerspectiveLaneId || laneId,
+        targetLaneLabel: getLaneLabel(selectedPerspectiveLaneId || laneId),
+        anchorMidi: Number(midi),
+        anchorMember: "custom replacement",
+        customManual: true,
+        notes: assignments.map(item => ({
+          laneId: item.laneId,
+          midi: item.midi,
+          displayName: item.displayName
+        }))
+      };
+
+      selectedNoteMidis = assignments.map(item => item.midi);
+      buildAll();
+      factoryStatus.textContent =
+        "Replaced " + getLaneLabel(laneId) + " in New with " + midiToDisplayName(Number(midi)) + ".";
+    }
+
+    function renderStackRows(container, laneOrder, assignments, comparisonMap = null, stackType = "current") {
+      if (!container) return;
+      container.innerHTML = "";
+      const byLane = new Map(assignments.map(item => [item.laneId, item]));
+      const isNewStack = stackType === "new";
+
+      laneOrder.forEach(laneId => {
+        const row = document.createElement("div");
+        row.className = "stack-row";
+        row.dataset.laneId = laneId;
+
+        const label = document.createElement("div");
+        label.className = "stack-lane-label";
+        label.textContent = getLaneLabel(laneId);
+
+        const block = document.createElement("div");
+        const assignment = byLane.get(laneId);
+
+        if (assignment && Number.isFinite(Number(assignment.midi))) {
+          const pc = pcToName(Number(assignment.midi) % 12);
+          block.className = "stack-note-block " + (pitchClasses[pc]?.className || "c");
+          block.dataset.midi = String(Number(assignment.midi));
+          block.dataset.laneId = laneId;
+          if (["E", "Eb"].includes(pc)) {
+            block.classList.add("light-text");
+          }
+          if (comparisonMap && comparisonMap.get(laneId) !== Number(assignment.midi)) {
+            block.classList.add("changed");
+          }
+          block.textContent = assignment.displayName || midiToDisplayName(Number(assignment.midi));
+          block.classList.add("playable-note");
+          block.title = "Click to play " + block.textContent + (isNewStack ? ". Drag a note here to replace this voice." : ". Current stack is locked.");
+          block.addEventListener("click", event => {
+            event.stopPropagation();
+            playSingleMidiNote(Number(assignment.midi), isNewStack ? selectedVoice : getCurrentPayloadVoice(), block);
+          });
+        } else {
+          block.className = "stack-note-block empty";
+          block.dataset.laneId = laneId;
+          block.textContent = "Drop note";
+        }
+
+        if (isNewStack) {
+          const showDropReady = event => {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "copy";
+            row.classList.add("drop-ready");
+            block.classList.add("drop-ready");
+          };
+
+          const clearDropReady = () => {
+            row.classList.remove("drop-ready");
+            block.classList.remove("drop-ready");
+          };
+
+          row.addEventListener("dragover", showDropReady);
+          block.addEventListener("dragover", showDropReady);
+
+          row.addEventListener("dragleave", clearDropReady);
+          block.addEventListener("dragleave", clearDropReady);
+
+          const handleDrop = event => {
+            event.preventDefault();
+            clearDropReady();
+            const midi = readDraggedMidi(event);
+            if (Number.isFinite(midi)) {
+              replaceNewStackLaneMidi(laneId, midi);
+            }
+          };
+
+          row.addEventListener("drop", handleDrop);
+          block.addEventListener("drop", handleDrop);
+        }
+
+        row.appendChild(label);
+        row.appendChild(block);
+        container.appendChild(row);
+      });
+    }
+
+    function renderStackComparison() {
+      if (!stackComparisonPanel || !currentStackRows || !newStackRows) return;
+
+      if (!designEditPayload) {
+        stackComparisonPanel.hidden = true;
+        return;
+      }
+
+      const currentStack = getPayloadStackAssignments();
+      const newStack = getCurrentSelectionStackAssignments();
+
+      if (!currentStack.length && !newStack.length) {
+        stackComparisonPanel.hidden = true;
+        return;
+      }
+
+      const laneOrder = getComparisonLaneOrder(currentStack, newStack);
+      const currentMap = new Map(currentStack.map(item => [item.laneId, Number(item.midi)]));
+      const newMap = new Map(newStack.map(item => [item.laneId, Number(item.midi)]));
+
+      renderStackRows(currentStackRows, laneOrder, currentStack, null, "current");
+      renderStackRows(newStackRows, laneOrder, newStack, currentMap, "new");
+
+      if (stackComparisonNote) {
+        if (designEditPayload && !hasPendingNewChordSelection()) {
+          stackComparisonNote.textContent =
+            "No new chord selected yet. Choose a suggestion, customize characteristics, or drop a note into New.";
+        } else {
+          const changedCount = laneOrder.filter(laneId => currentMap.get(laneId) !== newMap.get(laneId)).length;
+          stackComparisonNote.textContent = changedCount
+            ? "Yellow outline marks " + changedCount + " changed voice" + (changedCount === 1 ? "" : "s") + "."
+            : "Current and new stacks match. Drag a note chip or note-picker block onto New to replace a voice.";
+        }
+      }
+
+      stackComparisonPanel.hidden = false;
+    }
+
+    function currentNotesMatchSelectedSuggestion(currentNotes) {
+      if (!selectedVoiceAwareSuggestion || !Array.isArray(selectedVoiceAwareSuggestion.notes)) {
+        return false;
+      }
+
+      const suggestionMidis = selectedVoiceAwareSuggestion.notes.map(note => Number(note.midi)).sort((a, b) => a - b);
+      const currentMidis = currentNotes.map(note => Number(note.midi)).sort((a, b) => a - b);
+
+      if (suggestionMidis.length !== currentMidis.length) return false;
+
+      return suggestionMidis.every((midi, index) => midi === currentMidis[index]);
+    }
+
+    function getSuggestedLaneForNoteIndex(currentNotes, index) {
+      if (!currentNotesMatchSelectedSuggestion(currentNotes)) return null;
+
+      const note = currentNotes[index];
+      const assignment = selectedVoiceAwareSuggestion.notes
+        .slice()
+        .sort((a, b) => a.midi - b.midi)
+        .find((item, itemIndex) => itemIndex === index && Number(item.midi) === Number(note.midi));
+
+      return assignment ? assignment.laneId : null;
+    }
+
     function applyCurrentChordToDesignSelection() {
       if (
         !designEditPayload ||
@@ -1212,6 +2375,12 @@
       if (!designProject || !Array.isArray(designProject.blocks)) {
         factoryStatus.textContent =
           "Could not find the Design Studio project to update.";
+        return;
+      }
+
+      if (!hasPendingNewChordSelection()) {
+        factoryStatus.textContent =
+          "No new chord selected yet. Choose a suggestion, customize characteristics, or drop a note into New before applying.";
         return;
       }
 
@@ -1289,13 +2458,19 @@
           originalBlocks[originalBlocks.length - 1] ||
           {};
 
+        const suggestedLaneId = getSuggestedLaneForNoteIndex(currentNotes, index);
         const laneId =
+          suggestedLaneId ||
           original.laneId ||
           getFallbackLaneIdForIndex(
             designProject,
             index,
             currentNotes.length
           );
+
+        const laneVoice =
+          designProject.lanes &&
+          (designProject.lanes.find(lane => lane.id === laneId)?.voice || null);
 
         designProject.blocks.push({
           id: original.id || original.blockId || createDesignId("note"),
@@ -1315,7 +2490,7 @@
             Number.isFinite(original.velocity)
               ? Number(original.velocity)
               : 86,
-          voice: original.voice || chord.voice || null,
+          voice: laneVoice || original.voice || chord.voice || null,
           system: chord.system || designProject.context?.system || "western",
           source: "chord-factory-edit",
           sourceId:
@@ -1437,7 +2612,11 @@
         .sort((a,b) => a - b);
     }
 
-    function resetSelectedNotesToFactory() {
+    function resetSelectedNotesToFactory(markEdited = true) {
+      selectedVoiceAwareSuggestion = null;
+      if (markEdited) {
+        chordEditStarted = true;
+      }
       selectedNoteMidis =
         buildFactoryMidis();
     }
@@ -1463,7 +2642,7 @@
         }
       }
 
-      resetSelectedNotesToFactory();
+      resetSelectedNotesToFactory(false);
     }
 
     function getCurrentNotes() {
@@ -1480,7 +2659,14 @@
         }));
     }
 
+    function hasPendingNewChordSelection() {
+      return !designEditPayload || chordEditStarted || !!selectedVoiceAwareSuggestion;
+    }
+
     function toggleSelectedNote(midi) {
+
+      chordEditStarted = true;
+      selectedVoiceAwareSuggestion = null;
 
       if (selectedNoteMidis.includes(midi)) {
 
@@ -1697,6 +2883,7 @@
           button.classList.add(
             "square",
             "note-square",
+            "playable-note",
             pitch.className
           );
 
@@ -1711,7 +2898,15 @@
           button.textContent =
             pitch.display + octave;
 
+          button.draggable = true;
+          button.title =
+            "Click to hear and add/remove, or drag " + pitch.display + octave + " onto the New stack.";
+          button.addEventListener("dragstart", event => {
+            setMidiDragData(event, midi);
+          });
+
           button.addEventListener("click", () => {
+            playSingleMidiNote(midi, selectedVoice, button);
             toggleSelectedNote(midi);
           });
 
@@ -1761,18 +2956,49 @@
           document.createElement("button");
 
         chip.classList.add(
-          "note-chip"
+          "note-chip",
+          "playable-note"
         );
 
         chip.textContent =
           note.displayName + " ×";
 
-        chip.addEventListener("click", () => {
+        chip.draggable = true;
+        chip.title =
+          "Click to play, double-click to remove, or drag " + note.displayName + " onto the New stack.";
+        chip.addEventListener("dragstart", event => {
+          setMidiDragData(event, note.midi);
+        });
+
+        chip.addEventListener("click", event => {
+          event.stopPropagation();
+          playSingleMidiNote(note.midi, selectedVoice, chip);
+        });
+
+        chip.addEventListener("dblclick", event => {
+          event.preventDefault();
+          event.stopPropagation();
           toggleSelectedNote(note.midi);
         });
 
         selectedNotesRow.appendChild(chip);
       });
+
+      renderStackComparison();
+
+      if (playCurrentChordButton) {
+        playCurrentChordButton.disabled = !designEditPayload;
+        playCurrentChordButton.title = designEditPayload
+          ? "Play the original/current chord being reviewed"
+          : "Open from Design to compare against a current chord";
+      }
+
+      if (playChordButton) {
+        playChordButton.textContent = designEditPayload ? "▶ Play New" : "▶ Play Chord";
+        playChordButton.title = designEditPayload
+          ? "Play the new/edited chord that will be sent back"
+          : "Play the selected chord";
+      }
 
       playerButton.href =
         buildPlayerUrl();
@@ -1813,31 +3039,59 @@
       activeChordNotes = [];
     }
 
-    async function playChord() {
+    function getCurrentPayloadVoice() {
+      if (
+        designEditPayload &&
+        Array.isArray(designEditPayload.selectedBlocks)
+      ) {
+        const voiceBlock =
+          designEditPayload.selectedBlocks.find(block => block.voice && voices[block.voice]);
+
+        if (voiceBlock && voiceBlock.voice) {
+          return voiceBlock.voice;
+        }
+      }
+
+      return selectedVoice;
+    }
+
+    async function playMidiChord(midis, voice, statusMessage = "Playing chord.") {
 
       await ensureAudio();
 
       stopActiveChord();
 
-      const notes =
-        getCurrentNotes();
+      const cleanMidis =
+        midis
+          .map(midi => Number(midi))
+          .filter(midi => Number.isFinite(midi));
+
+      if (cleanMidis.length === 0) {
+        factoryStatus.textContent = "No notes to play.";
+        return;
+      }
+
+      const playVoice =
+        voice && voices[voice]
+          ? voice
+          : selectedVoice;
 
       const now =
         audioContext.currentTime;
 
       activeChordNotes =
-        notes.map(note => {
+        cleanMidis.map(midi => {
 
           const voiceNode =
             ORUMI_VOICES.buildVoice(
               audioContext,
-              selectedVoice,
-              note.frequency,
+              playVoice,
+              midiToFrequency(midi),
               now
             );
 
           return {
-            voice: selectedVoice,
+            voice: playVoice,
             gain: voiceNode.gain,
             oscillators:
               voiceNode.oscillators || [],
@@ -1846,9 +3100,98 @@
           };
         });
 
+      factoryStatus.textContent = statusMessage;
+
       setTimeout(() => {
         stopActiveChord();
       }, 1800);
+    }
+
+    async function playSingleMidiNote(midi, voice, element = null, duration = 850) {
+      const cleanMidi = Number(midi);
+
+      if (!Number.isFinite(cleanMidi)) {
+        return;
+      }
+
+      await ensureAudio();
+      stopActiveChord();
+
+      const playVoice =
+        voice && voices[voice]
+          ? voice
+          : selectedVoice;
+
+      const now = audioContext.currentTime;
+      const voiceNode = ORUMI_VOICES.buildVoice(
+        audioContext,
+        playVoice,
+        midiToFrequency(cleanMidi),
+        now
+      );
+
+      const noteRef = {
+        voice: playVoice,
+        gain: voiceNode.gain,
+        oscillators: voiceNode.oscillators || [],
+        noiseSources: voiceNode.noiseSources || []
+      };
+
+      activeChordNotes = [noteRef];
+
+      if (element) {
+        element.classList.add("playing-note");
+      }
+
+      factoryStatus.textContent =
+        "Playing " + midiToDisplayName(cleanMidi) + ".";
+
+      setTimeout(() => {
+        ORUMI_VOICES.stopVoice(noteRef, audioContext, 0.16);
+        activeChordNotes = activeChordNotes.filter(item => item !== noteRef);
+        if (element) {
+          element.classList.remove("playing-note");
+        }
+      }, duration);
+    }
+
+    async function playCurrentChord() {
+      const currentStack = getPayloadStackAssignments();
+
+      if (!designEditPayload || currentStack.length === 0) {
+        factoryStatus.textContent =
+          "No current Design chord is loaded to compare.";
+        return;
+      }
+
+      await playMidiChord(
+        currentStack.map(item => item.midi),
+        getCurrentPayloadVoice(),
+        "Playing current chord from Design."
+      );
+    }
+
+    async function playNewChord() {
+      if (designEditPayload && !hasPendingNewChordSelection()) {
+        factoryStatus.textContent =
+          "No new chord selected yet. Choose a suggestion or customize the chord first.";
+        return;
+      }
+
+      const notes =
+        getCurrentNotes();
+
+      await playMidiChord(
+        notes.map(note => note.midi),
+        selectedVoice,
+        designEditPayload
+          ? "Playing new chord selection."
+          : "Playing chord."
+      );
+    }
+
+    async function playChord() {
+      await playNewChord();
     }
 
     function buildCurrentChordObject() {
@@ -1992,6 +3335,70 @@
     }
 
 
+    function chooseDefaultToolMode() {
+      return "suggestions";
+    }
+
+    function setActiveToolMode(mode) {
+      const allowedModes = ["suggestions", "characteristics", "notes"];
+      activeToolMode = allowedModes.includes(mode) ? mode : chooseDefaultToolMode();
+      updateToolModeVisibility();
+    }
+
+    function updateToolModeVisibility() {
+      if (toolModeSelect && toolModeSelect.value !== activeToolMode) {
+        toolModeSelect.value = activeToolMode;
+      }
+
+      const showingSuggestions = activeToolMode === "suggestions";
+      const showingCharacteristics = activeToolMode === "characteristics";
+      const showingNotes = activeToolMode === "notes";
+
+      if (factoryConsole) {
+        factoryConsole.classList.toggle("characteristics-open", showingCharacteristics);
+      }
+
+      if (chordCharacteristicsPanel) {
+        chordCharacteristicsPanel.classList.toggle("tool-panel-hidden", !showingCharacteristics);
+      }
+
+      if (chordVoicingPanel) {
+        chordVoicingPanel.classList.toggle("tool-panel-hidden", !showingCharacteristics);
+      }
+
+      if (voiceSuggestionPanel) {
+        voiceSuggestionPanel.classList.toggle("tool-panel-hidden", !showingSuggestions);
+      }
+
+      if (noteGrid) {
+        const noteSection = noteGrid.closest(".note-picker-section");
+        if (noteSection) {
+          noteSection.classList.toggle("tool-panel-hidden", !showingNotes);
+        }
+      }
+
+      if (toolModeSummary) {
+        if (showingSuggestions) {
+          toolModeSummary.textContent =
+            "Review voice-aware alternatives by Tenor, Lead, Baritone, and Bass. Compare Current and New, then play or apply the edited chord.";
+        } else if (showingCharacteristics) {
+          toolModeSummary.textContent =
+            "Customize root, quality, voicing, and base octave when you already know the chord shape you want.";
+        } else {
+          toolModeSummary.textContent =
+            "Manually add or remove individual notes from the chord when you want direct note-level control.";
+        }
+      }
+    }
+
+
+    if (toolModeSelect) {
+      toolModeSelect.addEventListener("change", () => {
+        setActiveToolMode(toolModeSelect.value);
+      });
+    }
+
+
     document.addEventListener("pointerdown", event => {
       const button = event.target.closest(".action-button");
 
@@ -2010,11 +3417,36 @@
       });
     });
 
+
+    if (voicePerspectiveSelect) {
+      voicePerspectiveSelect.addEventListener("change", () => {
+        selectedPerspectiveLaneId = voicePerspectiveSelect.value || null;
+        selectedVoiceAwareSuggestion = null;
+        buildAll();
+        const anchor = getSuggestionAnchorBlock();
+        if (anchor) {
+          factoryStatus.textContent =
+            "Perspective changed to " +
+            getLaneLabel(anchor.laneId) +
+            " — " +
+            midiToDisplayName(anchor.midi) +
+            ".";
+        }
+      });
+    }
+
     playChordButton
       .addEventListener(
         "click",
-        playChord
+        playNewChord
       );
+
+    if (playCurrentChordButton) {
+      playCurrentChordButton.addEventListener(
+        "click",
+        playCurrentChord
+      );
+    }
 
     if (addProgressionButton) {
       addProgressionButton.addEventListener(
@@ -2050,6 +3482,8 @@
 
         stopActiveChord();
 
+        chordEditStarted = true;
+        selectedVoiceAwareSuggestion = null;
         selectedNoteMidis = [];
 
         buildAll();
@@ -2063,6 +3497,7 @@
       buildOctaveGrid();
       buildNoteGrid();
       updateResult();
+      renderVoiceAwareSuggestions();
     }
 
     window.addEventListener(
@@ -2074,7 +3509,10 @@
       loadSelectedNotesFromUrlOrFactory();
     }
 
+    activeToolMode = chooseDefaultToolMode();
+
     buildAll();
+    updateToolModeVisibility();
   </script>
 
 </body>

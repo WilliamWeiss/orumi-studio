@@ -470,6 +470,50 @@
       color: #102522;
     }
 
+
+
+    .suggestion-group {
+      display: grid;
+      gap: 6px;
+      padding: 8px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.055);
+      border: 1px solid rgba(255,255,255,0.07);
+    }
+
+    .suggestion-group.keep-current-voice {
+      border-color: rgba(155,235,215,0.58);
+      background: rgba(155,235,215,0.10);
+    }
+
+    .suggestion-group-title {
+      color: #fff7ea;
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      line-height: 1.25;
+    }
+
+    .suggestion-group-title .muted {
+      display: block;
+      margin-top: 2px;
+      color: #bdb4a6;
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .suggestion-button.keep-voice {
+      background: rgba(155,235,215,0.22);
+      border: 1px solid rgba(155,235,215,0.32);
+    }
+
+    .suggestion-button.alternate-voice {
+      background: rgba(255,255,255,0.12);
+    }
+
     .suggestion-button.skip {
       text-align: center;
       background: rgba(255,255,255,0.09);
@@ -800,6 +844,20 @@
     let harmonyPayload = null;
     let harmonyChoices = {};
 
+    const HARMONY_VOICE_ROLES = [
+      { id: "tenor", label: "Tenor", order: 3 },
+      { id: "lead", label: "Lead", order: 2 },
+      { id: "baritone", label: "Baritone", order: 1 },
+      { id: "bass", label: "Bass", order: 0 }
+    ];
+
+    const HARMONY_VOICE_ROLE_BY_ID = HARMONY_VOICE_ROLES.reduce((map, role) => {
+      map[role.id] = role;
+      return map;
+    }, {});
+
+    const HARMONY_LOW_TO_HIGH_ROLES = ["bass", "baritone", "lead", "tenor"];
+
     const pitchClasses =
       ORUMI_CATALOG.pitchClasses;
 
@@ -900,10 +958,7 @@
 
     function beatToMeasureLabel(beat, timeSignature) {
       const signature = normalizeTimeSignature(timeSignature);
-      const beatsPerMeasure = Math.max(
-        0.25,
-        (signature.numerator * 4) / signature.denominator
-      );
+      const beatsPerMeasure = Math.max(0.25, signature.numerator || 4);
       const safeBeat = Math.max(0, Number(beat || 0));
       const measure = Math.floor(safeBeat / beatsPerMeasure) + 1;
       const beatWithin = safeBeat - ((measure - 1) * beatsPerMeasure) + 1;
@@ -1068,6 +1123,7 @@
         projectTitle: payload.projectTitle || payload.title || "Untitled Design",
         laneId: payload.laneId || payload.selectedLaneId || notes[0].laneId,
         laneName: payload.laneName || payload.selectedLaneName || notes[0].laneName || "Lead",
+        voice: payload.voice || payload.laneVoice || notes.find(note => note.voice)?.voice || null,
         context: {
           system: systemKey,
           root,
@@ -1150,6 +1206,179 @@
     function rootFromSymbol(symbol) {
       const match = String(symbol || "C").match(/^([A-G][b]?)/);
       return match ? match[1] : "C";
+    }
+
+
+    function normalizeHarmonyVoiceRole(value) {
+      const text = String(value || "").toLowerCase();
+
+      if (text.includes("tenor")) return "tenor";
+      if (text.includes("lead") || text.includes("melody")) return "lead";
+      if (text.includes("baritone") || text.includes("bari")) return "baritone";
+      if (text.includes("bass")) return "bass";
+
+      return null;
+    }
+
+    function getHarmonyVoiceRoleForNote(note) {
+      return (
+        normalizeHarmonyVoiceRole(note?.laneId) ||
+        normalizeHarmonyVoiceRole(note?.laneName) ||
+        normalizeHarmonyVoiceRole(harmonyPayload?.laneId) ||
+        normalizeHarmonyVoiceRole(harmonyPayload?.laneName) ||
+        "lead"
+      );
+    }
+
+    function getHarmonyVoiceRoleLabel(roleId) {
+      return HARMONY_VOICE_ROLE_BY_ID[roleId]?.label || "Voice";
+    }
+
+    function midiForPitchClassNear(pitchClass, targetMidi) {
+      const pc = pitchClassNumber(pitchClass);
+      let best = null;
+      let bestDistance = Infinity;
+
+      for (let octave = 1; octave <= 6; octave++) {
+        const midi = 12 * (octave + 1) + pc;
+        const distance = Math.abs(midi - Number(targetMidi || 60));
+
+        if (distance < bestDistance) {
+          best = midi;
+          bestDistance = distance;
+        }
+      }
+
+      return Number.isFinite(best) ? best : 60;
+    }
+
+    function buildVoiceAwareVoicingForSuggestion(note, suggestion, targetRoleId) {
+      const selectedMidi = Number(note.midi);
+      const selectedPc = note.pitchClass || pitchClassFromMidi(selectedMidi);
+      const rootPc = pitchClasses[suggestion.root]
+        ? suggestion.root
+        : rootFromSymbol(suggestion.symbol);
+      const tones = Array.isArray(suggestion.tones) && suggestion.tones.length
+        ? suggestion.tones.filter(tone => pitchClasses[tone])
+        : chordTonesFromHarmonyAnchor({
+            root: rootPc,
+            quality: suggestion.quality,
+            chordSymbol: suggestion.symbol
+          });
+      const cleanTones = tones.length ? [...new Set(tones)] : [selectedPc, rootPc];
+      const targetRole = targetRoleId || getHarmonyVoiceRoleForNote(note);
+      const targetIndex = HARMONY_LOW_TO_HIGH_ROLES.indexOf(targetRole);
+      const safeTargetIndex = targetIndex >= 0 ? targetIndex : 2;
+      const used = new Set([selectedPc]);
+      const assignments = [];
+      let previousMidi = null;
+
+      HARMONY_LOW_TO_HIGH_ROLES.forEach((roleId, roleIndex) => {
+        const role = HARMONY_VOICE_ROLE_BY_ID[roleId] || { id: roleId, label: roleId };
+        let midi;
+        let pitchClass;
+
+        if (roleId === targetRole) {
+          midi = selectedMidi;
+          pitchClass = selectedPc;
+        } else if (roleId === "bass") {
+          pitchClass = rootPc;
+          midi = midiForPitchClassNear(pitchClass, selectedMidi + ((roleIndex - safeTargetIndex) * 6) - 4);
+        } else {
+          const availableTone =
+            cleanTones.find(tone => tone !== selectedPc && !used.has(tone)) ||
+            cleanTones.find(tone => tone !== selectedPc) ||
+            cleanTones[roleIndex % cleanTones.length] ||
+            selectedPc;
+
+          pitchClass = availableTone;
+          midi = midiForPitchClassNear(pitchClass, selectedMidi + ((roleIndex - safeTargetIndex) * 6));
+        }
+
+        if (roleId !== targetRole && previousMidi !== null) {
+          while (midi <= previousMidi) {
+            midi += 12;
+          }
+        }
+
+        if (roleId === targetRole && previousMidi !== null && midi <= previousMidi) {
+          // Keep the selected note exact whenever possible, but protect against impossible crossings.
+          while (midi <= previousMidi) {
+            midi += 12;
+          }
+        }
+
+        used.add(pitchClass);
+        previousMidi = midi;
+
+        assignments.push({
+          laneId: role.id,
+          laneName: role.label,
+          role: role.id,
+          midi,
+          name: midiToDisplayName(midi),
+          isSelectedMelodyNote: roleId === targetRole
+        });
+      });
+
+      return assignments;
+    }
+
+    function summarizeVoiceAssignments(assignments) {
+      return assignments
+        .slice()
+        .sort((a, b) => HARMONY_LOW_TO_HIGH_ROLES.indexOf(b.role) - HARMONY_LOW_TO_HIGH_ROLES.indexOf(a.role))
+        .map(item => (item.laneName || item.role) + " " + item.name)
+        .join(" · ");
+    }
+
+    function generateVoiceAwareHarmonySuggestionGroups(note) {
+      const baseSuggestions = generateHarmonySuggestionsForNote(note);
+      const currentRole = getHarmonyVoiceRoleForNote(note);
+      const groups = [];
+      const roleOrder = [
+        currentRole,
+        ...HARMONY_VOICE_ROLES.map(role => role.id).filter(roleId => roleId !== currentRole)
+      ];
+
+      roleOrder.forEach(roleId => {
+        const roleLabel = getHarmonyVoiceRoleLabel(roleId);
+        const isCurrent = roleId === currentRole;
+        const suggestions = baseSuggestions.slice(0, isCurrent ? 5 : 3).map(base => {
+          const voiceAssignments = buildVoiceAwareVoicingForSuggestion(note, base, roleId);
+
+          return {
+            ...base,
+            targetVoiceRole: roleId,
+            targetVoiceLabel: roleLabel,
+            keepCurrentVoice: isCurrent,
+            voiceAssignments,
+            description:
+              (isCurrent ? "Keep " : "Use ") +
+              (note.name || midiToDisplayName(note.midi)) +
+              " as " +
+              roleLabel +
+              " · " +
+              base.noteFunction,
+            voicingSummary: summarizeVoiceAssignments(voiceAssignments)
+          };
+        });
+
+        groups.push({
+          roleId,
+          roleLabel,
+          isCurrent,
+          title: isCurrent
+            ? "Keep note as " + roleLabel
+            : "Use note as " + roleLabel,
+          subtitle: isCurrent
+            ? "Best when preserving the selected melody line."
+            : "Alternative distribution / reharmonization option.",
+          suggestions
+        });
+      });
+
+      return groups;
     }
 
     function generateHarmonySuggestionsForNote(note) {
@@ -1252,7 +1481,7 @@
 
     function createMelodyHarmonyCard(note, index) {
       const choice = harmonyChoices[note.id || note.blockId];
-      const suggestions = generateHarmonySuggestionsForNote(note);
+      const suggestionGroups = generateVoiceAwareHarmonySuggestionGroups(note);
       const card = document.createElement("article");
 
       card.classList.add("melody-note-card");
@@ -1319,40 +1548,74 @@
       });
       list.appendChild(skipButton);
 
-      suggestions.forEach(suggestion => {
-        const button = document.createElement("button");
-        button.classList.add("suggestion-button");
+      suggestionGroups.forEach(group => {
+        const groupEl = document.createElement("div");
+        groupEl.classList.add("suggestion-group");
 
-        if (choice && choice.chordSymbol === suggestion.symbol) {
-          button.classList.add("selected");
+        if (group.isCurrent) {
+          groupEl.classList.add("keep-current-voice");
         }
 
-        button.innerHTML =
-          "<strong>" +
-          suggestion.symbol +
-          "</strong><span>" +
-          suggestion.description +
+        const groupTitle = document.createElement("div");
+        groupTitle.classList.add("suggestion-group-title");
+        groupTitle.innerHTML =
+          group.title +
+          "<span class="muted">" +
+          group.subtitle +
           "</span>";
+        groupEl.appendChild(groupTitle);
 
-        button.addEventListener("click", () => {
-          setHarmonyChoice(note.id || note.blockId, {
-            skipped: false,
-            noteId: note.id || note.blockId,
-            melodyBlockId: note.blockId,
-            melodyNote: note.name,
-            midi: note.midi,
-            startBeat: note.startBeat,
-            durationBeats: note.durationBeats,
-            chordSymbol: suggestion.symbol,
-            root: suggestion.root,
-            quality: suggestion.quality,
-            noteFunction: suggestion.noteFunction,
-            description: suggestion.description,
-            tones: suggestion.tones
+        group.suggestions.forEach(suggestion => {
+          const button = document.createElement("button");
+          button.classList.add(
+            "suggestion-button",
+            suggestion.keepCurrentVoice ? "keep-voice" : "alternate-voice"
+          );
+
+          if (
+            choice &&
+            choice.chordSymbol === suggestion.symbol &&
+            choice.targetVoiceRole === suggestion.targetVoiceRole
+          ) {
+            button.classList.add("selected");
+          }
+
+          button.innerHTML =
+            "<strong>" +
+            suggestion.symbol +
+            "</strong><span>" +
+            suggestion.description +
+            "</span><span>" +
+            suggestion.voicingSummary +
+            "</span>";
+
+          button.addEventListener("click", () => {
+            setHarmonyChoice(note.id || note.blockId, {
+              skipped: false,
+              noteId: note.id || note.blockId,
+              melodyBlockId: note.blockId,
+              melodyNote: note.name,
+              midi: note.midi,
+              startBeat: note.startBeat,
+              durationBeats: note.durationBeats,
+              chordSymbol: suggestion.symbol,
+              root: suggestion.root,
+              quality: suggestion.quality,
+              noteFunction: suggestion.noteFunction,
+              targetVoiceRole: suggestion.targetVoiceRole,
+              targetVoiceLabel: suggestion.targetVoiceLabel,
+              keepCurrentVoice: suggestion.keepCurrentVoice,
+              description: suggestion.description,
+              voicingSummary: suggestion.voicingSummary,
+              voiceAssignments: suggestion.voiceAssignments,
+              tones: suggestion.tones
+            });
           });
+
+          groupEl.appendChild(button);
         });
 
-        list.appendChild(button);
+        list.appendChild(groupEl);
       });
 
       card.appendChild(head);
@@ -1450,7 +1713,12 @@
           root: choice.root,
           quality: choice.quality,
           noteFunction: choice.noteFunction,
+          targetVoiceRole: choice.targetVoiceRole || getHarmonyVoiceRoleForNote(note),
+          targetVoiceLabel: choice.targetVoiceLabel || getHarmonyVoiceRoleLabel(getHarmonyVoiceRoleForNote(note)),
+          keepCurrentVoice: !!choice.keepCurrentVoice,
           description: choice.description,
+          voicingSummary: choice.voicingSummary || "",
+          voiceAssignments: Array.isArray(choice.voiceAssignments) ? choice.voiceAssignments : [],
           tones: choice.tones || []
         };
       });
@@ -1511,6 +1779,13 @@
     }
 
     function makePreviewChordMidis(anchor) {
+      if (Array.isArray(anchor.voiceAssignments) && anchor.voiceAssignments.length > 0) {
+        return anchor.voiceAssignments
+          .map(item => Number(item.midi))
+          .filter(midi => Number.isFinite(midi))
+          .sort((a, b) => a - b);
+      }
+
       const root = pitchClasses[anchor.root]
         ? anchor.root
         : rootFromSymbol(anchor.chordSymbol);

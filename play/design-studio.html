@@ -872,6 +872,85 @@
       margin-top: 7px;
     }
 
+
+    .project-load-modal[hidden] {
+      display: none;
+    }
+
+    .project-load-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 4200;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background: rgba(0,0,0,0.68);
+      box-sizing: border-box;
+    }
+
+    .project-load-dialog {
+      width: min(94vw, 720px);
+      max-height: min(82vh, 720px);
+      overflow: auto;
+      border-radius: 22px;
+      background: rgba(28,28,28,0.98);
+      border: 1px solid rgba(255,255,255,0.14);
+      box-shadow: 0 22px 56px rgba(0,0,0,0.58);
+      padding: 16px;
+      box-sizing: border-box;
+    }
+
+    .project-load-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .project-load-title {
+      font-size: 18px;
+      font-weight: 900;
+      color: #fff7ea;
+    }
+
+    .project-load-list {
+      display: grid;
+      gap: 9px;
+    }
+
+    .project-load-item {
+      width: 100%;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 15px;
+      padding: 12px;
+      background: rgba(255,255,255,0.10);
+      color: #fff7ea;
+      font-family: inherit;
+      cursor: pointer;
+      text-align: left;
+      box-shadow: 0 5px 14px rgba(0,0,0,0.22);
+    }
+
+    .project-load-item:hover,
+    .project-load-item:active {
+      transform: scale(0.99);
+      filter: brightness(1.12);
+    }
+
+    .project-load-item strong {
+      display: block;
+      font-size: 15px;
+      margin-bottom: 4px;
+    }
+
+    .project-load-item span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
     .c  { background: #ff6b6b; }
     .db { background: linear-gradient(135deg, #ff6b6b, #f7b267); }
     .d  { background: #f7b267; }
@@ -1264,6 +1343,16 @@
   <div class="trash" id="trashCan" title="Drop here to delete">🗑</div>
   <input id="midiFileInput" type="file" accept=".mid,.midi,audio/midi" hidden>
 
+  <div class="project-load-modal" id="projectLoadModal" hidden role="dialog" aria-modal="true" aria-labelledby="projectLoadTitle">
+    <div class="project-load-dialog">
+      <div class="project-load-header">
+        <div class="project-load-title" id="projectLoadTitle">Load Design Project</div>
+        <button class="control-button secondary" id="closeProjectLoadButton" type="button">Close</button>
+      </div>
+      <div class="project-load-list" id="projectLoadList"></div>
+    </div>
+  </div>
+
   <script>
     let audioContext;
     let playbackTimers = [];
@@ -1276,6 +1365,7 @@
     let ghost = null;
     let selectedBlockId = null;
     let selectedBlockIds = new Set();
+    let chordAnalysisAnchorBlockId = null;
     let selectedLaneId = "lead";
     let currentProjectId = null;
     let pendingChordChecked = false;
@@ -1336,6 +1426,9 @@
     const saveAsButton = document.getElementById("saveAsButton");
     const loadProjectButton = document.getElementById("loadProjectButton");
     const newDesignButton = document.getElementById("newDesignButton");
+    const projectLoadModal = document.getElementById("projectLoadModal");
+    const projectLoadList = document.getElementById("projectLoadList");
+    const closeProjectLoadButton = document.getElementById("closeProjectLoadButton");
 
     const addLaneButton = document.getElementById("addLaneButton");
     const undoButton = document.getElementById("undoButton");
@@ -1471,16 +1564,45 @@
     }
 
     function getProjectLibrary() {
-      return JSON.parse(
-        localStorage.getItem(STORAGE_LIBRARY) || "{}"
-      );
+      try {
+        const parsed = JSON.parse(
+          localStorage.getItem(STORAGE_LIBRARY) || "{}"
+        );
+
+        if (Array.isArray(parsed)) {
+          return parsed.reduce((library, item, index) => {
+            if (!item) return library;
+            const id = item.id || createId("design");
+            library[id] = {
+              id,
+              name: item.name || item.project?.title || "Untitled Design",
+              updatedAt: item.updatedAt || item.savedAt || new Date(0).toISOString(),
+              project: item.project || item
+            };
+            return library;
+          }, {});
+        }
+
+        if (parsed && typeof parsed === "object") {
+          return parsed;
+        }
+      } catch (error) {
+        console.warn("Could not read Design Studio project library", error);
+      }
+
+      return {};
     }
 
     function setProjectLibrary(library) {
-      localStorage.setItem(
-        STORAGE_LIBRARY,
-        JSON.stringify(library)
-      );
+      try {
+        localStorage.setItem(
+          STORAGE_LIBRARY,
+          JSON.stringify(library || {})
+        );
+      } catch (error) {
+        console.warn("Could not save Design Studio project library", error);
+        status.textContent = "Project library could not be saved in this browser.";
+      }
     }
 
     function saveCurrentProjectId() {
@@ -1562,56 +1684,126 @@
       status.textContent = "Saved as “" + project.title + ".”";
     }
 
-    function loadProjectPicker() {
+    function getLoadableProjects() {
       const library = getProjectLibrary();
-      const projects = Object.values(library)
-        .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+      const projects = Object.entries(library)
+        .map(([id, item]) => ({
+          id: item.id || id,
+          name: item.name || item.project?.title || "Untitled Design",
+          updatedAt: item.updatedAt || item.savedAt || "",
+          project: item.project || item
+        }))
+        .filter(item => item.project && Array.isArray(item.project.blocks))
+        .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
 
-      if (projects.length === 0) {
-        status.textContent = "No saved Design Studio projects found.";
-        return;
+      const legacy = (() => {
+        try {
+          return JSON.parse(localStorage.getItem(STORAGE_LEGACY) || "null");
+        } catch (error) {
+          return null;
+        }
+      })();
+
+      if (legacy && Array.isArray(legacy.blocks) && !projects.some(item => item.id === "legacy-current")) {
+        projects.push({
+          id: "legacy-current",
+          name: (legacy.title || "Untitled Design") + " · current browser copy",
+          updatedAt: "",
+          project: legacy,
+          isLegacy: true
+        });
       }
 
-      const listText = projects
-        .map((item, index) => {
-          const date = item.updatedAt
-            ? new Date(item.updatedAt).toLocaleString()
-            : "unknown date";
+      return projects;
+    }
 
-          return (index + 1) + ". " + item.name + " — " + date;
-        })
-        .join("\n");
-
-      const answer = window.prompt(
-        "Load which design?\n\n" + listText + "\n\nEnter a number:",
-        "1"
-      );
-
-      if (!answer) {
-        status.textContent = "Load cancelled.";
-        return;
+    function closeProjectLoadModal() {
+      if (projectLoadModal) {
+        projectLoadModal.hidden = true;
       }
+    }
 
-      const index = parseInt(answer, 10) - 1;
-
-      if (!projects[index]) {
+    function loadProjectFromEntry(entry) {
+      if (!entry || !entry.project) {
         status.textContent = "No project loaded.";
         return;
       }
 
-      const chosen = projects[index];
+      stopPlayback({ reset: true });
+      saveHistory();
 
-      currentProjectId = chosen.id;
-      project = JSON.parse(JSON.stringify(chosen.project));
+      currentProjectId = entry.isLegacy ? null : entry.id;
+      project = JSON.parse(JSON.stringify(entry.project));
       normalizeProject();
 
       clearBlockSelection();
       selectedLaneId = project.lanes[0]?.id || "lead";
+      selectedInsertBeat = 0;
+      pausedBeat = 0;
+      blockClipboard = [];
 
       saveCurrentProjectId();
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+
+      closeProjectLoadModal();
+      document.querySelectorAll(".menu-group.menu-open").forEach(item => item.classList.remove("menu-open"));
       render();
 
-      status.textContent = "Loaded “" + chosen.name + ".”";
+      status.textContent = "Loaded “" + (entry.name || project.title || "Untitled Design") + ".";
+    }
+
+    function loadProjectPicker() {
+      const projects = getLoadableProjects();
+
+      if (projects.length === 0) {
+        status.textContent = "No saved Design Studio projects found. Use Save As to create one.";
+        return;
+      }
+
+      if (!projectLoadModal || !projectLoadList) {
+        const listText = projects
+          .map((item, index) => {
+            const date = item.updatedAt
+              ? new Date(item.updatedAt).toLocaleString()
+              : "current browser copy";
+            return (index + 1) + ". " + item.name + " — " + date;
+          })
+          .join("\n");
+
+        const answer = window.prompt(
+          "Load which design?\n\n" + listText + "\n\nEnter a number:",
+          "1"
+        );
+
+        const index = parseInt(answer, 10) - 1;
+        loadProjectFromEntry(projects[index]);
+        return;
+      }
+
+      projectLoadList.innerHTML = "";
+
+      projects.forEach((entry, index) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "project-load-item";
+
+        const date = entry.updatedAt
+          ? new Date(entry.updatedAt).toLocaleString()
+          : "current browser copy";
+
+        const blockCount = Array.isArray(entry.project.blocks) ? entry.project.blocks.length : 0;
+        const laneCount = Array.isArray(entry.project.lanes) ? entry.project.lanes.length : 0;
+
+        button.innerHTML =
+          "<strong>" + (index + 1) + ". " + escapeHtml(entry.name || "Untitled Design") + "</strong>" +
+          "<span>" + escapeHtml(date) + " · " + blockCount + " block" + (blockCount === 1 ? "" : "s") + " · " + laneCount + " lane" + (laneCount === 1 ? "" : "s") + "</span>";
+
+        button.addEventListener("click", () => loadProjectFromEntry(entry));
+        projectLoadList.appendChild(button);
+      });
+
+      projectLoadModal.hidden = false;
+      status.textContent = "Choose a saved Design Studio project to load.";
     }
 
     function loadStartupProject() {
@@ -1786,6 +1978,7 @@
       clearBlockSelection();
 
       localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+      saveProjectSnapshotSilently();
 
       render();
     }
@@ -2535,6 +2728,7 @@
     function clearBlockSelection() {
       selectedBlockIds.clear();
       selectedBlockId = null;
+      chordAnalysisAnchorBlockId = null;
     }
 
     function selectBlock(blockId, laneId, additive = false) {
@@ -2556,6 +2750,10 @@
       }
 
       selectedLaneId = laneId || selectedLaneId;
+
+      if (blockId) {
+        chordAnalysisAnchorBlockId = blockId;
+      }
     }
 
     function getSelectedBlocks() {
@@ -2956,20 +3154,30 @@
         return null;
       }
 
-      const firstStart = Number(selectedBlocks[0].startBeat || 0);
-      const startsTogether = selectedBlocks.every(block =>
-        Math.abs(Number(block.startBeat || 0) - firstStart) < 0.001
+      const overlapStart = Math.max(
+        ...selectedBlocks.map(block => Number(block.startBeat || 0))
+      );
+      const overlapEnd = Math.min(
+        ...selectedBlocks.map(block =>
+          Number(block.startBeat || 0) + Number(block.durationBeats || MIN_DURATION)
+        )
       );
 
-      if (!startsTogether) {
-        return null;
-      }
-
-      if (!blocksOverlapAtBeat(selectedBlocks, firstStart)) {
+      if (overlapEnd <= overlapStart + 0.0001) {
         return null;
       }
 
       return selectedBlocks;
+    }
+
+    function getSelectedChordAnchorBeat(selectedBlocks) {
+      if (!Array.isArray(selectedBlocks) || selectedBlocks.length === 0) {
+        return 0;
+      }
+
+      return Math.max(
+        ...selectedBlocks.map(block => Number(block.startBeat || 0))
+      );
     }
 
     function getHorizontalPhraseSelection() {
@@ -3228,10 +3436,21 @@
         return;
       }
 
+      const perspectiveBlock =
+        selectedBlocks.find(block => block.id === chordAnalysisAnchorBlockId) ||
+        selectedBlocks.find(block => block.id === selectedBlockId) ||
+        getPrimarySelectedNoteBlock() ||
+        selectedBlocks[0];
+
+      const perspectiveLane =
+        project.lanes.find(lane => lane.id === perspectiveBlock.laneId) ||
+        null;
+
       const analysis = analyzeSelectedHarmony(selectedBlocks);
       const minStart = Math.min(...selectedBlocks.map(block => Number(block.startBeat || 0)));
       const maxEnd = Math.max(...selectedBlocks.map(block => Number(block.startBeat || 0) + Number(block.durationBeats || MIN_DURATION)));
-      const location = beatToMeasureInfo(minStart);
+      const chordAnchorBeat = getSelectedChordAnchorBeat(selectedBlocks);
+      const location = beatToMeasureInfo(chordAnchorBeat);
       const returnFile = window.location.pathname.split("/").pop() || "design-studio.html";
 
       const chordFactoryPayload = {
@@ -3247,6 +3466,13 @@
           tempo: Number(project.tempo || 120)
         })),
         tempo: project.tempo || 120,
+        anchorBlockId: perspectiveBlock.id,
+        anchorLaneId: perspectiveBlock.laneId,
+        anchorLaneName: perspectiveLane ? perspectiveLane.name : perspectiveBlock.laneId,
+        anchorMidi: perspectiveBlock.midi,
+        anchorNoteName: perspectiveBlock.name || midiToDisplayName(perspectiveBlock.midi),
+        anchorVoice: perspectiveBlock.voice || (perspectiveLane ? perspectiveLane.voice : null) || null,
+        anchorPerspective: perspectiveLane ? perspectiveLane.name : perspectiveBlock.laneId,
         selectedBlockIds: selectedBlocks.map(block => block.id),
         selectedBlocks: selectedBlocks.map(block => {
           const lane = project.lanes.find(item => item.id === block.laneId);
@@ -3263,7 +3489,8 @@
             relativeStartBeat: Number(block.startBeat || 0) - minStart,
             durationBeats: Number(block.durationBeats || MIN_DURATION),
             velocity: Number(block.velocity || 82),
-            voice: block.voice || null
+            voice: block.voice || (lane ? lane.voice : null) || null,
+            isAnchor: block.id === perspectiveBlock.id
           };
         }),
         notes: selectedBlocks.map(block => {
@@ -3282,7 +3509,8 @@
             relativeStartBeat: Number(block.startBeat || 0) - minStart,
             durationBeats: Number(block.durationBeats || MIN_DURATION),
             velocity: Number(block.velocity || 82),
-            voice: block.voice || null
+            voice: block.voice || (lane ? lane.voice : null) || null,
+            isAnchor: block.id === perspectiveBlock.id
           };
         }),
         detectedChord: analysis.chordLabel,
@@ -3292,6 +3520,8 @@
         pitchClasses: analysis.pitchClassLabel,
         notesLabel: analysis.notesLabel,
         startBeat: minStart,
+        anchorBeat: chordAnchorBeat,
+        stackBeat: chordAnchorBeat,
         endBeat: maxEnd,
         durationBeats: Math.max(MIN_DURATION, snapBeat(maxEnd - minStart)),
         locationLabel: "M" + location.measure + " beat " + formatBeatValue(location.beatWithinMeasure),
@@ -4387,7 +4617,7 @@
         });
     }
 
-    function selectStackAtBeat(beat, label) {
+    function selectStackAtBeat(beat, label, anchorBlockId = null) {
       const stackBlocks = getBlocksActiveAtBeat(beat);
 
       if (stackBlocks.length === 0) {
@@ -4397,11 +4627,19 @@
         return;
       }
 
+      const anchorBlock =
+        (anchorBlockId && stackBlocks.find(block => block.id === anchorBlockId)) ||
+        (selectedBlockId && stackBlocks.find(block => block.id === selectedBlockId)) ||
+        stackBlocks[0];
+
       selectedBlockIds = new Set(stackBlocks.map(block => block.id));
-      selectedBlockId = stackBlocks[0].id;
-      selectedLaneId = stackBlocks[0].laneId || selectedLaneId;
+      selectedBlockId = anchorBlock.id;
+      chordAnalysisAnchorBlockId = anchorBlock.id;
+      selectedLaneId = anchorBlock.laneId || selectedLaneId;
 
       render();
+
+      const anchorLane = project.lanes.find(lane => lane.id === anchorBlock.laneId);
 
       status.textContent =
         "Selected " +
@@ -4410,6 +4648,8 @@
         (stackBlocks.length === 1 ? "" : "s") +
         " at " +
         label +
+        ". Perspective: " +
+        (anchorLane ? anchorLane.name : anchorBlock.laneId || "selected note") +
         ".";
     }
 
@@ -4421,10 +4661,10 @@
         return;
       }
 
-      const beat = Number(block.startBeat || 0);
+      const beat = getBestChordAnalysisBeatForBlock(block);
       const location = beatToMeasureInfo(beat);
 
-      selectStackAtBeat(beat, "M" + location.measure + " beat " + formatBeatValue(location.beatWithinMeasure));
+      selectStackAtBeat(beat, "M" + location.measure + " beat " + formatBeatValue(location.beatWithinMeasure), block.id);
     }
 
     function getPrimarySelectedNoteBlock() {
@@ -4475,7 +4715,8 @@
             " at M" +
             location.measure +
             " beat " +
-            formatBeatValue(location.beatWithinMeasure)
+            formatBeatValue(location.beatWithinMeasure),
+          anchorBlock.id
         );
         return;
       }
@@ -4488,7 +4729,7 @@
       const beat = snapBeat(fallbackBeat);
       const location = beatToMeasureInfo(beat);
 
-      selectStackAtBeat(beat, "M" + location.measure + " beat " + formatBeatValue(location.beatWithinMeasure));
+      selectStackAtBeat(beat, "M" + location.measure + " beat " + formatBeatValue(location.beatWithinMeasure), block.id);
     }
 
     function createInspectorActionButton(label, tone, handler, title = "") {
@@ -7502,6 +7743,16 @@
     saveButton.addEventListener("click", () => saveProject(true));
     saveAsButton.addEventListener("click", saveProjectAs);
     loadProjectButton.addEventListener("click", loadProjectPicker);
+    if (closeProjectLoadButton) {
+      closeProjectLoadButton.addEventListener("click", closeProjectLoadModal);
+    }
+    if (projectLoadModal) {
+      projectLoadModal.addEventListener("click", event => {
+        if (event.target === projectLoadModal) {
+          closeProjectLoadModal();
+        }
+      });
+    }
     newDesignButton.addEventListener("click", newDesign);
 
     addLaneButton.addEventListener("click", addLane);
@@ -7914,6 +8165,43 @@
       return true;
     }
 
+
+    function applyPendingChordFactoryUndoSnapshot() {
+      const key = "orumiDesignStudioExternalUndoSnapshot";
+      let payload = null;
+
+      try {
+        const raw = localStorage.getItem(key);
+        payload = raw ? JSON.parse(raw) : null;
+      } catch (error) {
+        localStorage.removeItem(key);
+        return false;
+      }
+
+      if (
+        !payload ||
+        payload.source !== "chord-factory" ||
+        !payload.snapshot ||
+        !payload.snapshot.project
+      ) {
+        return false;
+      }
+
+      const snapshot = {
+        project: JSON.parse(JSON.stringify(payload.snapshot.project)),
+        currentProjectId: payload.snapshot.currentProjectId || payload.currentProjectId || currentProjectId
+      };
+
+      historyStack.push(JSON.stringify(snapshot));
+      if (historyStack.length > MAX_HISTORY) {
+        historyStack.shift();
+      }
+      redoStack = [];
+
+      localStorage.removeItem(key);
+      return true;
+    }
+
     backMeasureButton.addEventListener("click", () => jumpPlaybackByMeasures(-1));
     playButton.addEventListener("click", playProject);
     playFromLocationButton.addEventListener("click", playFromSelectedLocation);
@@ -7968,7 +8256,11 @@
     setupTapMenus();
 
     loadStartupProject();
+    const chordFactoryUndoReady = applyPendingChordFactoryUndoSnapshot();
     render();
+    if (chordFactoryUndoReady) {
+      flashStatus("Chord Factory edit applied. Use Undo if you want to restore the previous chord.");
+    }
     applyPendingPlayerReplacement();
     applyPendingPlayerLineImport();
     applyPendingSuggestedHarmonyPlan();
