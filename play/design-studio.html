@@ -153,6 +153,22 @@
       cursor: grabbing;
     }
 
+    .palette-item.note-auditionable {
+      cursor: pointer;
+    }
+
+    .palette-item.note-auditionable:hover {
+      filter: brightness(1.12);
+    }
+
+    .palette-item.note-auditionable.palette-playing {
+      outline: 4px solid rgba(255,235,120,0.98);
+      outline-offset: 3px;
+      box-shadow:
+        0 0 30px rgba(255,235,120,0.88),
+        0 6px 14px rgba(0,0,0,0.35);
+    }
+
     .palette-item.outside {
       filter: brightness(0.66) saturate(0.7);
       opacity: 0.82;
@@ -498,6 +514,14 @@
         0 0 34px rgba(255,235,120,0.92),
         0 7px 14px rgba(0,0,0,0.40);
       z-index: 35;
+    }
+
+    .orumi-block.note-auditionable {
+      cursor: pointer;
+    }
+
+    .orumi-block.note-auditionable:hover {
+      filter: brightness(1.12);
     }
 
     .playhead {
@@ -1211,6 +1235,7 @@
         <button class="control-button secondary" id="replaceSelectedChordButton">✧ Edit Selected Chord</button>
         <button class="control-button secondary" id="editSelectionInPlayerButton">▶ Edit Selection in Player</button>
         <button class="control-button secondary" id="suggestHarmonyButton">✧ Suggest Harmony</button>
+        <button class="control-button secondary" id="reviewSelectionInProgressionButton">≡ Review Chords in Progression</button>
         <button class="control-button secondary" id="pasteSelectionButton">⧆ Paste at End</button>
         <button class="control-button secondary" id="pasteAtMeasureButton">📍 Paste at Selected Location</button>
         <button class="control-button secondary" id="insertPasteAtLocationButton">⤓ Insert Paste at Selected Location</button>
@@ -1360,6 +1385,7 @@
     let historyStack = [];
     let redoStack = [];
     let dragState = null;
+    let palettePointerState = null;
     let resizeState = null;
     let intensityState = null;
     let ghost = null;
@@ -1451,6 +1477,7 @@
     const replaceSelectedChordButton = document.getElementById("replaceSelectedChordButton");
     const editSelectionInPlayerButton = document.getElementById("editSelectionInPlayerButton");
     const suggestHarmonyButton = document.getElementById("suggestHarmonyButton");
+    const reviewSelectionInProgressionButton = document.getElementById("reviewSelectionInProgressionButton");
     const pasteSelectionButton = document.getElementById("pasteSelectionButton");
     const pasteAtMeasureButton = document.getElementById("pasteAtMeasureButton");
     const insertPasteAtLocationButton = document.getElementById("insertPasteAtLocationButton");
@@ -2507,6 +2534,9 @@
           button.textContent = "Rest";
         } else {
           button.classList.add(midiToClassName(item.midi));
+          button.classList.add("note-auditionable");
+          button.dataset.paletteMidi = String(item.midi);
+          button.title = "Tap to hear " + item.name + ". Drag into a lane to place it.";
 
           if (isNativeMidi(item.midi)) {
             button.classList.add("native");
@@ -2523,7 +2553,7 @@
 
         button.addEventListener("pointerdown", event => {
           event.preventDefault();
-          beginPaletteDrag(event, item);
+          beginPalettePointer(event, item, button);
         });
 
         paletteGrid.appendChild(button);
@@ -2882,6 +2912,8 @@
         element.textContent = "Rest";
       } else {
         element.classList.add(midiToClassName(block.midi));
+        element.classList.add("note-auditionable");
+        element.title = "Click to select and hear " + (block.name || midiToDisplayName(block.midi)) + ". Drag to move.";
 
         if (isNativeMidi(block.midi)) {
           element.classList.add("native");
@@ -2925,6 +2957,10 @@
         event.stopPropagation();
         selectBlock(block.id, block.laneId, event.shiftKey);
         render();
+
+        if (block.type === "note") {
+          auditionSingleBlock(block);
+        }
       });
 
       element.addEventListener("pointerdown", event => {
@@ -3245,6 +3281,17 @@
           ? "Send this melody phrase to Progression Builder for harmony suggestions."
           : "Select one or more melody notes in a single lane to suggest harmony.";
       }
+
+      if (reviewSelectionInProgressionButton) {
+        const selectedNoteCount = getNoteBlocksFromSelection().length;
+        const canReviewProgression = selectedNoteCount > 0 && shape !== "horizontal-phrase";
+        reviewSelectionInProgressionButton.disabled = !canReviewProgression;
+        reviewSelectionInProgressionButton.classList.toggle("tool-action-unavailable", !canReviewProgression);
+        reviewSelectionInProgressionButton.textContent = "≡ Review Chords in Progression";
+        reviewSelectionInProgressionButton.title = canReviewProgression
+          ? "Send the selected chord stack or chord sequence to Progression Builder for review."
+          : "Select a vertical chord stack or use Select Measure Range across all tracks, then review it in Progression.";
+      }
     }
 
     function buildPlayerEditPayload(selectedBlocks) {
@@ -3426,6 +3473,161 @@
       }, 220);
     }
 
+
+
+    function getLaneVoiceForBlock(block) {
+      const lane = project.lanes.find(item => item.id === block.laneId);
+      return block.voice || (lane ? lane.voice : null) || project.context.voice || null;
+    }
+
+    function getBlocksAtChordBeat(selectedBlocks, beat) {
+      const tolerance = 0.0001;
+      return selectedBlocks.filter(block => {
+        const start = Number(block.startBeat || 0);
+        const end = start + Number(block.durationBeats || MIN_DURATION);
+        return start <= beat + tolerance && end > beat + tolerance;
+      });
+    }
+
+    function buildProgressionReviewPayload(selectedBlocks) {
+      const noteBlocks = selectedBlocks
+        .filter(block => block.type === "note" && Number.isFinite(block.midi))
+        .slice()
+        .sort((a, b) => {
+          const startA = Number(a.startBeat || 0);
+          const startB = Number(b.startBeat || 0);
+          if (Math.abs(startA - startB) > 0.0001) return startA - startB;
+
+          const laneA = project.lanes.findIndex(lane => lane.id === a.laneId);
+          const laneB = project.lanes.findIndex(lane => lane.id === b.laneId);
+          if (laneA !== laneB) return laneA - laneB;
+
+          return Number(a.midi || 0) - Number(b.midi || 0);
+        });
+
+      if (noteBlocks.length === 0) {
+        return null;
+      }
+
+      const anchorBeats = [];
+      noteBlocks.forEach(block => {
+        const beat = snapBeat(Number(block.startBeat || 0));
+        if (!anchorBeats.some(existing => Math.abs(existing - beat) < 0.0001)) {
+          anchorBeats.push(beat);
+        }
+      });
+      anchorBeats.sort((a, b) => a - b);
+
+      const chords = anchorBeats.map((beat, index) => {
+        const stackBlocks = getBlocksAtChordBeat(noteBlocks, beat)
+          .slice()
+          .sort((a, b) => Number(a.midi || 0) - Number(b.midi || 0));
+        const analysis = analyzeSelectedHarmony(stackBlocks);
+        const location = beatToMeasureInfo(beat);
+        const notes = stackBlocks.map(block => block.name || midiToDisplayName(block.midi));
+        const rootMatch = String(analysis.chordLabel || "").match(/^([A-G](?:b)?)/);
+
+        return {
+          id: "design_chord_" + index + "_" + Date.now().toString(36),
+          source: "design-studio",
+          sourceId: "design-review-" + index,
+          name: analysis.chordLabel || "Chord " + (index + 1),
+          chordLabel: analysis.chordLabel || "Chord " + (index + 1),
+          root: rootMatch && pitchClasses[rootMatch[1]] ? rootMatch[1] : project.context.root,
+          quality: "custom",
+          system: project.context.system,
+          keyRoot: project.context.root,
+          family: project.context.family,
+          mode: project.context.mode,
+          voice: stackBlocks.find(block => getLaneVoiceForBlock(block)) ? getLaneVoiceForBlock(stackBlocks.find(block => getLaneVoiceForBlock(block))) : project.context.voice,
+          notes,
+          startBeat: beat,
+          relativeStartBeat: beat - Number(noteBlocks[0].startBeat || 0),
+          durationBeats: Math.max(MIN_DURATION, Math.max(...stackBlocks.map(block => Number(block.durationBeats || MIN_DURATION)))),
+          locationLabel: "M" + location.measure + " beat " + formatBeatValue(location.beatWithinMeasure),
+          detail: analysis.detail,
+          pitchClasses: analysis.pitchClassLabel,
+          blocks: stackBlocks.map(block => {
+            const lane = project.lanes.find(item => item.id === block.laneId);
+            return {
+              id: block.id,
+              blockId: block.id,
+              laneId: block.laneId,
+              laneName: lane ? lane.name : block.laneId,
+              midi: Number(block.midi),
+              name: block.name || midiToDisplayName(block.midi),
+              note: block.name || midiToDisplayName(block.midi),
+              startBeat: Number(block.startBeat || 0),
+              relativeStartBeat: Number(block.startBeat || 0) - beat,
+              durationBeats: Number(block.durationBeats || MIN_DURATION),
+              velocity: Number(block.velocity || 82),
+              voice: getLaneVoiceForBlock(block),
+              system: block.system || project.context.system
+            };
+          })
+        };
+      });
+
+      return {
+        version: 1,
+        source: "design-studio",
+        mode: "reviewProgression",
+        createdAt: new Date().toISOString(),
+        returnUrl: window.location.pathname.split("/").pop() || "design-studio.html",
+        projectId: currentProjectId,
+        projectTitle: project.title || "Untitled Design",
+        selectedBlockIds: noteBlocks.map(block => block.id),
+        chordCount: chords.length,
+        chords,
+        context: {
+          tempo: Number(project.tempo || 120),
+          timeSignature: JSON.parse(JSON.stringify(project.context.timeSignature || DEFAULT_TIME_SIGNATURE)),
+          system: project.context.system,
+          root: project.context.root,
+          family: project.context.family,
+          mode: project.context.mode,
+          voice: project.context.voice
+        }
+      };
+    }
+
+    function beginReviewSelectionInProgression() {
+      const selectedBlocks = getNoteBlocksFromSelection();
+      const shape = getCurrentSelectionShape();
+
+      if (selectedBlocks.length === 0) {
+        flashStatus("Select one or more chord blocks before opening Progression Builder.");
+        window.alert("Select a chord stack, or use Select Measure Range across tracks, then choose Review Chords in Progression.");
+        return;
+      }
+
+      if (shape === "horizontal-phrase") {
+        beginSuggestHarmonyInProgression();
+        return;
+      }
+
+      const payload = buildProgressionReviewPayload(selectedBlocks);
+
+      if (!payload || !payload.chords || payload.chords.length === 0) {
+        flashStatus("No chord stacks found in that selection.");
+        return;
+      }
+
+      localStorage.setItem("orumiDesignProgressionReviewPayload", JSON.stringify(payload));
+      localStorage.setItem("orumiProgressionReviewPayload", JSON.stringify(payload));
+      localStorage.setItem("orumiPendingProgressionReviewPayload", JSON.stringify(payload));
+      localStorage.setItem("orumiDesignStudioProjectForProgression", JSON.stringify({
+        currentProjectId,
+        project: JSON.parse(JSON.stringify(project))
+      }));
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+
+      flashStatus("Opening Progression Builder to review " + payload.chordCount + " chord" + (payload.chordCount === 1 ? "" : "s") + "…");
+
+      window.setTimeout(() => {
+        window.location.href = "progression-builder.html?mode=reviewProgression&source=design-studio";
+      }, 220);
+    }
 
     function beginReplaceSelectedChord() {
       const selectedBlocks = getVerticalChordSelection();
@@ -4878,6 +5080,66 @@
       const max = 74;
       const normalized = (Math.max(20, Math.min(127, velocity)) - 20) / 107;
       return Math.round(min + normalized * (max - min));
+    }
+
+    function beginPalettePointer(event, item, button) {
+      clearPendingPalettePointer();
+
+      palettePointerState = {
+        item,
+        button,
+        startX: event.clientX,
+        startY: event.clientY,
+        pointerId: event.pointerId,
+        startedDrag: false
+      };
+
+      window.addEventListener("pointermove", handlePalettePointerMove);
+      window.addEventListener("pointerup", handlePalettePointerUp);
+      window.addEventListener("pointercancel", handlePalettePointerCancel);
+    }
+
+    function clearPendingPalettePointer() {
+      if (!palettePointerState) return;
+
+      palettePointerState = null;
+      window.removeEventListener("pointermove", handlePalettePointerMove);
+      window.removeEventListener("pointerup", handlePalettePointerUp);
+      window.removeEventListener("pointercancel", handlePalettePointerCancel);
+    }
+
+    function handlePalettePointerMove(event) {
+      if (!palettePointerState) return;
+
+      const dx = event.clientX - palettePointerState.startX;
+      const dy = event.clientY - palettePointerState.startY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (distance < 7) {
+        return;
+      }
+
+      const item = palettePointerState.item;
+      palettePointerState.startedDrag = true;
+      clearPendingPalettePointer();
+      beginPaletteDrag(event, item);
+    }
+
+    function handlePalettePointerUp(event) {
+      if (!palettePointerState) return;
+
+      const item = palettePointerState.item;
+      const button = palettePointerState.button;
+      const startedDrag = palettePointerState.startedDrag;
+      clearPendingPalettePointer();
+
+      if (!startedDrag) {
+        auditionPaletteItem(item, button);
+      }
+    }
+
+    function handlePalettePointerCancel() {
+      clearPendingPalettePointer();
     }
 
     function beginPaletteDrag(event, item) {
@@ -7252,6 +7514,98 @@
       if (audioContext.state === "suspended") {
         await audioContext.resume();
       }
+    }
+
+    async function auditionPaletteItem(item, element) {
+      if (!item || item.type === "rest" || !Number.isFinite(Number(item.midi))) {
+        status.textContent = "Drag Rest into a lane to place silence.";
+        return;
+      }
+
+      await ensureAudio();
+
+      const voice = project.context.voice && voices[project.context.voice]
+        ? project.context.voice
+        : voices.orumiVocalAh
+          ? "orumiVocalAh"
+          : "softKeys";
+      const now = audioContext.currentTime;
+      const voiceNode = ORUMI_VOICES.buildVoice(
+        audioContext,
+        voice,
+        midiToFrequency(item.midi),
+        now
+      );
+
+      const played = {
+        blockId: null,
+        voice,
+        gain: voiceNode.gain,
+        oscillators: voiceNode.oscillators || [],
+        noiseSources: voiceNode.noiseSources || []
+      };
+
+      activeNotes.push(played);
+
+      if (element) {
+        element.classList.add("palette-playing");
+      }
+
+      status.textContent = "Auditioning " + (item.name || midiToDisplayName(item.midi)) + " from the palette.";
+
+      const timer = setTimeout(() => {
+        ORUMI_VOICES.stopVoice(played, audioContext, 0.08);
+        activeNotes = activeNotes.filter(note => note !== played);
+
+        if (element) {
+          element.classList.remove("palette-playing");
+        }
+      }, 520);
+
+      playbackTimers.push(timer);
+    }
+
+    async function auditionSingleBlock(block) {
+      if (!block || block.type !== "note" || !Number.isFinite(Number(block.midi))) {
+        return;
+      }
+
+      await ensureAudio();
+
+      const bpm = project.tempo || 120;
+      const secondsPerBeat = 60 / bpm;
+      const durationSeconds = Math.max(
+        0.22,
+        Math.min(1.4, Number(block.durationBeats || 1) * secondsPerBeat)
+      );
+      const voice = getEffectiveVoice(block);
+      const now = audioContext.currentTime;
+      const voiceNode = ORUMI_VOICES.buildVoice(
+        audioContext,
+        voice,
+        midiToFrequency(block.midi),
+        now
+      );
+
+      const played = {
+        blockId: block.id,
+        voice,
+        gain: voiceNode.gain,
+        oscillators: voiceNode.oscillators || [],
+        noiseSources: voiceNode.noiseSources || []
+      };
+
+      activeNotes.push(played);
+      setBlockPlaying(block.id, true);
+      status.textContent = "Auditioning " + (block.name || midiToDisplayName(block.midi)) + ".";
+
+      const timer = setTimeout(() => {
+        ORUMI_VOICES.stopVoice(played, audioContext, 0.08);
+        activeNotes = activeNotes.filter(item => item !== played);
+        setBlockPlaying(block.id, false);
+      }, durationSeconds * 1000);
+
+      playbackTimers.push(timer);
     }
 
     function clearActiveBlockHighlights() {
