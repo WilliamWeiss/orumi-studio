@@ -426,6 +426,14 @@
       min-height: 44px;
     }
 
+    .action-button:disabled,
+    .action-button.disabled-context {
+      opacity: 0.35;
+      cursor: default;
+      pointer-events: none;
+      filter: grayscale(0.45);
+    }
+
     .primary-play-button {
       font-size: 16px;
       min-height: 54px;
@@ -1181,7 +1189,9 @@
     let selectedPerspectiveLaneId = null;
     let designEditPayload = null;
     let progressionEditContext = null;
+    let progressionReturnButton = null;
     let sendProgressionChordToDesignButton = null;
+    let inactiveContextButton = null;
     let activeToolMode = "suggestions";
 
     const DESIGN_EDIT_PAYLOAD_KEYS = [
@@ -1431,19 +1441,33 @@
 
       const isHarmonyUrl = [
         "edit-harmony-choice",
-        "editharmonychoice"
+        "editharmonychoice",
+        "edit-harmony",
+        "editharmony",
+        "harmony-choice",
+        "harmonychoice"
       ].includes(urlMode);
 
       const isProgressionChordUrl = [
         "edit-progression-chord",
-        "editprogressionchord"
+        "editprogressionchord",
+        "edit-chord",
+        "editchord",
+        "review-progression-chord",
+        "reviewprogressionchord"
       ].includes(urlMode);
 
-      if (context.mode === "editHarmonyChoice" && isHarmonyUrl) {
+      // Be strict about source, but tolerant about mode. Progression may change
+      // the exact mode string while the localStorage handoff still carries the
+      // authoritative edit context. This prevents Chord Factory from opening a
+      // Progression chord as an ordinary standalone chord with no return control.
+      const cameFromProgression = urlSource === "progression-builder";
+
+      if (context.mode === "editHarmonyChoice" && (isHarmonyUrl || cameFromProgression)) {
         return context;
       }
 
-      if (context.mode === "editProgressionChord" && isProgressionChordUrl) {
+      if (context.mode === "editProgressionChord" && (isProgressionChordUrl || cameFromProgression)) {
         return context;
       }
 
@@ -1458,6 +1482,8 @@
       }
 
       progressionEditContext = context;
+      DESIGN_EDIT_PAYLOAD_KEYS.forEach(key => localStorage.removeItem(key));
+      localStorage.removeItem("orumiDesignStudioProjectForChordFactory");
       const isProgressionChordEdit = context.mode === "editProgressionChord";
       const rawChord = isProgressionChordEdit ? (context.chord || {}) : {};
       const choice = isProgressionChordEdit
@@ -1536,22 +1562,54 @@
         }
       }
 
-      chordEditStarted = true;
-      selectedVoiceAwareSuggestion = Array.isArray(choice.voiceAssignments)
-        ? {
-            root: selectedRoot,
-            quality: selectedQuality,
-            targetLaneId: choice.targetVoiceRole || choice.targetLaneId || null,
-            anchorMidi: Number(choice.midi || context.note?.midi || selectedNoteMidis[0]),
-            notes: choice.voiceAssignments.map(item => ({
-              laneId: item.role || item.laneId || "lead",
+      // Treat the Progression chord as the locked/current stack only.
+      // The New stack should stay blank until the user deliberately chooses
+      // a suggestion, changes characteristics, toggles notes, or drags a note.
+      chordEditStarted = false;
+      selectedVoiceAwareSuggestion = null;
+
+      const assignmentBlocks = Array.isArray(choice.voiceAssignments)
+        ? choice.voiceAssignments
+            .map((item, index) => ({
+              id: item.id || item.blockId || "progression_voice_" + index,
+              laneId: item.role || item.laneId || getDesignVoiceLanesLowToHigh()[index] || "lead",
+              laneName: item.laneName || getLaneLabel(item.role || item.laneId || "lead"),
               midi: Number(item.midi),
-              displayName: item.name || midiToDisplayName(Number(item.midi))
+              name: item.name || item.note || item.displayName || midiToDisplayName(Number(item.midi)),
+              note: item.name || item.note || item.displayName || midiToDisplayName(Number(item.midi)),
+              voice: item.voice || progressionVoice || selectedVoice
             }))
-          }
-        : null;
+            .filter(item => Number.isFinite(item.midi))
+        : selectedNoteMidis.map((midi, index) => ({
+            id: "progression_voice_" + index,
+            laneId: getDesignVoiceLanesLowToHigh()[index] || "lead",
+            laneName: getLaneLabel(getDesignVoiceLanesLowToHigh()[index] || "lead"),
+            midi: Number(midi),
+            name: midiToDisplayName(Number(midi)),
+            note: midiToDisplayName(Number(midi)),
+            voice: progressionVoice || selectedVoice
+          }));
+
+      designEditPayload = {
+        source: "progression-builder",
+        selectedBlocks: assignmentBlocks,
+        context: payloadContext,
+        detectedChord: choice.chordSymbol || rawChord.name || "Progression chord",
+        chordSymbol: choice.chordSymbol || rawChord.name || "Progression chord",
+        anchorLaneId: choice.targetVoiceRole || choice.targetLaneId || context.note?.laneId || (assignmentBlocks[0] && assignmentBlocks[0].laneId),
+        anchorLaneName: choice.targetVoiceLabel || getLaneLabel(choice.targetVoiceRole || choice.targetLaneId || context.note?.laneId || "lead"),
+        anchorMidi: Number(choice.midi || context.note?.midi || (assignmentBlocks[0] && assignmentBlocks[0].midi)),
+        returnUrl: context.returnUrl || "progression-builder.html"
+      };
+
+      selectedPerspectiveLaneId = designEditPayload.anchorLaneId || null;
 
       addDesignButton.textContent = "⤴ Send Back to Progression";
+      addDesignButton.title = "Replace the chord you opened from Progression and return there";
+      addDesignButton.classList.add("design-button-main");
+      addDesignButton.disabled = false;
+      ensureProgressionReturnButton();
+      ensureInactiveContextButton("⤴ Send Back to Design", "Return through Progression first so the reviewed progression stays consistent.");
 
       if (incomingDesignContext) {
         incomingDesignContext.style.display = "block";
@@ -1727,6 +1785,10 @@
 
       addDesignButton.textContent =
         "⤴ Apply Edited Design";
+      addDesignButton.title = "Apply this edited chord back to the selected Design blocks";
+      addDesignButton.classList.add("design-button-main");
+      addDesignButton.disabled = false;
+      ensureInactiveContextButton("⤴ Send Back to Progression", "This chord came from Design, so Progression return is unavailable.");
 
       if (incomingDesignContext) {
         incomingDesignContext.style.display = "block";
@@ -3544,6 +3606,11 @@
         return;
       }
 
+      if (designEditPayload && !hasPendingNewChordSelection()) {
+        factoryStatus.textContent = "No new chord selected yet. Choose or customize a New chord before returning to Progression.";
+        return;
+      }
+
       if (progressionEditContext.mode === "editProgressionChord") {
         applyProgressionChordEditToProgression();
         return;
@@ -3583,6 +3650,11 @@
         return;
       }
 
+      if (designEditPayload && !hasPendingNewChordSelection()) {
+        factoryStatus.textContent = "No new chord selected yet. Choose or customize a New chord before sending it onward.";
+        return;
+      }
+
       if (progressionEditContext.mode === "editProgressionChord") {
         factoryStatus.textContent = "Send this chord back to Progression first, then send the reviewed progression to Design.";
         return;
@@ -3606,16 +3678,38 @@
         "design-studio.html?mode=applySuggestedHarmony&source=progression-builder";
     }
 
+    function ensureInactiveContextButton(label, title) {
+      if (!addDesignButton) return;
+
+      if (!inactiveContextButton) {
+        inactiveContextButton = document.createElement("button");
+        inactiveContextButton.type = "button";
+        inactiveContextButton.className = "action-button secondary-button primary-apply-button disabled-context";
+        inactiveContextButton.disabled = true;
+        addDesignButton.insertAdjacentElement("afterend", inactiveContextButton);
+      }
+
+      inactiveContextButton.textContent = label;
+      inactiveContextButton.title = title || "Unavailable in this context";
+    }
+
+    function ensureProgressionReturnButton() {
+      if (!addDesignButton || !progressionEditContext) return;
+
+      // The main action button is the return-to-Progression control.
+      // Do not insert a duplicate button.
+      addDesignButton.textContent = "⤴ Send Back to Progression";
+      addDesignButton.title = "Replace the chord you opened from Progression and return there";
+      addDesignButton.classList.add("design-button-main");
+      addDesignButton.disabled = false;
+      progressionReturnButton = addDesignButton;
+    }
+
     function ensureProgressionDirectDesignButton() {
-      if (!addDesignButton || sendProgressionChordToDesignButton) return;
-
-      sendProgressionChordToDesignButton = document.createElement("button");
-      sendProgressionChordToDesignButton.type = "button";
-      sendProgressionChordToDesignButton.className = "action-button secondary-button primary-apply-button";
-      sendProgressionChordToDesignButton.textContent = "⤴ Send Directly to Design";
-      sendProgressionChordToDesignButton.addEventListener("click", sendProgressionEditedChordDirectlyToDesign);
-
-      addDesignButton.insertAdjacentElement("afterend", sendProgressionChordToDesignButton);
+      ensureInactiveContextButton(
+        "⤴ Send Back to Design",
+        "Return this chord to Progression first so the harmony/progression context is preserved."
+      );
     }
 
     function addCurrentChordToProgression() {
@@ -3908,9 +4002,19 @@
       stopActiveChord
     );
 
-    if (!applyDesignEditPayload()) {
+    const initialSource = String(params.get("source") || "").toLowerCase();
+
+    if (initialSource === "progression-builder") {
       if (!applyProgressionEditPayload()) {
-        loadSelectedNotesFromUrlOrFactory();
+        if (!applyDesignEditPayload()) {
+          loadSelectedNotesFromUrlOrFactory();
+        }
+      }
+    } else {
+      if (!applyDesignEditPayload()) {
+        if (!applyProgressionEditPayload()) {
+          loadSelectedNotesFromUrlOrFactory();
+        }
       }
     }
 

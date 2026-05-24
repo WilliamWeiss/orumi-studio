@@ -1050,6 +1050,28 @@
       "orumiPendingProgressionReviewPayload"
     ];
 
+    const CHORD_FACTORY_DESIGN_PAYLOAD_KEYS = [
+      "orumiChordFactoryPayload",
+      "orumiPendingChordFactoryPayload",
+      "orumiPendingChordReplacement",
+      "orumiPendingDesignChordReplacement",
+      "orumiDesignStudioProjectForChordFactory"
+    ];
+
+    function clearChordFactoryDesignPayloads() {
+      CHORD_FACTORY_DESIGN_PAYLOAD_KEYS.forEach(key => {
+        localStorage.removeItem(key);
+      });
+    }
+
+    function prepareChordFactoryProgressionContext(context) {
+      clearChordFactoryDesignPayloads();
+      localStorage.setItem(
+        "orumiProgressionChordFactoryContext",
+        JSON.stringify(context)
+      );
+    }
+
     let progressionReviewPayload = null;
     let harmonyPayload = null;
     let harmonyChoices = {};
@@ -2138,16 +2160,19 @@
 
       if (choice && choice.chordSymbol) {
         editFactoryLink.href = buildChordFactoryUrlForHarmonyChoice(note, choice);
-        editFactoryLink.addEventListener("click", () => {
-          localStorage.setItem("orumiProgressionChordFactoryContext", JSON.stringify(
+        const prepareHarmonyEdit = () => {
+          prepareChordFactoryProgressionContext(
             buildProgressionChordFactoryContextForHarmonyChoice(note, choice)
-          ));
+          );
           localStorage.setItem("orumiProgressionHarmonyChoicesDraft", JSON.stringify({
             harmonyChoices,
             harmonyPayload,
             updatedAt: new Date().toISOString()
           }));
-        });
+        };
+        editFactoryLink.addEventListener("pointerdown", prepareHarmonyEdit);
+        editFactoryLink.addEventListener("touchstart", prepareHarmonyEdit, { passive: true });
+        editFactoryLink.addEventListener("click", prepareHarmonyEdit);
       } else {
         editFactoryLink.href = "#";
         editFactoryLink.classList.add("disabled");
@@ -3209,11 +3234,15 @@
       editLink.href =
         buildChordFactoryEditUrl(chord, index);
 
-      editLink.addEventListener("click", () => {
-        localStorage.setItem("orumiProgressionChordFactoryContext", JSON.stringify(
+      const prepareProgressionChordEdit = () => {
+        prepareChordFactoryProgressionContext(
           buildProgressionChordFactoryContextForProgressionChord(chord, index)
-        ));
-      });
+        );
+      };
+
+      editLink.addEventListener("pointerdown", prepareProgressionChordEdit);
+      editLink.addEventListener("touchstart", prepareProgressionChordEdit, { passive: true });
+      editLink.addEventListener("click", prepareProgressionChordEdit);
 
       editLink.textContent =
         "Edit";
