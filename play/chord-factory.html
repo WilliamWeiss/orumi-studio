@@ -1180,6 +1180,8 @@
     let chordEditStarted = false;
     let selectedPerspectiveLaneId = null;
     let designEditPayload = null;
+    let progressionEditContext = null;
+    let sendProgressionChordToDesignButton = null;
     let activeToolMode = "suggestions";
 
     const DESIGN_EDIT_PAYLOAD_KEYS = [
@@ -1411,6 +1413,164 @@
       }
 
       return null;
+    }
+
+    function getProgressionEditContext() {
+      const context = readJsonStorage("orumiProgressionChordFactoryContext");
+
+      if (!context || context.source !== "progression-builder") {
+        return null;
+      }
+
+      const urlSource = String(params.get("source") || "").toLowerCase();
+      const urlMode = String(params.get("mode") || "").toLowerCase();
+
+      if (urlSource && urlSource !== "progression-builder") {
+        return null;
+      }
+
+      const isHarmonyUrl = [
+        "edit-harmony-choice",
+        "editharmonychoice"
+      ].includes(urlMode);
+
+      const isProgressionChordUrl = [
+        "edit-progression-chord",
+        "editprogressionchord"
+      ].includes(urlMode);
+
+      if (context.mode === "editHarmonyChoice" && isHarmonyUrl) {
+        return context;
+      }
+
+      if (context.mode === "editProgressionChord" && isProgressionChordUrl) {
+        return context;
+      }
+
+      return null;
+    }
+
+    function applyProgressionEditPayload() {
+      const context = getProgressionEditContext();
+
+      if (!context) {
+        return false;
+      }
+
+      progressionEditContext = context;
+      const isProgressionChordEdit = context.mode === "editProgressionChord";
+      const rawChord = isProgressionChordEdit ? (context.chord || {}) : {};
+      const choice = isProgressionChordEdit
+        ? {
+            chordSymbol: rawChord.name || rawChord.chordSymbol || rawChord.symbol || "Progression chord",
+            root: rawChord.root,
+            quality: rawChord.quality,
+            voiceAssignments: Array.isArray(rawChord.blocks) && rawChord.blocks.length
+              ? rawChord.blocks.map(block => ({
+                  laneId: block.laneId || block.role || "lead",
+                  laneName: block.laneName || block.laneId || "Voice",
+                  role: block.role || block.laneId || "lead",
+                  midi: Number(block.midi),
+                  name: block.name || block.note || block.displayName || midiToDisplayName(Number(block.midi))
+                }))
+              : Array.isArray(rawChord.notes)
+                ? rawChord.notes.map(noteName => ({
+                    laneId: "lead",
+                    laneName: "Voice",
+                    role: "lead",
+                    midi: noteNameToMidi(String(noteName)),
+                    name: String(noteName)
+                  }))
+                : []
+          }
+        : (context.choice || {});
+
+      if (!isProgressionChordEdit && !context.choice) {
+        return false;
+      }
+
+      const payload = context.harmonyPayload || {};
+      const payloadContext = isProgressionChordEdit
+        ? (rawChord.context || context.context || {})
+        : (payload.context || {});
+
+      if (payloadContext.system && systems[payloadContext.system]) {
+        selectedSystemKey = payloadContext.system;
+        selectedSystem = systems[selectedSystemKey];
+      }
+
+      if (payloadContext.root && pitchClasses[payloadContext.root]) {
+        selectedKeyRoot = payloadContext.root;
+      }
+
+      if (payloadContext.family) selectedFamily = payloadContext.family;
+      if (payloadContext.mode) selectedMode = payloadContext.mode;
+      const progressionVoice = isProgressionChordEdit ? rawChord.voice : payload.voice;
+      if (progressionVoice && voices[progressionVoice]) selectedVoice = progressionVoice;
+
+      if (choice.root && pitchClasses[choice.root]) {
+        selectedRoot = choice.root;
+      }
+
+      if (choice.quality && qualities[choice.quality]) {
+        selectedQuality = choice.quality;
+      }
+
+      const midis = Array.isArray(choice.voiceAssignments)
+        ? choice.voiceAssignments
+            .map(item => Number(item.midi))
+            .filter(midi => Number.isFinite(midi))
+        : [];
+
+      if (midis.length > 0) {
+        selectedNoteMidis = [...new Set(midis)].sort((a, b) => a - b);
+      } else {
+        loadSelectedNotesFromUrlOrFactory();
+      }
+
+      selectedVoicing = 1;
+      if (selectedNoteMidis.length) {
+        selectedOctave = Math.floor(Math.min(...selectedNoteMidis) / 12) - 1;
+        if (![3, 4].includes(selectedOctave)) {
+          selectedOctave = selectedNoteMidis[0] < 60 ? 3 : 4;
+        }
+      }
+
+      chordEditStarted = true;
+      selectedVoiceAwareSuggestion = Array.isArray(choice.voiceAssignments)
+        ? {
+            root: selectedRoot,
+            quality: selectedQuality,
+            targetLaneId: choice.targetVoiceRole || choice.targetLaneId || null,
+            anchorMidi: Number(choice.midi || context.note?.midi || selectedNoteMidis[0]),
+            notes: choice.voiceAssignments.map(item => ({
+              laneId: item.role || item.laneId || "lead",
+              midi: Number(item.midi),
+              displayName: item.name || midiToDisplayName(Number(item.midi))
+            }))
+          }
+        : null;
+
+      addDesignButton.textContent = "⤴ Send Back to Progression";
+
+      if (incomingDesignContext) {
+        incomingDesignContext.style.display = "block";
+        incomingDesignContext.textContent =
+          "Editing " +
+          (choice.chordSymbol || choice.root || "selected chord") +
+          " from Progression Builder. Adjust the chord here, then send it back to Progression" +
+          (isProgressionChordEdit ? "." : " or directly to Design.");
+      }
+
+      if (!isProgressionChordEdit) {
+        ensureProgressionDirectDesignButton();
+      }
+
+      factoryStatus.textContent =
+        "Loaded Progression chord: " +
+        selectedNoteMidis.map(midiToDisplayName).join(" · ");
+
+      return true;
     }
 
     function midiFromPayloadBlock(block) {
@@ -3224,7 +3384,245 @@
       };
     }
 
+    function getProgressionNoteKey() {
+      if (!progressionEditContext) return null;
+      const note = progressionEditContext.note || {};
+      const choice = progressionEditContext.choice || {};
+      return choice.noteId || note.id || note.blockId || progressionEditContext.harmonyNoteId || null;
+    }
+
+    function buildProgressionChoiceFromCurrentChord() {
+      const chord = buildCurrentChordObject();
+      const context = progressionEditContext || {};
+      const oldChoice = context.choice || {};
+      const note = context.note || {};
+      const assignments = getCurrentSelectionStackAssignments().map(item => ({
+        laneId: item.laneId || item.role || "lead",
+        laneName: getLaneLabel(item.laneId || item.role || "lead"),
+        role: item.laneId || item.role || "lead",
+        midi: Number(item.midi),
+        name: item.displayName || midiToDisplayName(Number(item.midi)),
+        isSelectedMelodyNote: (item.laneId || item.role) === (oldChoice.targetVoiceRole || oldChoice.targetLaneId)
+      })).filter(item => Number.isFinite(item.midi));
+
+      return {
+        ...oldChoice,
+        skipped: false,
+        noteId: oldChoice.noteId || note.id || note.blockId || getProgressionNoteKey(),
+        melodyBlockId: oldChoice.melodyBlockId || note.blockId || note.id || null,
+        melodyNote: oldChoice.melodyNote || note.name || null,
+        midi: Number(oldChoice.midi || note.midi || (assignments[0] && assignments[0].midi)),
+        startBeat: oldChoice.startBeat ?? note.startBeat,
+        durationBeats: oldChoice.durationBeats ?? note.durationBeats,
+        chordSymbol: chord.name,
+        root: chord.root,
+        quality: chord.quality,
+        targetVoiceRole: oldChoice.targetVoiceRole || oldChoice.targetLaneId || note.laneId || "lead",
+        targetVoiceLabel: oldChoice.targetVoiceLabel || getLaneLabel(oldChoice.targetVoiceRole || note.laneId || "lead"),
+        keepCurrentVoice: oldChoice.keepCurrentVoice !== false,
+        description: "Edited in Chord Factory",
+        voicingSummary: assignments.map(item => item.laneName + " " + item.name).join(" · "),
+        voiceAssignments: assignments,
+        tones: []
+      };
+    }
+
+    function buildHarmonyPlanFromProgressionContext(updatedChoices) {
+      const context = progressionEditContext || {};
+      const payload = context.harmonyPayload || {};
+      const notes = Array.isArray(payload.notes) ? payload.notes : [];
+
+      const anchors = notes.map(note => {
+        const noteKey = note.id || note.blockId;
+        const choice = updatedChoices[noteKey];
+
+        if (!choice) {
+          return {
+            melodyBlockId: note.blockId,
+            noteId: note.id,
+            melodyNote: note.name,
+            midi: note.midi,
+            startBeat: note.startBeat,
+            durationBeats: note.durationBeats,
+            skipped: false,
+            unassigned: true
+          };
+        }
+
+        if (choice.skipped) {
+          return {
+            melodyBlockId: note.blockId,
+            noteId: note.id,
+            melodyNote: note.name,
+            midi: note.midi,
+            startBeat: note.startBeat,
+            durationBeats: note.durationBeats,
+            skipped: true
+          };
+        }
+
+        return {
+          melodyBlockId: note.blockId,
+          noteId: note.id,
+          melodyNote: note.name,
+          midi: note.midi,
+          startBeat: note.startBeat,
+          durationBeats: note.durationBeats,
+          skipped: false,
+          chordSymbol: choice.chordSymbol,
+          root: choice.root,
+          quality: choice.quality,
+          noteFunction: choice.noteFunction || "edited chord",
+          targetVoiceRole: choice.targetVoiceRole,
+          targetVoiceLabel: choice.targetVoiceLabel,
+          keepCurrentVoice: !!choice.keepCurrentVoice,
+          description: choice.description,
+          voicingSummary: choice.voicingSummary || "",
+          voiceAssignments: Array.isArray(choice.voiceAssignments) ? choice.voiceAssignments : [],
+          tones: choice.tones || []
+        };
+      });
+
+      return {
+        mode: "applySuggestedHarmony",
+        source: "progression-builder",
+        createdAt: new Date().toISOString(),
+        projectId: payload.projectId,
+        projectTitle: payload.projectTitle,
+        melodyLaneId: payload.laneId,
+        melodyLaneName: payload.laneName,
+        context: payload.context || {},
+        melodyNotes: notes,
+        anchors,
+        harmonizedAnchors: anchors.filter(anchor => anchor.chordSymbol),
+        skippedAnchors: anchors.filter(anchor => anchor.skipped)
+      };
+    }
+
+    function applyProgressionChordEditToProgression() {
+      const context = progressionEditContext || {};
+      const progression = Array.isArray(context.progression)
+        ? context.progression.slice()
+        : JSON.parse(localStorage.getItem("orumiProgression") || "[]");
+      const index = Number.isInteger(Number(context.chordIndex))
+        ? Number(context.chordIndex)
+        : editIndex;
+
+      if (!Number.isInteger(index) || index < 0 || index >= progression.length) {
+        factoryStatus.textContent = "Could not identify the Progression chord to update.";
+        return;
+      }
+
+      const chord = buildCurrentChordObject();
+      const previous = progression[index] || {};
+      progression[index] = {
+        ...previous,
+        ...chord,
+        id: previous.id || chord.id || createDesignId("progression_chord"),
+        source: previous.source || "progression-builder",
+        sourceId: previous.sourceId || previous.id || "edited-progression-chord",
+        locationLabel: previous.locationLabel || "Chord " + (index + 1),
+        detail: "Edited in Chord Factory.",
+        blocks: getCurrentSelectionStackAssignments().map(item => ({
+          laneId: item.laneId || "lead",
+          laneName: getLaneLabel(item.laneId || "lead"),
+          midi: Number(item.midi),
+          name: item.displayName || midiToDisplayName(Number(item.midi)),
+          note: item.displayName || midiToDisplayName(Number(item.midi)),
+          voice: previous.voice || chord.voice || selectedVoice || null
+        })).filter(block => Number.isFinite(block.midi))
+      };
+
+      writeJsonStorage("orumiProgression", progression);
+      localStorage.removeItem("orumiProgressionChordFactoryContext");
+      window.location.href = context.returnUrl || "progression-builder.html?mode=reviewProgression&source=design-studio";
+    }
+
+    function applyCurrentChordToProgressionContext() {
+      if (!progressionEditContext) {
+        addCurrentChordToProgression();
+        return;
+      }
+
+      if (progressionEditContext.mode === "editProgressionChord") {
+        applyProgressionChordEditToProgression();
+        return;
+      }
+
+      const noteKey = getProgressionNoteKey();
+      if (!noteKey) {
+        factoryStatus.textContent = "Could not identify the Progression note to update.";
+        return;
+      }
+
+      const updatedChoices = {
+        ...(progressionEditContext.harmonyChoices || {})
+      };
+
+      updatedChoices[noteKey] = buildProgressionChoiceFromCurrentChord();
+
+      writeJsonStorage("orumiProgressionHarmonyChoicesDraft", {
+        source: "chord-factory",
+        mode: "returnEditedHarmonyChoice",
+        updatedAt: new Date().toISOString(),
+        editedNoteId: noteKey,
+        harmonyPayload: progressionEditContext.harmonyPayload,
+        harmonyChoices: updatedChoices
+      });
+
+      localStorage.removeItem("orumiProgressionChordFactoryContext");
+
+      window.location.href =
+        progressionEditContext.returnUrl ||
+        "progression-builder.html?mode=suggestHarmony&source=design-studio";
+    }
+
+    function sendProgressionEditedChordDirectlyToDesign() {
+      if (!progressionEditContext) {
+        addCurrentChordToDesignStudioAsNew();
+        return;
+      }
+
+      if (progressionEditContext.mode === "editProgressionChord") {
+        factoryStatus.textContent = "Send this chord back to Progression first, then send the reviewed progression to Design.";
+        return;
+      }
+
+      const noteKey = getProgressionNoteKey();
+      const updatedChoices = {
+        ...(progressionEditContext.harmonyChoices || {})
+      };
+      updatedChoices[noteKey] = buildProgressionChoiceFromCurrentChord();
+
+      const plan = buildHarmonyPlanFromProgressionContext(updatedChoices);
+
+      writeJsonStorage("orumiSuggestedHarmonyPlan", plan);
+      writeJsonStorage("orumiPendingHarmonyPlanForDesign", plan);
+      writeJsonStorage("orumiProgressionHarmonyPlan", plan);
+
+      localStorage.removeItem("orumiProgressionChordFactoryContext");
+
+      window.location.href =
+        "design-studio.html?mode=applySuggestedHarmony&source=progression-builder";
+    }
+
+    function ensureProgressionDirectDesignButton() {
+      if (!addDesignButton || sendProgressionChordToDesignButton) return;
+
+      sendProgressionChordToDesignButton = document.createElement("button");
+      sendProgressionChordToDesignButton.type = "button";
+      sendProgressionChordToDesignButton.className = "action-button secondary-button primary-apply-button";
+      sendProgressionChordToDesignButton.textContent = "⤴ Send Directly to Design";
+      sendProgressionChordToDesignButton.addEventListener("click", sendProgressionEditedChordDirectlyToDesign);
+
+      addDesignButton.insertAdjacentElement("afterend", sendProgressionChordToDesignButton);
+    }
+
     function addCurrentChordToProgression() {
+      if (progressionEditContext) {
+        applyCurrentChordToProgressionContext();
+        return;
+      }
 
       const chord =
         buildCurrentChordObject();
@@ -3256,6 +3654,11 @@
     }
 
     function addCurrentChordToDesignStudio() {
+      if (progressionEditContext) {
+        applyCurrentChordToProgressionContext();
+        return;
+      }
+
       if (designEditPayload) {
         applyCurrentChordToDesignSelection();
         return;
@@ -3506,7 +3909,9 @@
     );
 
     if (!applyDesignEditPayload()) {
-      loadSelectedNotesFromUrlOrFactory();
+      if (!applyProgressionEditPayload()) {
+        loadSelectedNotesFromUrlOrFactory();
+      }
     }
 
     activeToolMode = chooseDefaultToolMode();

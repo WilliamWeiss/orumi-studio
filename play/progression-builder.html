@@ -107,7 +107,7 @@
     .section-title {
       font-size: 15px;
       font-weight: 800;
-      margin-bottom: 10px;
+      margin-bottom: 0;
       color: #ddd;
     }
 
@@ -238,9 +238,11 @@
       color: #ffe5e5;
     }
 
-    .small-button:disabled {
+    .small-button:disabled,
+    .small-button.disabled {
       opacity: 0.35;
       cursor: default;
+      pointer-events: none;
     }
 
     .main-actions {
@@ -349,7 +351,7 @@
     }
 
     .harmony-preview-column {
-      flex: 0 0 190px;
+      flex: 0 0 230px;
       scroll-snap-align: center;
       border-radius: 18px;
       padding: 11px;
@@ -420,6 +422,28 @@
       box-shadow: none;
     }
 
+    .support-block.unpicked {
+      background: rgba(255,255,255,0.10) !important;
+      color: #bdb4a6 !important;
+      border: 1px dashed rgba(255,255,255,0.18);
+      box-shadow: none;
+      filter: grayscale(0.55) brightness(0.86);
+      text-shadow: none;
+    }
+
+    .melody-note-card .harmony-preview-column {
+      flex: none;
+      width: auto;
+      min-height: 0;
+      scroll-snap-align: none;
+      margin: 0;
+      background: rgba(255,255,255,0.045);
+    }
+
+    .melody-note-card .harmony-preview-time {
+      display: none;
+    }
+
     .support-block.anchor-block {
       outline: 2px solid rgba(155,235,215,0.82);
       outline-offset: 2px;
@@ -449,6 +473,17 @@
       overflow-x: auto;
       padding: 8px 4px 18px;
       scroll-snap-type: x proximity;
+      scrollbar-width: none;
+    }
+
+    .melody-harmony-strip::-webkit-scrollbar {
+      display: none;
+    }
+
+    .support-block[data-midi],
+    .melody-note-block[data-midi],
+    .note-block[data-midi] {
+      cursor: pointer;
     }
 
     .melody-note-card {
@@ -533,6 +568,55 @@
     .harmony-state .muted {
       color: #bdb4a6;
       font-weight: 700;
+    }
+
+
+
+    .harmony-card-actions {
+      display: grid;
+      gap: 8px;
+    }
+
+    .harmony-edit-button {
+      background: rgba(155,235,215,0.92);
+      color: #102522;
+    }
+
+    .suggestion-details {
+      margin-top: 2px;
+      border-radius: 15px;
+      background: rgba(255,255,255,0.045);
+      border: 1px solid rgba(255,255,255,0.07);
+      overflow: hidden;
+    }
+
+    .suggestion-details summary {
+      cursor: pointer;
+      padding: 10px 11px;
+      color: #fff7ea;
+      font-size: 12px;
+      font-weight: 900;
+      list-style: none;
+      text-align: center;
+      background: rgba(255,255,255,0.08);
+      user-select: none;
+    }
+
+    .suggestion-details summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .suggestion-details summary::after {
+      content: "  ▾";
+      color: #bdb4a6;
+    }
+
+    .suggestion-details[open] summary::after {
+      content: "  ▴";
+    }
+
+    .suggestion-details .suggestion-list {
+      padding: 9px;
     }
 
     .suggestion-list {
@@ -1161,6 +1245,15 @@
         durationBeats: Math.max(0.25, asFiniteNumber(rawChord.durationBeats, 1)),
         locationLabel: rawChord.locationLabel || "Chord " + (index + 1),
         detail: rawChord.detail || rawChord.chordDetail || "Imported from Design Studio.",
+        voiceAssignments: Array.isArray(rawChord.voiceAssignments)
+          ? rawChord.voiceAssignments
+          : rawBlocks.map(block => ({
+              laneId: block.laneId || null,
+              laneName: block.laneName || block.laneId || null,
+              voice: block.voice || null,
+              midi: Number(block.midi),
+              name: block.name || block.note || block.displayName || normalizeMidiToNoteName(block.midi)
+            })).filter(item => Number.isFinite(item.midi)),
         blocks: rawBlocks
       };
     }
@@ -1388,7 +1481,7 @@
             startBeat,
             durationBeats,
             velocity: asFiniteNumber(note.velocity, 86),
-            voice: note.voice === undefined ? null : note.voice
+            voice: note.voice || note.laneVoice || (context.laneVoices && context.laneVoices[note.laneId || payload.laneId]) || null
           };
         })
         .filter(Boolean)
@@ -1436,7 +1529,8 @@
           timeSignature:
             context.timeSignature ||
             payload.timeSignature ||
-            { numerator: 4, denominator: 4 }
+            { numerator: 4, denominator: 4 },
+          laneVoices: context.laneVoices || payload.laneVoices || {}
         },
         notes
       };
@@ -1536,6 +1630,11 @@
       return HARMONY_VOICE_ROLE_BY_ID[roleId]?.label || "Voice";
     }
 
+    function getVoiceForHarmonyRole(roleId) {
+      const laneVoices = harmonyPayload?.context?.laneVoices || {};
+      return laneVoices[roleId] || harmonyPayload?.voice || "softKeys";
+    }
+
     function midiForPitchClassNear(pitchClass, targetMidi) {
       const pc = pitchClassNumber(pitchClass);
       let best = null;
@@ -1617,6 +1716,7 @@
           laneId: role.id,
           laneName: role.label,
           role: role.id,
+          voice: getVoiceForHarmonyRole(role.id),
           midi,
           name: midiToDisplayName(midi),
           isSelectedMelodyNote: roleId === targetRole
@@ -1825,12 +1925,24 @@
         block.classList.add("anchor-block");
       }
 
+      if (options.unpicked) {
+        block.classList.add("unpicked");
+      }
+
       if (options.noteId) {
         block.dataset.previewNoteId = options.noteId;
       }
 
       if (options.role) {
         block.dataset.role = options.role;
+      }
+
+      if (Number.isFinite(numericMidi)) {
+        block.title = (text || midiToDisplayName(numericMidi)) + " · click to play";
+        block.addEventListener("click", event => {
+          event.stopPropagation();
+          playSingleMidiBlock(block, numericMidi);
+        });
       }
 
       return block;
@@ -1885,9 +1997,9 @@
               })
             : createSupportBlock(null, "—", { noteId: noteKey, role: roleId });
         } else if (choice && choice.skipped) {
-          block = createSupportBlock(null, "skip", { noteId: noteKey, role: roleId });
+          block = createSupportBlock(null, "—", { noteId: noteKey, role: roleId, unpicked: true });
         } else {
-          block = createSupportBlock(null, "—", { noteId: noteKey, role: roleId });
+          block = createSupportBlock(null, "—", { noteId: noteKey, role: roleId, unpicked: true });
         }
 
         row.appendChild(label);
@@ -1908,7 +2020,43 @@
       });
     }
 
-    function createMelodyNoteBlock(note) {
+    function buildProgressionChordFactoryContextForHarmonyChoice(note, choice) {
+      return {
+        source: "progression-builder",
+        mode: "editHarmonyChoice",
+        createdAt: new Date().toISOString(),
+        note,
+        choice,
+        harmonyPayload,
+        harmonyChoices,
+        returnUrl: "progression-builder.html?mode=suggestHarmony&source=design-studio"
+      };
+    }
+
+    function buildChordFactoryUrlForHarmonyChoice(note, choice) {
+      const params = new URLSearchParams();
+      params.set("source", "progression-builder");
+      params.set("mode", "edit-harmony-choice");
+      params.set("harmonyNoteId", note.id || note.blockId || "");
+
+      if (harmonyPayload?.context?.system) params.set("system", harmonyPayload.context.system);
+      if (harmonyPayload?.context?.root) params.set("root", harmonyPayload.context.root);
+      if (harmonyPayload?.voice) params.set("voice", harmonyPayload.voice);
+      if (choice.root) params.set("chordRoot", choice.root);
+      if (choice.quality) params.set("chordQuality", choice.quality);
+
+      const noteNames = Array.isArray(choice.voiceAssignments) && choice.voiceAssignments.length
+        ? choice.voiceAssignments
+            .map(item => item.name || midiToDisplayName(Number(item.midi)))
+            .filter(Boolean)
+        : [note.name || midiToDisplayName(note.midi)];
+
+      params.set("highlight", noteNames.join(","));
+
+      return "chord-factory.html?" + params.toString();
+    }
+
+    function createMelodyNoteBlock(note, options = {}) {
       const block = document.createElement("div");
       const pc = note.pitchClass || pitchClassFromMidi(note.midi);
 
@@ -1922,6 +2070,11 @@
       block.dataset.previewNoteId = note.id || note.blockId;
       block.dataset.midi = String(note.midi);
       block.dataset.role = getHarmonyVoiceRoleForNote(note);
+      block.title = (note.name || midiToDisplayName(note.midi)) + " · click to play";
+      block.addEventListener("click", event => {
+        event.stopPropagation();
+        playSingleMidiBlock(block, note.midi, harmonyPayload?.voice || "softKeys");
+      });
       return block;
     }
 
@@ -1975,6 +2128,29 @@
           "</span>";
       } else {
         state.innerHTML = "Unassigned<br><span class=\"muted\">Choose a chord or skip this note.</span>";
+      }
+
+      const editFactoryLink = document.createElement("a");
+      editFactoryLink.classList.add("small-button", "wide", "harmony-edit-button");
+      editFactoryLink.textContent = choice && choice.chordSymbol
+        ? "✧ Edit This Chord in Chord Factory"
+        : "✧ Choose a chord to edit in Chord Factory";
+
+      if (choice && choice.chordSymbol) {
+        editFactoryLink.href = buildChordFactoryUrlForHarmonyChoice(note, choice);
+        editFactoryLink.addEventListener("click", () => {
+          localStorage.setItem("orumiProgressionChordFactoryContext", JSON.stringify(
+            buildProgressionChordFactoryContextForHarmonyChoice(note, choice)
+          ));
+          localStorage.setItem("orumiProgressionHarmonyChoicesDraft", JSON.stringify({
+            harmonyChoices,
+            harmonyPayload,
+            updatedAt: new Date().toISOString()
+          }));
+        });
+      } else {
+        editFactoryLink.href = "#";
+        editFactoryLink.classList.add("disabled");
       }
 
       const list = document.createElement("div");
@@ -2064,9 +2240,24 @@
         list.appendChild(groupEl);
       });
 
+      const details = document.createElement("details");
+      details.classList.add("suggestion-details");
+      details.open = !(choice && (choice.chordSymbol || choice.skipped));
+
+      const summary = document.createElement("summary");
+      summary.textContent = choice && choice.chordSymbol
+        ? "Chord options — hidden to keep playback visible"
+        : choice && choice.skipped
+          ? "Chord options — hidden for skipped note"
+          : "Chord options";
+
+      details.appendChild(summary);
+      details.appendChild(list);
+
       card.appendChild(head);
       card.appendChild(state);
-      card.appendChild(list);
+      card.appendChild(editFactoryLink);
+      card.appendChild(details);
 
       return card;
     }
@@ -2115,6 +2306,65 @@
         chosen.length > 0
           ? chosen.length + " harmonic anchor" + (chosen.length === 1 ? "" : "s") + " selected."
           : "Choose chords for structural notes. Skip passing notes.";
+
+      setupHarmonyScrollSync();
+    }
+
+    let syncingHarmonyScroll = false;
+
+    function setupHarmonyScrollSync() {
+      if (!harmonyPreviewStrip || !melodyHarmonyStrip) return;
+
+      const syncFromPreview = () => {
+        if (syncingHarmonyScroll) return;
+        syncingHarmonyScroll = true;
+        melodyHarmonyStrip.scrollLeft = harmonyPreviewStrip.scrollLeft;
+        syncingHarmonyScroll = false;
+      };
+
+      const syncFromCards = () => {
+        if (syncingHarmonyScroll) return;
+        syncingHarmonyScroll = true;
+        harmonyPreviewStrip.scrollLeft = melodyHarmonyStrip.scrollLeft;
+        syncingHarmonyScroll = false;
+      };
+
+      harmonyPreviewStrip.onscroll = syncFromPreview;
+      melodyHarmonyStrip.onscroll = syncFromCards;
+    }
+
+    async function playSingleMidiBlock(block, midi, voice = "softKeys") {
+      const numericMidi = Number(midi);
+      if (!Number.isFinite(numericMidi)) return;
+
+      await ensureAudio();
+
+      const chosenVoice = voice && voices[voice] ? voice : "softKeys";
+      const now = audioContext.currentTime;
+      const voiceNode = ORUMI_VOICES.buildVoice(
+        audioContext,
+        chosenVoice,
+        midiToFrequency(numericMidi),
+        now
+      );
+
+      const played = {
+        voice: chosenVoice,
+        gain: voiceNode.gain,
+        oscillators: voiceNode.oscillators || [],
+        noiseSources: voiceNode.noiseSources || []
+      };
+
+      activeChordNotes.push(played);
+      block.classList.add("playing-note");
+
+      const timer = setTimeout(() => {
+        ORUMI_VOICES.stopVoice(played, audioContext, 0.14);
+        activeChordNotes = activeChordNotes.filter(noteRef => noteRef !== played);
+        block.classList.remove("playing-note");
+      }, 520);
+
+      playbackTimers.push(timer);
     }
 
     function buildHarmonyPlanPayload() {
@@ -2428,12 +2678,24 @@
       window.location.href = "design-studio.html?mode=applySuggestedHarmony&source=progression-builder";
     }
 
+    function readProgressionHarmonyDraft() {
+      return safeJsonParse(localStorage.getItem("orumiProgressionHarmonyChoicesDraft"));
+    }
+
+    function clearProgressionHarmonyDraft() {
+      localStorage.removeItem("orumiProgressionHarmonyChoicesDraft");
+    }
+
     function initializeSuggestHarmonyMode() {
       if (!shouldOpenSuggestHarmonyMode()) {
         return false;
       }
 
-      const payload = normalizeHarmonyPayload(readHarmonyPayload());
+      const draft = readProgressionHarmonyDraft();
+      const draftPayload = draft && draft.harmonyPayload
+        ? normalizeHarmonyPayload(draft.harmonyPayload)
+        : null;
+      const payload = draftPayload || normalizeHarmonyPayload(readHarmonyPayload());
 
       if (!payload) {
         suggestHarmonySection.hidden = false;
@@ -2447,7 +2709,12 @@
       }
 
       harmonyPayload = payload;
-      harmonyChoices = {};
+      harmonyChoices = draft && draft.harmonyChoices
+        ? draft.harmonyChoices
+        : {};
+      if (draft) {
+        clearProgressionHarmonyDraft();
+      }
       suggestHarmonySection.hidden = false;
       standardProgressionSection.hidden = true;
       standardPlaybackSection.hidden = true;
@@ -2521,12 +2788,65 @@
     }
 
     function normalizeChordNotes(chord) {
-      if (!chord || !Array.isArray(chord.notes)) {
+      if (!chord) {
+        return [];
+      }
+
+      const voiceAssignments = Array.isArray(chord.voiceAssignments)
+        ? chord.voiceAssignments
+        : [];
+
+      if (voiceAssignments.length) {
+        return voiceAssignments
+          .map(item => {
+            const midi = Number(item.midi);
+            const parsed = Number.isFinite(midi)
+              ? parseNoteName(item.name || midiToDisplayName(midi))
+              : parseNoteName(item.name || item.note || item.displayName);
+            if (!parsed) return null;
+            return {
+              ...parsed,
+              voice: item.voice || chord.voice || null,
+              laneId: item.laneId || item.role || null,
+              laneName: item.laneName || item.role || null
+            };
+          })
+          .filter(Boolean)
+          .sort((a, b) => b.midi - a.midi);
+      }
+
+      if (Array.isArray(chord.blocks) && chord.blocks.length) {
+        return chord.blocks
+          .map(block => {
+            const midi = Number(block.midi);
+            const parsed = Number.isFinite(midi)
+              ? parseNoteName(block.name || block.note || block.displayName || midiToDisplayName(midi))
+              : parseNoteName(block.name || block.note || block.displayName);
+            if (!parsed) return null;
+            return {
+              ...parsed,
+              voice: block.voice || chord.voice || null,
+              laneId: block.laneId || null,
+              laneName: block.laneName || block.laneId || null
+            };
+          })
+          .filter(Boolean)
+          .sort((a, b) => b.midi - a.midi);
+      }
+
+      if (!Array.isArray(chord.notes)) {
         return [];
       }
 
       return chord.notes
-        .map(parseNoteName)
+        .map((noteName, index) => {
+          const parsed = parseNoteName(noteName);
+          if (!parsed) return null;
+          return {
+            ...parsed,
+            voice: chord.voice || null
+          };
+        })
         .filter(Boolean)
         .sort((a, b) => b.midi - a.midi);
     }
@@ -2541,6 +2861,25 @@
       }
 
       return "softKeys";
+    }
+
+    function getNoteVoice(note, chord = null) {
+      if (note && note.voice && voices[note.voice]) {
+        return note.voice;
+      }
+      return getChordVoice(chord);
+    }
+
+    function getChordVoiceSummary(chord) {
+      const notes = normalizeChordNotes(chord);
+      const noteVoices = [...new Set(notes.map(note => getNoteVoice(note, chord)).filter(Boolean))];
+
+      if (noteVoices.length > 1) {
+        return "Design lane voices";
+      }
+
+      const voice = noteVoices[0] || getChordVoice(chord);
+      return voices[voice] ? voices[voice].label : "Voice";
     }
 
     function getChordSystem(chord) {
@@ -2689,9 +3028,22 @@
         notes;
     }
 
+    function buildProgressionChordFactoryContextForProgressionChord(chord, index) {
+      return {
+        source: "progression-builder",
+        mode: "editProgressionChord",
+        createdAt: new Date().toISOString(),
+        chordIndex: index,
+        chord,
+        progression: getProgression(),
+        returnUrl: "progression-builder.html?mode=reviewProgression&source=design-studio"
+      };
+    }
+
     function buildChordFactoryEditUrl(chord, index) {
       const params = new URLSearchParams();
-
+      params.set("source", "progression-builder");
+      params.set("mode", "edit-progression-chord");
       params.set("editIndex", index);
 
       if (chord.system) {
@@ -2729,7 +3081,7 @@
       return "chord-factory.html?" + params.toString();
     }
 
-    function createNoteBlock(note) {
+    function createNoteBlock(note, chord = null) {
       const block =
         document.createElement("div");
 
@@ -2753,6 +3105,14 @@
 
       if (Number.isFinite(Number(note.midi))) {
         block.dataset.midi = String(note.midi);
+        const noteVoice = getNoteVoice(note, chord);
+        const voiceLabel = voices[noteVoice] ? voices[noteVoice].label : noteVoice;
+        block.title = note.displayName + " · " + voiceLabel + " · click to play";
+        block.dataset.voice = noteVoice;
+        block.addEventListener("click", event => {
+          event.stopPropagation();
+          playSingleMidiBlock(block, note.midi, noteVoice);
+        });
       }
 
       return block;
@@ -2784,10 +3144,7 @@
 
       chordMeta.classList.add("chord-meta");
 
-      const voiceLabel =
-        voices[getChordVoice(chord)]
-          ? voices[getChordVoice(chord)].label
-          : "Voice";
+      const voiceLabel = getChordVoiceSummary(chord);
 
       chordMeta.textContent =
         getChordSystemLabel(chord) +
@@ -2814,7 +3171,7 @@
       } else {
         notes.forEach(note => {
           stack.appendChild(
-            createNoteBlock(note)
+            createNoteBlock(note, chord)
           );
         });
       }
@@ -2851,6 +3208,12 @@
 
       editLink.href =
         buildChordFactoryEditUrl(chord, index);
+
+      editLink.addEventListener("click", () => {
+        localStorage.setItem("orumiProgressionChordFactoryContext", JSON.stringify(
+          buildProgressionChordFactoryContextForProgressionChord(chord, index)
+        ));
+      });
 
       editLink.textContent =
         "Edit";
@@ -3149,14 +3512,12 @@
         return;
       }
 
-      const voice =
-        getChordVoice(chord);
-
       const now =
         audioContext.currentTime;
 
       activeChordNotes =
         notes.map(note => {
+          const voice = getNoteVoice(note, chord);
           const voiceNode =
             ORUMI_VOICES.buildVoice(
               audioContext,
