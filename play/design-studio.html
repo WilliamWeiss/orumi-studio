@@ -46,6 +46,52 @@
       line-height: 1.4;
     }
 
+
+    .design-studio-mark {
+      width: 86px;
+      height: 86px;
+      margin: 74px auto 8px;
+      display: grid;
+      place-items: center;
+      border-radius: 24px;
+      background: rgba(255,255,255,0.055);
+      border: 1px solid rgba(255,255,255,0.10);
+      box-shadow:
+        0 12px 28px rgba(0,0,0,0.30),
+        inset 0 1px 0 rgba(255,255,255,0.12);
+    }
+
+    .design-studio-icon {
+      width: 58px;
+      height: 58px;
+      overflow: visible;
+      filter: drop-shadow(0 8px 14px rgba(0,0,0,0.32));
+    }
+
+    .design-studio-icon .grid-line {
+      stroke: rgba(245,240,232,0.35);
+      stroke-width: 2;
+      stroke-linecap: round;
+    }
+
+    .design-studio-icon .selected-square {
+      fill: #4d96ff;
+      stroke: rgba(255,255,255,0.92);
+      stroke-width: 2;
+    }
+
+    .design-studio-icon .selection-handle {
+      fill: #f5f0e8;
+      stroke: rgba(0,0,0,0.25);
+      stroke-width: 1;
+    }
+
+    .design-studio-icon .ghost-square {
+      fill: rgba(255,255,255,0.16);
+      stroke: rgba(255,255,255,0.16);
+      stroke-width: 1;
+    }
+
     .top-button {
       position: fixed;
       top: 18px;
@@ -993,6 +1039,15 @@
         margin-top: 82px;
       }
 
+
+      .design-studio-mark {
+        margin-top: 82px;
+      }
+
+      .design-studio-mark + h1 {
+        margin-top: 10px;
+      }
+
       .studio {
         grid-template-columns: 1fr;
       }
@@ -1120,10 +1175,26 @@
     title="Open Progression Builder"
   >≡</a>
 
+  <div class="design-studio-mark" aria-hidden="true">
+    <svg class="design-studio-icon" viewBox="0 0 64 64" role="img" aria-label="Design Studio symbol">
+      <line class="grid-line" x1="9" y1="15" x2="55" y2="15"></line>
+      <line class="grid-line" x1="9" y1="27" x2="55" y2="27"></line>
+      <line class="grid-line" x1="9" y1="39" x2="55" y2="39"></line>
+      <line class="grid-line" x1="9" y1="51" x2="55" y2="51"></line>
+      <rect class="ghost-square" x="14" y="10" width="10" height="10" rx="2"></rect>
+      <rect class="ghost-square" x="40" y="34" width="10" height="10" rx="2"></rect>
+      <rect class="selected-square" x="26" y="21" width="16" height="16" rx="3"></rect>
+      <rect class="selection-handle" x="22" y="17" width="6" height="6" rx="1"></rect>
+      <rect class="selection-handle" x="40" y="17" width="6" height="6" rx="1"></rect>
+      <rect class="selection-handle" x="22" y="35" width="6" height="6" rx="1"></rect>
+      <rect class="selection-handle" x="40" y="35" width="6" height="6" rx="1"></rect>
+    </svg>
+  </div>
+
   <h1>Design Studio</h1>
 
   <div class="subtitle">
-    Arrange Orumi blocks by part. Save named designs, import recordings, and bring in chords or progressions as editable blocks.
+    Arrange Orumi blocks by part. Save named designs, import recordings, and split multi-voice MIDI parts into editable lanes.
   </div>
 
   <nav class="app-menu-bar" aria-label="Design Studio main controls">
@@ -2518,10 +2589,7 @@
       }
 
       const saveFirst = window.confirm(
-        "This design has notes in it. Would you like to save your work before clearing?
-
-OK = Save first
-Cancel = Continue without saving"
+        "This design has notes in it. Would you like to save your work before clearing?\n\nOK = Save first\nCancel = Continue without saving"
       );
 
       if (saveFirst) {
@@ -2536,9 +2604,7 @@ Cancel = Continue without saving"
       }
 
       const clearWithoutSaving = window.confirm(
-        "Clear permanently without saving?
-
-This removes the current browser copy so it will not reappear when you return from Player. Saved projects remain available in Load Project."
+        "Clear permanently without saving?\n\nThis removes the current browser copy so it will not reappear when you return from Player. Saved projects remain available in Load Project."
       );
 
       if (!clearWithoutSaving) {
@@ -3532,6 +3598,10 @@ This removes the current browser copy so it will not reappear when you return fr
       const lane = project.lanes.find(item => item.id === selectedBlocks[0].laneId);
       const location = beatToMeasureInfo(minStart);
       const returnFile = window.location.pathname.split("/").pop() || "design-studio.html";
+      const laneVoiceMap = project.lanes.reduce((map, laneItem) => {
+        map[laneItem.id] = laneItem.voice || project.context.voice || null;
+        return map;
+      }, {});
 
       return {
         version: 1,
@@ -5135,7 +5205,7 @@ This removes the current browser copy so it will not reappear when you return fr
       const beat = getBestChordAnalysisBeatForBlock(block);
       const location = beatToMeasureInfo(beat);
 
-      selectStackAtBeat(beat, "M" + location.measure + " beat " + formatBeatValue(location.beatWithinMeasure), block.id);
+      selectStackAtBeat(beat, "M" + location.measure + " beat " + formatBeatValue(location.beatWithinMeasure));
     }
 
     function getPrimarySelectedNoteBlock() {
@@ -5200,7 +5270,7 @@ This removes the current browser copy so it will not reappear when you return fr
       const beat = snapBeat(fallbackBeat);
       const location = beatToMeasureInfo(beat);
 
-      selectStackAtBeat(beat, "M" + location.measure + " beat " + formatBeatValue(location.beatWithinMeasure), block.id);
+      selectStackAtBeat(beat, "M" + location.measure + " beat " + formatBeatValue(location.beatWithinMeasure));
     }
 
     function createInspectorActionButton(label, tone, handler, title = "") {
@@ -6521,9 +6591,9 @@ This removes the current browser copy so it will not reappear when you return fr
         "Smallest start gap: " + (analysis.smallestStartGap === null ? "n/a" : formatBeatValue(analysis.smallestStartGap) + " beats") + "\n\n" +
         "Recommended grid: " + suggestedInfo.answer + " = " + suggestedInfo.label + "\n\n" +
         "Preview changes:\n" +
-        "4 = Quarter notes: " + quarterPreview.changedCount + " block" + (quarterPreview.changedCount === 1 ? "" : "s") + " would change\n" +
-        "8 = Eighth notes: " + eighthPreview.changedCount + " block" + (eighthPreview.changedCount === 1 ? "" : "s") + " would change\n" +
-        "16 = Sixteenth notes: " + sixteenthPreview.changedCount + " block" + (sixteenthPreview.changedCount === 1 ? "" : "s") + " would change\n\n" +
+        "4 = Quarter notes: " + quarterBeatPreview.changedCount + " block" + (quarterBeatPreview.changedCount === 1 ? "" : "s") + " would change\n" +
+        "8 = Eighth notes: " + eighthBeatPreview.changedCount + " block" + (eighthBeatPreview.changedCount === 1 ? "" : "s") + " would change\n" +
+        "6 = Triplet subdivision: " + sixthPreview.changedCount + " block" + (sixthPreview.changedCount === 1 ? "" : "s") + " would change\n\n" +
         "Choose grid, or C to cancel:",
         suggestedInfo.answer
       );
@@ -7180,6 +7250,29 @@ This removes the current browser copy so it will not reappear when you return fr
         return;
       }
 
+      const importPlan = buildMidiImportPlan(parsedMidi, fileName || "Imported MIDI");
+      const shouldSplit = chooseMidiVoiceSplitMode(importPlan);
+
+      if (shouldSplit === null) {
+        status.textContent = "MIDI import cancelled.";
+        return;
+      }
+
+      const importTracks = shouldSplit
+        ? expandMidiTracksForVoiceSplit(importPlan)
+        : parsedMidi.tracks.map((track, index) => ({
+            name: track.name || "MIDI Track " + (index + 1),
+            role: "imported MIDI",
+            notes: track.notes,
+            sourceTrackName: track.name || "MIDI Track " + (index + 1),
+            sourceVoice: "track"
+          }));
+
+      if (importTracks.length === 0) {
+        status.textContent = "MIDI file had no importable tracks after review.";
+        return;
+      }
+
       saveHistory();
 
       const importId =
@@ -7196,14 +7289,14 @@ This removes the current browser copy so it will not reappear when you return fr
             : 0;
 
       const importedLaneIds = [];
-      const sourceLabel = fileName.replace(/\.[^.]+$/, "") || "MIDI";
+      const sourceLabel = (fileName || "MIDI").replace(/\.[^.]+$/, "") || "MIDI";
 
-      if (importMode === "new") {
-        parsedMidi.tracks.forEach((track, index) => {
+      if (importMode === "new" || shouldSplit) {
+        importTracks.forEach((track, index) => {
           const lane = {
             id: createId("lane"),
-            name: track.name || sourceLabel + " Track " + (index + 1),
-            role: "imported MIDI",
+            name: track.name || sourceLabel + " Part " + (index + 1),
+            role: track.role || "imported MIDI",
             voice: null
           };
 
@@ -7211,7 +7304,7 @@ This removes the current browser copy so it will not reappear when you return fr
           importedLaneIds[index] = lane.id;
         });
       } else {
-        parsedMidi.tracks.forEach((track, index) => {
+        importTracks.forEach((track, index) => {
           ensureLaneForChordIndex(index);
           importedLaneIds[index] = project.lanes[index]?.id || project.lanes[0].id;
         });
@@ -7219,7 +7312,7 @@ This removes the current browser copy so it will not reappear when you return fr
 
       let importedNoteCount = 0;
 
-      parsedMidi.tracks.forEach((track, trackIndex) => {
+      importTracks.forEach((track, trackIndex) => {
         const laneId = importedLaneIds[trackIndex] || project.lanes[0]?.id;
 
         if (!laneId) {
@@ -7239,22 +7332,32 @@ This removes the current browser copy so it will not reappear when you return fr
             voice: null,
             system: project.context.system,
             source: "midi",
-            sourceId: importId
+            sourceId: importId,
+            sourceTrackName: track.sourceTrackName || track.name || null,
+            sourceVoice: track.sourceVoice || null
           });
 
           importedNoteCount += 1;
         });
       });
 
-      if (importMode === "new" && importedLaneIds.length > 0) {
+      if (parsedMidi.tempoBpm && window.confirm("Use the MIDI tempo of ♩" + parsedMidi.tempoBpm + " for this design?")) {
+        project.tempo = Math.max(40, Math.min(240, Number(parsedMidi.tempoBpm)));
+      }
+
+      if ((importMode === "new" || shouldSplit) && importedLaneIds.length > 0) {
         selectedLaneId = importedLaneIds[0];
       }
 
       localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
       render();
 
+      const splitText = shouldSplit
+        ? " Split detected multi-voice tracks into Upper / Lower" + (importTracks.some(track => track.sourceVoice === "unassigned") ? " / Unassigned" : "") + " lanes."
+        : "";
+
       const modeText =
-        importMode === "new"
+        importMode === "new" || shouldSplit
           ? "into " + importedLaneIds.length + " new lane" + (importedLaneIds.length === 1 ? "" : "s")
           : importMode === "append"
             ? "after beat " + offsetBeat.toFixed(2)
@@ -7271,7 +7374,268 @@ This removes the current browser copy so it will not reappear when you return fr
         (fileName || "MIDI file") +
         " " +
         modeText +
-        ".";
+        "." +
+        splitText;
+    }
+
+    function buildMidiImportPlan(parsedMidi, fileName) {
+      const sourceLabel = String(fileName || "MIDI").replace(/\.[^.]+$/, "") || "MIDI";
+
+      return {
+        fileName,
+        sourceLabel,
+        tracks: parsedMidi.tracks.map((track, index) => ({
+          index,
+          name: track.name || sourceLabel + " Track " + (index + 1),
+          notes: track.notes || [],
+          analysis: analyzeMidiTrackVoices(track.notes || [])
+        }))
+      };
+    }
+
+    function analyzeMidiTrackVoices(notes) {
+      const noteBlocks = (notes || [])
+        .filter(note => Number.isFinite(Number(note.midi)))
+        .map(note => ({
+          ...note,
+          startBeat: Number(note.startBeat || 0),
+          durationBeats: Math.max(MIN_DURATION, Number(note.durationBeats || MIN_DURATION)),
+          midi: Number(note.midi)
+        }))
+        .sort((a, b) => {
+          if (Math.abs(a.startBeat - b.startBeat) > 0.0001) return a.startBeat - b.startBeat;
+          return a.midi - b.midi;
+        });
+
+      const onsetGroups = new Map();
+      const activeSampleBeats = new Set();
+
+      noteBlocks.forEach(note => {
+        const key = Math.round(note.startBeat * 1000) / 1000;
+        if (!onsetGroups.has(key)) {
+          onsetGroups.set(key, []);
+        }
+        onsetGroups.get(key).push(note);
+        activeSampleBeats.add(key);
+        activeSampleBeats.add(Math.round((note.startBeat + note.durationBeats / 2) * 1000) / 1000);
+      });
+
+      let polyphonicOnsets = 0;
+      let maxOnsetNotes = 0;
+      let maxActiveNotes = 0;
+
+      onsetGroups.forEach(group => {
+        maxOnsetNotes = Math.max(maxOnsetNotes, group.length);
+        if (group.length > 1) {
+          polyphonicOnsets += 1;
+        }
+      });
+
+      activeSampleBeats.forEach(beat => {
+        const activeCount = noteBlocks.filter(note => {
+          const start = Number(note.startBeat || 0);
+          const end = start + Number(note.durationBeats || MIN_DURATION);
+          return start <= beat + 0.0001 && end > beat + 0.0001;
+        }).length;
+        maxActiveNotes = Math.max(maxActiveNotes, activeCount);
+      });
+
+      const onsetCount = onsetGroups.size;
+      const polyphonicRatio = onsetCount ? polyphonicOnsets / onsetCount : 0;
+      const likelyMultiVoice =
+        maxOnsetNotes > 1 ||
+        maxActiveNotes > 1 ||
+        polyphonicRatio >= 0.12;
+
+      return {
+        noteCount: noteBlocks.length,
+        onsetCount,
+        polyphonicOnsets,
+        polyphonicRatio,
+        maxOnsetNotes,
+        maxActiveNotes,
+        likelyMultiVoice
+      };
+    }
+
+    function chooseMidiVoiceSplitMode(importPlan) {
+      const multiVoiceTracks = importPlan.tracks.filter(track => track.analysis.likelyMultiVoice);
+
+      if (multiVoiceTracks.length === 0) {
+        return false;
+      }
+
+      const summary = multiVoiceTracks
+        .slice(0, 5)
+        .map(track => {
+          const analysis = track.analysis;
+          return "• " + track.name + ": " + analysis.noteCount + " notes, up to " + analysis.maxActiveNotes + " simultaneous";
+        })
+        .join("\n");
+
+      const answer = window.prompt(
+        "Design Studio detected possible multi-voice MIDI material.\n\n" +
+        summary +
+        (multiVoiceTracks.length > 5 ? "\n• …and " + (multiVoiceTracks.length - 5) + " more" : "") +
+        "\n\nPhase 1 can split each detected track into temporary lanes:\n" +
+        "Upper Voice = highest note at each onset\n" +
+        "Lower Voice = lowest note at each onset\n" +
+        "Unassigned = middle notes when more than two notes start together\n\n" +
+        "Type:\n" +
+        "S = Split detected multi-voice tracks\n" +
+        "O = Keep original MIDI tracks\n" +
+        "C = Cancel",
+        "S"
+      );
+
+      if (!answer) {
+        return null;
+      }
+
+      const normalized = answer.trim().toLowerCase();
+
+      if (normalized === "s" || normalized === "split" || normalized === "split tracks") {
+        return true;
+      }
+
+      if (normalized === "o" || normalized === "original" || normalized === "keep" || normalized === "keep original") {
+        return false;
+      }
+
+      return null;
+    }
+
+    function expandMidiTracksForVoiceSplit(importPlan) {
+      const expandedTracks = [];
+
+      importPlan.tracks.forEach(track => {
+        if (!track.analysis.likelyMultiVoice) {
+          expandedTracks.push({
+            name: track.name,
+            role: "imported MIDI",
+            notes: track.notes,
+            sourceTrackName: track.name,
+            sourceVoice: "track"
+          });
+          return;
+        }
+
+        const split = splitMidiTrackIntoUpperLowerVoices(track.notes);
+        const baseName = track.name || "MIDI Track " + (track.index + 1);
+
+        if (split.upper.length > 0) {
+          expandedTracks.push({
+            name: baseName + " · Upper Voice",
+            role: "imported upper voice",
+            notes: split.upper,
+            sourceTrackName: baseName,
+            sourceVoice: "upper"
+          });
+        }
+
+        if (split.lower.length > 0) {
+          expandedTracks.push({
+            name: baseName + " · Lower Voice",
+            role: "imported lower voice",
+            notes: split.lower,
+            sourceTrackName: baseName,
+            sourceVoice: "lower"
+          });
+        }
+
+        if (split.unassigned.length > 0) {
+          expandedTracks.push({
+            name: baseName + " · Unassigned Tones",
+            role: "review middle notes",
+            notes: split.unassigned,
+            sourceTrackName: baseName,
+            sourceVoice: "unassigned"
+          });
+        }
+      });
+
+      return expandedTracks;
+    }
+
+    function splitMidiTrackIntoUpperLowerVoices(notes) {
+      const upper = [];
+      const lower = [];
+      const unassigned = [];
+      const onsetGroups = new Map();
+      let lastSingleVoice = "upper";
+
+      (notes || [])
+        .filter(note => Number.isFinite(Number(note.midi)))
+        .slice()
+        .sort((a, b) => {
+          const startA = Number(a.startBeat || 0);
+          const startB = Number(b.startBeat || 0);
+          if (Math.abs(startA - startB) > 0.0001) return startA - startB;
+          return Number(a.midi || 0) - Number(b.midi || 0);
+        })
+        .forEach(note => {
+          const key = Math.round(Number(note.startBeat || 0) * 1000) / 1000;
+          if (!onsetGroups.has(key)) {
+            onsetGroups.set(key, []);
+          }
+          onsetGroups.get(key).push(note);
+        });
+
+      onsetGroups.forEach(group => {
+        const sorted = group.slice().sort((a, b) => Number(a.midi || 0) - Number(b.midi || 0));
+
+        if (sorted.length === 1) {
+          const note = sorted[0];
+          const nearest = chooseNearestSplitVoice(note, upper, lower, lastSingleVoice);
+
+          if (nearest === "lower") {
+            lower.push({ ...note });
+            lastSingleVoice = "lower";
+          } else {
+            upper.push({ ...note });
+            lastSingleVoice = "upper";
+          }
+          return;
+        }
+
+        lower.push({ ...sorted[0] });
+        upper.push({ ...sorted[sorted.length - 1] });
+        lastSingleVoice = "upper";
+
+        if (sorted.length > 2) {
+          sorted.slice(1, -1).forEach(note => {
+            unassigned.push({ ...note });
+          });
+        }
+      });
+
+      return {
+        upper: upper.sort((a, b) => Number(a.startBeat || 0) - Number(b.startBeat || 0)),
+        lower: lower.sort((a, b) => Number(a.startBeat || 0) - Number(b.startBeat || 0)),
+        unassigned: unassigned.sort((a, b) => Number(a.startBeat || 0) - Number(b.startBeat || 0))
+      };
+    }
+
+    function chooseNearestSplitVoice(note, upper, lower, fallbackVoice) {
+      const midi = Number(note.midi || 0);
+      const upperLast = upper.length ? Number(upper[upper.length - 1].midi || midi) : null;
+      const lowerLast = lower.length ? Number(lower[lower.length - 1].midi || midi) : null;
+
+      if (upperLast === null && lowerLast === null) {
+        return fallbackVoice || "upper";
+      }
+
+      if (upperLast === null) return "lower";
+      if (lowerLast === null) return "upper";
+
+      const upperDistance = Math.abs(midi - upperLast);
+      const lowerDistance = Math.abs(midi - lowerLast);
+
+      if (Math.abs(upperDistance - lowerDistance) < 0.001) {
+        return fallbackVoice || "upper";
+      }
+
+      return upperDistance <= lowerDistance ? "upper" : "lower";
     }
 
     function parseMidiFile(buffer) {
