@@ -1421,6 +1421,8 @@
     const STORAGE_CURRENT_ID = "orumiDesignStudioCurrentProjectId";
     const STORAGE_LEGACY = "orumiDesignStudioProject";
     const STORAGE_PENDING_CHORD = "orumiPendingDesignChord";
+    const STORAGE_RECENTLY_CLEARED = "orumiDesignStudioRecentlyClearedBackup";
+    const STORAGE_RECOVERY_PREFIX = "orumiDesignStudioRecovery_";
 
     const backButton = document.getElementById("backButton");
     const paletteGrid = document.getElementById("paletteGrid");
@@ -1547,13 +1549,23 @@
 
     let project = createDefaultProject();
 
-    backButton.addEventListener("click", () => {
-      if (window.history.length > 1) {
-        window.history.back();
-      } else {
-        window.location.href = "index.html";
-      }
-    });
+    function goBackOrHome() {
+      const fallback = "index.html";
+
+      try {
+        const referrer = document.referrer || "";
+        const current = window.location.href;
+
+        if (referrer && referrer !== current) {
+          window.location.href = referrer;
+          return;
+        }
+      } catch (error) {}
+
+      window.location.href = fallback;
+    }
+
+    backButton.addEventListener("click", goBackOrHome);
 
     function createDefaultProject(name = "Untitled Design") {
       return {
@@ -1682,7 +1694,7 @@
 
       if (!name) {
         status.textContent = "Save As cancelled.";
-        return;
+        return false;
       }
 
       currentProjectId = createId("design");
@@ -1709,16 +1721,142 @@
 
       renderProjectName();
       status.textContent = "Saved as “" + project.title + ".”";
+      return true;
+    }
+
+    function isDesignProjectLike(value) {
+      return !!(
+        value &&
+        typeof value === "object" &&
+        Array.isArray(value.blocks) &&
+        Array.isArray(value.lanes)
+      );
+    }
+
+    function normalizeProjectEntryCandidate(candidate, fallbackName = "Recovered Design") {
+      if (!candidate || typeof candidate !== "object") {
+        return null;
+      }
+
+      const projectCandidate = candidate.project || candidate.design || candidate.data || candidate;
+
+      if (!isDesignProjectLike(projectCandidate)) {
+        return null;
+      }
+
+      return {
+        name:
+          candidate.name ||
+          candidate.title ||
+          projectCandidate.title ||
+          fallbackName ||
+          "Recovered Design",
+        updatedAt:
+          candidate.updatedAt ||
+          candidate.savedAt ||
+          candidate.clearedAt ||
+          "",
+        project: projectCandidate
+      };
+    }
+
+    function addUniqueProjectEntry(projects, entry, id, sourceLabel, isLegacy = false) {
+      if (!entry || !entry.project) return;
+
+      const safeId = id || createId("recovered_design");
+      const fingerprint = JSON.stringify({
+        title: entry.project.title || "",
+        blocks: entry.project.blocks || [],
+        lanes: entry.project.lanes || []
+      });
+
+      if (projects.some(item => item.id === safeId || item.fingerprint === fingerprint)) {
+        return;
+      }
+
+      projects.push({
+        id: safeId,
+        name: entry.name || entry.project.title || "Recovered Design",
+        updatedAt: entry.updatedAt || "",
+        project: entry.project,
+        sourceLabel: sourceLabel || "recovery copy",
+        isLegacy,
+        fingerprint
+      });
+    }
+
+    function discoverRecoverableDesignProjects(existingProjects = []) {
+      const recovered = [];
+      const knownKeys = new Set([
+        STORAGE_LIBRARY,
+        STORAGE_CURRENT_ID,
+        STORAGE_LEGACY,
+        STORAGE_PENDING_CHORD
+      ]);
+
+      function inspectParsedValue(parsed, storageKey) {
+        const direct = normalizeProjectEntryCandidate(parsed, storageKey);
+        if (direct) {
+          addUniqueProjectEntry(recovered, direct, "recovered-" + storageKey, "recovery copy", true);
+          return;
+        }
+
+        if (Array.isArray(parsed)) {
+          parsed.forEach((item, index) => {
+            const entry = normalizeProjectEntryCandidate(item, storageKey + " item " + (index + 1));
+            addUniqueProjectEntry(recovered, entry, "recovered-" + storageKey + "-" + index, "recovery copy", true);
+          });
+          return;
+        }
+
+        if (parsed && typeof parsed === "object") {
+          Object.entries(parsed).forEach(([childKey, item]) => {
+            const entry = normalizeProjectEntryCandidate(item, childKey);
+            addUniqueProjectEntry(recovered, entry, "recovered-" + storageKey + "-" + childKey, "recovery copy", true);
+          });
+        }
+      }
+
+      try {
+        for (let index = 0; index < localStorage.length; index++) {
+          const key = localStorage.key(index);
+          if (!key || knownKeys.has(key)) continue;
+
+          if (
+            !key.toLowerCase().includes("orumi") &&
+            !key.toLowerCase().includes("design")
+          ) {
+            continue;
+          }
+
+          const raw = localStorage.getItem(key);
+          if (!raw || raw.length < 8) continue;
+
+          try {
+            inspectParsedValue(JSON.parse(raw), key);
+          } catch (error) {}
+        }
+      } catch (error) {
+        console.warn("Could not scan local browser storage for recoverable designs", error);
+      }
+
+      const combined = [...existingProjects];
+      recovered.forEach(entry => {
+        addUniqueProjectEntry(combined, entry, entry.id, entry.sourceLabel || "recovery copy", true);
+      });
+
+      return combined.filter(item => item.project && Array.isArray(item.project.blocks));
     }
 
     function getLoadableProjects() {
       const library = getProjectLibrary();
-      const projects = Object.entries(library)
+      let projects = Object.entries(library)
         .map(([id, item]) => ({
           id: item.id || id,
           name: item.name || item.project?.title || "Untitled Design",
           updatedAt: item.updatedAt || item.savedAt || "",
-          project: item.project || item
+          project: item.project || item,
+          sourceLabel: "saved project"
         }))
         .filter(item => item.project && Array.isArray(item.project.blocks))
         .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
@@ -1741,7 +1879,24 @@
         });
       }
 
-      return projects;
+      [
+        { key: STORAGE_RECENTLY_CLEARED, label: "recently cleared backup" },
+        { key: "orumiDesignStudioClearedBackup", label: "cleared backup" },
+        { key: "orumiDesignStudioBackup", label: "backup copy" },
+        { key: "orumiDesignStudioProjectBackup", label: "backup copy" }
+      ].forEach(item => {
+        try {
+          const parsed = JSON.parse(localStorage.getItem(item.key) || "null");
+          const entry = normalizeProjectEntryCandidate(parsed, item.label);
+          addUniqueProjectEntry(projects, entry, item.key, item.label, true);
+        } catch (error) {}
+      });
+
+      projects = discoverRecoverableDesignProjects(projects);
+
+      return projects
+        .filter(item => item.project && Array.isArray(item.project.blocks))
+        .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
     }
 
     function closeProjectLoadModal() {
@@ -1783,7 +1938,7 @@
       const projects = getLoadableProjects();
 
       if (projects.length === 0) {
-        status.textContent = "No saved Design Studio projects found. Use Save As to create one.";
+        status.textContent = "No saved or recoverable Design Studio projects were found in this browser.";
         return;
       }
 
@@ -1821,9 +1976,11 @@
         const blockCount = Array.isArray(entry.project.blocks) ? entry.project.blocks.length : 0;
         const laneCount = Array.isArray(entry.project.lanes) ? entry.project.lanes.length : 0;
 
+        const sourceLabel = entry.sourceLabel || (entry.isLegacy ? "browser copy" : "saved project");
+
         button.innerHTML =
           "<strong>" + (index + 1) + ". " + escapeHtml(entry.name || "Untitled Design") + "</strong>" +
-          "<span>" + escapeHtml(date) + " · " + blockCount + " block" + (blockCount === 1 ? "" : "s") + " · " + laneCount + " lane" + (laneCount === 1 ? "" : "s") + "</span>";
+          "<span>" + escapeHtml(sourceLabel) + " · " + escapeHtml(date) + " · " + blockCount + " block" + (blockCount === 1 ? "" : "s") + " · " + laneCount + " lane" + (laneCount === 1 ? "" : "s") + "</span>";
 
         button.addEventListener("click", () => loadProjectFromEntry(entry));
         projectLoadList.appendChild(button);
@@ -2302,19 +2459,94 @@
       });
     }
 
-    function clearProject() {
-      const confirmed = window.confirm("Clear this design canvas?");
-      if (!confirmed) return;
+    function projectHasDesignContent() {
+      return !!(
+        project &&
+        Array.isArray(project.blocks) &&
+        project.blocks.length > 0
+      );
+    }
 
+    function clearCurrentDesignPermanently(message = "Design canvas cleared permanently. Saved projects remain available in Load Project.") {
       saveHistory();
+      stopPlayback({ reset: true });
+
+      if (projectHasDesignContent()) {
+        try {
+          const backup = {
+            id: createId("cleared_design"),
+            name: (project.title || "Untitled Design") + " · recently cleared",
+            clearedAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            project: JSON.parse(JSON.stringify(project))
+          };
+          localStorage.setItem(STORAGE_RECENTLY_CLEARED, JSON.stringify(backup));
+          localStorage.setItem(STORAGE_RECOVERY_PREFIX + backup.id, JSON.stringify(backup));
+        } catch (error) {
+          console.warn("Could not create recently cleared backup", error);
+        }
+      }
 
       project.blocks = [];
       clearBlockSelection();
+      selectedInsertBeat = 0;
+      pausedBeat = 0;
+      blockClipboard = [];
+      historyStack = [];
+      redoStack = [];
 
+      // Important: once the canvas is cleared, do not keep pointing startup
+      // back to the old saved project. Otherwise Player → Design imports can
+      // make the previous design appear again from the current-project id.
+      currentProjectId = null;
+      saveCurrentProjectId();
+
+      normalizeProject();
       localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
 
       render();
-      status.textContent = "Design canvas cleared. Saved projects remain available.";
+      status.textContent = message;
+    }
+
+    function clearProject() {
+      if (!projectHasDesignContent()) {
+        const confirmed = window.confirm("Clear this blank design and reset the current browser copy?");
+        if (!confirmed) return;
+
+        clearCurrentDesignPermanently("Blank design reset. Saved projects remain available in Load Project.");
+        return;
+      }
+
+      const saveFirst = window.confirm(
+        "This design has notes in it. Would you like to save your work before clearing?
+
+OK = Save first
+Cancel = Continue without saving"
+      );
+
+      if (saveFirst) {
+        const saved = saveProjectAs();
+        if (!saved) {
+          status.textContent = "Clear cancelled because Save As was cancelled.";
+          return;
+        }
+
+        clearCurrentDesignPermanently("Saved your design, then cleared the current canvas.");
+        return;
+      }
+
+      const clearWithoutSaving = window.confirm(
+        "Clear permanently without saving?
+
+This removes the current browser copy so it will not reappear when you return from Player. Saved projects remain available in Load Project."
+      );
+
+      if (!clearWithoutSaving) {
+        status.textContent = "Clear cancelled.";
+        return;
+      }
+
+      clearCurrentDesignPermanently();
     }
 
     function pcToName(pcNumber) {
@@ -6851,8 +7083,31 @@
     }
 
     function beginMidiImport() {
-      midiFileInput.value = "";
-      midiFileInput.click();
+      status.textContent = "Choose a MIDI file to import...";
+
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = ".mid,.midi,audio/midi,audio/x-midi";
+      input.style.position = "fixed";
+      input.style.left = "-9999px";
+      input.style.top = "-9999px";
+      input.addEventListener("change", async event => {
+        await handleMidiFileSelected(event);
+        input.remove();
+      });
+
+      document.body.appendChild(input);
+
+      try {
+        input.click();
+      } catch (error) {
+        if (midiFileInput) {
+          midiFileInput.value = "";
+          midiFileInput.click();
+        } else {
+          status.textContent = "Could not open the MIDI file picker in this browser.";
+        }
+      }
     }
 
     async function handleMidiFileSelected(event) {
@@ -8629,7 +8884,9 @@
     importProgressionButton.addEventListener("click", importProgression);
     exportMidiButton.addEventListener("click", exportMidi);
     importMidiButton.addEventListener("click", beginMidiImport);
-    midiFileInput.addEventListener("change", handleMidiFileSelected);
+    if (midiFileInput) {
+      midiFileInput.addEventListener("change", handleMidiFileSelected);
+    }
     insertMeasuresButton.addEventListener("click", insertMeasuresAtSelectedPoint);
     quantizeTimingButton.addEventListener("click", quantizeCleanTiming);
     resetViewButton.addEventListener("click", resetView);

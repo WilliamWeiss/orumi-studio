@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
   <title>Orumi Sound Squares</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <script src="js/orumi-catalog.js"></script>
+  <script src="orumi-catalog.js"></script>
 
   <style>
     body {
@@ -18,34 +18,31 @@
       justify-content: center;
       margin: 0;
       min-height: 100vh;
-      padding: 24px 16px;
-      box-sizing: border-box;
+      overflow: hidden;
     }
 
     h1 {
       margin: 10px 0 6px 0;
       font-weight: 500;
       letter-spacing: 1px;
-      text-align: center;
     }
 
     .subtitle {
       color: #bdb4a6;
       margin-bottom: 22px;
       font-size: 14px;
-      text-align: center;
     }
 
     .menu-grid {
       display: grid;
-      width: min(92vmin, 640px);
+      width: min(94vmin, 680px);
+      height: min(72vmin, 510px);
       grid-template-columns: repeat(4, 1fr);
       grid-template-rows: repeat(3, 1fr);
-      gap: 14px;
+      gap: 3%;
     }
 
     .tile {
-      aspect-ratio: 1 / 1;
       text-decoration: none;
       color: #fff7ea;
       border-radius: 22px;
@@ -53,10 +50,12 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      text-align: center;
       box-shadow: 0 8px 18px rgba(0,0,0,0.38);
       transition: 0.12s;
       user-select: none;
+      text-align: center;
+      padding: 8px;
+      box-sizing: border-box;
     }
 
     .tile:active,
@@ -67,18 +66,18 @@
     }
 
     .abbr {
-      font-size: clamp(22px, 5.8vmin, 44px);
+      font-size: clamp(28px, 8vmin, 54px);
       font-weight: bold;
       letter-spacing: 1px;
-      line-height: 1;
     }
 
     .label {
       margin-top: 8px;
-      font-size: clamp(10px, 1.9vmin, 14px);
+      font-size: clamp(11px, 2.4vmin, 16px);
       opacity: 0.9;
-      line-height: 1.1;
-      padding: 0 6px;
+      line-height: 1.15;
+      max-width: 100%;
+      overflow-wrap: anywhere;
     }
 
     .western  { background: #4d6f91; }
@@ -88,25 +87,11 @@
     .maqam    { background: #5b4a6b; }
     .celtic   { background: #47624f; }
     .blues    { background: #3f4e6f; }
-    .african  { background: #8b3e2f; }
+    .custom   { background: linear-gradient(135deg, #8b3e2f, #3f4e6f, #5b4a6b); }
     .andean   { background: #5f6f72; }
-
-    .chordfactory { background: #5b4f7a; }
-    .progressionstudio { background: #6a4f2f; }
-    .designstudio { background: #2f665f; }
-
-    @media (max-width: 620px) {
-      .menu-grid {
-        width: min(94vw, 460px);
-        grid-template-columns: repeat(3, 1fr);
-        grid-template-rows: auto;
-        gap: 10px;
-      }
-
-      .tile {
-        border-radius: 18px;
-      }
-    }
+    .factory  { background: #7b586e; }
+    .progression { background: #38444a; }
+    .designer { background: #3f6c68; }
   </style>
 </head>
 
@@ -115,7 +100,7 @@
   <h1>Orumi Sound Squares</h1>
 
   <div class="subtitle">
-    Choose a musical world or studio
+    Choose a musical world
   </div>
 
   <div class="menu-grid" id="menuGrid"></div>
@@ -123,38 +108,62 @@
   <script>
     const menuGrid = document.getElementById("menuGrid");
     const systems = ORUMI_CATALOG.systems;
+    const CUSTOM_SOUND_SQUARE_KEY = "orumiCustomSoundSquare";
 
     const systemOrder = [
       "western",
       "japanese",
       "chinese",
       "indian",
-
       "maqam",
       "celtic",
       "blues",
-      "african",
-
+      "custom",
       "andean",
-      "chordfactory",
-      "progressionstudio",
-      "designstudio"
+      "chordFactory",
+      "progression",
+      "designer"
     ];
+
+    function safeJsonParse(value) {
+      if (!value) return null;
+      try {
+        return JSON.parse(value);
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function getSavedCustomSquare() {
+      const saved = safeJsonParse(localStorage.getItem(CUSTOM_SOUND_SQUARE_KEY));
+      return saved && typeof saved === "object" ? saved : null;
+    }
+
+    function getDisplayOctaves(system) {
+      const defaults = Array.isArray(system && system.defaultOctaves)
+        ? system.defaultOctaves
+        : [3,4,5];
+
+      const cleaned = [...new Set(defaults)]
+        .map(value => parseInt(value, 10))
+        .filter(value => value >= 1 && value <= 6)
+        .sort((a, b) => a - b);
+
+      if (cleaned.length > 3) {
+        return cleaned.slice(cleaned.length - 3);
+      }
+
+      return cleaned.length ? cleaned : [3,4,5];
+    }
 
     function buildSystemLink(systemKey, system) {
       const root = encodeURIComponent(system.defaultRoot || "C");
       const family = encodeURIComponent(system.defaultFamily);
       const scaleMode = encodeURIComponent(system.defaultMode);
       const setView = encodeURIComponent(system.defaultSet || "native");
-
-      const defaultOctaves = (system.defaultOctaves || [3,4,5])
-        .map(Number)
-        .filter(octave => octave >= 3 && octave <= 5);
-
       const octaves = encodeURIComponent(
-        (defaultOctaves.length ? defaultOctaves : [3,4,5]).join(",")
+        getDisplayOctaves(system).join(",")
       );
-
       const voice = encodeURIComponent(system.defaultVoice || "warm");
 
       return (
@@ -169,23 +178,69 @@
       );
     }
 
-    function createTile(className, href, abbrText, labelText) {
+    function buildCustomTile() {
+      const saved = getSavedCustomSquare();
       const link = document.createElement("a");
-
-      link.classList.add("tile", className);
-      link.href = href;
+      link.classList.add("tile", "custom");
+      link.href = saved ? "player.html?custom=1" : "selection-control.html?custom=1&return=player";
+      link.title = saved
+        ? "Open your locally saved custom sound square."
+        : "Create a custom sound square on this device using Selection Control.";
 
       const abbr = document.createElement("div");
       abbr.classList.add("abbr");
-      abbr.textContent = abbrText;
+      abbr.textContent = saved ? "CU" : "+";
 
       const label = document.createElement("div");
       label.classList.add("label");
-      label.textContent = labelText;
+      label.textContent = saved && saved.name ? saved.name : "Custom";
 
       link.appendChild(abbr);
       link.appendChild(label);
+      return link;
+    }
 
+
+    function buildToolTile(kind) {
+      const tileInfo = {
+        chordFactory: {
+          className: "factory",
+          href: "chord-factory.html",
+          abbr: "⊞",
+          label: "Chord Factory",
+          title: "Open Chord Factory"
+        },
+        progression: {
+          className: "progression",
+          href: "progression-builder.html",
+          abbr: "≡",
+          label: "Progression Studio",
+          title: "Open Progression Studio"
+        },
+        designer: {
+          className: "designer",
+          href: "design-studio.html",
+          abbr: "DS",
+          label: "Design Studio",
+          title: "Open Design Studio"
+        }
+      }[kind];
+
+      const link = document.createElement("a");
+      link.classList.add("tile", tileInfo.className);
+      link.href = tileInfo.href;
+      link.title = tileInfo.title;
+
+      const abbr = document.createElement("div");
+      abbr.classList.add("abbr");
+      abbr.textContent = tileInfo.abbr;
+
+      const label = document.createElement("div");
+      label.classList.add("label");
+      label.textContent = tileInfo.label;
+
+      link.appendChild(abbr);
+      link.appendChild(label);
       return link;
     }
 
@@ -193,60 +248,36 @@
       menuGrid.innerHTML = "";
 
       systemOrder.forEach(systemKey => {
-
-        if (systemKey === "chordfactory") {
-          menuGrid.appendChild(
-            createTile(
-              "chordfactory",
-              "chord-factory.html",
-              "CF",
-              "Chord Factory"
-            )
-          );
-
+        if (systemKey === "custom") {
+          menuGrid.appendChild(buildCustomTile());
           return;
         }
 
-        if (systemKey === "progressionstudio") {
-          menuGrid.appendChild(
-            createTile(
-              "progressionstudio",
-              "progression-builder.html",
-              "PS",
-              "Progression Studio"
-            )
-          );
-
-          return;
-        }
-
-        if (systemKey === "designstudio") {
-          menuGrid.appendChild(
-            createTile(
-              "designstudio",
-              "design-studio.html",
-              "DS",
-              "Design Studio"
-            )
-          );
-
+        if (["chordFactory", "progression", "designer"].includes(systemKey)) {
+          menuGrid.appendChild(buildToolTile(systemKey));
           return;
         }
 
         const system = systems[systemKey];
+        if (!system) return;
 
-        if (!system) {
-          return;
-        }
+        const link = document.createElement("a");
+        link.classList.add("tile");
+        link.classList.add(systemKey);
+        link.href = buildSystemLink(systemKey, system);
 
-        menuGrid.appendChild(
-          createTile(
-            systemKey,
-            buildSystemLink(systemKey, system),
-            system.shortLabel || system.label.slice(0, 2).toUpperCase(),
-            system.label
-          )
-        );
+        const abbr = document.createElement("div");
+        abbr.classList.add("abbr");
+        abbr.textContent = system.shortLabel || system.label.slice(0, 2).toUpperCase();
+
+        const label = document.createElement("div");
+        label.classList.add("label");
+        label.textContent = system.label;
+
+        link.appendChild(abbr);
+        link.appendChild(label);
+
+        menuGrid.appendChild(link);
       });
     }
 

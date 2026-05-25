@@ -598,7 +598,7 @@
     }
 
     body.playline-mode .transport-row {
-      order: 5;
+      order: 6;
       display: flex;
       background: rgba(255,255,255,0.055);
       border: 1px solid rgba(255,255,255,0.08);
@@ -608,14 +608,20 @@
       box-sizing: border-box;
     }
 
-    body.design-edit-mode #designPhrasePanel,
-    body.playline-mode #designPhrasePanel {
+    body.design-edit-mode #designPhrasePanel {
       order: 6;
     }
 
-    body.design-edit-mode #grid,
-    body.playline-mode #grid {
+    body.playline-mode #designPhrasePanel {
       order: 7;
+    }
+
+    body.design-edit-mode #grid {
+      order: 7;
+    }
+
+    body.playline-mode #grid {
+      order: 5;
     }
 
     body.design-edit-mode #capturePhraseButton,
@@ -627,6 +633,31 @@
       background: rgba(155,235,215,0.92);
       color: #102522;
     }
+
+    .design-phrase-panel.collapsed {
+      padding: 12px 14px;
+    }
+
+    .design-phrase-panel.collapsed .phrase-timeline-shell,
+    .design-phrase-panel.collapsed .phrase-editor-note,
+    .design-phrase-panel.collapsed .design-phrase-actions .phrase-action-button:not(.playline-toggle) {
+      display: none !important;
+    }
+
+    .design-phrase-panel.collapsed .design-phrase-header {
+      margin-bottom: 0;
+    }
+
+    .playline-toggle {
+      background: rgba(155,235,215,0.92);
+      color: #102522;
+    }
+
+    .custom-square-button-active {
+      background: rgba(155,235,215,0.92) !important;
+      color: #102522 !important;
+    }
+
 
     .phrase-editor-note {
       margin: 10px 0 0;
@@ -852,9 +883,9 @@
   <a
     class="top-button chord-button"
     id="chordButton"
-    href="chord-factory.html"
-    title="Open Chord Factory"
-  >⊞</a>
+    href="design-studio.html"
+    title="Open Design Studio"
+  >DS</a>
 
   <a
     class="top-button settings-button"
@@ -877,6 +908,7 @@
   <div class="view-toggle-row">
     <button id="nativeButton" class="view-toggle">Native</button>
     <button id="fullButton" class="view-toggle">Full</button>
+    <button id="customizeSquareButton" class="view-toggle" hidden>Customize Square</button>
   </div>
 
   <button id="startAudioButton">Begin Sound</button>
@@ -955,6 +987,9 @@
       </div>
 
       <div class="design-phrase-actions">
+        <button id="playlineToggleButton" class="phrase-action-button playline-toggle" type="button">
+          ▾ Show Play Line
+        </button>
         <button id="playPhraseButton" class="phrase-action-button primary" type="button">
           ▶ Play Line
         </button>
@@ -1054,6 +1089,7 @@
     const chordButton = document.getElementById("chordButton");
     const nativeButton = document.getElementById("nativeButton");
     const fullButton = document.getElementById("fullButton");
+    const customizeSquareButton = document.getElementById("customizeSquareButton");
 
     const designPhrasePanel = document.getElementById("designPhrasePanel");
     const designPhraseTitle = document.getElementById("designPhraseTitle");
@@ -1079,6 +1115,7 @@
     const clearPhraseLineButton = document.getElementById("clearPhraseLineButton");
     const resetPhraseLineButton = document.getElementById("resetPhraseLineButton");
     const phraseTrash = document.getElementById("phraseTrash");
+    const playlineToggleButton = document.getElementById("playlineToggleButton");
 
     const PHRASE_BEAT_WIDTH = 76;
     const PLAYER_EDIT_PAYLOAD_KEYS = [
@@ -1088,6 +1125,7 @@
       "orumiDesignStudioSelectionForPlayer"
     ];
     const PLAYER_MELODY_LIBRARY_KEY = "orumiPlayerMelodyLibrary";
+    const CUSTOM_SOUND_SQUARE_KEY = "orumiCustomSoundSquare";
 
     let designPhrasePayload = null;
     let designPhraseBlocks = [];
@@ -2170,6 +2208,8 @@
 
       document.body.classList.add("playline-mode");
       designPhrasePanel.hidden = false;
+      designPhrasePanel.classList.add("collapsed");
+      updatePlaylineCollapseButton();
 
       pageTitle.textContent = "Orumi Player";
       recordingStudioLink.textContent = "Open Design Studio";
@@ -2947,7 +2987,7 @@
 
     function refreshNavLinks() {
       settingsButton.href = "selection-control.html" + window.location.search;
-      chordButton.href = "chord-factory.html" + window.location.search;
+      chordButton.href = "design-studio.html" + window.location.search;
       recordingStudioLink.href = "design-studio.html" + window.location.search;
     }
 
@@ -2970,18 +3010,106 @@
         family.modes[Object.keys(family.modes)[0]];
     }
 
+    function getDisplayOctaves(system) {
+      const defaults = Array.isArray(system && system.defaultOctaves)
+        ? system.defaultOctaves
+        : [3,4,5];
+
+      const cleaned = [...new Set(defaults)]
+        .map(value => parseInt(value, 10))
+        .filter(value => value >= 1 && value <= 6)
+        .sort((a, b) => a - b);
+
+      if (cleaned.length > 3) {
+        return cleaned.slice(cleaned.length - 3);
+      }
+
+      return cleaned.length ? cleaned : [3,4,5];
+    }
+
+
+
+    function getCustomSoundSquare() {
+      const saved = safeJsonParse(localStorage.getItem(CUSTOM_SOUND_SQUARE_KEY));
+      if (saved && typeof saved === "object") {
+        return saved;
+      }
+
+      return {
+        name: "Custom Sound Square",
+        systemKey: "western",
+        root: "C",
+        familyKey: "diatonic",
+        modeKey: "ionian",
+        setView: "native",
+        octaves: [3,4,5],
+        voice: "softKeys"
+      };
+    }
+
+    function saveCustomSoundSquare(config) {
+      localStorage.setItem(CUSTOM_SOUND_SQUARE_KEY, JSON.stringify(config));
+    }
+
+    function isCustomSquareMode() {
+      const params = getUrlParams();
+      return params.get("custom") === "1" || params.get("system") === "custom";
+    }
+
+    function getFirstKey(object) {
+      return object ? Object.keys(object)[0] : null;
+    }
+
+    function askFromList(label, options, currentValue) {
+      const entries = Object.entries(options || {});
+      const list = entries
+        .map(([key, value]) => key + " = " + (value.label || key))
+        .join("\n");
+
+      const answer = window.prompt(
+        label + "\n\n" + list,
+        currentValue || (entries[0] && entries[0][0]) || ""
+      );
+
+      if (!answer) return null;
+
+      const trimmed = answer.trim();
+      return options[trimmed] ? trimmed : null;
+    }
+
+    function customizeCurrentSquare() {
+      const params = new URLSearchParams(window.location.search);
+      params.set("custom", "1");
+      params.set("return", "player");
+      statusText.textContent = "Opening Selection Control for custom square setup.";
+      window.location.href = "selection-control.html?" + params.toString();
+    }
+
+    function updatePlaylineCollapseButton() {
+      if (!playlineToggleButton || !designPhrasePanel) return;
+      const collapsed = designPhrasePanel.classList.contains("collapsed");
+      playlineToggleButton.textContent = collapsed ? "▾ Show Play Line" : "▴ Hide Play Line";
+    }
+
+    function togglePlaylinePanel() {
+      if (!designPhrasePanel) return;
+      designPhrasePanel.classList.toggle("collapsed");
+      updatePlaylineCollapseButton();
+    }
+
     function getSettingsFromUrl() {
       const params = getUrlParams();
+      const customSquare = isCustomSquareMode() ? getCustomSoundSquare() : null;
 
-      const systemKey = params.get("system") || "western";
+      const systemKey = customSquare ? (customSquare.systemKey || "western") : (params.get("system") || "western");
       const system = getSystem(systemKey);
 
-      const root = params.get("root") || system.defaultRoot || "C";
-      const familyKey = params.get("family") || system.defaultFamily;
-      const modeKey = params.get("scaleMode") || system.defaultMode;
-      const setView = params.get("set") || system.defaultSet || "native";
-      const requestedVoice = params.get("voice") || system.defaultVoice || "warm";
-      const octavesParam = params.get("octaves");
+      const root = customSquare ? (customSquare.root || system.defaultRoot || "C") : (params.get("root") || system.defaultRoot || "C");
+      const familyKey = customSquare ? (customSquare.familyKey || system.defaultFamily) : (params.get("family") || system.defaultFamily);
+      const modeKey = customSquare ? (customSquare.modeKey || system.defaultMode) : (params.get("scaleMode") || system.defaultMode);
+      const setView = customSquare ? (customSquare.setView || system.defaultSet || "native") : (params.get("set") || system.defaultSet || "native");
+      const requestedVoice = customSquare ? (customSquare.voice || system.defaultVoice || "warm") : (params.get("voice") || system.defaultVoice || "warm");
+      const octavesParam = customSquare ? null : params.get("octaves");
 
       const family = getFamily(system, familyKey);
       const mode = getMode(family, modeKey);
@@ -2991,10 +3119,14 @@
             .split(",")
             .map(value => parseInt(value, 10))
             .filter(value => value >= 1 && value <= 6)
-        : [...(system.defaultOctaves || [2,3,4,5])];
+        : [...(customSquare && Array.isArray(customSquare.octaves) ? customSquare.octaves : getDisplayOctaves(system))];
 
       if (octaves.length === 0) {
-        octaves = [2,3,4,5];
+        octaves = getDisplayOctaves(system);
+      }
+
+      if (!customSquare && !octavesParam && octaves.length > 3) {
+        octaves = octaves.slice(octaves.length - 3);
       }
 
       return {
@@ -3007,7 +3139,9 @@
         voice: ORUMI_CATALOG.voices[requestedVoice]
           ? requestedVoice
           : system.defaultVoice || "warm",
-        octaves: [...new Set(octaves)].sort((a,b) => a - b)
+        octaves: [...new Set(octaves)].sort((a,b) => a - b),
+        isCustom: !!customSquare,
+        customName: customSquare ? (customSquare.name || "Custom Sound Square") : null
       };
     }
 
@@ -3238,17 +3372,28 @@
     }
 
     function updateViewButtons() {
-      const { setView } = getSettingsFromUrl();
+      const { setView, isCustom } = getSettingsFromUrl();
 
       nativeButton.classList.toggle("active", setView === "native");
       fullButton.classList.toggle("active", setView === "full");
+
+      if (customizeSquareButton) {
+        customizeSquareButton.hidden = !isCustom;
+        customizeSquareButton.classList.toggle("custom-square-button-active", isCustom);
+      }
     }
 
     function setViewMode(nextView) {
-      const params = getUrlParams();
-      params.set("set", nextView);
-
-      history.replaceState({}, "", "?" + params.toString());
+      if (isCustomSquareMode()) {
+        const config = getCustomSoundSquare();
+        config.setView = nextView;
+        config.updatedAt = new Date().toISOString();
+        saveCustomSoundSquare(config);
+      } else {
+        const params = getUrlParams();
+        params.set("set", nextView);
+        history.replaceState({}, "", "?" + params.toString());
+      }
 
       refreshNavLinks();
       buildGrid();
@@ -3261,6 +3406,10 @@
     fullButton.addEventListener("click", () => {
       setViewMode("full");
     });
+
+    if (customizeSquareButton) {
+      customizeSquareButton.addEventListener("click", customizeCurrentSquare);
+    }
 
     function buildGrid() {
       stopAllNotes();
@@ -3346,9 +3495,12 @@
         grid.appendChild(row);
       });
 
-      pageTitle.textContent = system.label + " Sound Square";
+      pageTitle.textContent = isCustomSquareMode()
+        ? (getSettingsFromUrl().customName || "Custom Sound Square")
+        : system.label + " Sound Square";
 
       gridLabel.textContent =
+        (isCustomSquareMode() ? "Custom · " : "") +
         pitchClasses[root].display +
         " · " +
         family.label +
@@ -4047,6 +4199,10 @@
             }, Math.min(autoDuration, 1.2) * 1000);
           }
 
+          setTimeout(() => {
+            ORUMI_VOICES.stopVoice(noteRecord, audioContext, 0.12);
+          }, Math.max(0.05, autoDuration) * 1000);
+
           trackRecentNote(button);
 
           setTimeout(() => {
@@ -4184,6 +4340,10 @@
 
     if (resetPhraseLineButton) {
       resetPhraseLineButton.addEventListener("click", resetPhraseLineToOriginal);
+    }
+
+    if (playlineToggleButton) {
+      playlineToggleButton.addEventListener("click", togglePlaylinePanel);
     }
 
     setupPhraseDropTarget();

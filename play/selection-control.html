@@ -63,7 +63,7 @@
     .back-button { left: 18px; }
     .home-button { right: 18px; }
     .player-button { right: 76px; }
-    .chord-button { right: 134px; }
+    .design-button { right: 134px; }
 
     .control-panel {
       width: min(96vw, 920px);
@@ -243,11 +243,11 @@
   >□</a>
 
   <a
-    class="top-button chord-button"
-    id="chordButton"
-    href="chord-factory.html"
-    title="Open Chord Factory"
-  >⊞</a>
+    class="top-button design-button"
+    id="designButton"
+    href="design-studio.html"
+    title="Open Design Studio"
+  >DS</a>
 
   <h1>Selection Control</h1>
 
@@ -312,9 +312,9 @@
         <a
           class="action-button secondary"
           id="openChordFactoryButton"
-          href="chord-factory.html"
+          href="design-studio.html"
         >
-          Open Chord Factory
+          Open Design Studio
         </a>
 
         <button
@@ -335,13 +335,13 @@
     const playerButton =
       document.getElementById("playerButton");
 
-    const chordButton =
-      document.getElementById("chordButton");
+    const designButton =
+      document.getElementById("designButton");
 
     const openPlayerButton =
       document.getElementById("openPlayerButton");
 
-    const openChordFactoryButton =
+    const openDesignStudioButton =
       document.getElementById("openChordFactoryButton");
 
     const resetButton =
@@ -436,8 +436,11 @@
     let selectedOctaves =
       parseOctaves(
         params.get("octaves") ||
-        (selectedSystem.defaultOctaves || [2,3,4,5]).join(",")
+        (selectedSystem.defaultOctaves || [3,4,5]).join(",")
       );
+
+    let showAllVoices =
+      params.get("showVoices") === "all";
 
     backButton.addEventListener("click", () => {
       if (window.history.length > 1) {
@@ -455,7 +458,7 @@
       selectedMode = selectedSystem.defaultMode || "ionian";
       selectedSet = selectedSystem.defaultSet || "native";
       selectedVoice = selectedSystem.defaultVoice || "softKeys";
-      selectedOctaves = [...(selectedSystem.defaultOctaves || [2,3,4,5])];
+      selectedOctaves = [...(selectedSystem.defaultOctaves || [3,4,5])];
 
       buildAll();
     });
@@ -472,7 +475,7 @@
 
       return valid.length > 0
         ? [...new Set(valid)].sort((a,b) => a - b)
-        : [2,3,4,5];
+        : [3,4,5];
     }
 
     function pcToName(pcNumber) {
@@ -588,7 +591,7 @@
               }
 
               selectedOctaves =
-                [...(selectedSystem.defaultOctaves || [2,3,4,5])];
+                [...(selectedSystem.defaultOctaves || [3,4,5])];
 
               buildAll();
             }
@@ -758,10 +761,43 @@
       });
     }
 
+    function getDefaultVoiceKeys() {
+      const preferred = [
+        "softKeys",
+        "warm",
+        "pure",
+        "organ",
+        "choir",
+        "synth",
+        "piano"
+      ];
+
+      const systemDefaults =
+        Object.values(systems)
+          .map(system => system && system.defaultVoice)
+          .filter(Boolean);
+
+      const keys =
+        [...new Set([...preferred, ...systemDefaults])]
+          .filter(key => voices[key]);
+
+      if (voices[selectedVoice] && !keys.includes(selectedVoice) && !showAllVoices) {
+        keys.push(selectedVoice);
+      }
+
+      return keys.length ? keys : Object.keys(voices).slice(0, 6);
+    }
+
     function buildVoiceGrid() {
       voiceGrid.innerHTML = "";
 
-      Object.entries(voices).forEach(([key, voice]) => {
+      const defaultKeys = getDefaultVoiceKeys();
+      const allEntries = Object.entries(voices);
+      const visibleEntries = showAllVoices
+        ? allEntries
+        : defaultKeys.map(key => [key, voices[key]]).filter(entry => entry[1]);
+
+      visibleEntries.forEach(([key, voice]) => {
         const button =
           makeButton(
             voice.label || key,
@@ -775,6 +811,69 @@
 
         voiceGrid.appendChild(button);
       });
+
+      const hiddenCount =
+        allEntries.filter(([key]) => !defaultKeys.includes(key)).length;
+
+      if (!showAllVoices && hiddenCount > 0) {
+        const moreButton =
+          makeButton(
+            "More Orumi Sounds…",
+            ["control-square"],
+            false,
+            () => {
+              showAllVoices = true;
+              buildAll();
+            }
+          );
+
+        voiceGrid.appendChild(moreButton);
+      } else if (showAllVoices && hiddenCount > 0) {
+        const fewerButton =
+          makeButton(
+            "Show Defaults",
+            ["control-square"],
+            false,
+            () => {
+              showAllVoices = false;
+              buildAll();
+            }
+          );
+
+        voiceGrid.appendChild(fewerButton);
+      }
+    }
+
+    function isCustomSetupMode() {
+      return params.get("custom") === "1";
+    }
+
+    function saveCustomSoundSquareSelection() {
+      if (!isCustomSetupMode()) {
+        return;
+      }
+
+      const family = getCurrentFamily();
+      const mode = getCurrentMode();
+      const voice = voices[selectedVoice];
+
+      const saved = {
+        name:
+          (selectedSystem.label || selectedSystemKey) +
+          " " +
+          (mode ? mode.label : selectedMode),
+        systemKey: selectedSystemKey,
+        root: selectedRoot,
+        familyKey: selectedFamily,
+        modeKey: selectedMode,
+        setView: selectedSet,
+        octaves: selectedOctaves,
+        voice: selectedVoice,
+        voiceLabel: voice ? voice.label : selectedVoice,
+        updatedAt: new Date().toISOString()
+      };
+
+      localStorage.setItem("orumiCustomSoundSquare", JSON.stringify(saved));
     }
 
     function buildUrl(pageName) {
@@ -788,6 +887,10 @@
       urlParams.set("set", selectedSet);
       urlParams.set("octaves", selectedOctaves.join(","));
       urlParams.set("voice", selectedVoice);
+
+      if (isCustomSetupMode() && pageName === "player.html") {
+        urlParams.set("custom", "1");
+      }
 
       return pageName + "?" + urlParams.toString();
     }
@@ -803,6 +906,7 @@
         voices[selectedVoice];
 
       summary.textContent =
+        (isCustomSetupMode() ? "Custom Square · " : "") +
         selectedSystem.label +
         " · " +
         pitchClasses[selectedRoot].display +
@@ -820,14 +924,30 @@
       const playerUrl =
         buildUrl("player.html");
 
-      const chordUrl =
-        buildUrl("chord-factory.html");
+      const designUrl =
+        buildUrl("design-studio.html");
 
       playerButton.href = playerUrl;
       openPlayerButton.href = playerUrl;
 
-      chordButton.href = chordUrl;
-      openChordFactoryButton.href = chordUrl;
+      if (isCustomSetupMode()) {
+        openPlayerButton.textContent = "Save Custom Square + Open Player";
+      }
+
+      designButton.href = designUrl;
+      openDesignStudioButton.href = designUrl;
+    }
+
+    if (openPlayerButton) {
+      openPlayerButton.addEventListener("click", () => {
+        saveCustomSoundSquareSelection();
+      });
+    }
+
+    if (playerButton) {
+      playerButton.addEventListener("click", () => {
+        saveCustomSoundSquareSelection();
+      });
     }
 
     function buildAll() {
