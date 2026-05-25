@@ -3340,7 +3340,8 @@
           root: project.context.root,
           family: project.context.family,
           mode: project.context.mode,
-          voice: project.context.voice
+          voice: project.context.voice,
+          laneVoices: laneVoiceMap
         }
       };
     }
@@ -3386,6 +3387,10 @@
       const currentMode = getCurrentMode();
       const currentFamily = getCurrentFamily();
       const currentSystem = getCurrentSystem();
+      const laneVoiceMap = project.lanes.reduce((map, laneItem) => {
+        map[laneItem.id] = laneItem.voice || project.context.voice || null;
+        return map;
+      }, {});
 
       return {
         version: 1,
@@ -3419,7 +3424,8 @@
             relativeStartBeat: Number(block.startBeat || 0) - minStart,
             durationBeats: Number(block.durationBeats || MIN_DURATION),
             velocity: Number(block.velocity || 82),
-            voice: block.voice || null,
+            voice: block.voice || (lane ? lane.voice : null) || project.context.voice || null,
+            laneVoice: lane ? lane.voice : null,
             system: block.system || project.context.system,
             locationLabel: "M" + noteLocation.measure + " beat " + formatBeatValue(noteLocation.beatWithinMeasure)
           };
@@ -3434,7 +3440,8 @@
           familyLabel: currentFamily ? currentFamily.label : project.context.family,
           mode: project.context.mode,
           modeLabel: currentMode ? currentMode.label || project.context.mode : project.context.mode,
-          voice: project.context.voice
+          voice: project.context.voice,
+          laneVoices: laneVoiceMap
         }
       };
     }
@@ -3454,6 +3461,17 @@
       }
 
       const payload = buildSuggestHarmonyPayload(selectedBlocks);
+      payload.handoffId = "harmony_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2);
+      payload.selectedLineLabel = payload.laneName || payload.laneId || "Selected Line";
+
+      // Clear stale Progression/Chord Factory contexts so the selected line is
+      // the only thing Progression can open, regardless of which lane was chosen.
+      [
+        "orumiProgressionChordFactoryContext",
+        "orumiDesignProgressionReviewPayload",
+        "orumiProgressionReviewPayload",
+        "orumiPendingProgressionReviewPayload"
+      ].forEach(key => localStorage.removeItem(key));
 
       localStorage.setItem("orumiSuggestHarmonyPayload", JSON.stringify(payload));
       localStorage.setItem("orumiPendingSuggestHarmonyPayload", JSON.stringify(payload));
@@ -3469,7 +3487,11 @@
       flashStatus("Opening Progression Builder to suggest harmony for " + selectedBlocks.length + " melody note" + (selectedBlocks.length === 1 ? "" : "s") + "…");
 
       window.setTimeout(() => {
-        window.location.href = "progression-builder.html?mode=suggestHarmony&source=design-studio";
+        const progressionUrl =
+          "progression-builder.html?mode=suggestHarmony&source=design-studio" +
+          "&handoff=" + encodeURIComponent(payload.handoffId) +
+          "&lane=" + encodeURIComponent(payload.laneId || "selected-line");
+        window.location.href = progressionUrl;
       }, 220);
     }
 
@@ -3509,6 +3531,11 @@
         return null;
       }
 
+      const laneVoiceMap = project.lanes.reduce((map, laneItem) => {
+        map[laneItem.id] = laneItem.voice || project.context.voice || null;
+        return map;
+      }, {});
+
       const anchorBeats = [];
       noteBlocks.forEach(block => {
         const beat = snapBeat(Number(block.startBeat || 0));
@@ -3540,6 +3567,16 @@
           family: project.context.family,
           mode: project.context.mode,
           voice: stackBlocks.find(block => getLaneVoiceForBlock(block)) ? getLaneVoiceForBlock(stackBlocks.find(block => getLaneVoiceForBlock(block))) : project.context.voice,
+          voiceAssignments: stackBlocks.map(block => {
+            const lane = project.lanes.find(item => item.id === block.laneId);
+            return {
+              laneId: block.laneId,
+              laneName: lane ? lane.name : block.laneId,
+              voice: getLaneVoiceForBlock(block),
+              midi: Number(block.midi),
+              name: block.name || midiToDisplayName(block.midi)
+            };
+          }),
           notes,
           startBeat: beat,
           relativeStartBeat: beat - Number(noteBlocks[0].startBeat || 0),

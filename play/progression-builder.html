@@ -1129,18 +1129,39 @@
       const params = getUrlParams();
       const mode = String(params.get("mode") || "").toLowerCase();
       const source = String(params.get("source") || "").toLowerCase();
+      const explicitSuggestMode = [
+        "suggestharmony",
+        "suggest-harmony",
+        "harmonizemelody",
+        "harmonize-melody",
+        "harmonizeselection",
+        "harmonize-selection"
+      ].includes(mode);
 
-      return (
-        source === "design-studio" &&
-        [
-          "suggestharmony",
-          "suggest-harmony",
-          "harmonizemelody",
-          "harmonize-melody",
-          "harmonizeselection",
-          "harmonize-selection"
-        ].includes(mode)
-      );
+      if (source === "design-studio" && explicitSuggestMode) {
+        return true;
+      }
+
+      // Safety net: sometimes mobile/browser navigation can arrive without
+      // query parameters even though Design successfully wrote the handoff.
+      // In that case, open Suggest Harmony if a valid pending handoff exists.
+      if (!source && !mode) {
+        return HARMONY_PAYLOAD_KEYS.some(key => {
+          const payload = safeJsonParse(localStorage.getItem(key));
+          const notes = payload && (
+            Array.isArray(payload.notes) ? payload.notes :
+            Array.isArray(payload.blocks) ? payload.blocks :
+            Array.isArray(payload.selectedBlocks) ? payload.selectedBlocks :
+            Array.isArray(payload.melody) ? payload.melody : []
+          );
+
+          return Array.isArray(notes) && notes.some(note =>
+            Number.isFinite(Number(note && (note.midi ?? note.noteMidi)))
+          );
+        });
+      }
+
+      return false;
     }
 
     function readHarmonyPayload() {
@@ -2043,12 +2064,31 @@
     }
 
     function buildProgressionChordFactoryContextForHarmonyChoice(note, choice) {
+      const fixedVoiceRole = getHarmonyVoiceRoleForNote(note);
+      const fixedVoiceLabel = getHarmonyVoiceRoleLabel(fixedVoiceRole);
+
       return {
         source: "progression-builder",
         mode: "editHarmonyChoice",
+        editContext: "suggestHarmony",
+        fixedHarmonyPerspective: true,
+        fixedVoiceRole,
+        fixedVoiceLabel,
         createdAt: new Date().toISOString(),
-        note,
-        choice,
+        note: {
+          ...note,
+          laneId: note.laneId || fixedVoiceRole,
+          role: note.role || fixedVoiceRole,
+          voiceRole: fixedVoiceRole,
+          laneName: note.laneName || fixedVoiceLabel
+        },
+        choice: {
+          ...choice,
+          targetVoiceRole: fixedVoiceRole,
+          targetVoiceLabel: fixedVoiceLabel,
+          targetLaneId: fixedVoiceRole,
+          keepCurrentVoice: true
+        },
         harmonyPayload,
         harmonyChoices,
         returnUrl: "progression-builder.html?mode=suggestHarmony&source=design-studio"

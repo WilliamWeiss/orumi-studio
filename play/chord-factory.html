@@ -1474,6 +1474,43 @@
       return null;
     }
 
+    function isFixedProgressionHarmonyEdit() {
+      return !!(
+        progressionEditContext &&
+        progressionEditContext.source === "progression-builder" &&
+        progressionEditContext.mode === "editHarmonyChoice"
+      );
+    }
+
+    function getFixedProgressionHarmonyLaneId() {
+      if (!isFixedProgressionHarmonyEdit()) return null;
+
+      const choice = progressionEditContext.choice || {};
+      const note = progressionEditContext.note || {};
+
+      return (
+        choice.targetVoiceRole ||
+        choice.targetLaneId ||
+        note.laneId ||
+        note.role ||
+        note.voiceRole ||
+        null
+      );
+    }
+
+    function getAllowedSuggestionTargetLanes() {
+      const lanes = getDesignVoiceLanesLowToHigh().slice().reverse();
+      const fixedLaneId = getFixedProgressionHarmonyLaneId();
+
+      if (!fixedLaneId) {
+        return lanes;
+      }
+
+      return lanes.includes(fixedLaneId)
+        ? [fixedLaneId]
+        : [fixedLaneId];
+    }
+
     function applyProgressionEditPayload() {
       const context = getProgressionEditContext();
 
@@ -1599,6 +1636,10 @@
         anchorLaneId: choice.targetVoiceRole || choice.targetLaneId || context.note?.laneId || (assignmentBlocks[0] && assignmentBlocks[0].laneId),
         anchorLaneName: choice.targetVoiceLabel || getLaneLabel(choice.targetVoiceRole || choice.targetLaneId || context.note?.laneId || "lead"),
         anchorMidi: Number(choice.midi || context.note?.midi || (assignmentBlocks[0] && assignmentBlocks[0].midi)),
+        fixedHarmonyPerspective: !isProgressionChordEdit,
+        fixedHarmonyLaneId: !isProgressionChordEdit
+          ? (choice.targetVoiceRole || choice.targetLaneId || context.note?.laneId || context.note?.role || null)
+          : null,
         returnUrl: context.returnUrl || "progression-builder.html"
       };
 
@@ -1616,8 +1657,10 @@
         incomingDesignContext.textContent =
           "Editing " +
           (choice.chordSymbol || choice.root || "selected chord") +
-          " from Progression Builder. Adjust the chord here, then send it back to Progression" +
-          (isProgressionChordEdit ? "." : " or directly to Design.");
+          " from Progression Builder. " +
+          (isProgressionChordEdit
+            ? "This is a reviewed progression chord, so revoicing is open. Adjust the chord here, then send it back to Progression."
+            : "This came from Suggest Harmony, so the selected-line voice is fixed. Adjust the chord here, then send it back to Progression.");
       }
 
       if (!isProgressionChordEdit) {
@@ -2108,7 +2151,7 @@
       if (!anchor) return [];
 
       const anchorPc = ((anchor.midi % 12) + 12) % 12;
-      const targetLanes = getDesignVoiceLanesLowToHigh().slice().reverse();
+      const targetLanes = getAllowedSuggestionTargetLanes();
       const suggestions = [];
 
       Object.keys(pitchClasses).forEach(rootName => {
@@ -2180,6 +2223,23 @@
     function updateVoicePerspectiveControl() {
       if (!voicePerspectiveRow || !voicePerspectiveSelect) return;
 
+      if (isFixedProgressionHarmonyEdit()) {
+        const fixedLaneId = getFixedProgressionHarmonyLaneId() || selectedPerspectiveLaneId || "lead";
+        const anchor = getSuggestionAnchorBlock();
+        selectedPerspectiveLaneId = fixedLaneId;
+        voicePerspectiveRow.hidden = false;
+        voicePerspectiveSelect.innerHTML = "";
+        const option = document.createElement("option");
+        option.value = fixedLaneId;
+        option.textContent = "Fixed: " + getLaneLabel(fixedLaneId) + (anchor ? " — " + anchor.name : "");
+        voicePerspectiveSelect.appendChild(option);
+        voicePerspectiveSelect.value = fixedLaneId;
+        voicePerspectiveSelect.disabled = true;
+        return;
+      }
+
+      voicePerspectiveSelect.disabled = false;
+
       if (!designEditPayload || !Array.isArray(designEditPayload.selectedBlocks)) {
         voicePerspectiveRow.hidden = true;
         return;
@@ -2226,7 +2286,7 @@
       }
 
       const allSuggestions = buildVoiceAwareSuggestions();
-      const lanesHighToLow = getDesignVoiceLanesLowToHigh().slice().reverse();
+      const lanesHighToLow = getAllowedSuggestionTargetLanes();
       const byLane = new Map();
       lanesHighToLow.forEach(laneId => byLane.set(laneId, []));
 
@@ -2237,10 +2297,20 @@
         byLane.get(suggestion.targetLaneId).push(suggestion);
       });
 
-      voiceSuggestionIntro.textContent =
-        "Selected note: " + midiToDisplayName(anchor.midi) +
-        " · current voice: " + getLaneLabel(anchor.laneId) +
-        ". Pick a chord by where that note should live.";
+      if (isFixedProgressionHarmonyEdit()) {
+        const fixedLaneId = getFixedProgressionHarmonyLaneId() || anchor.laneId;
+        voiceSuggestionIntro.textContent =
+          "Fixed Progression perspective: keep " +
+          midiToDisplayName(anchor.midi) +
+          " as " +
+          getLaneLabel(fixedLaneId) +
+          ". Pick a chord while preserving the selected line voice.";
+      } else {
+        voiceSuggestionIntro.textContent =
+          "Selected note: " + midiToDisplayName(anchor.midi) +
+          " · current voice: " + getLaneLabel(anchor.laneId) +
+          ". Pick a chord by where that note should live.";
+      }
 
       voiceSuggestionGroups.innerHTML = "";
 
@@ -2254,7 +2324,9 @@
         const title = document.createElement("div");
         title.className = "voice-suggestion-title";
         title.textContent =
-          (laneId === anchor.laneId ? "Keep note as " : "Use note as ") +
+          (isFixedProgressionHarmonyEdit()
+            ? "Keep fixed note as "
+            : (laneId === anchor.laneId ? "Keep note as " : "Use note as ")) +
           getLaneLabel(laneId);
         group.appendChild(title);
 
