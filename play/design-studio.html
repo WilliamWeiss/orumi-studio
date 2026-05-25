@@ -1039,15 +1039,6 @@
         margin-top: 82px;
       }
 
-
-      .design-studio-mark {
-        margin-top: 82px;
-      }
-
-      .design-studio-mark + h1 {
-        margin-top: 10px;
-      }
-
       .studio {
         grid-template-columns: 1fr;
       }
@@ -2525,7 +2516,9 @@
           voice: isRest ? null : (block.voice === undefined ? null : block.voice),
           system: block.system || project.context.system,
           source: block.source || null,
-          sourceId: block.sourceId || null
+          sourceId: block.sourceId || null,
+          sourceTrackName: block.sourceTrackName || null,
+          sourceVoice: block.sourceVoice || null
         };
       });
     }
@@ -3598,10 +3591,6 @@
       const lane = project.lanes.find(item => item.id === selectedBlocks[0].laneId);
       const location = beatToMeasureInfo(minStart);
       const returnFile = window.location.pathname.split("/").pop() || "design-studio.html";
-      const laneVoiceMap = project.lanes.reduce((map, laneItem) => {
-        map[laneItem.id] = laneItem.voice || project.context.voice || null;
-        return map;
-      }, {});
 
       return {
         version: 1,
@@ -5205,7 +5194,7 @@
       const beat = getBestChordAnalysisBeatForBlock(block);
       const location = beatToMeasureInfo(beat);
 
-      selectStackAtBeat(beat, "M" + location.measure + " beat " + formatBeatValue(location.beatWithinMeasure));
+      selectStackAtBeat(beat, "M" + location.measure + " beat " + formatBeatValue(location.beatWithinMeasure), block.id);
     }
 
     function getPrimarySelectedNoteBlock() {
@@ -5270,7 +5259,7 @@
       const beat = snapBeat(fallbackBeat);
       const location = beatToMeasureInfo(beat);
 
-      selectStackAtBeat(beat, "M" + location.measure + " beat " + formatBeatValue(location.beatWithinMeasure));
+      selectStackAtBeat(beat, "M" + location.measure + " beat " + formatBeatValue(location.beatWithinMeasure), block.id);
     }
 
     function createInspectorActionButton(label, tone, handler, title = "") {
@@ -6591,9 +6580,9 @@
         "Smallest start gap: " + (analysis.smallestStartGap === null ? "n/a" : formatBeatValue(analysis.smallestStartGap) + " beats") + "\n\n" +
         "Recommended grid: " + suggestedInfo.answer + " = " + suggestedInfo.label + "\n\n" +
         "Preview changes:\n" +
-        "4 = Quarter notes: " + quarterBeatPreview.changedCount + " block" + (quarterBeatPreview.changedCount === 1 ? "" : "s") + " would change\n" +
-        "8 = Eighth notes: " + eighthBeatPreview.changedCount + " block" + (eighthBeatPreview.changedCount === 1 ? "" : "s") + " would change\n" +
-        "6 = Triplet subdivision: " + sixthPreview.changedCount + " block" + (sixthPreview.changedCount === 1 ? "" : "s") + " would change\n\n" +
+        "4 = Quarter notes: " + quarterPreview.changedCount + " block" + (quarterPreview.changedCount === 1 ? "" : "s") + " would change\n" +
+        "8 = Eighth notes: " + eighthPreview.changedCount + " block" + (eighthPreview.changedCount === 1 ? "" : "s") + " would change\n" +
+        "16 = Sixteenth notes: " + sixteenthPreview.changedCount + " block" + (sixteenthPreview.changedCount === 1 ? "" : "s") + " would change\n\n" +
         "Choose grid, or C to cancel:",
         suggestedInfo.answer
       );
@@ -7203,6 +7192,225 @@
       }
     }
 
+    function analyzeMidiTrackVoices(track) {
+      const notes = Array.isArray(track.notes) ? track.notes : [];
+
+      if (notes.length < 2) {
+        return {
+          hasPolyphony: false,
+          maxNotesAtOnset: notes.length,
+          onsetCount: notes.length,
+          polyphonicOnsetCount: 0
+        };
+      }
+
+      const onsetMap = new Map();
+
+      notes.forEach(note => {
+        const key = String(Math.round(Number(note.startBeat || 0) * 1000) / 1000);
+        const stack = onsetMap.get(key) || [];
+        stack.push(note);
+        onsetMap.set(key, stack);
+      });
+
+      let maxNotesAtOnset = 0;
+      let polyphonicOnsetCount = 0;
+
+      onsetMap.forEach(stack => {
+        maxNotesAtOnset = Math.max(maxNotesAtOnset, stack.length);
+        if (stack.length > 1) {
+          polyphonicOnsetCount += 1;
+        }
+      });
+
+      return {
+        hasPolyphony: polyphonicOnsetCount > 0,
+        maxNotesAtOnset,
+        onsetCount: onsetMap.size,
+        polyphonicOnsetCount
+      };
+    }
+
+    function splitMidiTrackIntoVoiceUnits(track, sourceLabel, trackIndex) {
+      const notes = Array.isArray(track.notes) ? track.notes : [];
+      const baseName = track.name || sourceLabel + " Track " + (trackIndex + 1);
+      const analysis = analyzeMidiTrackVoices(track);
+
+      if (!analysis.hasPolyphony) {
+        return [{
+          name: baseName,
+          role: "imported MIDI track",
+          notes: notes.map(note => ({
+            ...note,
+            sourceTrackName: baseName,
+            sourceVoice: "track"
+          }))
+        }];
+      }
+
+      const onsetMap = new Map();
+
+      notes.forEach(note => {
+        const key = String(Math.round(Number(note.startBeat || 0) * 1000) / 1000);
+        const stack = onsetMap.get(key) || [];
+        stack.push(note);
+        onsetMap.set(key, stack);
+      });
+
+      const upperNotes = [];
+      const lowerNotes = [];
+      const unassignedNotes = [];
+
+      Array.from(onsetMap.keys())
+        .sort((a, b) => Number(a) - Number(b))
+        .forEach(key => {
+          const stack = onsetMap.get(key)
+            .slice()
+            .sort((a, b) => Number(a.midi || 0) - Number(b.midi || 0));
+
+          if (stack.length === 1) {
+            upperNotes.push({
+              ...stack[0],
+              sourceTrackName: baseName,
+              sourceVoice: "single"
+            });
+            return;
+          }
+
+          const lower = stack[0];
+          const upper = stack[stack.length - 1];
+
+          lowerNotes.push({
+            ...lower,
+            sourceTrackName: baseName,
+            sourceVoice: "lower"
+          });
+
+          upperNotes.push({
+            ...upper,
+            sourceTrackName: baseName,
+            sourceVoice: "upper"
+          });
+
+          if (stack.length > 2) {
+            stack.slice(1, -1).forEach(note => {
+              unassignedNotes.push({
+                ...note,
+                sourceTrackName: baseName,
+                sourceVoice: "unassigned"
+              });
+            });
+          }
+        });
+
+      const units = [];
+
+      if (upperNotes.length > 0) {
+        units.push({
+          name: baseName + " · Upper Voice",
+          role: "imported upper MIDI voice",
+          notes: upperNotes
+        });
+      }
+
+      if (lowerNotes.length > 0) {
+        units.push({
+          name: baseName + " · Lower Voice",
+          role: "imported lower MIDI voice",
+          notes: lowerNotes
+        });
+      }
+
+      if (unassignedNotes.length > 0) {
+        units.push({
+          name: baseName + " · Unassigned Tones",
+          role: "imported middle MIDI tones",
+          notes: unassignedNotes
+        });
+      }
+
+      return units.length > 0 ? units : [{
+        name: baseName,
+        role: "imported MIDI track",
+        notes: notes.map(note => ({
+          ...note,
+          sourceTrackName: baseName,
+          sourceVoice: "track"
+        }))
+      }];
+    }
+
+    function buildMidiImportUnits(parsedMidi, splitPolyphonicTracks, sourceLabel) {
+      const tracks = Array.isArray(parsedMidi.tracks) ? parsedMidi.tracks : [];
+
+      if (!splitPolyphonicTracks) {
+        return tracks.map((track, index) => {
+          const name = track.name || sourceLabel + " Track " + (index + 1);
+          return {
+            name,
+            role: "imported MIDI track",
+            notes: (track.notes || []).map(note => ({
+              ...note,
+              sourceTrackName: name,
+              sourceVoice: "track"
+            }))
+          };
+        });
+      }
+
+      return tracks.flatMap((track, index) =>
+        splitMidiTrackIntoVoiceUnits(track, sourceLabel, index)
+      );
+    }
+
+    function askWhetherToSplitMidiTracks(parsedMidi) {
+      const tracks = Array.isArray(parsedMidi.tracks) ? parsedMidi.tracks : [];
+      const polyphonicTracks = tracks
+        .map((track, index) => ({
+          track,
+          index,
+          analysis: analyzeMidiTrackVoices(track)
+        }))
+        .filter(item => item.analysis.hasPolyphony);
+
+      if (polyphonicTracks.length === 0) {
+        return false;
+      }
+
+      const previewLines = polyphonicTracks.slice(0, 6).map(item =>
+        (item.track.name || "Track " + (item.index + 1)) +
+        ": up to " + item.analysis.maxNotesAtOnset +
+        " notes at once"
+      );
+
+      const answer = window.prompt(
+        "Multi-voice MIDI parts detected.\n\n" +
+        previewLines.join("\n") +
+        (polyphonicTracks.length > 6 ? "\n…" : "") +
+        "\n\nSplit polyphonic tracks into editable Upper / Lower voices?\n\n" +
+        "S = Split voices\n" +
+        "K = Keep each MIDI track together\n" +
+        "C = Cancel",
+        "S"
+      );
+
+      if (!answer) {
+        return null;
+      }
+
+      const normalized = answer.trim().toLowerCase();
+
+      if (normalized === "s" || normalized === "split" || normalized === "y" || normalized === "yes") {
+        return true;
+      }
+
+      if (normalized === "k" || normalized === "keep" || normalized === "n" || normalized === "no") {
+        return false;
+      }
+
+      return null;
+    }
+
     function importParsedMidi(parsedMidi, fileName) {
       const totalNotes = parsedMidi.tracks.reduce(
         (sum, track) => sum + track.notes.length,
@@ -7216,10 +7424,10 @@
 
       const answer = window.prompt(
         "Import MIDI how?\n\n" +
-        "N = ＋ New lanes from MIDI tracks\n" +
+        "N = ＋ New lanes from MIDI tracks/voices\n" +
         "A = ⏭ Append after current design\n" +
-        "O = ◫ Overlay at start\n" +
-        "I = 📍 Insert at selected location\n" +
+        "O = ◫ Overlay at start using existing lanes\n" +
+        "I = 📍 Insert at selected location using existing lanes\n" +
         "C = Cancel",
         "N"
       );
@@ -7250,26 +7458,10 @@
         return;
       }
 
-      const importPlan = buildMidiImportPlan(parsedMidi, fileName || "Imported MIDI");
-      const shouldSplit = chooseMidiVoiceSplitMode(importPlan);
+      const splitPolyphonicTracks = askWhetherToSplitMidiTracks(parsedMidi);
 
-      if (shouldSplit === null) {
+      if (splitPolyphonicTracks === null) {
         status.textContent = "MIDI import cancelled.";
-        return;
-      }
-
-      const importTracks = shouldSplit
-        ? expandMidiTracksForVoiceSplit(importPlan)
-        : parsedMidi.tracks.map((track, index) => ({
-            name: track.name || "MIDI Track " + (index + 1),
-            role: "imported MIDI",
-            notes: track.notes,
-            sourceTrackName: track.name || "MIDI Track " + (index + 1),
-            sourceVoice: "track"
-          }));
-
-      if (importTracks.length === 0) {
-        status.textContent = "MIDI file had no importable tracks after review.";
         return;
       }
 
@@ -7289,14 +7481,21 @@
             : 0;
 
       const importedLaneIds = [];
-      const sourceLabel = (fileName || "MIDI").replace(/\.[^.]+$/, "") || "MIDI";
+      const sourceLabel = fileName.replace(/\.[^.]+$/, "") || "MIDI";
+      const importUnits = buildMidiImportUnits(parsedMidi, splitPolyphonicTracks, sourceLabel)
+        .filter(unit => Array.isArray(unit.notes) && unit.notes.length > 0);
 
-      if (importMode === "new" || shouldSplit) {
-        importTracks.forEach((track, index) => {
+      if (importUnits.length === 0) {
+        status.textContent = "MIDI file had no usable note events to import.";
+        return;
+      }
+
+      if (importMode === "new") {
+        importUnits.forEach((unit, index) => {
           const lane = {
             id: createId("lane"),
-            name: track.name || sourceLabel + " Part " + (index + 1),
-            role: track.role || "imported MIDI",
+            name: unit.name || sourceLabel + " Part " + (index + 1),
+            role: unit.role || "imported MIDI",
             voice: null
           };
 
@@ -7304,7 +7503,9 @@
           importedLaneIds[index] = lane.id;
         });
       } else {
-        importTracks.forEach((track, index) => {
+        importUnits.forEach((unit, index) => {
+          // Overlay / append / insert should reuse the current lane stack first.
+          // Only create extra lanes if the imported voices outnumber existing lanes.
           ensureLaneForChordIndex(index);
           importedLaneIds[index] = project.lanes[index]?.id || project.lanes[0].id;
         });
@@ -7312,20 +7513,22 @@
 
       let importedNoteCount = 0;
 
-      importTracks.forEach((track, trackIndex) => {
-        const laneId = importedLaneIds[trackIndex] || project.lanes[0]?.id;
+      importUnits.forEach((unit, unitIndex) => {
+        const laneId = importedLaneIds[unitIndex] || project.lanes[0]?.id;
 
         if (!laneId) {
           return;
         }
 
-        track.notes.forEach(note => {
+        unit.notes.forEach(note => {
+          const midi = Math.max(0, Math.min(127, Math.round(note.midi)));
+
           project.blocks.push({
             id: createId("note"),
             type: "note",
             laneId,
-            midi: Math.max(0, Math.min(127, Math.round(note.midi))),
-            name: midiToDisplayName(note.midi),
+            midi,
+            name: midiToDisplayName(midi),
             startBeat: snapBeat(offsetBeat + Number(note.startBeat || 0)),
             durationBeats: Math.max(MIN_DURATION, snapBeat(Number(note.durationBeats || MIN_DURATION))),
             velocity: Math.max(20, Math.min(127, Math.round(note.velocity || 86))),
@@ -7333,309 +7536,48 @@
             system: project.context.system,
             source: "midi",
             sourceId: importId,
-            sourceTrackName: track.sourceTrackName || track.name || null,
-            sourceVoice: track.sourceVoice || null
+            sourceTrackName: note.sourceTrackName || unit.name || null,
+            sourceVoice: note.sourceVoice || null
           });
 
           importedNoteCount += 1;
         });
       });
 
-      if (parsedMidi.tempoBpm && window.confirm("Use the MIDI tempo of ♩" + parsedMidi.tempoBpm + " for this design?")) {
-        project.tempo = Math.max(40, Math.min(240, Number(parsedMidi.tempoBpm)));
-      }
-
-      if ((importMode === "new" || shouldSplit) && importedLaneIds.length > 0) {
+      if (importMode === "new" && importedLaneIds.length > 0) {
+        selectedLaneId = importedLaneIds[0];
+      } else if (importedLaneIds.length > 0) {
         selectedLaneId = importedLaneIds[0];
       }
 
       localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
       render();
 
-      const splitText = shouldSplit
-        ? " Split detected multi-voice tracks into Upper / Lower" + (importTracks.some(track => track.sourceVoice === "unassigned") ? " / Unassigned" : "") + " lanes."
-        : "";
+      const unitText =
+        splitPolyphonicTracks
+          ? " split into " + importUnits.length + " voice lane target" + (importUnits.length === 1 ? "" : "s")
+          : " from " + importUnits.length + " MIDI track" + (importUnits.length === 1 ? "" : "s");
 
       const modeText =
-        importMode === "new" || shouldSplit
+        importMode === "new"
           ? "into " + importedLaneIds.length + " new lane" + (importedLaneIds.length === 1 ? "" : "s")
           : importMode === "append"
-            ? "after beat " + offsetBeat.toFixed(2)
+            ? "after beat " + offsetBeat.toFixed(2) + " using existing lanes"
             : importMode === "insert"
-              ? "at selected location " + getSelectedLocationLabel()
-              : "at the start";
+              ? "at selected location " + getSelectedLocationLabel() + " using existing lanes"
+              : "at the start using existing lanes";
 
       status.textContent =
         "Imported " +
         importedNoteCount +
         " MIDI note" +
         (importedNoteCount === 1 ? "" : "s") +
+        unitText +
         " from " +
         (fileName || "MIDI file") +
         " " +
         modeText +
-        "." +
-        splitText;
-    }
-
-    function buildMidiImportPlan(parsedMidi, fileName) {
-      const sourceLabel = String(fileName || "MIDI").replace(/\.[^.]+$/, "") || "MIDI";
-
-      return {
-        fileName,
-        sourceLabel,
-        tracks: parsedMidi.tracks.map((track, index) => ({
-          index,
-          name: track.name || sourceLabel + " Track " + (index + 1),
-          notes: track.notes || [],
-          analysis: analyzeMidiTrackVoices(track.notes || [])
-        }))
-      };
-    }
-
-    function analyzeMidiTrackVoices(notes) {
-      const noteBlocks = (notes || [])
-        .filter(note => Number.isFinite(Number(note.midi)))
-        .map(note => ({
-          ...note,
-          startBeat: Number(note.startBeat || 0),
-          durationBeats: Math.max(MIN_DURATION, Number(note.durationBeats || MIN_DURATION)),
-          midi: Number(note.midi)
-        }))
-        .sort((a, b) => {
-          if (Math.abs(a.startBeat - b.startBeat) > 0.0001) return a.startBeat - b.startBeat;
-          return a.midi - b.midi;
-        });
-
-      const onsetGroups = new Map();
-      const activeSampleBeats = new Set();
-
-      noteBlocks.forEach(note => {
-        const key = Math.round(note.startBeat * 1000) / 1000;
-        if (!onsetGroups.has(key)) {
-          onsetGroups.set(key, []);
-        }
-        onsetGroups.get(key).push(note);
-        activeSampleBeats.add(key);
-        activeSampleBeats.add(Math.round((note.startBeat + note.durationBeats / 2) * 1000) / 1000);
-      });
-
-      let polyphonicOnsets = 0;
-      let maxOnsetNotes = 0;
-      let maxActiveNotes = 0;
-
-      onsetGroups.forEach(group => {
-        maxOnsetNotes = Math.max(maxOnsetNotes, group.length);
-        if (group.length > 1) {
-          polyphonicOnsets += 1;
-        }
-      });
-
-      activeSampleBeats.forEach(beat => {
-        const activeCount = noteBlocks.filter(note => {
-          const start = Number(note.startBeat || 0);
-          const end = start + Number(note.durationBeats || MIN_DURATION);
-          return start <= beat + 0.0001 && end > beat + 0.0001;
-        }).length;
-        maxActiveNotes = Math.max(maxActiveNotes, activeCount);
-      });
-
-      const onsetCount = onsetGroups.size;
-      const polyphonicRatio = onsetCount ? polyphonicOnsets / onsetCount : 0;
-      const likelyMultiVoice =
-        maxOnsetNotes > 1 ||
-        maxActiveNotes > 1 ||
-        polyphonicRatio >= 0.12;
-
-      return {
-        noteCount: noteBlocks.length,
-        onsetCount,
-        polyphonicOnsets,
-        polyphonicRatio,
-        maxOnsetNotes,
-        maxActiveNotes,
-        likelyMultiVoice
-      };
-    }
-
-    function chooseMidiVoiceSplitMode(importPlan) {
-      const multiVoiceTracks = importPlan.tracks.filter(track => track.analysis.likelyMultiVoice);
-
-      if (multiVoiceTracks.length === 0) {
-        return false;
-      }
-
-      const summary = multiVoiceTracks
-        .slice(0, 5)
-        .map(track => {
-          const analysis = track.analysis;
-          return "• " + track.name + ": " + analysis.noteCount + " notes, up to " + analysis.maxActiveNotes + " simultaneous";
-        })
-        .join("\n");
-
-      const answer = window.prompt(
-        "Design Studio detected possible multi-voice MIDI material.\n\n" +
-        summary +
-        (multiVoiceTracks.length > 5 ? "\n• …and " + (multiVoiceTracks.length - 5) + " more" : "") +
-        "\n\nPhase 1 can split each detected track into temporary lanes:\n" +
-        "Upper Voice = highest note at each onset\n" +
-        "Lower Voice = lowest note at each onset\n" +
-        "Unassigned = middle notes when more than two notes start together\n\n" +
-        "Type:\n" +
-        "S = Split detected multi-voice tracks\n" +
-        "O = Keep original MIDI tracks\n" +
-        "C = Cancel",
-        "S"
-      );
-
-      if (!answer) {
-        return null;
-      }
-
-      const normalized = answer.trim().toLowerCase();
-
-      if (normalized === "s" || normalized === "split" || normalized === "split tracks") {
-        return true;
-      }
-
-      if (normalized === "o" || normalized === "original" || normalized === "keep" || normalized === "keep original") {
-        return false;
-      }
-
-      return null;
-    }
-
-    function expandMidiTracksForVoiceSplit(importPlan) {
-      const expandedTracks = [];
-
-      importPlan.tracks.forEach(track => {
-        if (!track.analysis.likelyMultiVoice) {
-          expandedTracks.push({
-            name: track.name,
-            role: "imported MIDI",
-            notes: track.notes,
-            sourceTrackName: track.name,
-            sourceVoice: "track"
-          });
-          return;
-        }
-
-        const split = splitMidiTrackIntoUpperLowerVoices(track.notes);
-        const baseName = track.name || "MIDI Track " + (track.index + 1);
-
-        if (split.upper.length > 0) {
-          expandedTracks.push({
-            name: baseName + " · Upper Voice",
-            role: "imported upper voice",
-            notes: split.upper,
-            sourceTrackName: baseName,
-            sourceVoice: "upper"
-          });
-        }
-
-        if (split.lower.length > 0) {
-          expandedTracks.push({
-            name: baseName + " · Lower Voice",
-            role: "imported lower voice",
-            notes: split.lower,
-            sourceTrackName: baseName,
-            sourceVoice: "lower"
-          });
-        }
-
-        if (split.unassigned.length > 0) {
-          expandedTracks.push({
-            name: baseName + " · Unassigned Tones",
-            role: "review middle notes",
-            notes: split.unassigned,
-            sourceTrackName: baseName,
-            sourceVoice: "unassigned"
-          });
-        }
-      });
-
-      return expandedTracks;
-    }
-
-    function splitMidiTrackIntoUpperLowerVoices(notes) {
-      const upper = [];
-      const lower = [];
-      const unassigned = [];
-      const onsetGroups = new Map();
-      let lastSingleVoice = "upper";
-
-      (notes || [])
-        .filter(note => Number.isFinite(Number(note.midi)))
-        .slice()
-        .sort((a, b) => {
-          const startA = Number(a.startBeat || 0);
-          const startB = Number(b.startBeat || 0);
-          if (Math.abs(startA - startB) > 0.0001) return startA - startB;
-          return Number(a.midi || 0) - Number(b.midi || 0);
-        })
-        .forEach(note => {
-          const key = Math.round(Number(note.startBeat || 0) * 1000) / 1000;
-          if (!onsetGroups.has(key)) {
-            onsetGroups.set(key, []);
-          }
-          onsetGroups.get(key).push(note);
-        });
-
-      onsetGroups.forEach(group => {
-        const sorted = group.slice().sort((a, b) => Number(a.midi || 0) - Number(b.midi || 0));
-
-        if (sorted.length === 1) {
-          const note = sorted[0];
-          const nearest = chooseNearestSplitVoice(note, upper, lower, lastSingleVoice);
-
-          if (nearest === "lower") {
-            lower.push({ ...note });
-            lastSingleVoice = "lower";
-          } else {
-            upper.push({ ...note });
-            lastSingleVoice = "upper";
-          }
-          return;
-        }
-
-        lower.push({ ...sorted[0] });
-        upper.push({ ...sorted[sorted.length - 1] });
-        lastSingleVoice = "upper";
-
-        if (sorted.length > 2) {
-          sorted.slice(1, -1).forEach(note => {
-            unassigned.push({ ...note });
-          });
-        }
-      });
-
-      return {
-        upper: upper.sort((a, b) => Number(a.startBeat || 0) - Number(b.startBeat || 0)),
-        lower: lower.sort((a, b) => Number(a.startBeat || 0) - Number(b.startBeat || 0)),
-        unassigned: unassigned.sort((a, b) => Number(a.startBeat || 0) - Number(b.startBeat || 0))
-      };
-    }
-
-    function chooseNearestSplitVoice(note, upper, lower, fallbackVoice) {
-      const midi = Number(note.midi || 0);
-      const upperLast = upper.length ? Number(upper[upper.length - 1].midi || midi) : null;
-      const lowerLast = lower.length ? Number(lower[lower.length - 1].midi || midi) : null;
-
-      if (upperLast === null && lowerLast === null) {
-        return fallbackVoice || "upper";
-      }
-
-      if (upperLast === null) return "lower";
-      if (lowerLast === null) return "upper";
-
-      const upperDistance = Math.abs(midi - upperLast);
-      const lowerDistance = Math.abs(midi - lowerLast);
-
-      if (Math.abs(upperDistance - lowerDistance) < 0.001) {
-        return fallbackVoice || "upper";
-      }
-
-      return upperDistance <= lowerDistance ? "upper" : "lower";
+        ".";
     }
 
     function parseMidiFile(buffer) {
