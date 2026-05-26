@@ -1197,6 +1197,7 @@
 
 
     const activeNotes = new Map();
+    const activeAudioRecords = new Set();
     let recentNotes = [];
 
     const pitchClasses = ORUMI_CATALOG.pitchClasses;
@@ -2860,6 +2861,7 @@
             );
 
           const playedNote = {
+            ...voiceNode,
             voice: eventVoice,
             gain: voiceNode.gain,
             oscillators: voiceNode.oscillators || [],
@@ -2880,7 +2882,7 @@
               return;
             }
 
-            ORUMI_VOICES.stopVoice(playedNote, audioContext, 0.16);
+            hardStopVoice(playedNote, audioContext, 0.16);
             phrasePlaybackNotes =
               phrasePlaybackNotes.filter(note => note !== playedNote);
 
@@ -2939,7 +2941,7 @@
 
       phrasePlaybackNotes.forEach(note => {
         if (audioContext) {
-          ORUMI_VOICES.stopVoice(note, audioContext, 0.12);
+          hardStopVoice(note, audioContext, 0.12);
         }
       });
 
@@ -3351,6 +3353,7 @@
             );
 
           return {
+            ...voiceNode,
             voice,
             gain: voiceNode.gain,
             oscillators:
@@ -3372,7 +3375,7 @@
       }
 
       droneNotes.forEach(note => {
-        ORUMI_VOICES.stopVoice(
+        hardStopVoice(
           note,
           audioContext,
           0.65
@@ -3604,7 +3607,7 @@
 
       if (audioContext) {
         recordingPlaybackNotes.forEach(note => {
-          ORUMI_VOICES.stopVoice(note, audioContext, 0.12);
+          hardStopVoice(note, audioContext, 0.12);
         });
       }
 
@@ -3805,6 +3808,7 @@
               );
 
             const playedNote = {
+              ...voiceNode,
               voice: eventVoice,
               gain: voiceNode.gain,
               oscillators: voiceNode.oscillators || [],
@@ -3817,7 +3821,7 @@
 
           const stopTimer = setTimeout(() => {
             playedNotes.forEach(note => {
-              ORUMI_VOICES.stopVoice(note, audioContext, 0.2);
+              hardStopVoice(note, audioContext, 0.2);
               recordingPlaybackNotes = recordingPlaybackNotes.filter(item => item !== note);
             });
           }, durationMs);
@@ -3951,6 +3955,7 @@
           ORUMI_VOICES.buildVoice(audioContext, voice, freq, now);
 
         playedNotes.push({
+          ...voiceNode,
           voice,
           gain: voiceNode.gain,
           oscillators: voiceNode.oscillators || [],
@@ -3966,7 +3971,7 @@
 
       setTimeout(() => {
         playedNotes.forEach(note => {
-          ORUMI_VOICES.stopVoice(note, audioContext, 0.25);
+          hardStopVoice(note, audioContext, 0.25);
         });
       }, 1800);
 
@@ -4162,6 +4167,12 @@
 
         event.preventDefault();
 
+        try {
+          if (button.setPointerCapture && event.pointerId !== undefined) {
+            button.setPointerCapture(event.pointerId);
+          }
+        } catch (error) {}
+
         if (event.shiftKey) {
           toggleHighlight(button);
           return;
@@ -4193,6 +4204,7 @@
           );
 
         const noteRecord = {
+          ...voiceNode,
           voice,
           button,
           startedAt: now,
@@ -4204,6 +4216,8 @@
           displayName: button.dataset.displayName,
           phrasePreviewBlockId: null
         };
+
+        registerAudioRecord(noteRecord);
 
         if (designPhrasePayload && !isDefaultPlayerLineMode() && phraseAddPlayedNotes && !isPhrasePlaybackActive) {
           const initialDurationBeats = sustainedVoices.includes(voice)
@@ -4245,7 +4259,7 @@
           }
 
           setTimeout(() => {
-            ORUMI_VOICES.stopVoice(noteRecord, audioContext, 0.12);
+            hardStopVoice(noteRecord, audioContext, 0.12);
           }, Math.max(0.05, autoDuration) * 1000);
 
           trackRecentNote(button);
@@ -4280,6 +4294,71 @@
       });
     }
 
+    function registerAudioRecord(record) {
+      if (record && typeof record === "object") {
+        activeAudioRecords.add(record);
+      }
+      return record;
+    }
+
+    function hardStopVoice(record, context = audioContext, releaseSeconds = 0.12) {
+      if (!record) {
+        return;
+      }
+
+      try {
+        if (typeof ORUMI_VOICES !== "undefined" && ORUMI_VOICES && typeof ORUMI_VOICES.stopVoice === "function") {
+          ORUMI_VOICES.stopVoice(record, context, releaseSeconds);
+        }
+      } catch (error) {
+        console.warn("Voice stopVoice cleanup failed; using hard cleanup.", error);
+      }
+
+      const visited = new Set();
+
+      function visit(value) {
+        if (!value || typeof value !== "object" || visited.has(value)) {
+          return;
+        }
+
+        visited.add(value);
+
+        try {
+          if (value.gain && typeof value.gain.cancelScheduledValues === "function") {
+            const now = context && context.currentTime ? context.currentTime : 0;
+            value.gain.cancelScheduledValues(now);
+            value.gain.setValueAtTime(0, now);
+          }
+        } catch (error) {}
+
+        try {
+          if (typeof value.stop === "function") {
+            value.stop(0);
+          }
+        } catch (error) {}
+
+        try {
+          if (typeof value.disconnect === "function") {
+            value.disconnect();
+          }
+        } catch (error) {}
+
+        if (Array.isArray(value)) {
+          value.forEach(visit);
+          return;
+        }
+
+        Object.keys(value).forEach(key => {
+          try {
+            visit(value[key]);
+          } catch (error) {}
+        });
+      }
+
+      visit(record);
+      activeAudioRecords.delete(record);
+    }
+
     function stopHeldNote(pointerId) {
       const note = activeNotes.get(pointerId);
 
@@ -4290,7 +4369,7 @@
       const endedAt =
         audioContext.currentTime;
 
-      ORUMI_VOICES.stopVoice(note, audioContext, 0.12);
+      hardStopVoice(note, audioContext, 0.12);
 
       if (note.phrasePreviewBlockId) {
         const activeGridDrag =
@@ -4326,6 +4405,15 @@
       Array.from(activeNotes.keys()).forEach(pointerId => {
         stopHeldNote(pointerId);
       });
+
+      Array.from(activeAudioRecords).forEach(record => {
+        if (record && record.button) {
+          record.button.classList.remove("active");
+        }
+        hardStopVoice(record, audioContext, 0.05);
+      });
+
+      activeAudioRecords.clear();
     }
 
 
@@ -4412,6 +4500,34 @@
 
     document.addEventListener("pointercancel", event => {
       stopHeldNote(event.pointerId);
+    });
+
+    document.addEventListener("touchend", event => {
+      if (!event.touches || event.touches.length === 0) {
+        stopAllNotes();
+      }
+    }, { passive: true });
+
+    document.addEventListener("touchcancel", () => {
+      stopAllNotes();
+    }, { passive: true });
+
+    document.addEventListener("mouseup", () => {
+      stopAllNotes();
+    });
+
+    window.addEventListener("blur", () => {
+      stopAllNotes();
+    });
+
+    window.addEventListener("pagehide", () => {
+      stopAllNotes();
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        stopAllNotes();
+      }
     });
 
     window.addEventListener("beforeunload", () => {

@@ -2531,9 +2531,45 @@
       );
     }
 
+    function clearDesignHandoffStorage() {
+      [
+        "orumiSuggestHarmonyPayload",
+        "orumiPendingSuggestHarmonyPayload",
+        "orumiHarmonySuggestionPayload",
+        "orumiDesignMelodyForProgression",
+        "orumiSelectedMelodyForProgression",
+        "orumiDesignStudioProjectForProgression",
+        "orumiDesignProgressionReviewPayload",
+        "orumiProgressionReviewPayload",
+        "orumiPendingProgressionReviewPayload",
+        "orumiProgressionChordFactoryContext",
+        "orumiSuggestedHarmonyPlan",
+        "orumiPendingHarmonyPlanForDesign",
+        "orumiProgressionHarmonyPlan",
+        "orumiChordFactoryPayload",
+        "orumiPendingChordFactoryPayload",
+        "orumiPendingChordReplacement",
+        "orumiPendingDesignChordReplacement",
+        "orumiDesignStudioProjectForChordFactory",
+        "orumiPlayerEditPayload",
+        "orumiPendingPlayerEditPayload",
+        "orumiDesignSelectionForPlayer",
+        "orumiDesignStudioSelectionForPlayer",
+        "orumiDesignStudioProjectForPlayer",
+        "orumiPlayerLineForDesign",
+        "orumiPendingPlayerLine",
+        "orumiCurrentRecording"
+      ].forEach(key => {
+        try {
+          localStorage.removeItem(key);
+        } catch (error) {}
+      });
+    }
+
     function clearCurrentDesignPermanently(message = "Design canvas cleared permanently. Saved projects remain available in Load Project.") {
       saveHistory();
       stopPlayback({ reset: true });
+      clearDesignHandoffStorage();
 
       if (projectHasDesignContent()) {
         try {
@@ -2551,6 +2587,7 @@
         }
       }
 
+      project.title = "Untitled Design";
       project.blocks = [];
       clearBlockSelection();
       selectedInsertBeat = 0;
