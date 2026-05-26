@@ -211,39 +211,6 @@
       max-width: 92vw;
     }
 
-
-
-    .design-studio-mini-icon {
-      width: 30px;
-      height: 30px;
-      overflow: visible;
-      filter: drop-shadow(0 5px 9px rgba(0,0,0,0.30));
-    }
-
-    .design-studio-mini-icon .ds-grid-line {
-      stroke: rgba(245,240,232,0.62);
-      stroke-width: 2;
-      stroke-linecap: round;
-    }
-
-    .design-studio-mini-icon .ds-selected-square {
-      fill: #4d96ff;
-      stroke: rgba(255,255,255,0.94);
-      stroke-width: 2;
-    }
-
-    .design-studio-mini-icon .ds-selection-handle {
-      fill: #f5f0e8;
-      stroke: rgba(0,0,0,0.28);
-      stroke-width: 1;
-    }
-
-    .design-studio-mini-icon .ds-ghost-square {
-      fill: rgba(255,255,255,0.18);
-      stroke: rgba(255,255,255,0.20);
-      stroke-width: 1;
-    }
-
     .top-button {
       position: fixed;
       top: 18px;
@@ -918,19 +885,7 @@
     id="chordButton"
     href="design-studio.html"
     title="Open Design Studio"
-  ><svg class="design-studio-mini-icon" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
-      <line class="ds-grid-line" x1="9" y1="15" x2="55" y2="15"></line>
-      <line class="ds-grid-line" x1="9" y1="27" x2="55" y2="27"></line>
-      <line class="ds-grid-line" x1="9" y1="39" x2="55" y2="39"></line>
-      <line class="ds-grid-line" x1="9" y1="51" x2="55" y2="51"></line>
-      <rect class="ds-ghost-square" x="14" y="10" width="10" height="10" rx="2"></rect>
-      <rect class="ds-ghost-square" x="40" y="34" width="10" height="10" rx="2"></rect>
-      <rect class="ds-selected-square" x="26" y="21" width="16" height="16" rx="3"></rect>
-      <rect class="ds-selection-handle" x="22" y="17" width="6" height="6" rx="1"></rect>
-      <rect class="ds-selection-handle" x="40" y="17" width="6" height="6" rx="1"></rect>
-      <rect class="ds-selection-handle" x="22" y="35" width="6" height="6" rx="1"></rect>
-      <rect class="ds-selection-handle" x="40" y="35" width="6" height="6" rx="1"></rect>
-    </svg></a>
+  >DS</a>
 
   <a
     class="top-button settings-button"
@@ -1197,7 +1152,6 @@
 
 
     const activeNotes = new Map();
-    const activeAudioRecords = new Set();
     let recentNotes = [];
 
     const pitchClasses = ORUMI_CATALOG.pitchClasses;
@@ -2853,8 +2807,7 @@
                 : voice;
 
           const voiceNode =
-            ORUMI_VOICES.buildVoice(
-              audioContext,
+            buildContainedVoice(
               eventVoice,
               midiToFrequency(block.midi),
               now
@@ -2882,7 +2835,7 @@
               return;
             }
 
-            hardStopVoice(playedNote, audioContext, 0.16);
+            ORUMI_VOICES.stopVoice(playedNote, audioContext, 0.16);
             phrasePlaybackNotes =
               phrasePlaybackNotes.filter(note => note !== playedNote);
 
@@ -2941,7 +2894,7 @@
 
       phrasePlaybackNotes.forEach(note => {
         if (audioContext) {
-          hardStopVoice(note, audioContext, 0.12);
+          releaseVoiceGracefully(note, 0.16);
         }
       });
 
@@ -3260,6 +3213,80 @@
       startAudioButton.classList.add("ready");
     }
 
+    function createContainedAudioContext(outputGain) {
+      // Some newer voices appear to connect internal nodes directly to
+      // context.destination.  Give each played note a temporary destination
+      // gain so release can silence the whole voice even if the voice factory
+      // does not expose every oscillator/noise/filter it created.
+      const proxy = {};
+      const methodNames = [
+        "createOscillator",
+        "createGain",
+        "createBiquadFilter",
+        "createDelay",
+        "createDynamicsCompressor",
+        "createConvolver",
+        "createWaveShaper",
+        "createStereoPanner",
+        "createBuffer",
+        "createBufferSource",
+        "createPeriodicWave",
+        "createConstantSource",
+        "createChannelMerger",
+        "createChannelSplitter"
+      ];
+
+      methodNames.forEach(name => {
+        if (typeof audioContext[name] === "function") {
+          proxy[name] = audioContext[name].bind(audioContext);
+        }
+      });
+
+      Object.defineProperty(proxy, "currentTime", { get: () => audioContext.currentTime });
+      Object.defineProperty(proxy, "sampleRate", { get: () => audioContext.sampleRate });
+      Object.defineProperty(proxy, "state", { get: () => audioContext.state });
+      Object.defineProperty(proxy, "destination", { get: () => outputGain });
+
+      proxy.resume = audioContext.resume.bind(audioContext);
+      proxy.suspend = audioContext.suspend.bind(audioContext);
+
+      return proxy;
+    }
+
+    function buildContainedVoice(voice, frequency, startTime) {
+      if (!audioContext) {
+        return ORUMI_VOICES.buildVoice(audioContext, voice, frequency, startTime);
+      }
+
+      const now = Number.isFinite(Number(startTime))
+        ? Number(startTime)
+        : audioContext.currentTime;
+
+      const outputGain = audioContext.createGain();
+      outputGain.gain.cancelScheduledValues(now);
+      outputGain.gain.setValueAtTime(1, now);
+      outputGain.connect(audioContext.destination);
+
+      try {
+        const containedContext = createContainedAudioContext(outputGain);
+        const voiceNode =
+          ORUMI_VOICES.buildVoice(containedContext, voice, frequency, now) || {};
+
+        return {
+          ...voiceNode,
+          outputGain,
+          containedOutputGain: outputGain,
+          containedVoiceNode: voiceNode
+        };
+      } catch (error) {
+        // If a browser rejects the proxy context, fall back to normal playback
+        // rather than preventing sound altogether.
+        try { outputGain.disconnect(); } catch (disconnectError) {}
+        console.warn("Contained voice routing failed; falling back to normal voice.", error);
+        return ORUMI_VOICES.buildVoice(audioContext, voice, frequency, now) || {};
+      }
+    }
+
     function getDroneConfig() {
       const { system, root } = getSettingsFromUrl();
 
@@ -3345,8 +3372,7 @@
       droneNotes =
         notes.map(note => {
           const voiceNode =
-            ORUMI_VOICES.buildVoice(
-              audioContext,
+            buildContainedVoice(
               voice,
               note.frequency,
               now
@@ -3375,7 +3401,7 @@
       }
 
       droneNotes.forEach(note => {
-        hardStopVoice(
+        ORUMI_VOICES.stopVoice(
           note,
           audioContext,
           0.65
@@ -3607,7 +3633,7 @@
 
       if (audioContext) {
         recordingPlaybackNotes.forEach(note => {
-          hardStopVoice(note, audioContext, 0.12);
+          releaseVoiceGracefully(note, 0.18);
         });
       }
 
@@ -3800,8 +3826,7 @@
                 : voice;
 
             const voiceNode =
-              ORUMI_VOICES.buildVoice(
-                audioContext,
+              buildContainedVoice(
                 eventVoice,
                 midiToFrequency(midi),
                 now
@@ -3821,7 +3846,7 @@
 
           const stopTimer = setTimeout(() => {
             playedNotes.forEach(note => {
-              hardStopVoice(note, audioContext, 0.2);
+              ORUMI_VOICES.stopVoice(note, audioContext, 0.2);
               recordingPlaybackNotes = recordingPlaybackNotes.filter(item => item !== note);
             });
           }, durationMs);
@@ -3952,7 +3977,7 @@
         const freq = parseFloat(button.dataset.note);
 
         const voiceNode =
-          ORUMI_VOICES.buildVoice(audioContext, voice, freq, now);
+          buildContainedVoice(voice, freq, now);
 
         playedNotes.push({
           ...voiceNode,
@@ -3971,7 +3996,7 @@
 
       setTimeout(() => {
         playedNotes.forEach(note => {
-          hardStopVoice(note, audioContext, 0.25);
+          releaseVoiceGracefully(note, 0.25);
         });
       }, 1800);
 
@@ -4134,7 +4159,14 @@
         "orumiChoir",
         "orumiLeadVoice",
         "orumiBassVoice",
-        "orumiWarmPad"
+        "orumiWarmPad",
+        "oud",
+        "ney",
+        "sitar",
+        "tanpura",
+        "panFlute",
+        "quena",
+        "charango"
       ];
 
       button.draggable = true;
@@ -4167,12 +4199,6 @@
 
         event.preventDefault();
 
-        try {
-          if (button.setPointerCapture && event.pointerId !== undefined) {
-            button.setPointerCapture(event.pointerId);
-          }
-        } catch (error) {}
-
         if (event.shiftKey) {
           toggleHighlight(button);
           return;
@@ -4196,8 +4222,7 @@
         button.classList.add("active");
 
         const voiceNode =
-          ORUMI_VOICES.buildVoice(
-            audioContext,
+          buildContainedVoice(
             voice,
             freq,
             now
@@ -4217,8 +4242,6 @@
           phrasePreviewBlockId: null
         };
 
-        registerAudioRecord(noteRecord);
-
         if (designPhrasePayload && !isDefaultPlayerLineMode() && phraseAddPlayedNotes && !isPhrasePlaybackActive) {
           const initialDurationBeats = sustainedVoices.includes(voice)
             ? 0.25
@@ -4232,11 +4255,14 @@
           }
         }
 
-        if (sustainedVoices.includes(voice)) {
+        const autoStopSeconds = Number(voiceNode.autoStopSeconds);
+        const hasAutoStop = Number.isFinite(autoStopSeconds) && autoStopSeconds > 0;
+        const shouldHoldUntilPointerRelease = sustainedVoices.includes(voice) || !hasAutoStop;
+
+        if (shouldHoldUntilPointerRelease) {
           activeNotes.set(event.pointerId, noteRecord);
         } else {
-          const autoDuration =
-            voiceNode.autoStopSeconds || 0.9;
+          const autoDuration = autoStopSeconds;
 
           if (!designPhrasePayload || isDefaultPlayerLineMode()) {
             recordFixedNote(
@@ -4259,7 +4285,7 @@
           }
 
           setTimeout(() => {
-            hardStopVoice(noteRecord, audioContext, 0.12);
+            releaseVoiceGracefully(noteRecord, 0.18);
           }, Math.max(0.05, autoDuration) * 1000);
 
           trackRecentNote(button);
@@ -4294,69 +4320,149 @@
       });
     }
 
-    function registerAudioRecord(record) {
-      if (record && typeof record === "object") {
-        activeAudioRecords.add(record);
-      }
-      return record;
+    function isAudioParamLike(value) {
+      return !!(
+        value &&
+        typeof value.cancelScheduledValues === "function" &&
+        typeof value.setValueAtTime === "function"
+      );
     }
 
-    function hardStopVoice(record, context = audioContext, releaseSeconds = 0.12) {
-      if (!record) {
-        return;
-      }
-
-      try {
-        if (typeof ORUMI_VOICES !== "undefined" && ORUMI_VOICES && typeof ORUMI_VOICES.stopVoice === "function") {
-          ORUMI_VOICES.stopVoice(record, context, releaseSeconds);
-        }
-      } catch (error) {
-        console.warn("Voice stopVoice cleanup failed; using hard cleanup.", error);
-      }
-
+    function collectVoiceAudioObjects(record) {
       const visited = new Set();
+      const audioParams = new Set();
+      const sourceNodes = new Set();
+      const disconnectableNodes = new Set();
+      const skipKeys = new Set([
+        "button",
+        "element",
+        "target",
+        "currentTarget",
+        "parentNode",
+        "ownerDocument",
+        "document",
+        "window"
+      ]);
 
-      function visit(value) {
+      function visit(value, key = "") {
         if (!value || typeof value !== "object" || visited.has(value)) {
+          return;
+        }
+
+        if (skipKeys.has(key)) {
+          return;
+        }
+
+        try {
+          if (typeof Node !== "undefined" && value instanceof Node) {
+            return;
+          }
+        } catch (error) {}
+
+        if (value === audioContext) {
           return;
         }
 
         visited.add(value);
 
-        try {
-          if (value.gain && typeof value.gain.cancelScheduledValues === "function") {
-            const now = context && context.currentTime ? context.currentTime : 0;
-            value.gain.cancelScheduledValues(now);
-            value.gain.setValueAtTime(0, now);
-          }
-        } catch (error) {}
-
-        try {
-          if (typeof value.stop === "function") {
-            value.stop(0);
-          }
-        } catch (error) {}
-
-        try {
-          if (typeof value.disconnect === "function") {
-            value.disconnect();
-          }
-        } catch (error) {}
-
-        if (Array.isArray(value)) {
-          value.forEach(visit);
+        if (isAudioParamLike(value)) {
+          audioParams.add(value);
           return;
         }
 
-        Object.keys(value).forEach(key => {
+        if (isAudioParamLike(value.gain)) {
+          audioParams.add(value.gain);
+        }
+
+        if (typeof value.stop === "function") {
+          sourceNodes.add(value);
+        }
+
+        if (typeof value.disconnect === "function") {
+          disconnectableNodes.add(value);
+        }
+
+        if (Array.isArray(value)) {
+          value.forEach(item => visit(item));
+          return;
+        }
+
+        Object.keys(value).forEach(childKey => {
           try {
-            visit(value[key]);
+            visit(value[childKey], childKey);
           } catch (error) {}
         });
       }
 
       visit(record);
-      activeAudioRecords.delete(record);
+
+      return {
+        audioParams: Array.from(audioParams),
+        sourceNodes: Array.from(sourceNodes),
+        disconnectableNodes: Array.from(disconnectableNodes)
+      };
+    }
+
+    function releaseVoiceGracefully(note, releaseSeconds = 0.16) {
+      if (!note || !audioContext) {
+        return;
+      }
+
+      const release = Math.max(0.05, Math.min(0.85, Number(releaseSeconds || 0.16)));
+      const now = audioContext.currentTime;
+      const stopAt = now + release + 0.04;
+
+      const containedGain = note.outputGain || note.containedOutputGain || null;
+      if (containedGain && containedGain.gain) {
+        try {
+          const currentValue = Number.isFinite(Number(containedGain.gain.value))
+            ? Math.max(0.0001, Number(containedGain.gain.value))
+            : 0.0001;
+          containedGain.gain.cancelScheduledValues(now);
+          containedGain.gain.setValueAtTime(currentValue, now);
+          containedGain.gain.linearRampToValueAtTime(0.0001, now + release);
+          containedGain.gain.setValueAtTime(0, stopAt);
+        } catch (error) {}
+      }
+
+      try {
+        ORUMI_VOICES.stopVoice(note, audioContext, release);
+      } catch (error) {
+        console.warn("Voice release failed; using local audio-node release.", error);
+      }
+
+      const audioObjects = collectVoiceAudioObjects(note);
+
+      audioObjects.audioParams.forEach(param => {
+        try {
+          const currentValue = Number.isFinite(Number(param.value))
+            ? Math.max(0.0001, Number(param.value))
+            : 0.0001;
+
+          param.cancelScheduledValues(now);
+          param.setValueAtTime(currentValue, now);
+          param.linearRampToValueAtTime(0.0001, now + release);
+          param.setValueAtTime(0, stopAt);
+        } catch (error) {}
+      });
+
+      audioObjects.sourceNodes.forEach(node => {
+        try {
+          node.stop(stopAt);
+        } catch (error) {}
+      });
+
+      window.setTimeout(() => {
+        if (containedGain) {
+          try { containedGain.disconnect(); } catch (error) {}
+        }
+
+        audioObjects.disconnectableNodes.forEach(node => {
+          try {
+            node.disconnect();
+          } catch (error) {}
+        });
+      }, Math.ceil((release + 0.16) * 1000));
     }
 
     function stopHeldNote(pointerId) {
@@ -4369,7 +4475,7 @@
       const endedAt =
         audioContext.currentTime;
 
-      hardStopVoice(note, audioContext, 0.12);
+      releaseVoiceGracefully(note, 0.18);
 
       if (note.phrasePreviewBlockId) {
         const activeGridDrag =
@@ -4405,15 +4511,6 @@
       Array.from(activeNotes.keys()).forEach(pointerId => {
         stopHeldNote(pointerId);
       });
-
-      Array.from(activeAudioRecords).forEach(record => {
-        if (record && record.button) {
-          record.button.classList.remove("active");
-        }
-        hardStopVoice(record, audioContext, 0.05);
-      });
-
-      activeAudioRecords.clear();
     }
 
 
@@ -4502,25 +4599,7 @@
       stopHeldNote(event.pointerId);
     });
 
-    document.addEventListener("touchend", event => {
-      if (!event.touches || event.touches.length === 0) {
-        stopAllNotes();
-      }
-    }, { passive: true });
-
-    document.addEventListener("touchcancel", () => {
-      stopAllNotes();
-    }, { passive: true });
-
-    document.addEventListener("mouseup", () => {
-      stopAllNotes();
-    });
-
     window.addEventListener("blur", () => {
-      stopAllNotes();
-    });
-
-    window.addEventListener("pagehide", () => {
       stopAllNotes();
     });
 
