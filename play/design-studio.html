@@ -570,6 +570,30 @@
       filter: brightness(1.12);
     }
 
+    .orumi-block.compact-block {
+      min-width: 0;
+      overflow: hidden;
+      font-size: 10px;
+      padding: 0 2px;
+      box-sizing: border-box;
+      text-overflow: clip;
+      white-space: nowrap;
+    }
+
+    .orumi-block.compact-block .resize-handle {
+      right: 0;
+      width: 7px;
+      background: rgba(255,255,255,0.16);
+    }
+
+    .orumi-block.compact-block .intensity-handle {
+      left: 2px;
+      right: 2px;
+      height: 9px;
+      top: -5px;
+    }
+
+
     .playhead {
       position: absolute;
       top: 14px;
@@ -1313,6 +1337,7 @@
         <button class="control-button secondary" id="addLaneButton">＋ Add Lane</button>
         <button class="control-button secondary" id="insertMeasuresButton">＋ Insert Measures</button>
         <button class="control-button secondary" id="quantizeTimingButton">⌁ Quantize / Clean Timing</button>
+        <button class="control-button secondary" id="cleanVocalArticulationButton">🧹 Clean Vocal Lane Articulation</button>
         <div class="menu-note">Lane duplicate/delete stay in the Selected Lane panel.</div>
       </div>
     </div>
@@ -1474,7 +1499,7 @@
     const MAX_BEAT_WIDTH = 180;
     const READABLE_BEAT_WIDTH = 120;
     const ZOOM_STEP = 24;
-    const MIN_DURATION = 0.125;
+    const MIN_DURATION = 0.0625;
     const MAX_HISTORY = 60;
     const DEFAULT_DURATION = 1;
     const DEFAULT_TIME_SIGNATURE = { numerator: 4, denominator: 4 };
@@ -1555,6 +1580,7 @@
     const importMidiButton = document.getElementById("importMidiButton");
     const insertMeasuresButton = document.getElementById("insertMeasuresButton");
     const quantizeTimingButton = document.getElementById("quantizeTimingButton");
+    const cleanVocalArticulationButton = document.getElementById("cleanVocalArticulationButton");
     const resetViewButton = document.getElementById("resetViewButton");
     const jumpToEndButton = document.getElementById("jumpToEndButton");
     const zoomOutButton = document.getElementById("zoomOutButton");
@@ -3269,6 +3295,11 @@
       element.style.width = block.durationBeats * BEAT_WIDTH + "px";
       element.style.height = velocityToHeight(block.velocity || 82) + "px";
 
+      if ((Number(block.durationBeats || MIN_DURATION) * BEAT_WIDTH) < 34) {
+        element.classList.add("compact-block");
+        element.style.minWidth = Math.max(8, Number(block.durationBeats || MIN_DURATION) * BEAT_WIDTH) + "px";
+      }
+
       const resizeHandle = document.createElement("div");
       resizeHandle.classList.add("resize-handle");
 
@@ -3560,6 +3591,102 @@
       return selectedBlocks;
     }
 
+    function getChordStackGroupsFromSelection(blocks = null) {
+      const selectedBlocks = (blocks || getNoteBlocksFromSelection())
+        .filter(block => block.type === "note" && Number.isFinite(block.midi))
+        .slice()
+        .sort((a, b) => {
+          const startA = Number(a.startBeat || 0);
+          const startB = Number(b.startBeat || 0);
+          if (Math.abs(startA - startB) > 0.0001) return startA - startB;
+
+          const laneA = project.lanes.findIndex(lane => lane.id === a.laneId);
+          const laneB = project.lanes.findIndex(lane => lane.id === b.laneId);
+          if (laneA !== laneB) return laneA - laneB;
+
+          return Number(a.midi || 0) - Number(b.midi || 0);
+        });
+
+      if (selectedBlocks.length < 2) {
+        return [];
+      }
+
+      const candidateBeats = [];
+      selectedBlocks.forEach(block => {
+        const beat = snapBeat(Number(block.startBeat || 0));
+        if (!candidateBeats.some(existing => Math.abs(existing - beat) < 0.0001)) {
+          candidateBeats.push(beat);
+        }
+      });
+      candidateBeats.sort((a, b) => a - b);
+
+      const groups = [];
+      const seenSignatures = new Set();
+
+      candidateBeats.forEach(beat => {
+        const stackBlocks = getBlocksAtChordBeat(selectedBlocks, beat)
+          .filter(block => block.type === "note" && Number.isFinite(block.midi))
+          .slice()
+          .sort((a, b) => {
+            const laneA = project.lanes.findIndex(lane => lane.id === a.laneId);
+            const laneB = project.lanes.findIndex(lane => lane.id === b.laneId);
+            if (laneA !== laneB) return laneA - laneB;
+
+            return Number(a.midi || 0) - Number(b.midi || 0);
+          });
+
+        const laneIds = new Set(stackBlocks.map(block => block.laneId));
+
+        if (stackBlocks.length < 2 || laneIds.size < 2) {
+          return;
+        }
+
+        const signature =
+          beat.toFixed(6) +
+          ":" +
+          stackBlocks
+            .map(block => block.id)
+            .sort()
+            .join(",");
+
+        if (seenSignatures.has(signature)) {
+          return;
+        }
+
+        seenSignatures.add(signature);
+
+        groups.push({
+          beat,
+          blocks: stackBlocks
+        });
+      });
+
+      return groups;
+    }
+
+    function getProgressionReviewSelection() {
+      const selectedBlocks = getNoteBlocksFromSelection();
+
+      if (selectedBlocks.length === 0) {
+        return null;
+      }
+
+      if (getHorizontalPhraseSelection()) {
+        return null;
+      }
+
+      const chordGroups = getChordStackGroupsFromSelection(selectedBlocks);
+
+      if (chordGroups.length === 0) {
+        return null;
+      }
+
+      return {
+        blocks: selectedBlocks,
+        chordGroups
+      };
+    }
+
     function getCurrentSelectionShape() {
       const selectedBlocks = getNoteBlocksFromSelection();
 
@@ -3567,12 +3694,22 @@
         return "none";
       }
 
-      if (getVerticalChordSelection()) {
+      if (getHorizontalPhraseSelection()) {
+        return "horizontal-phrase";
+      }
+
+      const chordGroups = getChordStackGroupsFromSelection(selectedBlocks);
+
+      if (chordGroups.length > 1) {
+        return "progression-range";
+      }
+
+      if (chordGroups.length === 1 && getVerticalChordSelection()) {
         return "vertical-chord";
       }
 
-      if (getHorizontalPhraseSelection()) {
-        return "horizontal-phrase";
+      if (chordGroups.length === 1) {
+        return "chord-review";
       }
 
       return "mixed";
@@ -3611,14 +3748,14 @@
       }
 
       if (reviewSelectionInProgressionButton) {
-        const selectedNoteCount = getNoteBlocksFromSelection().length;
-        const canReviewProgression = selectedNoteCount > 0 && shape !== "horizontal-phrase";
+        const reviewSelection = getProgressionReviewSelection();
+        const canReviewProgression = !!reviewSelection;
         reviewSelectionInProgressionButton.disabled = !canReviewProgression;
         reviewSelectionInProgressionButton.classList.toggle("tool-action-unavailable", !canReviewProgression);
         reviewSelectionInProgressionButton.textContent = "≡ Review Chords in Progression";
         reviewSelectionInProgressionButton.title = canReviewProgression
-          ? "Send the selected chord stack or chord sequence to Progression Builder for review."
-          : "Select a vertical chord stack or use Select Measure Range across all tracks, then review it in Progression.";
+          ? "Send the selected chord stack or chord sequence to Progression Builder for free chord analysis."
+          : "Select a vertical chord stack, multiple vertical stacks, or a measure range across tracks, then review it in Progression.";
       }
     }
 
@@ -3864,19 +4001,25 @@
         return map;
       }, {});
 
-      const anchorBeats = [];
-      noteBlocks.forEach(block => {
-        const beat = snapBeat(Number(block.startBeat || 0));
-        if (!anchorBeats.some(existing => Math.abs(existing - beat) < 0.0001)) {
-          anchorBeats.push(beat);
-        }
-      });
-      anchorBeats.sort((a, b) => a - b);
+      const chordGroups = getChordStackGroupsFromSelection(noteBlocks);
 
-      const chords = anchorBeats.map((beat, index) => {
-        const stackBlocks = getBlocksAtChordBeat(noteBlocks, beat)
+      if (chordGroups.length === 0) {
+        return null;
+      }
+
+      const firstChordBeat = chordGroups[0].beat;
+
+      const chords = chordGroups.map((group, index) => {
+        const beat = group.beat;
+        const stackBlocks = group.blocks
           .slice()
-          .sort((a, b) => Number(a.midi || 0) - Number(b.midi || 0));
+          .sort((a, b) => {
+            const laneA = project.lanes.findIndex(lane => lane.id === a.laneId);
+            const laneB = project.lanes.findIndex(lane => lane.id === b.laneId);
+            if (laneA !== laneB) return laneA - laneB;
+
+            return Number(a.midi || 0) - Number(b.midi || 0);
+          });
         const analysis = analyzeSelectedHarmony(stackBlocks);
         const location = beatToMeasureInfo(beat);
         const notes = stackBlocks.map(block => block.name || midiToDisplayName(block.midi));
@@ -3907,7 +4050,7 @@
           }),
           notes,
           startBeat: beat,
-          relativeStartBeat: beat - Number(noteBlocks[0].startBeat || 0),
+          relativeStartBeat: beat - firstChordBeat,
           durationBeats: Math.max(MIN_DURATION, Math.max(...stackBlocks.map(block => Number(block.durationBeats || MIN_DURATION)))),
           locationLabel: "M" + location.measure + " beat " + formatBeatValue(location.beatWithinMeasure),
           detail: analysis.detail,
@@ -3944,6 +4087,22 @@
         selectedBlockIds: noteBlocks.map(block => block.id),
         chordCount: chords.length,
         chords,
+        preservationMode: "free-analysis",
+        defaultKeepNote: null,
+        keepNote: null,
+        keepVoice: null,
+        voicePreservation: {
+          mode: "free-analysis",
+          appliesTo: "none",
+          note: null,
+          laneId: null,
+          reason: "Progression review is free chord analysis. Voice preservation is only required when importing or harmonizing a melody line."
+        },
+        reviewPerspectives: project.lanes.map(lane => ({
+          laneId: lane.id,
+          laneName: lane.name,
+          voice: lane.voice || project.context.voice || null
+        })),
         context: {
           tempo: Number(project.tempo || 120),
           timeSignature: JSON.parse(JSON.stringify(project.context.timeSignature || DEFAULT_TIME_SIGNATURE)),
@@ -3951,7 +4110,9 @@
           root: project.context.root,
           family: project.context.family,
           mode: project.context.mode,
-          voice: project.context.voice
+          voice: project.context.voice,
+          laneVoices: laneVoiceMap,
+          preservationMode: "free-analysis"
         }
       };
     }
@@ -3959,6 +4120,7 @@
     function beginReviewSelectionInProgression() {
       const selectedBlocks = getNoteBlocksFromSelection();
       const shape = getCurrentSelectionShape();
+      const reviewSelection = getProgressionReviewSelection();
 
       if (selectedBlocks.length === 0) {
         flashStatus("Select one or more chord blocks before opening Progression Builder.");
@@ -3967,11 +4129,18 @@
       }
 
       if (shape === "horizontal-phrase") {
+        flashStatus("That is a single-line melody phrase. Use Suggest Harmony when you want voice preservation.");
         beginSuggestHarmonyInProgression();
         return;
       }
 
-      const payload = buildProgressionReviewPayload(selectedBlocks);
+      if (!reviewSelection) {
+        flashStatus("No vertical chord stacks found in that selection.");
+        window.alert("Select at least two notes sounding together across different lanes, or select a measure range across tracks.");
+        return;
+      }
+
+      const payload = buildProgressionReviewPayload(reviewSelection.blocks);
 
       if (!payload || !payload.chords || payload.chords.length === 0) {
         flashStatus("No chord stacks found in that selection.");
@@ -4318,6 +4487,16 @@
           suggestHarmonyInspectorButton.title = "Open Progression Builder to suggest chords for this melody phrase.";
           suggestHarmonyInspectorButton.addEventListener("click", beginSuggestHarmonyInProgression);
           blockInspector.appendChild(suggestHarmonyInspectorButton);
+        }
+
+        if (getProgressionReviewSelection()) {
+          const reviewProgressionButton = document.createElement("button");
+          reviewProgressionButton.classList.add("control-button", "secondary");
+          reviewProgressionButton.style.marginTop = "12px";
+          reviewProgressionButton.textContent = "≡ Review Chords in Progression";
+          reviewProgressionButton.title = "Open Progression Builder for free chord analysis of the selected stack or progression.";
+          reviewProgressionButton.addEventListener("click", beginReviewSelectionInProgression);
+          blockInspector.appendChild(reviewProgressionButton);
         }
 
         const copySelectionButton = document.createElement("button");
@@ -5231,7 +5410,7 @@
       const beat = getBestChordAnalysisBeatForBlock(block);
       const location = beatToMeasureInfo(beat);
 
-      selectStackAtBeat(beat, "M" + location.measure + " beat " + formatBeatValue(location.beatWithinMeasure), block.id);
+      selectStackAtBeat(beat, "M" + location.measure + " beat " + formatBeatValue(location.beatWithinMeasure), null);
     }
 
     function getPrimarySelectedNoteBlock() {
@@ -5296,7 +5475,7 @@
       const beat = snapBeat(fallbackBeat);
       const location = beatToMeasureInfo(beat);
 
-      selectStackAtBeat(beat, "M" + location.measure + " beat " + formatBeatValue(location.beatWithinMeasure), block.id);
+      selectStackAtBeat(beat, "M" + location.measure + " beat " + formatBeatValue(location.beatWithinMeasure), null);
     }
 
     function createInspectorActionButton(label, tone, handler, title = "") {
@@ -6617,9 +6796,9 @@
         "Smallest start gap: " + (analysis.smallestStartGap === null ? "n/a" : formatBeatValue(analysis.smallestStartGap) + " beats") + "\n\n" +
         "Recommended grid: " + suggestedInfo.answer + " = " + suggestedInfo.label + "\n\n" +
         "Preview changes:\n" +
-        "4 = Quarter notes: " + quarterPreview.changedCount + " block" + (quarterPreview.changedCount === 1 ? "" : "s") + " would change\n" +
-        "8 = Eighth notes: " + eighthPreview.changedCount + " block" + (eighthPreview.changedCount === 1 ? "" : "s") + " would change\n" +
-        "16 = Sixteenth notes: " + sixteenthPreview.changedCount + " block" + (sixteenthPreview.changedCount === 1 ? "" : "s") + " would change\n\n" +
+        "4 = Quarter notes: " + quarterBeatPreview.changedCount + " block" + (quarterBeatPreview.changedCount === 1 ? "" : "s") + " would change\n" +
+        "8 = Eighth notes: " + eighthBeatPreview.changedCount + " block" + (eighthBeatPreview.changedCount === 1 ? "" : "s") + " would change\n" +
+        "16 = Sixteenth notes: " + quarterBeatPreview.changedCount + " block" + (quarterBeatPreview.changedCount === 1 ? "" : "s") + " would change\n\n" +
         "Choose grid, or C to cancel:",
         suggestedInfo.answer
       );
@@ -6723,6 +6902,301 @@
         " shortened, " +
         lengthenedCount +
         " lengthened. Undo is available.";
+    }
+
+
+    function parseVocalArticulationScope(defaultScope = "A") {
+      const answer = window.prompt(
+        "Clean Vocal Lane Articulation for:\n\n" +
+        "A = All Tracks\n" +
+        "S = Selected Track only\n" +
+        "B = Selected Blocks\n" +
+        "C = Cancel\n\n" +
+        "This is different from Quantize. It keeps each lane monophonic, aligns near-simultaneous note starts across lanes, and shortens note endings to leave a small visible/sounding gap.",
+        defaultScope
+      );
+
+      if (!answer) {
+        return null;
+      }
+
+      const normalized = answer.trim().toLowerCase();
+
+      if (normalized === "a" || normalized === "all" || normalized === "all tracks") {
+        return "all";
+      }
+
+      if (normalized === "s" || normalized === "selected" || normalized === "selected track") {
+        return "selected";
+      }
+
+      if (normalized === "b" || normalized === "blocks" || normalized === "selected blocks") {
+        return "blocks";
+      }
+
+      return null;
+    }
+
+    function getVocalArticulationTargets(scope) {
+      let targetBlocks = [];
+      let scopeLabel = "all tracks";
+
+      if (scope === "all") {
+        targetBlocks = project.blocks;
+      } else if (scope === "selected") {
+        const selectedLane = project.lanes.find(lane => lane.id === selectedLaneId);
+
+        if (!selectedLane) {
+          return {
+            targetBlocks: [],
+            scopeLabel: "selected track",
+            error: "Select a track before cleaning selected-track articulation."
+          };
+        }
+
+        targetBlocks = project.blocks.filter(block => block.laneId === selectedLane.id);
+        scopeLabel = selectedLane.name || "selected track";
+      } else if (scope === "blocks") {
+        targetBlocks = getSelectedBlocks();
+        scopeLabel = "selected blocks";
+      }
+
+      return {
+        targetBlocks: targetBlocks.filter(block => block && block.type === "note" && Number.isFinite(Number(block.midi))),
+        scopeLabel,
+        error: ""
+      };
+    }
+
+    function getLaneOrderIndex(laneId) {
+      const index = project.lanes.findIndex(lane => lane.id === laneId);
+      return index < 0 ? 999 : index;
+    }
+
+    function findNearestAnchor(value, anchors, tolerance) {
+      let best = null;
+      let bestDistance = Infinity;
+
+      anchors.forEach(anchor => {
+        const distance = Math.abs(Number(value || 0) - anchor);
+
+        if (distance < bestDistance) {
+          best = anchor;
+          bestDistance = distance;
+        }
+      });
+
+      return bestDistance <= tolerance ? best : null;
+    }
+
+    function buildSharedStartAnchors(blocks, tolerance) {
+      const starts = blocks
+        .filter(block => block.type === "note")
+        .map(block => ({
+          start: Number(block.startBeat || 0),
+          laneOrder: getLaneOrderIndex(block.laneId)
+        }))
+        .filter(item => Number.isFinite(item.start))
+        .sort((a, b) => a.start - b.start || a.laneOrder - b.laneOrder);
+
+      const clusters = [];
+
+      starts.forEach(item => {
+        const last = clusters[clusters.length - 1];
+
+        if (!last || Math.abs(item.start - last.center) > tolerance) {
+          clusters.push({
+            items: [item],
+            center: item.start
+          });
+          return;
+        }
+
+        last.items.push(item);
+        last.center =
+          last.items.reduce((sum, clusterItem) => sum + clusterItem.start, 0) /
+          last.items.length;
+      });
+
+      return clusters.map(cluster => {
+        const reference =
+          cluster.items
+            .slice()
+            .sort((a, b) => a.laneOrder - b.laneOrder || a.start - b.start)[0];
+
+        // Top-down reference: the uppermost lane in the near-start cluster leads.
+        // A tiny 1/64-beat snap removes MIDI jitter without changing the phrase.
+        return roundBeatForStorage(quantizeValue(reference.start, 0.0625));
+      });
+    }
+
+    function cleanVocalLaneGroup(laneBlocks, targetIdSet, gapBeats) {
+      let shortenedCount = 0;
+      let collisionCount = 0;
+
+      const ordered = laneBlocks
+        .filter(block => targetIdSet.has(block.id))
+        .sort((a, b) =>
+          Number(a.startBeat || 0) - Number(b.startBeat || 0) ||
+          Number(a.midi || 0) - Number(b.midi || 0)
+        );
+
+      for (let index = 0; index < ordered.length - 1; index++) {
+        const current = ordered[index];
+        const next = ordered[index + 1];
+
+        if (!current || !next) {
+          continue;
+        }
+
+        const currentStart = Number(current.startBeat || 0);
+        const nextStart = Number(next.startBeat || 0);
+
+        if (nextStart <= currentStart + 0.0001) {
+          // True simultaneous same-lane notes cannot be sung by one barbershop part.
+          // Leave the timing but flag the collision; this should eventually become
+          // a split-voice/import decision rather than an articulation cleanup decision.
+          current.durationBeats = MIN_DURATION;
+          collisionCount += 1;
+          continue;
+        }
+
+        const currentEnd = currentStart + Number(current.durationBeats || MIN_DURATION);
+        const desiredEnd = nextStart - gapBeats;
+
+        if (currentEnd <= desiredEnd + 0.0001) {
+          continue;
+        }
+
+        const nextDuration = roundBeatForStorage(desiredEnd - currentStart);
+
+        if (nextDuration >= MIN_DURATION - 0.0001) {
+          current.durationBeats = Math.max(MIN_DURATION, nextDuration);
+          shortenedCount += 1;
+        } else {
+          current.durationBeats = MIN_DURATION;
+          collisionCount += 1;
+        }
+      }
+
+      return {
+        shortenedCount,
+        collisionCount
+      };
+    }
+
+    function cleanVocalLaneArticulation() {
+      const defaultScope = getSelectedBlocks().length > 0 ? "B" : "A";
+      const scope = parseVocalArticulationScope(defaultScope);
+
+      if (!scope) {
+        status.textContent = "Vocal lane articulation cleanup cancelled.";
+        return;
+      }
+
+      const {
+        targetBlocks,
+        scopeLabel,
+        error
+      } = getVocalArticulationTargets(scope);
+
+      if (error) {
+        status.textContent = error;
+        return;
+      }
+
+      if (targetBlocks.length === 0) {
+        status.textContent = "No note blocks found for vocal lane articulation cleanup.";
+        return;
+      }
+
+      const confirmed = window.confirm(
+        "Clean vocal lane articulation for " +
+        targetBlocks.length +
+        " note block" +
+        (targetBlocks.length === 1 ? "" : "s") +
+        " in " +
+        scopeLabel +
+        "?\n\n" +
+        "This will:\n" +
+        "• align near-simultaneous starts across lanes using a top-down reference\n" +
+        "• keep each lane monophonic\n" +
+        "• shorten note endings to leave a small visible/sounding gap before the next note\n" +
+        "• avoid rewriting pitches or moving whole phrases\n\n" +
+        "Undo will be available."
+      );
+
+      if (!confirmed) {
+        status.textContent = "Vocal lane articulation cleanup cancelled.";
+        return;
+      }
+
+      saveHistory();
+
+      const targetIdSet = new Set(targetBlocks.map(block => block.id));
+      const ALIGN_TOLERANCE = 0.055;
+      const GAP_BEATS = 0.0625;
+
+      const anchors = buildSharedStartAnchors(targetBlocks, ALIGN_TOLERANCE);
+
+      let alignedCount = 0;
+      targetBlocks.forEach(block => {
+        const oldStart = Number(block.startBeat || 0);
+        const anchor = findNearestAnchor(oldStart, anchors, ALIGN_TOLERANCE);
+
+        if (anchor !== null && Math.abs(anchor - oldStart) > 0.0001) {
+          block.startBeat = roundBeatForStorage(anchor);
+          alignedCount += 1;
+        }
+      });
+
+      const laneIds = Array.from(
+        new Set(
+          targetBlocks
+            .map(block => block.laneId)
+            .filter(Boolean)
+        )
+      ).sort((a, b) => getLaneOrderIndex(a) - getLaneOrderIndex(b));
+
+      const totals = {
+        shortenedCount: 0,
+        collisionCount: 0
+      };
+
+      laneIds.forEach(laneId => {
+        const laneBlocks = project.blocks
+          .filter(block => block.laneId === laneId && block.type === "note")
+          .sort((a, b) => Number(a.startBeat || 0) - Number(b.startBeat || 0));
+
+        const result = cleanVocalLaneGroup(laneBlocks, targetIdSet, GAP_BEATS);
+
+        totals.shortenedCount += result.shortenedCount || 0;
+        totals.collisionCount += result.collisionCount || 0;
+      });
+
+      project.blocks.sort((a, b) =>
+        Number(a.startBeat || 0) - Number(b.startBeat || 0) ||
+        getLaneOrderIndex(a.laneId) - getLaneOrderIndex(b.laneId) ||
+        Number(a.midi || 0) - Number(b.midi || 0)
+      );
+
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+      render();
+
+      status.textContent =
+        "Cleaned vocal lane articulation in " +
+        scopeLabel +
+        ". " +
+        alignedCount +
+        " start" +
+        (alignedCount === 1 ? "" : "s") +
+        " aligned, " +
+        totals.shortenedCount +
+        " note ending" +
+        (totals.shortenedCount === 1 ? "" : "s") +
+        " shortened for gaps" +
+        (totals.collisionCount ? ", " + totals.collisionCount + " same-lane collision" + (totals.collisionCount === 1 ? "" : "s") + " flagged" : "") +
+        ". Undo is available.";
     }
 
     function importPendingChordFromStorage(autoPrompt = false) {
@@ -9216,6 +9690,9 @@
     if (suggestHarmonyButton) {
       suggestHarmonyButton.addEventListener("click", beginSuggestHarmonyInProgression);
     }
+    if (reviewSelectionInProgressionButton) {
+      reviewSelectionInProgressionButton.addEventListener("click", beginReviewSelectionInProgression);
+    }
     pasteSelectionButton.addEventListener("click", pasteClipboardAtEnd);
     pasteAtMeasureButton.addEventListener("click", pasteClipboardAtSelectedLocation);
     insertPasteAtLocationButton.addEventListener("click", insertPasteClipboardAtSelectedLocation);
@@ -9232,6 +9709,9 @@
     }
     insertMeasuresButton.addEventListener("click", insertMeasuresAtSelectedPoint);
     quantizeTimingButton.addEventListener("click", quantizeCleanTiming);
+    if (cleanVocalArticulationButton) {
+      cleanVocalArticulationButton.addEventListener("click", cleanVocalLaneArticulation);
+    }
     resetViewButton.addEventListener("click", resetView);
     jumpToEndButton.addEventListener("click", jumpToEnd);
     zoomOutButton.addEventListener("click", zoomOutTimeline);

@@ -197,6 +197,129 @@
       text-shadow: none;
     }
 
+    .current-notes-panel,
+    .chosen-name-panel,
+    .name-possibilities-panel {
+      width: 100%;
+      box-sizing: border-box;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.055);
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 10px;
+    }
+
+    .review-panel-label {
+      color: #bdb4a6;
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+
+    .chosen-name-value {
+      color: #fff7ea;
+      font-size: 22px;
+      font-weight: 900;
+      text-align: center;
+      line-height: 1.1;
+    }
+
+    .chosen-name-detail {
+      color: #bdb4a6;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.35;
+      text-align: center;
+      margin-top: 5px;
+    }
+
+    .play-notes-button {
+      width: 100%;
+      margin-top: 9px;
+    }
+
+    .name-possibilities-panel {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .name-possibilities-panel summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 11px 12px;
+      color: #fff7ea;
+      font-size: 12px;
+      font-weight: 900;
+      text-align: center;
+      background: rgba(255,255,255,0.08);
+      user-select: none;
+    }
+
+    .name-possibilities-panel summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .name-possibilities-panel summary::after {
+      content: "  ▾";
+      color: #bdb4a6;
+    }
+
+    .name-possibilities-panel[open] summary::after {
+      content: "  ▴";
+    }
+
+    .name-options-list {
+      display: grid;
+      gap: 7px;
+      padding: 9px;
+    }
+
+    .name-option-button {
+      width: 100%;
+      border: none;
+      border-radius: 13px;
+      padding: 9px 10px;
+      background: rgba(255,255,255,0.13);
+      color: #fff7ea;
+      cursor: pointer;
+      font-family: inherit;
+      text-align: left;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.20);
+    }
+
+    .name-option-button strong {
+      display: block;
+      font-size: 14px;
+      color: #fff;
+      margin-bottom: 2px;
+    }
+
+    .name-option-button span {
+      display: block;
+      color: #bdb4a6;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+
+    .name-option-button.selected {
+      background: rgba(155,235,215,0.92);
+      color: #102522;
+    }
+
+    .name-option-button.selected strong,
+    .name-option-button.selected span {
+      color: #102522;
+    }
+
+    .name-option-button:hover,
+    .name-option-button:active {
+      transform: scale(0.98);
+      filter: brightness(1.12);
+    }
+
     .card-actions {
       width: 100%;
       display: grid;
@@ -935,15 +1058,15 @@
           class="action-button secondary"
           href="chord-factory.html"
         >
-          Add a Chord
+          Open Chord Factory
         </a>
 
-        <a
+        <button
           class="action-button secondary"
-          href="design-studio.html"
+          id="sendReviewedProgressionButton"
         >
-          Open Design Studio
-        </a>
+          Send Chord Names to Design
+        </button>
 
         <button
           class="action-button danger"
@@ -1035,6 +1158,9 @@
 
     const stopHarmonyPreviewButton =
       document.getElementById("stopHarmonyPreviewButton");
+
+    const sendReviewedProgressionButton =
+      document.getElementById("sendReviewedProgressionButton");
 
     const HARMONY_PAYLOAD_KEYS = [
       "orumiSuggestHarmonyPayload",
@@ -1341,15 +1467,25 @@
 
       const payload = normalizeProgressionReviewPayload(readProgressionReviewPayload());
 
+      document.querySelector("h1").textContent = "Review Progression";
+      document.querySelector(".subtitle").textContent =
+        "Review chord stacks sent from Design Studio as a left-to-right progression. Use Chord Factory on any card when you want to reshape a chord.";
+
       if (!payload) {
+        const existingProgression = getProgression();
+
+        if (Array.isArray(existingProgression) && existingProgression.length > 0) {
+          renderProgression();
+          playbackStatus.textContent =
+            "Reviewing " + existingProgression.length + " chord" + (existingProgression.length === 1 ? "" : "s") + " already loaded in Progression.";
+          return true;
+        }
+
         progressionStrip.innerHTML = "";
         emptyState.style.display = "block";
         emptyState.innerHTML =
           "No chord sequence was found.<br>Return to Design Studio, select a chord stack or measure range, then choose Review Chords in Progression.";
         playbackStatus.textContent = "Waiting for selected chords from Design Studio.";
-        document.querySelector("h1").textContent = "Review Progression";
-        document.querySelector(".subtitle").textContent =
-          "Review chord stacks sent from Design Studio as a left-to-right progression.";
         return true;
       }
 
@@ -1357,9 +1493,8 @@
       saveProgression(payload.chords);
       clearProgressionReviewPayloadStorage();
 
-      document.querySelector("h1").textContent = "Review Progression";
       document.querySelector(".subtitle").textContent =
-        "Review chord stacks sent from " + (payload.projectTitle || "Design Studio") + ". Play, reorder, edit, or send the progression back to Design.";
+        "Review chord stacks sent from " + (payload.projectTitle || "Design Studio") + ". Play, reorder, edit in Chord Factory, or send the progression back to Design.";
 
       renderProgression();
       playbackStatus.textContent =
@@ -3093,6 +3228,222 @@
         notes;
     }
 
+
+    function getPitchClassSetFromChord(chord) {
+      return [...new Set(
+        normalizeChordNotes(chord)
+          .map(note => note.pitchName)
+          .filter(Boolean)
+      )];
+    }
+
+    function getIntervalSetForRoot(pitchClassNames, rootPc) {
+      return pitchClassNames
+        .map(pc => (pitchClassNumber(pc) - pitchClassNumber(rootPc) + 12) % 12)
+        .sort((a, b) => a - b);
+    }
+
+    function intervalSetsMatch(a, b) {
+      if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) {
+        return false;
+      }
+
+      return a.every(interval => b.includes(interval));
+    }
+
+    function generateNamePossibilities(chord) {
+      const pitchClassNames = getPitchClassSetFromChord(chord);
+
+      if (!pitchClassNames.length) {
+        return [];
+      }
+
+      const patterns = [
+        { suffix: "maj9", quality: "major9", intervals: [0, 2, 4, 7, 11], detail: "major ninth" },
+        { suffix: "9", quality: "dominant9", intervals: [0, 2, 4, 7, 10], detail: "dominant ninth" },
+        { suffix: "m9", quality: "minor9", intervals: [0, 2, 3, 7, 10], detail: "minor ninth" },
+        { suffix: "13", quality: "dominant13", intervals: [0, 4, 7, 9, 10], detail: "dominant thirteenth color" },
+        { suffix: "6", quality: "major6", intervals: [0, 4, 7, 9], detail: "major sixth" },
+        { suffix: "m6", quality: "minor6", intervals: [0, 3, 7, 9], detail: "minor sixth" },
+        { suffix: "7", quality: "dominant7", intervals: [0, 4, 7, 10], detail: "dominant seventh" },
+        { suffix: "maj7", quality: "major7", intervals: [0, 4, 7, 11], detail: "major seventh" },
+        { suffix: "m7", quality: "minor7", intervals: [0, 3, 7, 10], detail: "minor seventh" },
+        { suffix: "m7b5", quality: "halfDiminished7", intervals: [0, 3, 6, 10], detail: "half-diminished seventh" },
+        { suffix: "dim7", quality: "diminished7", intervals: [0, 3, 6, 9], detail: "diminished seventh" },
+        { suffix: "", quality: "major", intervals: [0, 4, 7], detail: "major triad" },
+        { suffix: "m", quality: "minor", intervals: [0, 3, 7], detail: "minor triad" },
+        { suffix: "dim", quality: "diminished", intervals: [0, 3, 6], detail: "diminished triad" },
+        { suffix: "aug", quality: "augmented", intervals: [0, 4, 8], detail: "augmented triad" },
+        { suffix: "sus2", quality: "sus2", intervals: [0, 2, 7], detail: "suspended second" },
+        { suffix: "sus4", quality: "sus4", intervals: [0, 5, 7], detail: "suspended fourth" },
+        { suffix: "5", quality: "power", intervals: [0, 7], detail: "root and fifth" }
+      ];
+
+      const possibilities = [];
+      const seen = new Set();
+
+      pitchClassNames.forEach(rootPc => {
+        const intervals = getIntervalSetForRoot(pitchClassNames, rootPc);
+
+        patterns.forEach(pattern => {
+          if (!intervalSetsMatch(intervals, pattern.intervals)) {
+            return;
+          }
+
+          const symbol = rootPc + pattern.suffix;
+          if (seen.has(symbol)) return;
+          seen.add(symbol);
+
+          possibilities.push({
+            symbol,
+            root: rootPc,
+            quality: pattern.quality,
+            detail: pattern.detail,
+            selectedNotesRemain: true,
+            score: 100 - pattern.intervals.length
+          });
+        });
+      });
+
+      // Rootless/common-color readings. These are labels only: they do not rewrite notes.
+      pitchClassNames.forEach(rootPc => {
+        const intervals = getIntervalSetForRoot(pitchClassNames, rootPc);
+        const exact = intervals.join(",");
+
+        if (exact === "0,3,7,10") {
+          const relativeMaj9Root = pcToName(pitchClassNumber(rootPc) - 4);
+          const symbol = relativeMaj9Root + "maj9/no root";
+          if (!seen.has(symbol)) {
+            seen.add(symbol);
+            possibilities.push({
+              symbol,
+              root: relativeMaj9Root,
+              quality: "major9Rootless",
+              detail: "rootless major ninth color",
+              selectedNotesRemain: true,
+              score: 72
+            });
+          }
+        }
+
+        if (exact === "0,4,7,9") {
+          const relativeMinor7Root = pcToName(pitchClassNumber(rootPc) - 3);
+          const symbol = relativeMinor7Root + "m7/no root";
+          if (!seen.has(symbol)) {
+            seen.add(symbol);
+            possibilities.push({
+              symbol,
+              root: relativeMinor7Root,
+              quality: "minor7Rootless",
+              detail: "rootless minor seventh color",
+              selectedNotesRemain: true,
+              score: 70
+            });
+          }
+        }
+      });
+
+      if (!possibilities.length) {
+        pitchClassNames.forEach(pc => {
+          const symbol = pc + " color chord";
+          if (seen.has(symbol)) return;
+          seen.add(symbol);
+          possibilities.push({
+            symbol,
+            root: pc,
+            quality: "color",
+            detail: "color-sonority reading; not a standard tertian chord",
+            selectedNotesRemain: true,
+            score: 10
+          });
+        });
+      }
+
+      const currentName = String(chord?.name || chord?.chordLabel || "");
+      return possibilities
+        .sort((a, b) => {
+          const aCurrent = a.symbol === currentName ? 1 : 0;
+          const bCurrent = b.symbol === currentName ? 1 : 0;
+          return bCurrent - aCurrent || b.score - a.score || a.symbol.localeCompare(b.symbol);
+        })
+        .slice(0, 8);
+    }
+
+    function getChosenNameDetail(chord) {
+      if (chord && chord.selectedAnalysis && chord.selectedAnalysis.detail) {
+        return chord.selectedAnalysis.detail;
+      }
+
+      if (chord && chord.detail) {
+        return chord.detail;
+      }
+
+      return "Free chord naming. The notes are preserved unless you revoice in Chord Factory.";
+    }
+
+    function selectNamePossibility(chordIndex, option) {
+      const progression = getProgression();
+      const existing = progression[chordIndex];
+
+      if (!existing || !option) {
+        return;
+      }
+
+      progression[chordIndex] = {
+        ...existing,
+        name: option.symbol,
+        chordLabel: option.symbol,
+        symbol: option.symbol,
+        root: option.root || existing.root,
+        quality: option.quality || existing.quality || "custom",
+        selectedAnalysis: {
+          symbol: option.symbol,
+          root: option.root || existing.root,
+          quality: option.quality || existing.quality || "custom",
+          detail: option.detail || "Selected naming possibility."
+        },
+        selectedAnalysisSymbol: option.symbol,
+        preservationMode: "free-analysis",
+        keepNote: null
+      };
+
+      saveProgression(progression);
+      renderProgression();
+      highlightProgressionChord(chordIndex, 900);
+      playSingleChord(progression[chordIndex], 900);
+    }
+
+    function sendReviewedProgressionToDesign() {
+      const progression = getProgression();
+
+      if (!Array.isArray(progression) || progression.length === 0) {
+        playbackStatus.textContent = "No reviewed chord names to send.";
+        return;
+      }
+
+      const payload = {
+        source: "progression-builder",
+        mode: "reviewedChordNames",
+        createdAt: new Date().toISOString(),
+        preservationMode: "free-analysis",
+        keepNote: null,
+        chords: progression.map((chord, index) => ({
+          ...chord,
+          chordIndex: index,
+          chosenName: chord.selectedAnalysisSymbol || chord.chordLabel || chord.name || "Chord " + (index + 1),
+          originalNotesPreserved: true
+        }))
+      };
+
+      localStorage.setItem("orumiReviewedProgressionForDesign", JSON.stringify(payload));
+      localStorage.setItem("orumiPendingReviewedProgressionForDesign", JSON.stringify(payload));
+      localStorage.setItem("orumiProgressionReviewSelections", JSON.stringify(payload));
+      localStorage.setItem("orumiProgression", JSON.stringify(progression));
+
+      playbackStatus.textContent = "Reviewed chord names sent to Design Studio.";
+      window.location.href = "design-studio.html?mode=reviewedChordNames&source=progression-builder";
+    }
+
     function buildProgressionChordFactoryContextForProgressionChord(chord, index) {
       return {
         source: "progression-builder",
@@ -3197,32 +3548,22 @@
       chordNumber.textContent =
         "Chord " + (index + 1);
 
-      const chordName =
+      const notes =
+        normalizeChordNotes(chord);
+
+      const currentNotesPanel =
         document.createElement("div");
+      currentNotesPanel.classList.add("current-notes-panel");
 
-      chordName.classList.add("chord-name");
-      chordName.textContent =
-        chord.name || "Chord";
-
-      const chordMeta =
+      const notesLabel =
         document.createElement("div");
-
-      chordMeta.classList.add("chord-meta");
-
-      const voiceLabel = getChordVoiceSummary(chord);
-
-      chordMeta.textContent =
-        getChordSystemLabel(chord) +
-        " · " +
-        voiceLabel;
+      notesLabel.classList.add("review-panel-label");
+      notesLabel.textContent = "Current notes";
 
       const stack =
         document.createElement("div");
 
       stack.classList.add("chord-stack");
-
-      const notes =
-        normalizeChordNotes(chord);
 
       if (notes.length === 0) {
         const empty =
@@ -3241,37 +3582,115 @@
         });
       }
 
+      const playNotesButton =
+        document.createElement("button");
+      playNotesButton.classList.add("small-button", "primary", "play-notes-button");
+      playNotesButton.textContent = "Play Notes";
+      playNotesButton.addEventListener("click", () => {
+        highlightProgressionChord(index, 1200);
+        playSingleChord(chord, 1200);
+      });
+
+      currentNotesPanel.appendChild(notesLabel);
+      currentNotesPanel.appendChild(stack);
+      currentNotesPanel.appendChild(playNotesButton);
+
+      const chosenPanel =
+        document.createElement("div");
+      chosenPanel.classList.add("chosen-name-panel");
+
+      const chosenLabel =
+        document.createElement("div");
+      chosenLabel.classList.add("review-panel-label");
+      chosenLabel.textContent = "Chosen name";
+
+      const chosenName =
+        document.createElement("div");
+      chosenName.classList.add("chosen-name-value");
+      chosenName.textContent =
+        chord.selectedAnalysisSymbol ||
+        chord.chordLabel ||
+        chord.name ||
+        "Unnamed chord";
+
+      const chosenDetail =
+        document.createElement("div");
+      chosenDetail.classList.add("chosen-name-detail");
+      chosenDetail.textContent = getChosenNameDetail(chord);
+
+      chosenPanel.appendChild(chosenLabel);
+      chosenPanel.appendChild(chosenName);
+      chosenPanel.appendChild(chosenDetail);
+
+      const possibilities =
+        generateNamePossibilities(chord);
+
+      const details =
+        document.createElement("details");
+      details.classList.add("name-possibilities-panel");
+
+      const summary =
+        document.createElement("summary");
+      summary.textContent = "Name possibilities";
+      details.appendChild(summary);
+
+      const optionsList =
+        document.createElement("div");
+      optionsList.classList.add("name-options-list");
+
+      if (possibilities.length === 0) {
+        const empty =
+          document.createElement("div");
+        empty.classList.add("chord-meta");
+        empty.textContent = "No naming possibilities found.";
+        optionsList.appendChild(empty);
+      } else {
+        const selectedSymbol =
+          chord.selectedAnalysisSymbol ||
+          chord.chordLabel ||
+          chord.name ||
+          "";
+
+        possibilities.forEach(option => {
+          const optionButton =
+            document.createElement("button");
+          optionButton.classList.add("name-option-button");
+
+          if (option.symbol === selectedSymbol) {
+            optionButton.classList.add("selected");
+          }
+
+          optionButton.innerHTML =
+            "<strong>" +
+            option.symbol +
+            "</strong><span>" +
+            option.detail +
+            "</span><span>Notes stay unchanged · click to choose this name</span>";
+
+          optionButton.addEventListener("click", () => {
+            selectNamePossibility(index, option);
+          });
+
+          optionsList.appendChild(optionButton);
+        });
+      }
+
+      details.appendChild(optionsList);
+
       const actions =
         document.createElement("div");
 
       actions.classList.add("card-actions");
 
-      const playButton =
-        document.createElement("button");
-
-      playButton.classList.add(
-        "small-button",
-        "primary",
-        "wide"
-      );
-
-      playButton.textContent =
-        "Play";
-
-      playButton.addEventListener("click", () => {
-        highlightProgressionChord(index, 1400);
-        playSingleChord(chord);
-      });
-
-      const editLink =
+      const factoryLink =
         document.createElement("a");
 
-      editLink.classList.add(
+      factoryLink.classList.add(
         "small-button",
         "wide"
       );
 
-      editLink.href =
+      factoryLink.href =
         buildChordFactoryEditUrl(chord, index);
 
       const prepareProgressionChordEdit = () => {
@@ -3280,12 +3699,12 @@
         );
       };
 
-      editLink.addEventListener("pointerdown", prepareProgressionChordEdit);
-      editLink.addEventListener("touchstart", prepareProgressionChordEdit, { passive: true });
-      editLink.addEventListener("click", prepareProgressionChordEdit);
+      factoryLink.addEventListener("pointerdown", prepareProgressionChordEdit);
+      factoryLink.addEventListener("touchstart", prepareProgressionChordEdit, { passive: true });
+      factoryLink.addEventListener("click", prepareProgressionChordEdit);
 
-      editLink.textContent =
-        "Edit";
+      factoryLink.textContent =
+        "Revoice in Chord Factory";
 
       const moveLeft =
         document.createElement("button");
@@ -3327,17 +3746,16 @@
         removeChord(index);
       });
 
-      actions.appendChild(playButton);
-      actions.appendChild(editLink);
+      actions.appendChild(factoryLink);
       actions.appendChild(moveLeft);
       actions.appendChild(moveRight);
       actions.appendChild(removeButton);
 
       card.appendChild(chordNumber);
-      card.appendChild(chordName);
-      card.appendChild(chordMeta);
-      card.appendChild(stack);
+      card.appendChild(currentNotesPanel);
+      card.appendChild(chosenPanel);
       card.appendChild(actions);
+      card.appendChild(details);
 
       return card;
     }
@@ -3401,12 +3819,7 @@
         temp;
 
       saveProgression(progression);
-      const reviewModeActive = initializeProgressionReviewMode();
-    const suggestModeActive = reviewModeActive ? false : initializeSuggestHarmonyMode();
-
-    if (!reviewModeActive && !suggestModeActive) {
       renderProgression();
-    }
     }
 
     function removeChord(index) {
@@ -3416,11 +3829,7 @@
       progression.splice(index, 1);
 
       saveProgression(progression);
-      const suggestModeActive = initializeSuggestHarmonyMode();
-
-    if (!suggestModeActive) {
       renderProgression();
-    }
     }
 
     function clearProgression() {
@@ -3445,11 +3854,7 @@
       clearPlaybackTimers();
 
       saveProgression([]);
-      const suggestModeActive = initializeSuggestHarmonyMode();
-
-    if (!suggestModeActive) {
       renderProgression();
-    }
     }
 
     async function ensureAudio() {
@@ -3755,6 +4160,10 @@
       stopHarmonyPreviewButton.addEventListener("click", () => stopHarmonyPreview(true));
     }
 
+    if (sendReviewedProgressionButton) {
+      sendReviewedProgressionButton.addEventListener("click", sendReviewedProgressionToDesign);
+    }
+
     window.addEventListener(
       "beforeunload",
       () => {
@@ -3764,9 +4173,10 @@
       }
     );
 
-    const suggestModeActive = initializeSuggestHarmonyMode();
+    const reviewModeActive = initializeProgressionReviewMode();
+    const suggestModeActive = reviewModeActive ? false : initializeSuggestHarmonyMode();
 
-    if (!suggestModeActive) {
+    if (!reviewModeActive && !suggestModeActive) {
       renderProgression();
     }
   </script>
