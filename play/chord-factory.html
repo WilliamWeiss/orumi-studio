@@ -1009,6 +1009,22 @@
 
             <button
               class="action-button secondary-button"
+              id="removeLowestNoteButton"
+              title="Remove the lowest selected note from the new chord"
+            >
+              ⌄ Remove Lowest
+            </button>
+
+            <button
+              class="action-button secondary-button"
+              id="removeHighestNoteButton"
+              title="Remove the highest selected note from the new chord"
+            >
+              ⌃ Remove Highest
+            </button>
+
+            <button
+              class="action-button secondary-button"
               id="clearButton"
             >
               ✕ Clear
@@ -1143,6 +1159,12 @@
     const clearButton =
       document.getElementById("clearButton");
 
+    const removeLowestNoteButton =
+      document.getElementById("removeLowestNoteButton");
+
+    const removeHighestNoteButton =
+      document.getElementById("removeHighestNoteButton");
+
     const addProgressionButton =
       document.getElementById("addProgressionButton");
 
@@ -1210,7 +1232,7 @@
         ? parseInt(params.get("chordOctave"), 10)
         : 3;
 
-    if (![3, 4].includes(selectedOctave)) {
+    if (![2, 3, 4, 5].includes(selectedOctave)) {
       selectedOctave = 3;
     }
 
@@ -1639,8 +1661,8 @@
       selectedVoicing = 1;
       if (selectedNoteMidis.length) {
         selectedOctave = Math.floor(Math.min(...selectedNoteMidis) / 12) - 1;
-        if (![3, 4].includes(selectedOctave)) {
-          selectedOctave = selectedNoteMidis[0] < 60 ? 3 : 4;
+        if (![2, 3, 4, 5].includes(selectedOctave)) {
+          selectedOctave = Math.max(2, Math.min(5, selectedOctave));
         }
       }
 
@@ -1867,8 +1889,8 @@
       selectedOctave =
         Math.floor(selectedNoteMidis[0] / 12) - 1;
 
-      if (![3, 4].includes(selectedOctave)) {
-        selectedOctave = selectedNoteMidis[0] < 60 ? 3 : 4;
+      if (![2, 3, 4, 5].includes(selectedOctave)) {
+        selectedOctave = Math.max(2, Math.min(5, selectedOctave));
       }
 
       addDesignButton.textContent =
@@ -2254,7 +2276,7 @@
       selectedRoot = suggestion.root;
       selectedQuality = suggestion.quality;
       selectedVoicing = 1;
-      selectedOctave = Math.max(3, Math.min(4, Math.floor(Math.min(...suggestion.notes.map(note => note.midi)) / 12) - 1));
+      selectedOctave = Math.max(2, Math.min(5, Math.floor(Math.min(...suggestion.notes.map(note => note.midi)) / 12) - 1));
       selectedNoteMidis = suggestion.notes.map(note => note.midi).sort((a, b) => a - b);
       selectedVoiceAwareSuggestion = JSON.parse(JSON.stringify(suggestion));
       chordEditStarted = true;
@@ -3027,6 +3049,31 @@
       buildAll();
     }
 
+
+    function removeExtremeSelectedNote(which = "lowest") {
+      const cleanMidis = selectedNoteMidis
+        .map(midi => Number(midi))
+        .filter(midi => Number.isFinite(midi))
+        .sort((a, b) => a - b);
+
+      if (cleanMidis.length === 0) {
+        factoryStatus.textContent = "No selected notes to remove.";
+        return;
+      }
+
+      const midiToRemove = which === "highest"
+        ? cleanMidis[cleanMidis.length - 1]
+        : cleanMidis[0];
+
+      chordEditStarted = true;
+      selectedVoiceAwareSuggestion = null;
+      selectedNoteMidis = cleanMidis.filter(midi => midi !== midiToRemove);
+      buildAll();
+
+      factoryStatus.textContent =
+        "Removed " + midiToDisplayName(midiToRemove) + " from the new chord.";
+    }
+
     function buildRootGrid() {
 
       rootGrid.innerHTML = "";
@@ -3161,7 +3208,7 @@
 
       octaveGrid.innerHTML = "";
 
-      [3,4].forEach(octave => {
+      [2,3,4,5].forEach(octave => {
 
         const button =
           document.createElement("button");
@@ -3198,7 +3245,7 @@
       const chromaticNotes =
         getChromaticFromRoot(selectedKeyRoot);
 
-      [3,4].forEach(octave => {
+      [2,3,4,5].forEach(octave => {
 
         const row =
           document.createElement("div");
@@ -3322,6 +3369,14 @@
 
         selectedNotesRow.appendChild(chip);
       });
+
+      if (removeLowestNoteButton) {
+        removeLowestNoteButton.disabled = notes.length === 0;
+      }
+
+      if (removeHighestNoteButton) {
+        removeHighestNoteButton.disabled = notes.length === 0;
+      }
 
       renderStackComparison();
 
@@ -4086,6 +4141,20 @@
       openDesignButton.addEventListener(
         "click",
         openDesignStudio
+      );
+    }
+
+    if (removeLowestNoteButton) {
+      removeLowestNoteButton.addEventListener(
+        "click",
+        () => removeExtremeSelectedNote("lowest")
+      );
+    }
+
+    if (removeHighestNoteButton) {
+      removeHighestNoteButton.addEventListener(
+        "click",
+        () => removeExtremeSelectedNote("highest")
       );
     }
 
