@@ -935,7 +935,7 @@
           class="action-button secondary"
           href="chord-factory.html"
         >
-          Add a Chord
+          Open Chord Factory
         </a>
 
         <a
@@ -1090,13 +1090,6 @@
 
     const HARMONY_LOW_TO_HIGH_ROLES = ["bass", "baritone", "lead", "tenor"];
 
-    const BARBERSHOP_COMFORT_RANGES = {
-      bass: { min: 43, max: 60 },      // G2-C4. E2 is possible, but not the default suggestion floor.
-      baritone: { min: 45, max: 72 },  // A2-C5
-      lead: { min: 57, max: 77 },      // A3-F5
-      tenor: { min: 60, max: 79 }      // C4-G5
-    };
-
     const pitchClasses =
       ORUMI_CATALOG.pitchClasses;
 
@@ -1195,49 +1188,17 @@
       const mode = String(params.get("mode") || "").toLowerCase();
       const source = String(params.get("source") || "").toLowerCase();
 
-      const explicitReviewMode =
+      return (
         source === "design-studio" &&
         [
           "reviewprogression",
           "review-progression",
           "reviewchords",
           "review-chords",
-          "editchords",
-          "edit-chords",
           "chordsequence",
           "chord-sequence"
-        ].includes(mode);
-
-      if (explicitReviewMode) {
-        return true;
-      }
-
-      // Safety net: if browser navigation strips query parameters, still open
-      // Review/Edit Progression when Design wrote a valid pending chord sequence.
-      // This also protects against stale normal-progression storage rendering empty first.
-      if (!source && !mode) {
-        return PROGRESSION_REVIEW_PAYLOAD_KEYS.some(key => {
-          const payload = safeJsonParse(localStorage.getItem(key));
-          const chords =
-            payload && Array.isArray(payload.chords)
-              ? payload.chords
-              : payload && Array.isArray(payload.progression)
-                ? payload.progression
-                : [];
-
-          return Array.isArray(chords) && chords.some(chord => {
-            const notes = Array.isArray(chord.notes) ? chord.notes : [];
-            const blocks = Array.isArray(chord.blocks)
-              ? chord.blocks
-              : Array.isArray(chord.selectedBlocks)
-                ? chord.selectedBlocks
-                : [];
-            return notes.length > 0 || blocks.some(block => Number.isFinite(Number(block && block.midi)));
-          });
-        });
-      }
-
-      return false;
+        ].includes(mode)
+      );
     }
 
     function readProgressionReviewPayload() {
@@ -1380,15 +1341,25 @@
 
       const payload = normalizeProgressionReviewPayload(readProgressionReviewPayload());
 
+      document.querySelector("h1").textContent = "Review Progression";
+      document.querySelector(".subtitle").textContent =
+        "Review chord stacks sent from Design Studio as a left-to-right progression. Use Chord Factory on any card when you want to reshape a chord.";
+
       if (!payload) {
+        const existingProgression = getProgression();
+
+        if (Array.isArray(existingProgression) && existingProgression.length > 0) {
+          renderProgression();
+          playbackStatus.textContent =
+            "Reviewing " + existingProgression.length + " chord" + (existingProgression.length === 1 ? "" : "s") + " already loaded in Progression.";
+          return true;
+        }
+
         progressionStrip.innerHTML = "";
         emptyState.style.display = "block";
         emptyState.innerHTML =
           "No chord sequence was found.<br>Return to Design Studio, select a chord stack or measure range, then choose Review Chords in Progression.";
         playbackStatus.textContent = "Waiting for selected chords from Design Studio.";
-        document.querySelector("h1").textContent = "Review Progression";
-        document.querySelector(".subtitle").textContent =
-          "Review chord stacks sent from Design Studio as a left-to-right progression.";
         return true;
       }
 
@@ -1396,9 +1367,8 @@
       saveProgression(payload.chords);
       clearProgressionReviewPayloadStorage();
 
-      document.querySelector("h1").textContent = "Review Progression";
       document.querySelector(".subtitle").textContent =
-        "Review chord stacks sent from " + (payload.projectTitle || "Design Studio") + ". Play, reorder, edit, or send the progression back to Design.";
+        "Review chord stacks sent from " + (payload.projectTitle || "Design Studio") + ". Play, reorder, edit in Chord Factory, or send the progression back to Design.";
 
       renderProgression();
       playbackStatus.textContent =
@@ -1717,47 +1687,22 @@
       return laneVoices[roleId] || harmonyPayload?.voice || "softKeys";
     }
 
-    function midiForPitchClassNear(pitchClass, targetMidi, options = {}) {
+    function midiForPitchClassNear(pitchClass, targetMidi) {
       const pc = pitchClassNumber(pitchClass);
-      const minMidi = Number.isFinite(Number(options.minMidi)) ? Number(options.minMidi) : 0;
-      const maxMidi = Number.isFinite(Number(options.maxMidi)) ? Number(options.maxMidi) : 127;
-      const preferMin = Number.isFinite(Number(options.preferMin)) ? Number(options.preferMin) : minMidi;
-      const preferMax = Number.isFinite(Number(options.preferMax)) ? Number(options.preferMax) : maxMidi;
-      const mustBeAbove = Number.isFinite(Number(options.above)) ? Number(options.above) : null;
-      const mustBeBelow = Number.isFinite(Number(options.below)) ? Number(options.below) : null;
-      const target = Number(targetMidi || 60);
-      const candidates = [];
+      let best = null;
+      let bestDistance = Infinity;
 
       for (let octave = 1; octave <= 6; octave++) {
         const midi = 12 * (octave + 1) + pc;
+        const distance = Math.abs(midi - Number(targetMidi || 60));
 
-        if (midi < minMidi || midi > maxMidi) continue;
-        if (mustBeAbove !== null && midi <= mustBeAbove) continue;
-        if (mustBeBelow !== null && midi >= mustBeBelow) continue;
-
-        const outsideComfort = midi < preferMin || midi > preferMax;
-        const comfortPenalty = outsideComfort ? 100 : 0;
-        candidates.push({
-          midi,
-          score: Math.abs(midi - target) + comfortPenalty
-        });
-      }
-
-      if (!candidates.length) {
-        for (let octave = 1; octave <= 6; octave++) {
-          const midi = 12 * (octave + 1) + pc;
-          if (mustBeAbove !== null && midi <= mustBeAbove) continue;
-          if (mustBeBelow !== null && midi >= mustBeBelow) continue;
-          candidates.push({ midi, score: Math.abs(midi - target) + 250 });
+        if (distance < bestDistance) {
+          best = midi;
+          bestDistance = distance;
         }
       }
 
-      candidates.sort((a, b) => a.score - b.score || Math.abs(a.midi - target) - Math.abs(b.midi - target));
-      return candidates[0]?.midi || 60;
-    }
-
-    function getComfortRangeForHarmonyRole(roleId) {
-      return BARBERSHOP_COMFORT_RANGES[roleId] || { min: 0, max: 127 };
+      return Number.isFinite(best) ? best : 60;
     }
 
     function buildVoiceAwareVoicingForSuggestion(note, suggestion, targetRoleId) {
@@ -1783,28 +1728,15 @@
 
       HARMONY_LOW_TO_HIGH_ROLES.forEach((roleId, roleIndex) => {
         const role = HARMONY_VOICE_ROLE_BY_ID[roleId] || { id: roleId, label: roleId };
-        const range = getComfortRangeForHarmonyRole(roleId);
         let midi;
         let pitchClass;
 
         if (roleId === targetRole) {
-          // Preserve the selected-line note exactly. Range warnings can come later;
-          // Suggest Harmony should not rewrite the melody/selected voice.
           midi = selectedMidi;
           pitchClass = selectedPc;
         } else if (roleId === "bass") {
           pitchClass = rootPc;
-          midi = midiForPitchClassNear(
-            pitchClass,
-            selectedMidi + ((roleIndex - safeTargetIndex) * 6) - 4,
-            {
-              minMidi: range.min,
-              maxMidi: range.max,
-              preferMin: range.min,
-              preferMax: range.max,
-              above: previousMidi
-            }
-          );
+          midi = midiForPitchClassNear(pitchClass, selectedMidi + ((roleIndex - safeTargetIndex) * 6) - 4);
         } else {
           const availableTone =
             cleanTones.find(tone => tone !== selectedPc && !used.has(tone)) ||
@@ -1813,33 +1745,12 @@
             selectedPc;
 
           pitchClass = availableTone;
-          midi = midiForPitchClassNear(
-            pitchClass,
-            selectedMidi + ((roleIndex - safeTargetIndex) * 6),
-            {
-              minMidi: range.min,
-              maxMidi: range.max,
-              preferMin: range.min,
-              preferMax: range.max,
-              above: previousMidi
-            }
-          );
+          midi = midiForPitchClassNear(pitchClass, selectedMidi + ((roleIndex - safeTargetIndex) * 6));
         }
 
         if (roleId !== targetRole && previousMidi !== null) {
           while (midi <= previousMidi) {
             midi += 12;
-          }
-
-          if (midi > range.max) {
-            const fallback = midiForPitchClassNear(pitchClass, previousMidi + 3, {
-              minMidi: range.min,
-              maxMidi: 127,
-              preferMin: range.min,
-              preferMax: range.max,
-              above: previousMidi
-            });
-            midi = fallback;
           }
         }
 
@@ -1860,9 +1771,7 @@
           voice: getVoiceForHarmonyRole(role.id),
           midi,
           name: midiToDisplayName(midi),
-          isSelectedMelodyNote: roleId === targetRole,
-          comfortRange: range,
-          rangeWarning: roleId !== targetRole && (midi < range.min || midi > range.max)
+          isSelectedMelodyNote: roleId === targetRole
         });
       });
 
@@ -1873,12 +1782,7 @@
       return assignments
         .slice()
         .sort((a, b) => HARMONY_LOW_TO_HIGH_ROLES.indexOf(b.role) - HARMONY_LOW_TO_HIGH_ROLES.indexOf(a.role))
-        .map(item =>
-          (item.laneName || item.role) +
-          " " +
-          item.name +
-          (item.rangeWarning ? " ⚠ range" : "")
-        )
+        .map(item => (item.laneName || item.role) + " " + item.name)
         .join(" · ");
     }
 
@@ -3390,7 +3294,7 @@
       editLink.addEventListener("click", prepareProgressionChordEdit);
 
       editLink.textContent =
-        "Edit";
+        "Chord Factory";
 
       const moveLeft =
         document.createElement("button");
@@ -3856,9 +3760,10 @@
       }
     );
 
-    const suggestModeActive = initializeSuggestHarmonyMode();
+    const reviewModeActive = initializeProgressionReviewMode();
+    const suggestModeActive = reviewModeActive ? false : initializeSuggestHarmonyMode();
 
-    if (!suggestModeActive) {
+    if (!reviewModeActive && !suggestModeActive) {
       renderProgression();
     }
   </script>
