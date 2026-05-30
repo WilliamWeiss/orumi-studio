@@ -570,30 +570,6 @@
       filter: brightness(1.12);
     }
 
-    .orumi-block.compact-block {
-      min-width: 0;
-      overflow: hidden;
-      font-size: 10px;
-      padding: 0 2px;
-      box-sizing: border-box;
-      text-overflow: clip;
-      white-space: nowrap;
-    }
-
-    .orumi-block.compact-block .resize-handle {
-      right: 0;
-      width: 7px;
-      background: rgba(255,255,255,0.16);
-    }
-
-    .orumi-block.compact-block .intensity-handle {
-      left: 2px;
-      right: 2px;
-      height: 9px;
-      top: -5px;
-    }
-
-
     .playhead {
       position: absolute;
       top: 14px;
@@ -1321,7 +1297,7 @@
         <button class="control-button secondary" id="replaceSelectedChordButton">✧ Edit Selected Chord</button>
         <button class="control-button secondary" id="editSelectionInPlayerButton">▶ Edit Selection in Player</button>
         <button class="control-button secondary" id="suggestHarmonyButton">✧ Suggest Harmony</button>
-        <button class="control-button secondary" id="reviewSelectionInProgressionButton">≡ Edit Chords in Progression</button>
+        <button class="control-button secondary" id="reviewSelectionInProgressionButton">≡ Review Chords in Progression</button>
         <button class="control-button secondary" id="pasteSelectionButton">⧆ Paste at End</button>
         <button class="control-button secondary" id="pasteAtMeasureButton">📍 Paste at Selected Location</button>
         <button class="control-button secondary" id="insertPasteAtLocationButton">⤓ Insert Paste at Selected Location</button>
@@ -1337,7 +1313,6 @@
         <button class="control-button secondary" id="addLaneButton">＋ Add Lane</button>
         <button class="control-button secondary" id="insertMeasuresButton">＋ Insert Measures</button>
         <button class="control-button secondary" id="quantizeTimingButton">⌁ Quantize / Clean Timing</button>
-        <button class="control-button secondary" id="cleanVocalArticulationButton">🧹 Clean Vocal Lane Articulation</button>
         <div class="menu-note">Lane duplicate/delete stay in the Selected Lane panel.</div>
       </div>
     </div>
@@ -1499,7 +1474,7 @@
     const MAX_BEAT_WIDTH = 180;
     const READABLE_BEAT_WIDTH = 120;
     const ZOOM_STEP = 24;
-    const MIN_DURATION = 0.0625;
+    const MIN_DURATION = 0.125;
     const MAX_HISTORY = 60;
     const DEFAULT_DURATION = 1;
     const DEFAULT_TIME_SIGNATURE = { numerator: 4, denominator: 4 };
@@ -1580,7 +1555,6 @@
     const importMidiButton = document.getElementById("importMidiButton");
     const insertMeasuresButton = document.getElementById("insertMeasuresButton");
     const quantizeTimingButton = document.getElementById("quantizeTimingButton");
-    const cleanVocalArticulationButton = document.getElementById("cleanVocalArticulationButton");
     const resetViewButton = document.getElementById("resetViewButton");
     const jumpToEndButton = document.getElementById("jumpToEndButton");
     const zoomOutButton = document.getElementById("zoomOutButton");
@@ -2371,7 +2345,13 @@
 
       project.blocks.forEach(block => {
         block.startBeat = roundBeatForStorage(Number(block.startBeat || 0) * factor);
-        block.durationBeats = Math.max(MIN_DURATION, roundBeatForStorage(Number(block.durationBeats || MIN_DURATION) * factor));
+        block.durationBeats = Math.max(
+          MIN_DURATION,
+          snapDurationToReadableStandard(
+            roundBeatForStorage(Number(block.durationBeats || MIN_DURATION) * factor),
+            0.08
+          )
+        );
         convertedCount += 1;
       });
 
@@ -2381,13 +2361,29 @@
 
       blockClipboard = blockClipboard.map(item => ({
         ...item,
-        startBeat: item.startBeat === undefined ? item.startBeat : roundBeatForStorage(Number(item.startBeat || 0) * factor),
-        relativeStartBeat: item.relativeStartBeat === undefined ? item.relativeStartBeat : roundBeatForStorage(Number(item.relativeStartBeat || 0) * factor),
-        durationBeats: item.durationBeats === undefined ? item.durationBeats : Math.max(MIN_DURATION, roundBeatForStorage(Number(item.durationBeats || MIN_DURATION) * factor))
+        startBeat:
+          item.startBeat === undefined
+            ? item.startBeat
+            : roundBeatForStorage(Number(item.startBeat || 0) * factor),
+        relativeStartBeat:
+          item.relativeStartBeat === undefined
+            ? item.relativeStartBeat
+            : roundBeatForStorage(Number(item.relativeStartBeat || 0) * factor),
+        durationBeats:
+          item.durationBeats === undefined
+            ? item.durationBeats
+            : Math.max(
+                MIN_DURATION,
+                snapDurationToReadableStandard(
+                  roundBeatForStorage(Number(item.durationBeats || MIN_DURATION) * factor),
+                  0.08
+                )
+              )
       }));
 
       return convertedCount;
     }
+
 
     function handleTimeSignatureChange() {
       const value = timeSignatureSelect.value;
@@ -2459,7 +2455,7 @@
       flashStatus(
         "Global time signature set to " +
         getTimeSignatureLabel() +
-        (convertedCount ? ". Converted " + convertedCount + " block" + (convertedCount === 1 ? "" : "s") + " to the new beat unit." : ".")
+        (convertedCount ? ". Converted " + convertedCount + " block" + (convertedCount === 1 ? "" : "s") + " to the new beat unit and normalized near-standard durations." : ".")
       );
     }
 
@@ -2544,7 +2540,9 @@
           source: block.source || null,
           sourceId: block.sourceId || null,
           sourceTrackName: block.sourceTrackName || null,
-          sourceVoice: block.sourceVoice || null
+          sourceVoice: block.sourceVoice || null,
+          chordLabel: block.chordLabel || block.chordSymbol || null,
+          chordSymbol: block.chordSymbol || block.chordLabel || null
         };
       });
     }
@@ -3256,49 +3254,6 @@
       return zone;
     }
 
-
-    const VISUAL_ARTICULATION_GAP_PX = 6;
-
-    function getNextAdjacentBlockInSameLane(block) {
-      if (!block) return null;
-
-      const blockStart = Number(block.startBeat || 0);
-      const blockEnd = blockStart + Number(block.durationBeats || MIN_DURATION);
-
-      return project.blocks
-        .filter(candidate =>
-          candidate &&
-          candidate.id !== block.id &&
-          candidate.laneId === block.laneId &&
-          candidate.type === block.type &&
-          Number(candidate.startBeat || 0) >= blockStart - 0.0001
-        )
-        .sort((a, b) =>
-          Number(a.startBeat || 0) - Number(b.startBeat || 0) ||
-          Number(a.durationBeats || MIN_DURATION) - Number(b.durationBeats || MIN_DURATION)
-        )
-        .find(candidate => {
-          const candidateStart = Number(candidate.startBeat || 0);
-          return Math.abs(candidateStart - blockEnd) < 0.0001;
-        }) || null;
-    }
-
-    function shouldShowVisualGapAfterBlock(block) {
-      return !!getNextAdjacentBlockInSameLane(block);
-    }
-
-    function getVisualBlockWidth(block) {
-      const duration = Math.max(MIN_DURATION, Number(block?.durationBeats || MIN_DURATION));
-      const actualWidth = duration * BEAT_WIDTH;
-
-      if (!shouldShowVisualGapAfterBlock(block)) {
-        return Math.max(8, actualWidth);
-      }
-
-      const gap = Math.min(VISUAL_ARTICULATION_GAP_PX, Math.max(0, actualWidth - 8));
-      return Math.max(8, actualWidth - gap);
-    }
-
     function createBlockElement(block) {
       const element = document.createElement("div");
       element.classList.add("orumi-block");
@@ -3335,14 +3290,8 @@
       }
 
       element.style.left = block.startBeat * BEAT_WIDTH + "px";
-      const visualBlockWidth = getVisualBlockWidth(block);
-      element.style.width = visualBlockWidth + "px";
+      element.style.width = block.durationBeats * BEAT_WIDTH + "px";
       element.style.height = velocityToHeight(block.velocity || 82) + "px";
-
-      if (visualBlockWidth < 34) {
-        element.classList.add("compact-block");
-        element.style.minWidth = Math.max(8, visualBlockWidth) + "px";
-      }
 
       const resizeHandle = document.createElement("div");
       resizeHandle.classList.add("resize-handle");
@@ -3655,54 +3604,57 @@
         return [];
       }
 
-      const GROUP_TOLERANCE = 0.055;
-      const groups = [];
-
+      const candidateBeats = [];
       selectedBlocks.forEach(block => {
-        const start = Number(block.startBeat || 0);
-        let group = groups.find(item => Math.abs(item.beat - start) <= GROUP_TOLERANCE);
+        const beat = snapBeat(Number(block.startBeat || 0));
+        if (!candidateBeats.some(existing => Math.abs(existing - beat) < 0.0001)) {
+          candidateBeats.push(beat);
+        }
+      });
+      candidateBeats.sort((a, b) => a - b);
 
-        if (!group) {
-          group = {
-            beat: start,
-            blocks: []
-          };
-          groups.push(group);
+      const groups = [];
+      const seenSignatures = new Set();
+
+      candidateBeats.forEach(beat => {
+        const stackBlocks = getBlocksAtChordBeat(selectedBlocks, beat)
+          .filter(block => block.type === "note" && Number.isFinite(block.midi))
+          .slice()
+          .sort((a, b) => {
+            const laneA = project.lanes.findIndex(lane => lane.id === a.laneId);
+            const laneB = project.lanes.findIndex(lane => lane.id === b.laneId);
+            if (laneA !== laneB) return laneA - laneB;
+
+            return Number(a.midi || 0) - Number(b.midi || 0);
+          });
+
+        const laneIds = new Set(stackBlocks.map(block => block.laneId));
+
+        if (stackBlocks.length < 2 || laneIds.size < 2) {
+          return;
         }
 
-        group.blocks.push(block);
-        group.beat =
-          group.blocks.reduce((sum, item) => sum + Number(item.startBeat || 0), 0) /
-          group.blocks.length;
+        const signature =
+          beat.toFixed(6) +
+          ":" +
+          stackBlocks
+            .map(block => block.id)
+            .sort()
+            .join(",");
+
+        if (seenSignatures.has(signature)) {
+          return;
+        }
+
+        seenSignatures.add(signature);
+
+        groups.push({
+          beat,
+          blocks: stackBlocks
+        });
       });
 
-      return groups
-        .map(group => {
-          const stackBlocks = group.blocks
-            .slice()
-            .sort((a, b) => {
-              const laneA = project.lanes.findIndex(lane => lane.id === a.laneId);
-              const laneB = project.lanes.findIndex(lane => lane.id === b.laneId);
-              if (laneA !== laneB) return laneA - laneB;
-
-              return Number(a.midi || 0) - Number(b.midi || 0);
-            });
-
-          const laneIds = new Set(stackBlocks.map(block => block.laneId));
-
-          if (stackBlocks.length < 2 || laneIds.size < 2) {
-            return null;
-          }
-
-          // Membership rule: highlighted notes only. Do not pull in unselected
-          // sustaining notes and do not infer extra chord cards from passing tones.
-          return {
-            beat: roundBeatForStorage(group.beat),
-            blocks: stackBlocks
-          };
-        })
-        .filter(Boolean)
-        .sort((a, b) => a.beat - b.beat);
+      return groups;
     }
 
     function getProgressionReviewSelection() {
@@ -3793,7 +3745,7 @@
         const canReviewProgression = !!reviewSelection;
         reviewSelectionInProgressionButton.disabled = !canReviewProgression;
         reviewSelectionInProgressionButton.classList.toggle("tool-action-unavailable", !canReviewProgression);
-        reviewSelectionInProgressionButton.textContent = "≡ Edit Chords in Progression";
+        reviewSelectionInProgressionButton.textContent = "≡ Review Chords in Progression";
         reviewSelectionInProgressionButton.title = canReviewProgression
           ? "Send the selected chord stack or chord sequence to Progression Builder for free chord analysis."
           : "Select a vertical chord stack, multiple vertical stacks, or a measure range across tracks, then review it in Progression.";
@@ -3806,10 +3758,6 @@
       const lane = project.lanes.find(item => item.id === selectedBlocks[0].laneId);
       const location = beatToMeasureInfo(minStart);
       const returnFile = window.location.pathname.split("/").pop() || "design-studio.html";
-      const laneVoiceMap = project.lanes.reduce((map, laneItem) => {
-        map[laneItem.id] = laneItem.voice || project.context.voice || null;
-        return map;
-      }, {});
 
       return {
         version: 1,
@@ -3881,7 +3829,7 @@
       }));
       localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
 
-      flashStatus("Opening Player to edit " + selectedBlocks.length + " selected note" + (selectedBlocks.length === 1 ? "" : "s") + " from " + (payload.laneName || "selected lane") + "…");
+      flashStatus("Opening Player to edit " + selectedBlocks.length + " selected note" + (selectedBlocks.length === 1 ? "" : "s") + "…");
 
       window.setTimeout(() => {
         window.location.href = "player.html?mode=editDesignSelection&source=design-studio";
@@ -6642,13 +6590,74 @@
         " shifted.";
     }
 
+    function getReadableDurationValues() {
+      return [
+        0.125,
+        1 / 6,
+        0.25,
+        1 / 3,
+        0.5,
+        2 / 3,
+        0.75,
+        1,
+        1.5,
+        2,
+        3,
+        4,
+        6,
+        8
+      ];
+    }
+
+    function snapDurationToReadableStandard(value, tolerance = 0.08) {
+      const cleanValue = Math.max(MIN_DURATION, Number(value || MIN_DURATION));
+      let best = cleanValue;
+      let bestDistance = Infinity;
+
+      getReadableDurationValues().forEach(candidate => {
+        const distance = Math.abs(candidate - cleanValue);
+        if (distance < bestDistance) {
+          best = candidate;
+          bestDistance = distance;
+        }
+      });
+
+      return bestDistance <= tolerance
+        ? roundBeatForStorage(best)
+        : roundBeatForStorage(cleanValue);
+    }
+
+    function normalizeDurationsToReadableStandards(blocks, tolerance = 0.08) {
+      let changedCount = 0;
+
+      (blocks || []).forEach(block => {
+        if (!block) return;
+
+        const oldDuration = Math.max(MIN_DURATION, Number(block.durationBeats || MIN_DURATION));
+        const newDuration = snapDurationToReadableStandard(oldDuration, tolerance);
+
+        if (Math.abs(newDuration - oldDuration) > 0.0001) {
+          block.durationBeats = newDuration;
+          changedCount += 1;
+        }
+      });
+
+      return changedCount;
+    }
+
     function quantizeValue(value, gridSize) {
       return Math.max(0, Math.round(Number(value || 0) / gridSize) * gridSize);
     }
 
     function quantizeDuration(value, gridSize) {
-      return Math.max(MIN_DURATION, Math.round(Number(value || MIN_DURATION) / gridSize) * gridSize);
+      const rawDuration = Math.max(
+        MIN_DURATION,
+        Math.round(Number(value || MIN_DURATION) / gridSize) * gridSize
+      );
+
+      return snapDurationToReadableStandard(rawDuration, 0.08);
     }
+
 
     function formatBeatValue(value) {
       const rounded = Math.round(Number(value || 0) * 1000) / 1000;
@@ -6770,6 +6779,56 @@
       };
     }
 
+    function repairSameLaneOverlapsWithoutPlaybackGaps(blocks) {
+      let repairedCount = 0;
+      const byLane = new Map();
+
+      (blocks || [])
+        .filter(block => block && block.type !== "rest")
+        .forEach(block => {
+          if (!byLane.has(block.laneId)) {
+            byLane.set(block.laneId, []);
+          }
+          byLane.get(block.laneId).push(block);
+        });
+
+      byLane.forEach(laneBlocks => {
+        const ordered = laneBlocks
+          .slice()
+          .sort((a, b) =>
+            Number(a.startBeat || 0) - Number(b.startBeat || 0) ||
+            Number(a.durationBeats || MIN_DURATION) - Number(b.durationBeats || MIN_DURATION)
+          );
+
+        for (let index = 0; index < ordered.length - 1; index++) {
+          const current = ordered[index];
+          const next = ordered[index + 1];
+
+          if (!current || !next) continue;
+
+          const currentStart = Number(current.startBeat || 0);
+          const currentEnd = currentStart + Number(current.durationBeats || MIN_DURATION);
+          const nextStart = Number(next.startBeat || 0);
+
+          if (currentEnd <= nextStart + 0.0001) {
+            continue;
+          }
+
+          const repairedDuration = Math.max(
+            MIN_DURATION,
+            roundBeatForStorage(nextStart - currentStart)
+          );
+
+          if (Math.abs(repairedDuration - Number(current.durationBeats || MIN_DURATION)) > 0.0001) {
+            current.durationBeats = snapDurationToReadableStandard(repairedDuration, 0.02);
+            repairedCount += 1;
+          }
+        }
+      });
+
+      return repairedCount;
+    }
+
     function quantizeCleanTiming() {
       const scopeAnswer = window.prompt(
         "Quantize / clean timing for:\n\n" +
@@ -6827,6 +6886,7 @@
       const analysis = analyzeQuantizeTargets(targetBlocks);
       const suggestedGrid = getSuggestedQuantizeGrid(analysis);
       const suggestedInfo = getQuantizeGridInfo(suggestedGrid);
+
       const beatPreview = countQuantizeChanges(targetBlocks, 1);
       const halfBeatPreview = countQuantizeChanges(targetBlocks, 0.5);
       const quarterBeatPreview = countQuantizeChanges(targetBlocks, 0.25);
@@ -6841,9 +6901,12 @@
         "Smallest start gap: " + (analysis.smallestStartGap === null ? "n/a" : formatBeatValue(analysis.smallestStartGap) + " beats") + "\n\n" +
         "Recommended grid: " + suggestedInfo.answer + " = " + suggestedInfo.label + "\n\n" +
         "Preview changes:\n" +
-        "4 = Quarter notes: " + quarterBeatPreview.changedCount + " block" + (quarterBeatPreview.changedCount === 1 ? "" : "s") + " would change\n" +
-        "8 = Eighth notes: " + eighthBeatPreview.changedCount + " block" + (eighthBeatPreview.changedCount === 1 ? "" : "s") + " would change\n" +
-        "16 = Sixteenth notes: " + quarterBeatPreview.changedCount + " block" + (quarterBeatPreview.changedCount === 1 ? "" : "s") + " would change\n\n" +
+        "1 = Beat: " + beatPreview.changedCount + " block" + (beatPreview.changedCount === 1 ? "" : "s") + " would change\n" +
+        "2 = Half-beat: " + halfBeatPreview.changedCount + " block" + (halfBeatPreview.changedCount === 1 ? "" : "s") + " would change\n" +
+        "4 = Quarter-beat: " + quarterBeatPreview.changedCount + " block" + (quarterBeatPreview.changedCount === 1 ? "" : "s") + " would change\n" +
+        "8 = Eighth-beat: " + eighthBeatPreview.changedCount + " block" + (eighthBeatPreview.changedCount === 1 ? "" : "s") + " would change\n" +
+        "T = Triplet: " + tripletPreview.changedCount + " block" + (tripletPreview.changedCount === 1 ? "" : "s") + " would change\n" +
+        "6 = Triplet subdivision: " + sixthPreview.changedCount + " block" + (sixthPreview.changedCount === 1 ? "" : "s") + " would change\n\n" +
         "Choose grid, or C to cancel:",
         suggestedInfo.answer
       );
@@ -6915,7 +6978,7 @@
         const newStart = quantizeValue(oldStart, gridSize);
         const newDuration = quantizeDuration(oldDuration, gridSize);
 
-        if (newStart !== oldStart || newDuration !== oldDuration) {
+        if (Math.abs(newStart - oldStart) > 0.0001 || Math.abs(newDuration - oldDuration) > 0.0001) {
           block.startBeat = newStart;
           block.durationBeats = newDuration;
           changedCount += 1;
@@ -6928,13 +6991,20 @@
         }
       });
 
+      const normalizedCount = normalizeDurationsToReadableStandards(targetBlocks, 0.08);
+      const overlapRepairCount = repairSameLaneOverlapsWithoutPlaybackGaps(targetBlocks);
+      changedCount += normalizedCount + overlapRepairCount;
+
       localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+      saveProjectSnapshotSilently();
       render();
 
       status.textContent =
         "Quantized " +
         changedCount +
-        " of " +
+        " timing value" +
+        (changedCount === 1 ? "" : "s") +
+        " across " +
         targetBlocks.length +
         " block" +
         (targetBlocks.length === 1 ? "" : "s") +
@@ -6946,305 +7016,17 @@
         shortenedCount +
         " shortened, " +
         lengthenedCount +
-        " lengthened. Undo is available.";
+        " lengthened, " +
+        normalizedCount +
+        " custom duration" +
+        (normalizedCount === 1 ? "" : "s") +
+        " standardized, " +
+        overlapRepairCount +
+        " overlap" +
+        (overlapRepairCount === 1 ? "" : "s") +
+        " repaired. Visual spacing is display-only. Undo is available.";
     }
 
-
-    function parseVocalArticulationScope(defaultScope = "A") {
-      const answer = window.prompt(
-        "Clean Vocal Lane Articulation for:\n\n" +
-        "A = All Tracks\n" +
-        "S = Selected Track only\n" +
-        "B = Selected Blocks\n" +
-        "C = Cancel\n\n" +
-        "This is different from Quantize. It keeps each lane monophonic, aligns near-simultaneous note starts across lanes, and shortens note endings to leave a small visible/sounding gap.",
-        defaultScope
-      );
-
-      if (!answer) {
-        return null;
-      }
-
-      const normalized = answer.trim().toLowerCase();
-
-      if (normalized === "a" || normalized === "all" || normalized === "all tracks") {
-        return "all";
-      }
-
-      if (normalized === "s" || normalized === "selected" || normalized === "selected track") {
-        return "selected";
-      }
-
-      if (normalized === "b" || normalized === "blocks" || normalized === "selected blocks") {
-        return "blocks";
-      }
-
-      return null;
-    }
-
-    function getVocalArticulationTargets(scope) {
-      let targetBlocks = [];
-      let scopeLabel = "all tracks";
-
-      if (scope === "all") {
-        targetBlocks = project.blocks;
-      } else if (scope === "selected") {
-        const selectedLane = project.lanes.find(lane => lane.id === selectedLaneId);
-
-        if (!selectedLane) {
-          return {
-            targetBlocks: [],
-            scopeLabel: "selected track",
-            error: "Select a track before cleaning selected-track articulation."
-          };
-        }
-
-        targetBlocks = project.blocks.filter(block => block.laneId === selectedLane.id);
-        scopeLabel = selectedLane.name || "selected track";
-      } else if (scope === "blocks") {
-        targetBlocks = getSelectedBlocks();
-        scopeLabel = "selected blocks";
-      }
-
-      return {
-        targetBlocks: targetBlocks.filter(block => block && block.type === "note" && Number.isFinite(Number(block.midi))),
-        scopeLabel,
-        error: ""
-      };
-    }
-
-    function getLaneOrderIndex(laneId) {
-      const index = project.lanes.findIndex(lane => lane.id === laneId);
-      return index < 0 ? 999 : index;
-    }
-
-    function findNearestAnchor(value, anchors, tolerance) {
-      let best = null;
-      let bestDistance = Infinity;
-
-      anchors.forEach(anchor => {
-        const distance = Math.abs(Number(value || 0) - anchor);
-
-        if (distance < bestDistance) {
-          best = anchor;
-          bestDistance = distance;
-        }
-      });
-
-      return bestDistance <= tolerance ? best : null;
-    }
-
-    function buildSharedStartAnchors(blocks, tolerance) {
-      const starts = blocks
-        .filter(block => block.type === "note")
-        .map(block => ({
-          start: Number(block.startBeat || 0),
-          laneOrder: getLaneOrderIndex(block.laneId)
-        }))
-        .filter(item => Number.isFinite(item.start))
-        .sort((a, b) => a.start - b.start || a.laneOrder - b.laneOrder);
-
-      const clusters = [];
-
-      starts.forEach(item => {
-        const last = clusters[clusters.length - 1];
-
-        if (!last || Math.abs(item.start - last.center) > tolerance) {
-          clusters.push({
-            items: [item],
-            center: item.start
-          });
-          return;
-        }
-
-        last.items.push(item);
-        last.center =
-          last.items.reduce((sum, clusterItem) => sum + clusterItem.start, 0) /
-          last.items.length;
-      });
-
-      return clusters.map(cluster => {
-        const reference =
-          cluster.items
-            .slice()
-            .sort((a, b) => a.laneOrder - b.laneOrder || a.start - b.start)[0];
-
-        // Top-down reference: the uppermost lane in the near-start cluster leads.
-        // A tiny 1/64-beat snap removes MIDI jitter without changing the phrase.
-        return roundBeatForStorage(quantizeValue(reference.start, 0.0625));
-      });
-    }
-
-    function cleanVocalLaneGroup(laneBlocks, targetIdSet, gapBeats = 0) {
-      let adjustedCount = 0;
-      let collisionCount = 0;
-
-      const ordered = laneBlocks
-        .filter(block => targetIdSet.has(block.id))
-        .sort((a, b) =>
-          Number(a.startBeat || 0) - Number(b.startBeat || 0) ||
-          Number(a.midi || 0) - Number(b.midi || 0)
-        );
-
-      for (let index = 0; index < ordered.length - 1; index++) {
-        const current = ordered[index];
-        const next = ordered[index + 1];
-
-        if (!current || !next) {
-          continue;
-        }
-
-        const currentStart = Number(current.startBeat || 0);
-        const nextStart = Number(next.startBeat || 0);
-
-        if (nextStart <= currentStart + 0.0001) {
-          // Same-lane simultaneous notes cannot be sung by one barbershop part.
-          // Do not invent rhythmic space; flag by reducing the earlier event to
-          // the minimum editable unit so the user can decide whether to split voices.
-          current.durationBeats = MIN_DURATION;
-          collisionCount += 1;
-          continue;
-        }
-
-        const currentEnd = currentStart + Number(current.durationBeats || MIN_DURATION);
-
-        if (currentEnd <= nextStart + 0.0001) {
-          continue;
-        }
-
-        // Repair overlap only. Do not create a real audio/rest gap.
-        // The tiny separation is handled visually by getVisualBlockWidth().
-        const repairedDuration = roundBeatForStorage(nextStart - currentStart);
-
-        if (repairedDuration >= MIN_DURATION - 0.0001) {
-          current.durationBeats = Math.max(MIN_DURATION, repairedDuration);
-          adjustedCount += 1;
-        } else {
-          current.durationBeats = MIN_DURATION;
-          collisionCount += 1;
-        }
-      }
-
-      return {
-        adjustedCount,
-        shortenedCount: adjustedCount,
-        collisionCount
-      };
-    }
-
-    function cleanVocalLaneArticulation() {
-      const defaultScope = getSelectedBlocks().length > 0 ? "B" : "A";
-      const scope = parseVocalArticulationScope(defaultScope);
-
-      if (!scope) {
-        status.textContent = "Vocal lane articulation cleanup cancelled.";
-        return;
-      }
-
-      const {
-        targetBlocks,
-        scopeLabel,
-        error
-      } = getVocalArticulationTargets(scope);
-
-      if (error) {
-        status.textContent = error;
-        return;
-      }
-
-      if (targetBlocks.length === 0) {
-        status.textContent = "No note blocks found for vocal lane articulation cleanup.";
-        return;
-      }
-
-      const confirmed = window.confirm(
-        "Clean vocal lane articulation for " +
-        targetBlocks.length +
-        " note block" +
-        (targetBlocks.length === 1 ? "" : "s") +
-        " in " +
-        scopeLabel +
-        "?\n\n" +
-        "This will:\n" +
-        "• align near-simultaneous starts across lanes using a top-down reference\n" +
-        "• keep each lane monophonic\n" +
-        "• shorten note endings to leave a small visible/sounding gap before the next note\n" +
-        "• avoid rewriting pitches or moving whole phrases\n\n" +
-        "Undo will be available."
-      );
-
-      if (!confirmed) {
-        status.textContent = "Vocal lane articulation cleanup cancelled.";
-        return;
-      }
-
-      saveHistory();
-
-      const targetIdSet = new Set(targetBlocks.map(block => block.id));
-      const ALIGN_TOLERANCE = 0.055;
-      const GAP_BEATS = 0;
-
-      const anchors = buildSharedStartAnchors(targetBlocks, ALIGN_TOLERANCE);
-
-      let alignedCount = 0;
-      targetBlocks.forEach(block => {
-        const oldStart = Number(block.startBeat || 0);
-        const anchor = findNearestAnchor(oldStart, anchors, ALIGN_TOLERANCE);
-
-        if (anchor !== null && Math.abs(anchor - oldStart) > 0.0001) {
-          block.startBeat = roundBeatForStorage(anchor);
-          alignedCount += 1;
-        }
-      });
-
-      const laneIds = Array.from(
-        new Set(
-          targetBlocks
-            .map(block => block.laneId)
-            .filter(Boolean)
-        )
-      ).sort((a, b) => getLaneOrderIndex(a) - getLaneOrderIndex(b));
-
-      const totals = {
-        shortenedCount: 0,
-        collisionCount: 0
-      };
-
-      laneIds.forEach(laneId => {
-        const laneBlocks = project.blocks
-          .filter(block => block.laneId === laneId && block.type === "note")
-          .sort((a, b) => Number(a.startBeat || 0) - Number(b.startBeat || 0));
-
-        const result = cleanVocalLaneGroup(laneBlocks, targetIdSet, GAP_BEATS);
-
-        totals.shortenedCount += result.shortenedCount || 0;
-        totals.collisionCount += result.collisionCount || 0;
-      });
-
-      project.blocks.sort((a, b) =>
-        Number(a.startBeat || 0) - Number(b.startBeat || 0) ||
-        getLaneOrderIndex(a.laneId) - getLaneOrderIndex(b.laneId) ||
-        Number(a.midi || 0) - Number(b.midi || 0)
-      );
-
-      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
-      render();
-
-      status.textContent =
-        "Cleaned vocal lane articulation in " +
-        scopeLabel +
-        ". " +
-        alignedCount +
-        " start" +
-        (alignedCount === 1 ? "" : "s") +
-        " aligned, " +
-        totals.shortenedCount +
-        " note ending" +
-        (totals.shortenedCount === 1 ? "" : "s") +
-        " shortened for gaps" +
-        (totals.collisionCount ? ", " + totals.collisionCount + " same-lane collision" + (totals.collisionCount === 1 ? "" : "s") + " flagged" : "") +
-        ". Undo is available.";
-    }
 
     function importPendingChordFromStorage(autoPrompt = false) {
       const raw = localStorage.getItem(STORAGE_PENDING_CHORD);
@@ -8088,7 +7870,7 @@
             midi,
             name: midiToDisplayName(midi),
             startBeat: snapBeat(offsetBeat + Number(note.startBeat || 0)),
-            durationBeats: Math.max(MIN_DURATION, snapBeat(Number(note.durationBeats || MIN_DURATION))),
+            durationBeats: snapDurationToReadableStandard(Math.max(MIN_DURATION, snapBeat(Number(note.durationBeats || MIN_DURATION))), 0.08),
             velocity: Math.max(20, Math.min(127, Math.round(note.velocity || 86))),
             voice: null,
             system: project.context.system,
@@ -9676,6 +9458,234 @@
     }
 
 
+    function getReviewedProgressionPayloadFromStorage() {
+      const params = new URLSearchParams(window.location.search || "");
+      const handoffId =
+        params.get("handoff") ||
+        sessionStorage.getItem("orumiLastReviewedProgressionHandoffId") ||
+        localStorage.getItem("orumiLastReviewedProgressionHandoffId") ||
+        "";
+
+      const keys = [
+        ...(handoffId ? ["orumiReviewedProgressionForDesign_" + handoffId] : []),
+        "orumiPendingReviewedProgressionForDesign",
+        "orumiReviewedProgressionForDesign",
+        "orumiProgressionReviewSelections"
+      ];
+
+      for (const storage of [sessionStorage, localStorage]) {
+        for (const key of keys) {
+          try {
+            const parsed = JSON.parse(storage.getItem(key) || "null");
+            if (parsed && Array.isArray(parsed.chords)) {
+              parsed.storageKey = key;
+              parsed.storageArea = storage === sessionStorage ? "sessionStorage" : "localStorage";
+              return parsed;
+            }
+          } catch (error) {}
+        }
+      }
+
+      return null;
+    }
+
+    function clearReviewedProgressionPayloadStorage(payload = null) {
+      const handoffId =
+        payload?.handoffId ||
+        sessionStorage.getItem("orumiLastReviewedProgressionHandoffId") ||
+        localStorage.getItem("orumiLastReviewedProgressionHandoffId") ||
+        "";
+
+      const keys = [
+        "orumiPendingReviewedProgressionForDesign",
+        "orumiReviewedProgressionForDesign",
+        "orumiProgressionReviewSelections",
+        "orumiLastReviewedProgressionHandoffId",
+        ...(handoffId ? ["orumiReviewedProgressionForDesign_" + handoffId] : [])
+      ];
+
+      [sessionStorage, localStorage].forEach(storage => {
+        keys.forEach(key => {
+          try {
+            storage.removeItem(key);
+          } catch (error) {}
+        });
+      });
+    }
+
+    function getReviewedProgressionChordItems(chord) {
+      const blocks = Array.isArray(chord?.blocks) ? chord.blocks : [];
+      const assignments = Array.isArray(chord?.voiceAssignments) ? chord.voiceAssignments : [];
+      const notes = Array.isArray(chord?.notes) ? chord.notes : [];
+      const byIdentity = new Map();
+
+      function identityFor(item, fallbackIndex) {
+        return (
+          item?.blockId ||
+          item?.id ||
+          item?.sourceId ||
+          (item?.laneId || item?.role || "lane") + "_" + fallbackIndex
+        );
+      }
+
+      blocks.forEach((item, index) => {
+        if (!item) return;
+        byIdentity.set(identityFor(item, index), { ...item });
+      });
+
+      assignments.forEach((item, index) => {
+        if (!item) return;
+        const key = identityFor(item, index);
+        byIdentity.set(key, {
+          ...(byIdentity.get(key) || {}),
+          ...item
+        });
+      });
+
+      if (!byIdentity.size && notes.length) {
+        notes.forEach((note, index) => {
+          const midi =
+            typeof note === "string"
+              ? noteNameToMidi(note)
+              : Number(note?.midi);
+          if (!Number.isFinite(midi)) return;
+
+          byIdentity.set("note_" + index, {
+            midi,
+            name:
+              typeof note === "string"
+                ? note
+                : note.name || note.note || note.displayName || midiToDisplayName(midi),
+            laneId: note?.laneId || null
+          });
+        });
+      }
+
+      return Array.from(byIdentity.values())
+        .map(item => {
+          const midi = Number(item.midi);
+          if (!Number.isFinite(midi)) return null;
+
+          return {
+            ...item,
+            midi,
+            name: item.name || item.note || item.displayName || midiToDisplayName(midi),
+            laneId: item.laneId || item.role || null
+          };
+        })
+        .filter(Boolean);
+    }
+
+    function findDesignBlockForReviewedItem(item, chord) {
+      const ids = [
+        item.blockId,
+        item.id,
+        item.sourceId
+      ].filter(Boolean);
+
+      for (const id of ids) {
+        const byId = project.blocks.find(block => block.id === id);
+        if (byId) return byId;
+
+        const bySource = project.blocks.find(block => block.sourceId === id);
+        if (bySource) return bySource;
+      }
+
+      const laneId = item.laneId || item.role || null;
+      const startBeat = Number(
+        item.startBeat !== undefined
+          ? item.startBeat
+          : chord?.startBeat
+      );
+
+      if (laneId && Number.isFinite(startBeat)) {
+        const byLaneAndTime = project.blocks.find(block =>
+          block.type === "note" &&
+          block.laneId === laneId &&
+          Math.abs(Number(block.startBeat || 0) - startBeat) < 0.08
+        );
+
+        if (byLaneAndTime) return byLaneAndTime;
+      }
+
+      return null;
+    }
+
+    function applyPendingReviewedProgressionFromStorage() {
+      const payload = getReviewedProgressionPayloadFromStorage();
+
+      if (!payload || !Array.isArray(payload.chords) || payload.chords.length === 0) {
+        return false;
+      }
+
+      saveHistory();
+
+      let changedCount = 0;
+      let labeledCount = 0;
+      const changedIds = [];
+
+      payload.chords.forEach(chord => {
+        const chosenName =
+          chord.chosenName ||
+          chord.chordLabel ||
+          chord.selectedAnalysisSymbol ||
+          chord.name ||
+          "";
+
+        const items = getReviewedProgressionChordItems(chord);
+
+        items.forEach(item => {
+          const target = findDesignBlockForReviewedItem(item, chord);
+
+          if (!target || target.type !== "note") {
+            return;
+          }
+
+          if (Number.isFinite(item.midi) && Number(target.midi) !== Number(item.midi)) {
+            target.midi = Number(item.midi);
+            target.name = item.name || midiToDisplayName(Number(item.midi));
+            changedCount += 1;
+          }
+
+          if (chosenName) {
+            target.chordLabel = chosenName;
+            target.chordSymbol = chosenName;
+            labeledCount += 1;
+          }
+
+          if (item.voice !== undefined) {
+            target.voice = item.voice;
+          }
+
+          changedIds.push(target.id);
+        });
+      });
+
+      normalizeProject();
+      selectedBlockIds = new Set(changedIds);
+      selectedBlockId = changedIds[0] || null;
+
+      if (selectedBlockId) {
+        selectedLaneId = project.blocks.find(block => block.id === selectedBlockId)?.laneId || selectedLaneId;
+      }
+
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+      saveProjectSnapshotSilently();
+      clearReviewedProgressionPayloadStorage(payload);
+      render();
+
+      if (changedCount > 0) {
+        flashStatus("Applied " + changedCount + " Progression note edit" + (changedCount === 1 ? "" : "s") + " to Design.");
+      } else if (labeledCount > 0) {
+        flashStatus("Progression returned chord names. No note pitches changed.");
+      } else {
+        flashStatus("Progression returned, but no matching Design notes were found to update.");
+      }
+
+      return true;
+    }
+
+
     function applyPendingChordFactoryUndoSnapshot() {
       const key = "orumiDesignStudioExternalUndoSnapshot";
       let payload = null;
@@ -9756,9 +9766,6 @@
     }
     insertMeasuresButton.addEventListener("click", insertMeasuresAtSelectedPoint);
     quantizeTimingButton.addEventListener("click", quantizeCleanTiming);
-    if (cleanVocalArticulationButton) {
-      cleanVocalArticulationButton.addEventListener("click", cleanVocalLaneArticulation);
-    }
     resetViewButton.addEventListener("click", resetView);
     jumpToEndButton.addEventListener("click", jumpToEnd);
     zoomOutButton.addEventListener("click", zoomOutTimeline);
@@ -9782,6 +9789,7 @@
     applyPendingPlayerReplacement();
     applyPendingPlayerLineImport();
     applyPendingSuggestedHarmonyPlan();
+    applyPendingReviewedProgressionFromStorage();
 
     setTimeout(() => {
       if (!pendingChordChecked) {

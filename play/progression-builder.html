@@ -935,7 +935,7 @@
           class="action-button secondary"
           href="chord-factory.html"
         >
-          Open Chord Factory
+          Add a Chord
         </a>
 
         <a
@@ -944,6 +944,13 @@
         >
           Open Design Studio
         </a>
+
+        <button
+          class="action-button secondary"
+          id="sendReviewedProgressionButton"
+        >
+          ⤴ Send Edited Chords to Design
+        </button>
 
         <button
           class="action-button danger"
@@ -996,6 +1003,9 @@
 
     const playbackStatus =
       document.getElementById("playbackStatus");
+
+    const sendReviewedProgressionButton =
+      document.getElementById("sendReviewedProgressionButton");
 
     const suggestHarmonySection =
       document.getElementById("suggestHarmonySection");
@@ -1341,25 +1351,15 @@
 
       const payload = normalizeProgressionReviewPayload(readProgressionReviewPayload());
 
-      document.querySelector("h1").textContent = "Review Progression";
-      document.querySelector(".subtitle").textContent =
-        "Review chord stacks sent from Design Studio as a left-to-right progression. Use Chord Factory on any card when you want to reshape a chord.";
-
       if (!payload) {
-        const existingProgression = getProgression();
-
-        if (Array.isArray(existingProgression) && existingProgression.length > 0) {
-          renderProgression();
-          playbackStatus.textContent =
-            "Reviewing " + existingProgression.length + " chord" + (existingProgression.length === 1 ? "" : "s") + " already loaded in Progression.";
-          return true;
-        }
-
         progressionStrip.innerHTML = "";
         emptyState.style.display = "block";
         emptyState.innerHTML =
           "No chord sequence was found.<br>Return to Design Studio, select a chord stack or measure range, then choose Review Chords in Progression.";
         playbackStatus.textContent = "Waiting for selected chords from Design Studio.";
+        document.querySelector("h1").textContent = "Review Progression";
+        document.querySelector(".subtitle").textContent =
+          "Review chord stacks sent from Design Studio as a left-to-right progression.";
         return true;
       }
 
@@ -1367,8 +1367,9 @@
       saveProgression(payload.chords);
       clearProgressionReviewPayloadStorage();
 
+      document.querySelector("h1").textContent = "Review Progression";
       document.querySelector(".subtitle").textContent =
-        "Review chord stacks sent from " + (payload.projectTitle || "Design Studio") + ". Play, reorder, edit in Chord Factory, or send the progression back to Design.";
+        "Review chord stacks sent from " + (payload.projectTitle || "Design Studio") + ". Play, reorder, edit, or send the progression back to Design.";
 
       renderProgression();
       playbackStatus.textContent =
@@ -3294,7 +3295,7 @@
       editLink.addEventListener("click", prepareProgressionChordEdit);
 
       editLink.textContent =
-        "Chord Factory";
+        "Edit";
 
       const moveLeft =
         document.createElement("button");
@@ -3410,7 +3411,12 @@
         temp;
 
       saveProgression(progression);
+      const reviewModeActive = initializeProgressionReviewMode();
+    const suggestModeActive = reviewModeActive ? false : initializeSuggestHarmonyMode();
+
+    if (!reviewModeActive && !suggestModeActive) {
       renderProgression();
+    }
     }
 
     function removeChord(index) {
@@ -3420,7 +3426,11 @@
       progression.splice(index, 1);
 
       saveProgression(progression);
+      const suggestModeActive = initializeSuggestHarmonyMode();
+
+    if (!suggestModeActive) {
       renderProgression();
+    }
     }
 
     function clearProgression() {
@@ -3445,7 +3455,11 @@
       clearPlaybackTimers();
 
       saveProgression([]);
+      const suggestModeActive = initializeSuggestHarmonyMode();
+
+    if (!suggestModeActive) {
       renderProgression();
+    }
     }
 
     async function ensureAudio() {
@@ -3561,6 +3575,81 @@
       } else {
         await startDrone();
       }
+    }
+
+
+    function sendReviewedProgressionToDesign() {
+      const progression = getProgression();
+
+      if (!Array.isArray(progression) || progression.length === 0) {
+        playbackStatus.textContent = "No edited chords to send.";
+        return;
+      }
+
+      const handoffId =
+        "reviewed_progression_" +
+        Date.now().toString(36) +
+        "_" +
+        Math.random().toString(36).slice(2);
+
+      const payload = {
+        source: "progression-builder",
+        mode: "reviewedChordNames",
+        handoffId,
+        createdAt: new Date().toISOString(),
+        preservationMode: "free-analysis",
+        keepNote: null,
+        chords: progression.map((chord, index) => {
+          const chosenName =
+            chord.selectedAnalysisSymbol ||
+            chord.chordLabel ||
+            chord.name ||
+            "Chord " + (index + 1);
+
+          return {
+            ...chord,
+            chordIndex: index,
+            chosenName,
+            chordLabel: chosenName,
+            name: chosenName,
+            startBeat: Number(chord.startBeat || index),
+            notes: Array.isArray(chord.notes) ? chord.notes : [],
+            blocks: Array.isArray(chord.blocks) ? chord.blocks : [],
+            voiceAssignments: Array.isArray(chord.voiceAssignments) ? chord.voiceAssignments : [],
+            originalNotesPreserved: false
+          };
+        })
+      };
+
+      const serialized = JSON.stringify(payload);
+      const keys = [
+        "orumiReviewedProgressionForDesign",
+        "orumiPendingReviewedProgressionForDesign",
+        "orumiProgressionReviewSelections",
+        "orumiReviewedProgressionForDesign_" + handoffId
+      ];
+
+      keys.forEach(key => {
+        try {
+          localStorage.setItem(key, serialized);
+          sessionStorage.setItem(key, serialized);
+        } catch (error) {
+          console.warn("Could not write reviewed progression payload", key, error);
+        }
+      });
+
+      try {
+        localStorage.setItem("orumiLastReviewedProgressionHandoffId", handoffId);
+        sessionStorage.setItem("orumiLastReviewedProgressionHandoffId", handoffId);
+        localStorage.setItem("orumiProgression", JSON.stringify(progression));
+      } catch (error) {
+        console.warn("Could not complete reviewed progression handoff", error);
+      }
+
+      playbackStatus.textContent = "Edited chord names/notes sent to Design Studio.";
+      window.location.href =
+        "design-studio.html?mode=reviewedChordNames&source=progression-builder&handoff=" +
+        encodeURIComponent(handoffId);
     }
 
     async function playSingleChord(chord, duration = 1400) {
@@ -3714,6 +3803,13 @@
       clearProgression
     );
 
+    if (sendReviewedProgressionButton) {
+      sendReviewedProgressionButton.addEventListener(
+        "click",
+        sendReviewedProgressionToDesign
+      );
+    }
+
     droneButton.addEventListener(
       "click",
       toggleDrone
@@ -3760,10 +3856,9 @@
       }
     );
 
-    const reviewModeActive = initializeProgressionReviewMode();
-    const suggestModeActive = reviewModeActive ? false : initializeSuggestHarmonyMode();
+    const suggestModeActive = initializeSuggestHarmonyMode();
 
-    if (!reviewModeActive && !suggestModeActive) {
+    if (!suggestModeActive) {
       renderProgression();
     }
   </script>

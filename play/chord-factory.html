@@ -1009,22 +1009,6 @@
 
             <button
               class="action-button secondary-button"
-              id="removeLowestNoteButton"
-              title="Remove the lowest selected note from the new chord"
-            >
-              ⌄ Remove Lowest
-            </button>
-
-            <button
-              class="action-button secondary-button"
-              id="removeHighestNoteButton"
-              title="Remove the highest selected note from the new chord"
-            >
-              ⌃ Remove Highest
-            </button>
-
-            <button
-              class="action-button secondary-button"
               id="clearButton"
             >
               ✕ Clear
@@ -1063,7 +1047,6 @@
       <div class="tool-mode-row">
         <span>Choose Tool</span>
         <select id="toolModeSelect">
-          <option value="suggestions">Review Chord Suggestions</option>
           <option value="characteristics">Customize Chord Characteristics</option>
           <option value="notes">Customize Notes in Chord</option>
         </select>
@@ -1159,12 +1142,6 @@
     const clearButton =
       document.getElementById("clearButton");
 
-    const removeLowestNoteButton =
-      document.getElementById("removeLowestNoteButton");
-
-    const removeHighestNoteButton =
-      document.getElementById("removeHighestNoteButton");
-
     const addProgressionButton =
       document.getElementById("addProgressionButton");
 
@@ -1232,7 +1209,7 @@
         ? parseInt(params.get("chordOctave"), 10)
         : 3;
 
-    if (![2, 3, 4, 5].includes(selectedOctave)) {
+    if (![3, 4].includes(selectedOctave)) {
       selectedOctave = 3;
     }
 
@@ -1259,7 +1236,7 @@
     let progressionReturnButton = null;
     let sendProgressionChordToDesignButton = null;
     let inactiveContextButton = null;
-    let activeToolMode = "suggestions";
+    let activeToolMode = "characteristics";
 
     const DESIGN_EDIT_PAYLOAD_KEYS = [
       "orumiChordFactoryPayload",
@@ -1661,8 +1638,8 @@
       selectedVoicing = 1;
       if (selectedNoteMidis.length) {
         selectedOctave = Math.floor(Math.min(...selectedNoteMidis) / 12) - 1;
-        if (![2, 3, 4, 5].includes(selectedOctave)) {
-          selectedOctave = Math.max(2, Math.min(5, selectedOctave));
+        if (![3, 4].includes(selectedOctave)) {
+          selectedOctave = selectedNoteMidis[0] < 60 ? 3 : 4;
         }
       }
 
@@ -1889,8 +1866,8 @@
       selectedOctave =
         Math.floor(selectedNoteMidis[0] / 12) - 1;
 
-      if (![2, 3, 4, 5].includes(selectedOctave)) {
-        selectedOctave = Math.max(2, Math.min(5, selectedOctave));
+      if (![3, 4].includes(selectedOctave)) {
+        selectedOctave = selectedNoteMidis[0] < 60 ? 3 : 4;
       }
 
       addDesignButton.textContent =
@@ -2276,7 +2253,7 @@
       selectedRoot = suggestion.root;
       selectedQuality = suggestion.quality;
       selectedVoicing = 1;
-      selectedOctave = Math.max(2, Math.min(5, Math.floor(Math.min(...suggestion.notes.map(note => note.midi)) / 12) - 1));
+      selectedOctave = Math.max(3, Math.min(4, Math.floor(Math.min(...suggestion.notes.map(note => note.midi)) / 12) - 1));
       selectedNoteMidis = suggestion.notes.map(note => note.midi).sort((a, b) => a - b);
       selectedVoiceAwareSuggestion = JSON.parse(JSON.stringify(suggestion));
       chordEditStarted = true;
@@ -3049,31 +3026,6 @@
       buildAll();
     }
 
-
-    function removeExtremeSelectedNote(which = "lowest") {
-      const cleanMidis = selectedNoteMidis
-        .map(midi => Number(midi))
-        .filter(midi => Number.isFinite(midi))
-        .sort((a, b) => a - b);
-
-      if (cleanMidis.length === 0) {
-        factoryStatus.textContent = "No selected notes to remove.";
-        return;
-      }
-
-      const midiToRemove = which === "highest"
-        ? cleanMidis[cleanMidis.length - 1]
-        : cleanMidis[0];
-
-      chordEditStarted = true;
-      selectedVoiceAwareSuggestion = null;
-      selectedNoteMidis = cleanMidis.filter(midi => midi !== midiToRemove);
-      buildAll();
-
-      factoryStatus.textContent =
-        "Removed " + midiToDisplayName(midiToRemove) + " from the new chord.";
-    }
-
     function buildRootGrid() {
 
       rootGrid.innerHTML = "";
@@ -3208,7 +3160,7 @@
 
       octaveGrid.innerHTML = "";
 
-      [2,3,4,5].forEach(octave => {
+      [3,4].forEach(octave => {
 
         const button =
           document.createElement("button");
@@ -3245,7 +3197,7 @@
       const chromaticNotes =
         getChromaticFromRoot(selectedKeyRoot);
 
-      [2,3,4,5].forEach(octave => {
+      [3,4].forEach(octave => {
 
         const row =
           document.createElement("div");
@@ -3369,14 +3321,6 @@
 
         selectedNotesRow.appendChild(chip);
       });
-
-      if (removeLowestNoteButton) {
-        removeLowestNoteButton.disabled = notes.length === 0;
-      }
-
-      if (removeHighestNoteButton) {
-        removeHighestNoteButton.disabled = notes.length === 0;
-      }
 
       renderStackComparison();
 
@@ -3757,19 +3701,37 @@
         sourceId: previous.sourceId || previous.id || "edited-progression-chord",
         locationLabel: previous.locationLabel || "Chord " + (index + 1),
         detail: "Edited in Chord Factory.",
-        blocks: getCurrentSelectionStackAssignments().map(item => ({
-          laneId: item.laneId || "lead",
-          laneName: getLaneLabel(item.laneId || "lead"),
-          midi: Number(item.midi),
-          name: item.displayName || midiToDisplayName(Number(item.midi)),
-          note: item.displayName || midiToDisplayName(Number(item.midi)),
-          voice: previous.voice || chord.voice || selectedVoice || null
-        })).filter(block => Number.isFinite(block.midi))
+        blocks: getCurrentSelectionStackAssignments().map(item => {
+          const priorBlocks = Array.isArray(previous.blocks) ? previous.blocks : [];
+          const priorAssignments = Array.isArray(previous.voiceAssignments) ? previous.voiceAssignments : [];
+          const prior =
+            priorBlocks.find(block => block.laneId === item.laneId) ||
+            priorAssignments.find(block => block.laneId === item.laneId) ||
+            null;
+
+          return {
+            id: prior ? prior.id || prior.blockId || prior.sourceId || null : null,
+            blockId: prior ? prior.blockId || prior.id || prior.sourceId || null : null,
+            sourceId: prior ? prior.sourceId || prior.blockId || prior.id || null : null,
+            laneId: item.laneId || (prior && prior.laneId) || "lead",
+            laneName: getLaneLabel(item.laneId || (prior && prior.laneId) || "lead"),
+            midi: Number(item.midi),
+            name: item.displayName || midiToDisplayName(Number(item.midi)),
+            note: item.displayName || midiToDisplayName(Number(item.midi)),
+            voice: (prior && prior.voice) || previous.voice || chord.voice || selectedVoice || null
+          };
+        }).filter(block => Number.isFinite(block.midi))
       };
 
       writeJsonStorage("orumiProgression", progression);
+      localStorage.setItem("orumiProgressionReturnFromChordFactory", JSON.stringify({
+        source: "chord-factory",
+        mode: "editedProgressionChord",
+        chordIndex: index,
+        updatedAt: new Date().toISOString()
+      }));
       localStorage.removeItem("orumiProgressionChordFactoryContext");
-      window.location.href = context.returnUrl || "progression-builder.html?mode=reviewProgression&source=design-studio";
+      window.location.href = "progression-builder.html?mode=editedProgressionChord&source=chord-factory";
     }
 
     function applyCurrentChordToProgressionContext() {
@@ -4005,7 +3967,7 @@
 
 
     function chooseDefaultToolMode() {
-      return "suggestions";
+      return "characteristics";
     }
 
     function setActiveToolMode(mode) {
@@ -4141,20 +4103,6 @@
       openDesignButton.addEventListener(
         "click",
         openDesignStudio
-      );
-    }
-
-    if (removeLowestNoteButton) {
-      removeLowestNoteButton.addEventListener(
-        "click",
-        () => removeExtremeSelectedNote("lowest")
-      );
-    }
-
-    if (removeHighestNoteButton) {
-      removeHighestNoteButton.addEventListener(
-        "click",
-        () => removeExtremeSelectedNote("highest")
       );
     }
 
