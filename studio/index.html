@@ -4,13 +4,49 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Orumi Studio</title>
+  <meta name="description" content="Explore harmony visually and relationally in Orumi Studio." />
   <link rel="stylesheet" href="/styles.css" />
+
+  <style>
+    .concept-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+    .concept-card {
+      border: 1px solid rgba(0,0,0,.12);
+      border-radius: 16px;
+      padding: 1rem;
+      background: rgba(255,255,255,.72);
+    }
+    .concept-card h3 {
+      margin-top: 0;
+      margin-bottom: .5rem;
+    }
+    .section-note {
+      opacity: .82;
+      font-style: italic;
+    }
+    .callout {
+      border-left: 5px solid currentColor;
+      padding: 1rem 1.25rem;
+      margin: 1.5rem 0;
+      background: rgba(255,255,255,.65);
+      border-radius: 12px;
+    }
+    .mini-list {
+      line-height: 1.65;
+    }
+  </style>
+
 </head>
 <body>
   <header class="site-header">
     <a class="logo" href="/">Orumi</a>
     <nav>
       <a href="/studio/">Studio</a>
+      <a href="/intervals/">Intervals</a>
       <a href="/language/">Language</a>
       <a href="/play/">Play</a>
     </nav>
@@ -18,38 +54,67 @@
 
   <main class="page">
     <h1>Orumi Studio</h1>
-    <p class="lede">A visual music language made of colored squares.</p>
+    <p class="lede">
+      Explore harmony visually and relationally.
+    </p>
 
     <section>
-      <h2>What is Orumi?</h2>
+      <h2>What is Orumi Studio?</h2>
       <p>
-        Orumi is an open-source visual music language where sound is represented
-        through color, shape, position, and structure.
+        Orumi Studio is an experimental musical sandbox where harmony becomes
+        visible, interactive, and exploratory.
+      </p>
+      <p>
+        It is not trying to replace publication-quality notation software.
+        It explores a different question: what if musical understanding could
+        emerge through interaction, curiosity, experimentation, and play?
       </p>
     </section>
 
     <section>
       <h2>What Orumi Studio Builds</h2>
       <p>
-        Orumi Studio develops the language, tools, games, physical blocks, and
-        creative experiments that help people explore music visually.
+        Orumi Studio develops tools, games, lessons, design experiments, and
+        eventually physical blocks that help people experience music through
+        relationships rather than symbols alone.
       </p>
+
+      <div class="concept-grid">
+        <article class="concept-card">
+          <h3>Harmony</h3>
+          <p>Build chords and hear how tones settle, pull, brighten, darken, or create friction.</p>
+        </article>
+        <article class="concept-card">
+          <h3>Intervals</h3>
+          <p>Explore distance, direction, tension, resolution, and emotional gravity between tones.</p>
+        </article>
+        <article class="concept-card">
+          <h3>Voice-leading</h3>
+          <p>See how individual voices move through harmonic space, especially in four-part harmony.</p>
+        </article>
+        <article class="concept-card">
+          <h3>Play</h3>
+          <p>Use curiosity and experimentation as the central interaction model.</p>
+        </article>
+      </div>
     </section>
 
     <section>
       <h2>The Orumi Principle</h2>
       <p>
         Orumi should be simple at the surface and deep underneath. A child should
-        be able to play with it, and a musician should be able to build complex
-        structure with it.
+        be able to explore it, and a musician should be able to discover
+        sophisticated structure within it.
       </p>
     </section>
 
     <section>
-      <h2>The Vision</h2>
+      <h2>Current Direction</h2>
       <p>
-        Orumi Studio imagines a world where composing music can feel like
-        building, drawing, playing, and discovering.
+        The current Studio direction centers on four-part harmony and barbershop
+        arranging. This gives Orumi a focused musical landscape where intervals,
+        chord relationships, voice-leading, and harmonic gravity can be explored
+        clearly.
       </p>
     </section>
   </main>

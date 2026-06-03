@@ -4,13 +4,49 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>The Orumi Language</title>
+  <meta name="description" content="The evolving visual language Orumi uses to represent musical relationships." />
   <link rel="stylesheet" href="/styles.css" />
+
+  <style>
+    .concept-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+    .concept-card {
+      border: 1px solid rgba(0,0,0,.12);
+      border-radius: 16px;
+      padding: 1rem;
+      background: rgba(255,255,255,.72);
+    }
+    .concept-card h3 {
+      margin-top: 0;
+      margin-bottom: .5rem;
+    }
+    .section-note {
+      opacity: .82;
+      font-style: italic;
+    }
+    .callout {
+      border-left: 5px solid currentColor;
+      padding: 1rem 1.25rem;
+      margin: 1.5rem 0;
+      background: rgba(255,255,255,.65);
+      border-radius: 12px;
+    }
+    .mini-list {
+      line-height: 1.65;
+    }
+  </style>
+
 </head>
 <body>
   <header class="site-header">
     <a class="logo" href="/">Orumi</a>
     <nav>
       <a href="/studio/">Studio</a>
+      <a href="/intervals/">Intervals</a>
       <a href="/language/">Language</a>
       <a href="/play/">Play</a>
     </nav>
@@ -19,20 +55,66 @@
   <main class="page">
     <h1>The Orumi Language</h1>
     <p class="lede">
-      Orumi is being developed in public. These rules are active design notes,
+      Orumi is being developed in public. These are active design principles,
       not a closed system.
     </p>
 
     <section>
+      <h2>What the Language Does</h2>
+      <p>
+        The Orumi language translates musical relationships into visible,
+        interactive forms. It gives music shape, color, depth, duration,
+        structure, and motion.
+      </p>
+      <p>
+        The Language page explains how Orumi represents music. The Intervals page
+        explores why those relationships feel stable, tense, clear, distorted,
+        settled, or in motion.
+      </p>
+    </section>
+
+    <section>
+      <h2>Core Design Ideas</h2>
+      <div class="concept-grid">
+        <article class="concept-card">
+          <h3>Relationship</h3>
+          <p>Notes gain meaning through context: home, distance, pull, friction, and release.</p>
+        </article>
+        <article class="concept-card">
+          <h3>Visibility</h3>
+          <p>Musical structure becomes visible as patterns, blocks, paths, and shapes.</p>
+        </article>
+        <article class="concept-card">
+          <h3>Play</h3>
+          <p>Exploration is not decoration. It is the central way Orumi invites learning.</p>
+        </article>
+        <article class="concept-card">
+          <h3>Accessibility</h3>
+          <p>Musical depth should feel approachable, intuitive, and human-centered.</p>
+        </article>
+      </div>
+    </section>
+
+    <section>
       <h2>Early Rules</h2>
       <ul class="rules">
-        <li><strong>Color</strong> represents note identity or sound character.</li>
+        <li><strong>Color</strong> represents note identity, voice, or sound character.</li>
         <li><strong>White</strong> represents rest or silence.</li>
         <li><strong>Length</strong> can represent duration.</li>
-        <li><strong>Height</strong> can represent volume.</li>
+        <li><strong>Height</strong> can represent volume or emphasis.</li>
         <li><strong>Depth</strong> can represent octave.</li>
         <li><strong>A black top</strong> can represent sustain.</li>
+        <li><strong>Shape and movement</strong> can represent musical direction, articulation, or expressive relationship.</li>
       </ul>
+    </section>
+
+    <section class="callout">
+      <h2>The Orumi Principle</h2>
+      <p>
+        Orumi should be simple at the surface and deep underneath. The first
+        interaction should invite curiosity. The hundredth interaction should
+        still reveal something new.
+      </p>
     </section>
   </main>
 </body>

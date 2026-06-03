@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Orumi Lyric Carry Bridge — Vowel Split Dual Lyrics v2</title>
+  <style>
+    :root {
+      --bg: #10131a;
+      --panel: #1a2130;
+      --panel2: #222b3d;
+      --text: #eef3ff;
+      --muted: #aeb8cf;
+      --accent: #8fd3ff;
+      --ok: #9effc3;
+      --warn: #ffcf9e;
+      --bad: #ffaaa0;
+      --border: #33425e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #223149 0%, var(--bg) 58%);
+      color: var(--text);
+    }
+    header {
+      padding: 22px clamp(16px, 4vw, 46px);
+      border-bottom: 1px solid var(--border);
+      background: rgba(16,19,26,0.86);
+    }
+    h1 { margin: 0; font-size: clamp(1.55rem, 3vw, 2.35rem); }
+    .subtitle { color: var(--muted); margin-top: 8px; max-width: 1100px; line-height: 1.45; }
+    main {
+      padding: 22px clamp(14px, 4vw, 46px) 60px;
+      max-width: 1400px;
+      margin: 0 auto;
+      display: grid;
+      gap: 18px;
+    }
+    section {
+      background: rgba(26,33,48,0.94);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 17px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.28);
+    }
+    h2 { margin: 0 0 12px; font-size: 1.12rem; }
+    label { display: block; color: var(--muted); margin: 9px 0 5px; }
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--panel2);
+      color: var(--text);
+      padding: 10px 11px;
+      font: inherit;
+    }
+    textarea {
+      min-height: 110px;
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.92rem;
+    }
+    button {
+      border: 1px solid #4a5d7d;
+      border-radius: 12px;
+      padding: 10px 14px;
+      background: linear-gradient(180deg, #31425e, #24324a);
+      color: var(--text);
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button:hover { filter: brightness(1.13); }
+    button:active { transform: translateY(1px); }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+    .row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(235px, 1fr));
+      gap: 13px;
+      align-items: end;
+    }
+    .buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 13px; }
+    .status {
+      white-space: pre-wrap;
+      border: 1px solid var(--border);
+      background: #101722;
+      color: var(--muted);
+      border-radius: 12px;
+      padding: 10px 12px;
+      line-height: 1.45;
+    }
+    .ok { color: var(--ok); }
+    .warn { color: var(--warn); }
+    .bad { color: var(--bad); }
+    .small { color: var(--muted); font-size: 0.9rem; line-height: 1.45; }
+    .mono, code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .checks {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+      gap: 8px 14px;
+      margin: 10px 0;
+    }
+    .check {
+      display: flex;
+      gap: 9px;
+      align-items: center;
+      color: var(--muted);
+    }
+    .check input { width: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 1060px;
+      font-size: 0.9rem;
+    }
+    th, td {
+      border-bottom: 1px solid var(--border);
+      padding: 8px 9px;
+      vertical-align: top;
+      text-align: left;
+    }
+    th {
+      background: #151c2a;
+      color: var(--accent);
+    }
+    tr:nth-child(even) td { background: rgba(255,255,255,0.025); }
+    td[contenteditable="true"] {
+      outline: 1px dashed rgba(143,211,255,0.35);
+      border-radius: 6px;
+      background: rgba(143,211,255,0.06);
+    }
+    .pill {
+      display: inline-block;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 2px 8px;
+      margin: 1px;
+      background: #101722;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Orumi Lyric Carry Bridge — Vowel Split Dual Lyrics v2</h1>
+    <div class="subtitle">
+      Upload a MusicXML file, create a musician-readable carried lyric line, and preserve the original word-to-note
+      mapping on lyric line 99 for ACE Studio. The default split tries to leave the first note ending in a vowel
+      sound/spelling area and moves following consonants to the next note, while protecting short connector words
+      like and/an/a from over-splitting.
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h2>1. Upload MusicXML</h2>
+      <div class="row">
+        <div>
+          <label for="fileInput">MusicXML file</label>
+          <input id="fileInput" type="file" accept=".xml,.musicxml,.mxl" />
+        </div>
+        <div>
+          <label for="partSelect">Part</label>
+          <select id="partSelect" disabled></select>
+        </div>
+        <div>
+          <label for="sourceLyricNumber">Source lyric line number</label>
+          <input id="sourceLyricNumber" value="1" />
+        </div>
+      </div>
+      <div class="buttons">
+        <button id="loadDemoBtn">Load tiny demo</button>
+        <button id="analyzeBtn" disabled>Analyze lyrics</button>
+      </div>
+      <p class="small">
+        Plain <span class="mono">.musicxml</span> / <span class="mono">.xml</span> works directly.
+        Compressed <span class="mono">.mxl</span> works if JSZip loads from CDN.
+      </p>
+      <div id="status" class="status">No file loaded yet.</div>
+    </section>
+
+    <section>
+      <h2>2. Lyric carry settings</h2>
+      <div class="row">
+        <div>
+          <label for="carryMode">Carry rule</label>
+          <select id="carryMode">
+            <option value="vowelish">Carry before vowel/semivowel starts</option>
+            <option value="all">Carry before every following sung lyric</option>
+            <option value="none">Do not carry automatically</option>
+          </select>
+        </div>
+        <div>
+          <label for="splitStrategy">Split strategy</label>
+          <select id="splitStrategy">
+            <option value="afterLastVowel">Vowel-ending split: wouldn't → wou- / ldn't</option>
+            <option value="finalCluster">Final consonant cluster only: loved → love- / d you</option>
+            <option value="lastConsonant">Last consonant only: loved → love- / d you</option>
+          </select>
+        </div>
+        <div>
+          <label for="visibleOutputMode">Visible lyric output</label>
+          <select id="visibleOutputMode">
+            <option value="overwrite">Overwrite source lyric line with musician-readable lyrics</option>
+            <option value="newLine">Write musician-readable lyrics to a new lyric line</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="checks">
+        <label class="check"><input id="useHyphenOnSplit" type="checkbox" checked /> Add visible hyphen to first fragment: <span class="mono">cou-</span></label>
+        <label class="check"><input id="useNbsp" type="checkbox" checked /> Use control-space / non-breaking space between chunks on one note</label>
+        <label class="check"><input id="preservePunctuation" type="checkbox" checked /> Preserve simple punctuation at end of carried lyric</label>
+        <label class="check"><input id="protectSingleLetterWords" type="checkbox" checked /> Do not split one-letter words like I/a</label>
+        <label class="check"><input id="preserveOriginalForAce" type="checkbox" checked /> Preserve original word-to-note mapping for ACE on lyric line 99</label>
+        <label class="check"><input id="hideAceLyricLine" type="checkbox" /> Mark lyric line 99 with print-object="no"</label>
+        <label class="check"><input id="preventChainCarry" type="checkbox" checked /> Prevent chain-carry through words that already received carried text</label>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="visibleLyricNumber">Musician-readable lyric line number</label>
+          <input id="visibleLyricNumber" value="1" />
+        </div>
+        <div>
+          <label for="aceLyricNumber">ACE/original lyric line number</label>
+          <input id="aceLyricNumber" value="99" />
+        </div>
+        <div>
+          <label for="protectedFinals">Protected carried endings</label>
+          <input id="protectedFinals" value="r,w,y,h" />
+        </div>
+        <div>
+          <label for="vowelStarts">Starts treated as vowelish</label>
+          <input id="vowelStarts" value="a,e,i,o,u,y" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="doNotSplitWords">Do not split these short/connector words</label>
+          <input id="doNotSplitWords" value="and,an,a,the,to,of,in,is,or,nor,but" />
+        </div>
+      </div>
+
+      <label for="customRules">Custom carry rules, one per line: <span class="mono">word = first-fragment | carried-fragment</span></label>
+      <textarea id="customRules" spellcheck="false"># Examples:
+# could = cou | ld
+# loved = love | d
+# wouldn't = would | n't
+# n't = n | t
+
+could = cou | ld
+would = wou | ld
+wouldn't = wou | ldn't
+should = shou | ld
+couldn't = cou | ldn't
+shouldn't = shou | ldn't
+loved = love | d
+love = lo | ve</textarea>
+
+      <div class="buttons">
+        <button id="transformBtn" disabled>Transform carried lyrics</button>
+        <button id="downloadBtn" disabled>Download transformed MusicXML</button>
+        <button id="copyPlainBtn" disabled>Copy output lyric string</button>
+        <button id="copyCsvBtn" disabled>Copy CSV preview</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>3. Preview and manual correction</h2>
+      <div id="summary" class="status">Analyze a file to preview note lyrics.</div>
+      <p class="small">
+        The preview shows <span class="mono">⍽</span> where the exported MusicXML contains a non-breaking/control-space.
+        You can edit the output cells before downloading.
+      </p>
+      <div style="overflow:auto; max-height: 580px; margin-top: 12px;">
+        <table id="previewTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Measure</th>
+              <th>Pitch</th>
+              <th>Original lyric</th>
+              <th>Carried in</th>
+              <th>Carried out</th>
+              <th>Output lyric</th>
+              <th>Exact visible XML text</th>
+              <th>ACE lyric 99 text</th>
+              <th>Warnings</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const NBSP = "\u00A0";
+
+    const jszipScript = document.createElement("script");
+    jszipScript.src = "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js";
+    jszipScript.defer = true;
+    document.head.appendChild(jszipScript);
+
+    const DEMO_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>Lead</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions><key><fifths>0</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><lyric number="1"><syllabic>single</syllabic><text>wouldn't</text></lyric></note>
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><lyric number="1"><syllabic>single</syllabic><text>I</text></lyric></note>
+      <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><lyric number="1"><syllabic>single</syllabic><text>love</text></lyric></note>
+      <note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><lyric number="1"><syllabic>single</syllabic><text>you?</text></lyric></note>
+    </measure>
+  </part>
+</score-partwise>`;
+
+    let xmlDoc = null;
+    let currentFileName = "orumi-lyric-carry-vowel-split.musicxml";
+    let noteRows = [];
+
+    const $ = (id) => document.getElementById(id);
+
+    function setStatus(text, cls = "") {
+      $("status").className = "status " + cls;
+      $("status").textContent = text;
+    }
+
+    function parseXml(text) {
+      const doc = new DOMParser().parseFromString(text, "application/xml");
+      const err = doc.querySelector("parsererror");
+      if (err) throw new Error("XML parse error: " + err.textContent.slice(0, 300));
+      return doc;
+    }
+
+    async function readUploadedFile(file) {
+      currentFileName = file.name.replace(/\.(xml|musicxml|mxl)$/i, "") + "-lyric-carry-vowel-split.musicxml";
+      if (/\.mxl$/i.test(file.name)) {
+        if (!window.JSZip) throw new Error("JSZip has not loaded yet. Try again, or use uncompressed MusicXML.");
+        const zip = await JSZip.loadAsync(await file.arrayBuffer());
+        let xmlPath = null;
+        const container = zip.file("META-INF/container.xml");
+        if (container) {
+          const containerDoc = parseXml(await container.async("text"));
+          xmlPath = containerDoc.querySelector("rootfile")?.getAttribute("full-path") || null;
+        }
+        if (!xmlPath) {
+          xmlPath = Object.keys(zip.files).find(name => /\.(xml|musicxml)$/i.test(name) && !name.includes("META-INF"));
+        }
+        if (!xmlPath || !zip.file(xmlPath)) throw new Error("Could not find score XML inside .mxl file.");
+        return await zip.file(xmlPath).async("text");
+      }
+      return await file.text();
+    }
+
+    function cssEscape(value) {
+      if (window.CSS && CSS.escape) return CSS.escape(value);
+      return String(value).replace(/"/g, '\\"');
+    }
+
+    function loadParts() {
+      const partSelect = $("partSelect");
+      partSelect.innerHTML = "";
+      const scoreParts = [...xmlDoc.querySelectorAll("score-partwise > part-list > score-part")];
+      const partEls = [...xmlDoc.querySelectorAll("score-partwise > part")];
+
+      partEls.forEach((part, index) => {
+        const id = part.getAttribute("id") || `P${index + 1}`;
+        const scorePart = scoreParts.find(p => p.getAttribute("id") === id);
+        const name = scorePart?.querySelector("part-name")?.textContent?.trim() || id;
+        const opt = document.createElement("option");
+        opt.value = id;
+        opt.textContent = `${id} — ${name}`;
+        partSelect.appendChild(opt);
+      });
+
+      partSelect.disabled = partEls.length === 0;
+      $("analyzeBtn").disabled = partEls.length === 0;
+      $("transformBtn").disabled = true;
+      $("downloadBtn").disabled = true;
+      $("copyPlainBtn").disabled = true;
+      $("copyCsvBtn").disabled = true;
+      noteRows = [];
+      renderTable();
+      setStatus(`Loaded score with ${partEls.length} part(s).`, "ok");
+    }
+
+    function textOf(el, selector) {
+      return el.querySelector(selector)?.textContent?.trim() || "";
+    }
+
+    function pitchName(note) {
+      if (note.querySelector(":scope > rest")) return "rest";
+      const step = textOf(note, ":scope > pitch > step");
+      const alter = textOf(note, ":scope > pitch > alter");
+      const octave = textOf(note, ":scope > pitch > octave");
+      if (!step) return "";
+      const acc = alter === "1" ? "#" : alter === "-1" ? "b" : alter ? `(${alter})` : "";
+      return `${step}${acc}${octave}`;
+    }
+
+    function getLyric(note, lyricNumber) {
+      const lyrics = [...note.querySelectorAll(":scope > lyric")];
+      return lyrics.find(l => (l.getAttribute("number") || "1") === lyricNumber) || lyrics[0] || null;
+    }
+
+    function getOrCreateLyric(note, number) {
+      let lyric = [...note.querySelectorAll(":scope > lyric")]
+        .find(l => (l.getAttribute("number") || "1") === number);
+      if (lyric) return lyric;
+
+      lyric = xmlDoc.createElement("lyric");
+      lyric.setAttribute("number", number);
+
+      const syllabic = xmlDoc.createElement("syllabic");
+      syllabic.textContent = "single";
+      const text = xmlDoc.createElement("text");
+      text.textContent = "";
+
+      lyric.appendChild(syllabic);
+      lyric.appendChild(text);
+      note.appendChild(lyric);
+      return lyric;
+    }
+
+    function parseCustomRules() {
+      const rules = new Map();
+      const lines = $("customRules").value.split(/\r?\n/);
+      for (const line of lines) {
+        const raw = line.trim();
+        if (!raw || raw.startsWith("#") || !raw.includes("=") || !raw.includes("|")) continue;
+        const [left, ...rightParts] = raw.split("=");
+        const word = normalizeCore(left.trim()).toLowerCase();
+        const [first, carried] = rightParts.join("=").split("|").map(x => x.trim());
+        if (word && first && carried) rules.set(word, { first, carried });
+      }
+      return rules;
+    }
+
+    function normalizeApostrophes(s) {
+      return String(s || "").replace(/[‘’]/g, "'").replace(/[“”]/g, '"');
+    }
+
+    function splitPunctuation(s) {
+      const text = normalizeApostrophes(s);
+      const m = text.match(/^([^A-Za-z']*)(.*?)([^A-Za-z']*)$/);
+      return {
+        pre: m ? m[1] : "",
+        core: m ? m[2] : text,
+        post: m ? m[3] : ""
+      };
+    }
+
+    function normalizeCore(s) {
+      return splitPunctuation(s).core || "";
+    }
+
+    function startsVowelish(text) {
+      const starts = $("vowelStarts").value
+        .split(",")
+        .map(x => x.trim().toLowerCase())
+        .filter(Boolean);
+      const core = normalizeCore(text).toLowerCase();
+      if (!core) return false;
+      return starts.some(v => core.startsWith(v));
+    }
+
+    function shouldNotSplitWord(lower) {
+      const words = new Set(
+        $("doNotSplitWords").value
+          .split(",")
+          .map(x => x.trim().toLowerCase())
+          .filter(Boolean)
+      );
+      return words.has(lower);
+    }
+
+    function protectedFinal(cluster) {
+      const protectedSet = new Set(
+        $("protectedFinals").value.split(",").map(x => x.trim().toLowerCase()).filter(Boolean)
+      );
+      const lower = cluster.toLowerCase();
+      return protectedSet.has(lower) || [...lower].every(ch => protectedSet.has(ch));
+    }
+
+    function splitFinalConsonant(text, customRules) {
+      const p = splitPunctuation(text);
+      const core = p.core;
+      const lower = core.toLowerCase();
+
+      if (!core) return null;
+      if ($("protectSingleLetterWords").checked && core.length <= 1) return null;
+
+      const custom = customRules.get(lower);
+      if (custom) {
+        return {
+          first: p.pre + preserveCaseFragment(core, custom.first, "first") + p.post,
+          carried: preserveCaseFragment(core, custom.carried, "carried")
+        };
+      }
+
+      if (shouldNotSplitWord(lower)) return null;
+
+      const strategy = $("splitStrategy").value;
+      let firstCore = "";
+      let carriedCore = "";
+
+      if (strategy === "afterLastVowel") {
+        const split = splitAfterLastVowelArea(core);
+        if (!split) return null;
+        firstCore = split.first;
+        carriedCore = split.carried;
+      } else {
+        const finalMatch = lower.match(/([bcdfghjklmnpqrstvwxyz]+)$/i);
+        if (!finalMatch) return null;
+
+        let cluster = finalMatch[1];
+        if (strategy === "lastConsonant") cluster = cluster.slice(-1);
+        if (!cluster || protectedFinal(cluster)) return null;
+
+        firstCore = core.slice(0, core.length - cluster.length);
+        carriedCore = core.slice(core.length - cluster.length);
+      }
+
+      if (!firstCore || !carriedCore) return null;
+      if (protectedFinal(carriedCore)) return null;
+
+      return {
+        first: p.pre + firstCore + p.post,
+        carried: carriedCore
+      };
+    }
+
+    function splitAfterLastVowelArea(core) {
+      // Goal: leave the first note ending in a visible vowel area and move the rest.
+      // Examples:
+      // wouldn't -> wou / ldn't
+      // could    -> cou / ld
+      // should   -> shou / ld
+      // love     -> lo / ve, unless overridden
+      //
+      // This is intentionally spelling-based, because this tool is for readable notation,
+      // not phonetic synthesis. Use custom rules for words whose spelling misleads the split.
+
+      const letters = String(core || "");
+      if (!letters) return null;
+
+      const lower = letters.toLowerCase();
+      const vowels = new Set(["a", "e", "i", "o", "u"]);
+
+      let lastVowelIndex = -1;
+      for (let i = lower.length - 1; i >= 0; i--) {
+        if (vowels.has(lower[i])) {
+          lastVowelIndex = i;
+          break;
+        }
+      }
+
+      if (lastVowelIndex < 0) return null;
+
+      // Keep common vowel teams together when the last vowel is part of one.
+      let end = lastVowelIndex + 1;
+
+      // would/could/should-style "ou" should remain together: wou / ldn't.
+      if (lastVowelIndex > 0 && lower.slice(lastVowelIndex - 1, lastVowelIndex + 1) === "ou") {
+        end = lastVowelIndex + 1;
+      }
+
+      // Basic vowel teams ending at last vowel.
+      const twoBack = lower.slice(Math.max(0, lastVowelIndex - 1), lastVowelIndex + 1);
+      if (["ai", "ay", "ee", "ea", "oa", "oo", "oi", "oy", "ou"].includes(twoBack)) {
+        end = lastVowelIndex + 1;
+      }
+
+      // If a word ends in silent e, don't split after the silent e; split after the prior vowel.
+      if (lower.endsWith("e") && lastVowelIndex === lower.length - 1 && lower.length > 2) {
+        let prior = -1;
+        for (let i = lower.length - 2; i >= 0; i--) {
+          if (vowels.has(lower[i])) {
+            prior = i;
+            break;
+          }
+        }
+        if (prior >= 0) end = prior + 1;
+      }
+
+      const first = letters.slice(0, end);
+      const carried = letters.slice(end);
+
+      if (!first || !carried) return null;
+      return { first, carried };
+    }
+
+    function preserveCaseFragment(originalCore, fragment, role) {
+      if (!originalCore || !fragment) return fragment;
+      if (originalCore === originalCore.toUpperCase()) return fragment.toUpperCase();
+      if (role === "first" && /^[A-Z]/.test(originalCore)) {
+        return fragment.charAt(0).toUpperCase() + fragment.slice(1);
+      }
+      return fragment;
+    }
+
+    function joinChunks(chunks) {
+      const sep = $("useNbsp").checked ? NBSP : " ";
+      return chunks.filter(Boolean).join(sep);
+    }
+
+    function previewSpaces(s) {
+      return String(s || "").replace(/\u00A0/g, "⍽");
+    }
+
+    function analyzeLyrics() {
+      const partId = $("partSelect").value;
+      const lyricNumber = $("sourceLyricNumber").value.trim() || "1";
+      const part = xmlDoc.querySelector(`score-partwise > part[id="${cssEscape(partId)}"]`);
+      if (!part) throw new Error("Selected part not found.");
+
+      noteRows = [];
+      let index = 0;
+
+      [...part.querySelectorAll(":scope > measure")].forEach(measure => {
+        const measureNo = measure.getAttribute("number") || "";
+        [...measure.querySelectorAll(":scope > note")].forEach(note => {
+          if (note.querySelector(":scope > chord")) return;
+          if (note.querySelector(":scope > rest")) return;
+
+          const lyric = getLyric(note, lyricNumber);
+          const textEl = lyric?.querySelector("text");
+          const original = textEl?.textContent || "";
+
+          if (!lyric && !original) return;
+
+          index++;
+          noteRows.push({
+            index,
+            measure: measureNo,
+            pitch: pitchName(note),
+            note,
+            sourceLyric: lyric,
+            sourceTextEl: textEl,
+            original,
+            carriedIn: "",
+            carriedOut: "",
+            output: original,
+            aceOriginal: original,
+            warnings: []
+          });
+        });
+      });
+
+      renderTable();
+      $("transformBtn").disabled = noteRows.length === 0;
+      $("downloadBtn").disabled = true;
+      $("copyPlainBtn").disabled = true;
+      $("copyCsvBtn").disabled = true;
+      $("summary").textContent = noteRows.length
+        ? `Found ${noteRows.length} lyric-bearing notes in selected part.`
+        : "No lyric-bearing notes found in selected part/lyric line.";
+    }
+
+    function transformLyrics() {
+      const customRules = parseCustomRules();
+
+      for (const row of noteRows) {
+        row.carriedIn = "";
+        row.carriedOut = "";
+        row.output = row.original;
+        row.aceOriginal = row.original;
+        row.warnings = [];
+      }
+
+      const carryMode = $("carryMode").value;
+
+      for (let i = 0; i < noteRows.length - 1; i++) {
+        const cur = noteRows[i];
+        const next = noteRows[i + 1];
+
+        if (!cur.original || !next.original) continue;
+        if (carryMode === "none") continue;
+        if ($("preventChainCarry").checked && cur.carriedIn) continue;
+        if (carryMode === "vowelish" && !startsVowelish(next.original)) continue;
+
+        const split = splitFinalConsonant(cur.original, customRules);
+        if (!split) continue;
+
+        const first = $("useHyphenOnSplit").checked ? split.first + "-" : split.first;
+        cur.output = first;
+        cur.carriedOut = split.carried;
+
+        next.carriedIn = next.carriedIn
+          ? next.carriedIn + split.carried
+          : split.carried;
+      }
+
+      for (const row of noteRows) {
+        if (row.carriedIn) {
+          row.output = joinChunks([row.carriedIn, row.original]);
+        }
+      }
+
+      writeXmlLyrics();
+      renderTable();
+
+      $("downloadBtn").disabled = false;
+      $("copyPlainBtn").disabled = false;
+      $("copyCsvBtn").disabled = false;
+
+      const carriedCount = noteRows.filter(r => r.carriedIn || r.carriedOut).length;
+      $("summary").textContent = `Transformed lyrics. ${carriedCount} note(s) had carried text.`;
+    }
+
+    function writeXmlLyrics() {
+      const visibleMode = $("visibleOutputMode").value;
+      const sourceNumber = $("sourceLyricNumber").value.trim() || "1";
+      const visibleNumber = visibleMode === "newLine"
+        ? ($("visibleLyricNumber").value.trim() || "2")
+        : sourceNumber;
+      const preserveAce = $("preserveOriginalForAce").checked;
+      const aceNumber = $("aceLyricNumber").value.trim() || "99";
+
+      for (const row of noteRows) {
+        const visibleLyric = visibleMode === "newLine"
+          ? getOrCreateLyric(row.note, visibleNumber)
+          : (row.sourceLyric || getOrCreateLyric(row.note, visibleNumber));
+
+        setLyricText(visibleLyric, row.output, false);
+
+        if (preserveAce) {
+          const aceLyric = getOrCreateLyric(row.note, aceNumber);
+          setLyricText(aceLyric, row.aceOriginal || row.original, $("hideAceLyricLine").checked);
+        }
+      }
+    }
+
+    function setLyricText(lyric, value, hidePrint) {
+      let textEl = lyric.querySelector("text");
+      if (!textEl) {
+        textEl = xmlDoc.createElement("text");
+        lyric.appendChild(textEl);
+      }
+      textEl.textContent = value;
+
+      let syllabic = lyric.querySelector("syllabic");
+      if (!syllabic) {
+        syllabic = xmlDoc.createElement("syllabic");
+        syllabic.textContent = "single";
+        lyric.insertBefore(syllabic, textEl);
+      } else {
+        syllabic.textContent = "single";
+      }
+
+      if (hidePrint) {
+        lyric.setAttribute("print-object", "no");
+      } else {
+        lyric.removeAttribute("print-object");
+      }
+    }
+
+    function applyEditedRowsToXml() {
+      [...document.querySelectorAll("td[data-row-index][data-edit='output']")].forEach(td => {
+        const row = noteRows[Number(td.dataset.rowIndex)];
+        if (!row) return;
+        row.output = td.textContent.replace(/⍽/g, NBSP);
+      });
+      [...document.querySelectorAll("td[data-row-index][data-edit='aceOriginal']")].forEach(td => {
+        const row = noteRows[Number(td.dataset.rowIndex)];
+        if (!row) return;
+        row.aceOriginal = td.textContent;
+      });
+      writeXmlLyrics();
+    }
+
+    function renderTable() {
+      const tbody = $("previewTable").querySelector("tbody");
+      tbody.innerHTML = "";
+
+      noteRows.forEach((row, idx) => {
+        const tr = document.createElement("tr");
+
+        const values = [
+          row.index,
+          row.measure,
+          row.pitch,
+          row.original,
+          row.carriedIn,
+          row.carriedOut
+        ];
+
+        for (const value of values) {
+          const td = document.createElement("td");
+          td.textContent = value || "";
+          tr.appendChild(td);
+        }
+
+        const outputTd = document.createElement("td");
+        outputTd.textContent = previewSpaces(row.output || "");
+        outputTd.contentEditable = "true";
+        outputTd.dataset.rowIndex = idx;
+        outputTd.dataset.edit = "output";
+        outputTd.addEventListener("input", () => {
+          row.output = outputTd.textContent.replace(/⍽/g, NBSP);
+        });
+        tr.appendChild(outputTd);
+
+        const exactTd = document.createElement("td");
+        exactTd.textContent = previewSpaces(row.output || "");
+        tr.appendChild(exactTd);
+
+        const aceTd = document.createElement("td");
+        aceTd.textContent = row.aceOriginal || row.original || "";
+        aceTd.contentEditable = "true";
+        aceTd.dataset.rowIndex = idx;
+        aceTd.dataset.edit = "aceOriginal";
+        aceTd.addEventListener("input", () => {
+          row.aceOriginal = aceTd.textContent;
+        });
+        tr.appendChild(aceTd);
+
+        const warnTd = document.createElement("td");
+        warnTd.innerHTML = row.warnings.map(w => `<span class="pill bad">${escapeHtml(w)}</span>`).join(" ");
+        tr.appendChild(warnTd);
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
+      }[c]));
+    }
+
+    function serializeXml() {
+      applyEditedRowsToXml();
+      let out = new XMLSerializer().serializeToString(xmlDoc);
+      if (!out.startsWith("<?xml")) {
+        out = '<?xml version="1.0" encoding="UTF-8"?>\n' + out;
+      }
+      return out;
+    }
+
+    function downloadXml() {
+      const blob = new Blob([serializeXml()], { type: "application/vnd.recordare.musicxml+xml" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = currentFileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(a.href);
+    }
+
+    async function copyPlain() {
+      applyEditedRowsToXml();
+      const text = noteRows.map(r => r.output).join(" ");
+      await navigator.clipboard.writeText(text);
+      $("summary").textContent = "Copied visible output lyric string. Non-breaking spaces are preserved.";
+    }
+
+    async function copyCsv() {
+      applyEditedRowsToXml();
+      const rows = [["index","measure","pitch","original","carried_in","carried_out","visible_output_lyric","visible_output_with_nbsp_visible","ace_line_99_original"]];
+      for (const r of noteRows) {
+        rows.push([r.index, r.measure, r.pitch, r.original, r.carriedIn, r.carriedOut, r.output, previewSpaces(r.output), r.aceOriginal || r.original]);
+      }
+      const csv = rows.map(row => row.map(csvCell).join(",")).join("\n");
+      await navigator.clipboard.writeText(csv);
+      $("summary").textContent = "Copied CSV preview.";
+    }
+
+    function csvCell(value) {
+      const s = String(value ?? "");
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    }
+
+    $("fileInput").addEventListener("change", async (ev) => {
+      try {
+        const file = ev.target.files[0];
+        if (!file) return;
+        setStatus("Reading file...");
+        const text = await readUploadedFile(file);
+        xmlDoc = parseXml(text);
+        loadParts();
+      } catch (err) {
+        setStatus(err.message, "bad");
+        console.error(err);
+      }
+    });
+
+    $("loadDemoBtn").addEventListener("click", () => {
+      try {
+        xmlDoc = parseXml(DEMO_XML);
+        currentFileName = "tiny-demo-lyric-carry-vowel-split.musicxml";
+        loadParts();
+        analyzeLyrics();
+      } catch (err) {
+        setStatus(err.message, "bad");
+      }
+    });
+
+    $("analyzeBtn").addEventListener("click", () => {
+      try { analyzeLyrics(); } catch (err) { setStatus(err.message, "bad"); }
+    });
+
+    $("transformBtn").addEventListener("click", () => {
+      try { transformLyrics(); } catch (err) { setStatus(err.message, "bad"); console.error(err); }
+    });
+
+    $("downloadBtn").addEventListener("click", downloadXml);
+    $("copyPlainBtn").addEventListener("click", copyPlain);
+    $("copyCsvBtn").addEventListener("click", copyCsv);
+  </script>
+</body>
+</html>

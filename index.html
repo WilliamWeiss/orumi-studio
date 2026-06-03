@@ -1,28 +1,60 @@
 <!doctype html>
 <html lang="en">
 <head>
-<head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <title>Orumi Studio</title>
-  <meta name="description" content="Orumi is a visual music language made of colored squares." />
+  <meta name="description" content="Orumi is a human-centered musical playground for exploring harmony, intervals, rhythm, and voice-leading." />
 
   <link rel="stylesheet" href="/styles.css" />
   <link rel="icon" href="/assets/orumi-icon.png" />
   <link rel="apple-touch-icon" href="/assets/orumi-icon.png" />
 
   <meta property="og:title" content="Orumi Studio" />
-  <meta property="og:description" content="A visual music language made of colored squares." />
+  <meta property="og:description" content="A human-centered musical playground for exploring harmony, intervals, rhythm, and voice-leading." />
   <meta property="og:image" content="https://orumi.world/assets/orumi-social-preview.png" />
   <meta property="og:url" content="https://orumi.world/" />
   <meta property="og:type" content="website" />
 
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Orumi Studio" />
-  <meta name="twitter:description" content="A visual music language made of colored squares." />
+  <meta name="twitter:description" content="A human-centered musical playground for exploring harmony, intervals, rhythm, and voice-leading." />
   <meta name="twitter:image" content="https://orumi.world/assets/orumi-social-preview.png" />
-  <link rel="stylesheet" href="/styles.css" />
+
+  <style>
+    .concept-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+    .concept-card {
+      border: 1px solid rgba(0,0,0,.12);
+      border-radius: 16px;
+      padding: 1rem;
+      background: rgba(255,255,255,.72);
+    }
+    .concept-card h3 {
+      margin-top: 0;
+      margin-bottom: .5rem;
+    }
+    .section-note {
+      opacity: .82;
+      font-style: italic;
+    }
+    .callout {
+      border-left: 5px solid currentColor;
+      padding: 1rem 1.25rem;
+      margin: 1.5rem 0;
+      background: rgba(255,255,255,.65);
+      border-radius: 12px;
+    }
+    .mini-list {
+      line-height: 1.65;
+    }
+  </style>
+
 </head>
 
 <body>
@@ -30,6 +62,7 @@
     <a class="logo" href="/">Orumi</a>
     <nav>
       <a href="/studio/">Studio</a>
+      <a href="/intervals/">Intervals</a>
       <a href="/language/">Language</a>
       <a href="/play/">Play</a>
     </nav>
@@ -38,13 +71,18 @@
   <main class="hero">
     <section>
       <p class="eyebrow">Orumi Studio</p>
-      <h1>A visual music language made of colored squares.</h1>
+      <h1>What if harmony could be seen, explored, and felt?</h1>
       <p class="lede">
-        Build melodies, rhythms, rests, octaves, volume, and sustain as visible patterns —
-        first on screen, eventually in your hands.
+        Orumi is a human-centered musical playground for exploring harmony,
+        intervals, rhythm, and voice-leading through visual interaction and play.
+      </p>
+      <p>
+        Experience music through relationships, movement, tension, resolution,
+        color, and discovery — not notation alone.
       </p>
       <div class="actions">
         <a class="button" href="/studio/">Enter Orumi Studio</a>
+        <a class="button secondary" href="/intervals/">Explore Intervals</a>
         <a class="button secondary" href="/language/">Learn the Language</a>
       </div>
     </section>
@@ -59,6 +97,51 @@
       <span class="sq white"></span>
       <span class="sq black"></span>
       <span class="sq teal"></span>
+    </section>
+  </main>
+
+  <main class="page">
+    <section>
+      <h2>Music as relationship</h2>
+      <p>
+        Traditional notation represents music on a page. Orumi explores music as
+        interaction. Many musicians think relationally — through intervals,
+        tension, release, movement, harmonic gravity, and pattern recognition.
+      </p>
+    </section>
+
+    <section class="concept-grid">
+      <article class="concept-card">
+        <h3>Studio</h3>
+        <p>Create and arrange music visually. The Studio is the workshop where relationships become patterns.</p>
+        <p><a href="/studio/">Open Studio →</a></p>
+      </article>
+
+      <article class="concept-card">
+        <h3>Intervals</h3>
+        <p>Explore harmonics, consonance, dissonance, emotional gravity, sight reading, and chord motion.</p>
+        <p><a href="/intervals/">Explore Intervals →</a></p>
+      </article>
+
+      <article class="concept-card">
+        <h3>Language</h3>
+        <p>Learn how Orumi represents musical ideas through color, shape, position, duration, depth, and structure.</p>
+        <p><a href="/language/">Learn the Language →</a></p>
+      </article>
+
+      <article class="concept-card">
+        <h3>Play</h3>
+        <p>Enter the musical playground. Try sounds, shapes, patterns, and relationships through direct interaction.</p>
+        <p><a href="/play/">Play Orumi →</a></p>
+      </article>
+    </section>
+
+    <section>
+      <h2>Current focus</h2>
+      <p>
+        Orumi currently focuses on four-part harmony and barbershop arranging,
+        where interval relationships and voice-leading become especially vivid.
+      </p>
     </section>
   </main>
 </body>
