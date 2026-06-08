@@ -130,19 +130,60 @@ button.sq {
   cursor: pointer;
 }
 
-.red { background: #d94b4b; }
+.red    { background: #d94b4b; }
 .orange { background: #e58b3c; }
 .yellow { background: #e2c84a; }
-.green { background: #58a866; }
-.blue { background: #4b78d9; }
+.green  { background: #58a866; }
+.blue   { background: #4b78d9; }
 .purple { background: #8058b8; }
-.teal { background: #41a7a0; }
-.white { background: #f4f1e8; }
-.black { background: #050505; }
+.teal   { background: #41a7a0; }
+.white  { background: #f4f1e8; }
+.black  { background: #050505; }
 
 .rules {
   padding-left: 22px;
 }
+
+/* ─── Shared intro page components ─────────────────────────────────────── */
+
+.concept-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.concept-card {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.concept-card h3 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  color: var(--text);
+}
+
+.section-note {
+  opacity: 0.82;
+  font-style: italic;
+}
+
+.callout {
+  border-left: 5px solid var(--muted);
+  padding: 1rem 1.25rem;
+  margin: 1.5rem 0;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 0 12px 12px 0;
+}
+
+.mini-list {
+  line-height: 1.65;
+}
+
+/* ─── Responsive ────────────────────────────────────────────────────────── */
 
 @media (max-width: 760px) {
   .site-header {
