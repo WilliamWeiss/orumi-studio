@@ -3758,6 +3758,10 @@
       const lane = project.lanes.find(item => item.id === selectedBlocks[0].laneId);
       const location = beatToMeasureInfo(minStart);
       const returnFile = window.location.pathname.split("/").pop() || "design-studio.html";
+      const laneVoiceMap = project.lanes.reduce((map, laneItem) => {
+        map[laneItem.id] = laneItem.voice || project.context.voice || null;
+        return map;
+      }, {});
 
       return {
         version: 1,
@@ -9136,7 +9140,23 @@
           ? targetLane.voice
           : payload.laneVoice || payload.voice || null;
 
-      project.blocks = project.blocks.filter(block => !originalIds.has(block.id));
+      const newEndBeat = replacements.length > 0
+        ? Math.max(...replacements.map(block =>
+            Number(block.startBeat || 0) + Number(block.durationBeats || 1)
+          ))
+        : Number(payload.originalEndBeat || 0);
+
+      project.blocks = project.blocks.filter(block => {
+        if (originalIds.has(block.id)) return false;
+        if (block.laneId !== laneId) return true;
+        const blockStart = Number(block.startBeat || 0);
+        const blockEnd = blockStart + Number(block.durationBeats || 1);
+        const rangeStart = Number(payload.originalStartBeat || 0);
+        const rangeEnd = newEndBeat;
+        if (blockStart >= rangeStart && blockStart < rangeEnd) return false;
+        if (blockEnd > rangeStart && blockEnd <= rangeEnd) return false;
+        return true;
+      });
 
       replacements.forEach(block => {
         const nextId = createId("block");
