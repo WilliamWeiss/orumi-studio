@@ -668,6 +668,151 @@
       text-align: center;
     }
 
+    .ds-chooser {
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      background: rgba(0,0,0,0.55);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 18px;
+      padding: 16px;
+      margin: 8px 0 0;
+      box-sizing: border-box;
+      width: 100%;
+    }
+
+    .ds-chooser.visible {
+      display: flex;
+    }
+
+    .ds-chooser-title {
+      font-size: 13px;
+      font-weight: 900;
+      color: var(--muted-text, #ccc);
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .ds-chooser-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .ds-chooser-btn {
+      border: none;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 900;
+      cursor: pointer;
+      background: rgba(255,255,255,0.15);
+      color: var(--text-color, white);
+      font-family: inherit;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.22);
+      transition: 0.12s;
+    }
+
+    .ds-chooser-btn:hover,
+    .ds-chooser-btn:active {
+      transform: scale(0.96);
+      filter: brightness(1.15);
+    }
+
+    .ds-chooser-btn.selected {
+      background: rgba(155,235,215,0.92);
+      color: #102522;
+    }
+
+    .ds-chooser-btn.new-line {
+      background: rgba(255,255,255,0.08);
+      color: var(--muted-text, #ccc);
+    }
+
+    .ds-chooser-placement {
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .ds-chooser-placement.visible {
+      display: flex;
+    }
+
+    .ds-chooser-divider {
+      border: none;
+      border-top: 1px solid rgba(255,255,255,0.10);
+      margin: 2px 0;
+    }
+
+    .ds-beat-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .ds-beat-input {
+      width: 64px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.22);
+      background: rgba(255,255,255,0.10);
+      color: var(--text-color, white);
+      font-size: 14px;
+      font-weight: 900;
+      font-family: inherit;
+      text-align: center;
+    }
+
+    .ds-beat-hint {
+      font-size: 11px;
+      color: var(--muted-text, #ccc);
+      text-align: center;
+      opacity: 0.75;
+    }
+
+    .ds-chooser-confirm {
+      background: rgba(155,235,215,0.92);
+      color: #102522;
+      border: none;
+      border-radius: 999px;
+      padding: 11px 20px;
+      font-size: 14px;
+      font-weight: 900;
+      cursor: pointer;
+      font-family: inherit;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.22);
+      transition: 0.12s;
+      align-self: center;
+    }
+
+    .ds-chooser-confirm:hover,
+    .ds-chooser-confirm:active {
+      transform: scale(0.96);
+      filter: brightness(1.12);
+    }
+
+    .ds-chooser-cancel {
+      background: transparent;
+      color: var(--muted-text, #ccc);
+      border: none;
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 12px;
+      font-weight: 900;
+      cursor: pointer;
+      font-family: inherit;
+      align-self: center;
+    }
+
+    .ds-chooser-cancel:hover {
+      color: var(--text-color, white);
+    }
+
     .phrase-action-button.capture-active {
       background: rgba(255,90,90,0.92);
       color: #111;
@@ -1094,8 +1239,40 @@
       </div>
     </div>
 
-    <div class="phrase-editor-note">
+<div class="phrase-editor-note">
       Record a take, add it to the Play Line, then save or send it to Design. Rests are explicit blocks; drag right edges to resize, or use Undo if the edit goes wrong.
+    </div>
+
+    <div class="ds-chooser" id="dsChooser">
+      <div class="ds-chooser-title">Send to Design Studio as…</div>
+
+      <div class="ds-chooser-row" id="dsPartRow">
+        <button class="ds-chooser-btn" data-part="tenor">Tenor</button>
+        <button class="ds-chooser-btn" data-part="lead">Lead</button>
+        <button class="ds-chooser-btn" data-part="baritone">Baritone</button>
+        <button class="ds-chooser-btn" data-part="bass">Bass</button>
+        <button class="ds-chooser-btn new-line" data-part="new">New Play Line</button>
+      </div>
+
+      <div class="ds-chooser-placement" id="dsPlacementRow">
+        <hr class="ds-chooser-divider">
+        <div class="ds-chooser-title" style="font-size:11px;">Place in part…</div>
+        <div class="ds-chooser-row">
+          <button class="ds-chooser-btn" id="dsPlaceReplace">Replace all</button>
+          <button class="ds-chooser-btn" id="dsPlaceAppend">Append to end</button>
+        </div>
+        <div class="ds-beat-row">
+          <button class="ds-chooser-btn" id="dsPlaceBeat">Start at beat</button>
+          <input class="ds-beat-input" id="dsBeatInput" type="number" min="1" value="1">
+        </div>
+        <div class="ds-beat-hint">Clears any overlap at the target beat</div>
+      </div>
+
+      <hr class="ds-chooser-divider">
+      <div class="ds-chooser-row">
+        <button class="ds-chooser-confirm" id="dsChooserConfirm" disabled>⤴ Send</button>
+        <button class="ds-chooser-cancel" id="dsChooserCancel">Cancel</button>
+      </div>
     </div>
   </section>
 
@@ -2496,21 +2673,113 @@
       statusText.textContent = "Loaded melody “" + (chosen.name || "Untitled Melody") + ".”";
     }
 
-    function sendDefaultPlayerLineToDesign() {
+ function sendDefaultPlayerLineToDesign() {
       if (!designPhraseBlocks.length) {
         statusText.textContent = "Play Line is empty. Play notes before sending to Design.";
         return;
       }
 
+      showDsChooser();
+    }
+
+    function showDsChooser() {
+      const chooser = document.getElementById("dsChooser");
+      if (!chooser) return;
+
+      chooser.classList.add("visible");
+
+      let selectedPart = null;
+      let selectedPlacement = null;
+
+      const partButtons = chooser.querySelectorAll("[data-part]");
+      const placementRow = document.getElementById("dsPlacementRow");
+      const confirmBtn = document.getElementById("dsChooserConfirm");
+      const cancelBtn = document.getElementById("dsChooserCancel");
+      const replaceBtn = document.getElementById("dsPlaceReplace");
+      const appendBtn = document.getElementById("dsPlaceAppend");
+      const beatBtn = document.getElementById("dsPlaceBeat");
+      const beatInput = document.getElementById("dsBeatInput");
+
+      function resetChooser() {
+        selectedPart = null;
+        selectedPlacement = null;
+        partButtons.forEach(btn => btn.classList.remove("selected"));
+        placementRow.classList.remove("visible");
+        [replaceBtn, appendBtn, beatBtn].forEach(btn => btn.classList.remove("selected"));
+        confirmBtn.disabled = true;
+        chooser.classList.remove("visible");
+      }
+
+      function updateConfirm() {
+        const partReady = !!selectedPart;
+        const placementReady = selectedPart === "new" || !!selectedPlacement;
+        confirmBtn.disabled = !(partReady && placementReady);
+      }
+
+      partButtons.forEach(btn => {
+        btn.onclick = () => {
+          selectedPart = btn.dataset.part;
+          selectedPlacement = null;
+          partButtons.forEach(b => b.classList.remove("selected"));
+          btn.classList.add("selected");
+          [replaceBtn, appendBtn, beatBtn].forEach(b => b.classList.remove("selected"));
+
+          if (selectedPart === "new") {
+            placementRow.classList.remove("visible");
+            selectedPlacement = "append";
+          } else {
+            placementRow.classList.add("visible");
+          }
+
+          updateConfirm();
+        };
+      });
+
+      replaceBtn.onclick = () => {
+        selectedPlacement = "replace";
+        [replaceBtn, appendBtn, beatBtn].forEach(b => b.classList.remove("selected"));
+        replaceBtn.classList.add("selected");
+        updateConfirm();
+      };
+
+      appendBtn.onclick = () => {
+        selectedPlacement = "append";
+        [replaceBtn, appendBtn, beatBtn].forEach(b => b.classList.remove("selected"));
+        appendBtn.classList.add("selected");
+        updateConfirm();
+      };
+
+      beatBtn.onclick = () => {
+        selectedPlacement = "beat";
+        [replaceBtn, appendBtn, beatBtn].forEach(b => b.classList.remove("selected"));
+        beatBtn.classList.add("selected");
+        updateConfirm();
+      };
+
+      cancelBtn.onclick = resetChooser;
+
+      confirmBtn.onclick = () => {
+        if (!selectedPart) return;
+        dispatchPlayerLineToDesign(selectedPart, selectedPlacement, Number(beatInput.value) || 1);
+        resetChooser();
+      };
+    }
+
+    function dispatchPlayerLineToDesign(targetPart, placement, targetBeat) {
       sortPhraseBlocks();
 
       const events = buildPlayerLineRecordingEvents();
+      const isNewLine = targetPart === "new";
+
       const payload = {
         mode: "importPlayerLine",
         source: "player",
         createdAt: new Date().toISOString(),
         projectTitle: "Player Play Line",
-        laneName: "Play Line",
+        laneName: isNewLine ? "Play Line" : null,
+        targetLaneId: isNewLine ? null : targetPart,
+        placement: isNewLine ? "append" : placement,
+        targetBeat: placement === "beat" ? Math.max(1, targetBeat) - 1 : 0,
         voice: getActivePhraseVoice(),
         context: {
           ...(designPhrasePayload?.context || {}),
@@ -4329,35 +4598,34 @@
           }
         }
 
-        const autoStopSeconds = Number(voiceNode.autoStopSeconds);
+const autoStopSeconds = Number(voiceNode.autoStopSeconds);
         const hasAutoStop = Number.isFinite(autoStopSeconds) && autoStopSeconds > 0;
         const shouldHoldUntilPointerRelease = sustainedVoices.includes(voice) || !hasAutoStop;
 
         if (shouldHoldUntilPointerRelease) {
           activeNotes.set(event.pointerId, noteRecord);
         } else {
-          const autoDuration = autoStopSeconds;
+          // Always track the note so pointer-release records the real hold duration.
+          // The audio engine still auto-stops via autoStopSeconds — this only
+          // affects the beat duration written to the Play Line / recording.
+          activeNotes.set(event.pointerId, noteRecord);
 
-          if (!designPhrasePayload || isDefaultPlayerLineMode()) {
-            recordFixedNote(
-              button,
-              now,
-              Math.min(autoDuration, 1.2),
-              voice
-            );
-          } else if (noteRecord.phrasePreviewBlockId) {
+          // Schedule audio cleanup after voice decay, but don't use decay time
+          // as the recorded note duration — that comes from stopHeldNote instead.
+          if (designPhrasePayload && !isDefaultPlayerLineMode() && noteRecord.phrasePreviewBlockId) {
             setTimeout(() => {
               if (phraseDragState && phraseDragState.previewBlockId === noteRecord.phrasePreviewBlockId) {
                 return;
               }
-
-              finalizeAutoCapturedPhraseNote(
-                noteRecord.phrasePreviewBlockId,
-                Math.min(autoDuration, 1.2)
-              );
-            }, Math.min(autoDuration, 1.2) * 1000);
+              // Only finalize if pointer has already been released
+              if (!activeNotes.has(event.pointerId)) {
+                finalizeAutoCapturedPhraseNote(
+                  noteRecord.phrasePreviewBlockId,
+                  Math.min(autoStopSeconds, 1.2)
+                );
+              }
+            }, Math.min(autoStopSeconds, 1.2) * 1000);
           }
-
           setTimeout(() => {
             releaseVoiceGracefully(noteRecord, 0.18);
           }, Math.max(0.05, autoDuration) * 1000);
