@@ -417,6 +417,7 @@
     .lane {
       display: grid;
       grid-template-columns: 104px 1fr;
+      grid-template-rows: auto auto;
       min-height: var(--lane-height);
       margin-bottom: 10px;
       position: relative;
@@ -435,6 +436,7 @@
       font-weight: 900;
       color: #fff7ea;
       cursor: pointer;
+      grid-row: 1 / 3;
     }
 
     .lane-label.selected {
@@ -506,6 +508,130 @@
       background: rgba(255,255,255,0.75);
       box-shadow: 0 0 18px rgba(255,255,255,0.85);
     }
+
+    /* ── Lyric strip ────────────────────────────────────────────────── */
+    .lyric-strip {
+      display: none;
+      position: relative;
+      height: 22px;
+      overflow: visible;
+      pointer-events: none;
+      grid-column: 2;
+      grid-row: 2;
+      width: 100%;
+    }
+
+    .lyrics-visible .lyric-strip {
+      display: block;
+    }
+
+    .lyric-token {
+      position: absolute;
+      font-size: 11px;
+      color: var(--muted-text, #b9b3a7);
+      white-space: nowrap;
+      transform: translateY(2px);
+      pointer-events: none;
+      user-select: none;
+    }
+
+    /* ── MusicXML import dialog ─────────────────────────────────────── */
+    .mxml-import-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.72);
+      z-index: 9000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .mxml-import-overlay.visible {
+      display: flex;
+    }
+
+    .mxml-import-dialog {
+      background: #1c1c1c;
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 20px;
+      padding: 28px 32px;
+      max-width: 520px;
+      width: 90vw;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .mxml-import-title {
+      font-size: 1.1rem;
+      font-weight: 900;
+      color: #f4f1e8;
+      margin: 0;
+    }
+
+    .mxml-import-detected {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 12px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .mxml-import-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.88rem;
+    }
+
+    .mxml-import-row-label {
+      color: var(--muted-text, #b9b3a7);
+      font-size: 0.82rem;
+    }
+
+    .mxml-import-row-value {
+      color: #f4f1e8;
+      font-weight: 700;
+      font-size: 0.88rem;
+    }
+
+    .mxml-import-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 4px;
+    }
+
+    .mxml-import-confirm {
+      background: #f4f1e8;
+      color: #111;
+      border: none;
+      border-radius: 999px;
+      padding: 11px 22px;
+      font-size: 0.9rem;
+      font-weight: 900;
+      cursor: pointer;
+      font-family: inherit;
+      transition: 0.12s;
+    }
+
+    .mxml-import-confirm:hover { filter: brightness(0.92); }
+
+    .mxml-import-cancel {
+      background: transparent;
+      color: var(--muted-text, #b9b3a7);
+      border: none;
+      border-radius: 999px;
+      padding: 11px 18px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .mxml-import-cancel:hover { color: #f4f1e8; }
 
     .orumi-block {
       position: absolute;
@@ -1218,7 +1344,9 @@
         <button class="control-button secondary" id="importRecordingButton">⤓ Import Recording</button>
         <button class="control-button secondary" id="importProgressionButton">⤓ Import Progression</button>
         <button class="control-button secondary" id="importMidiButton">⤓ Import MIDI</button>
+        <button class="control-button secondary" id="importMusicXmlButton">⤓ Import MusicXML</button>
         <button class="control-button secondary" id="exportMidiButton">⇩ Export MIDI</button>
+        <button class="control-button secondary" id="exportMusicXmlButton">⇩ Export MusicXML</button>
       </div>
     </div>
 
@@ -1336,9 +1464,51 @@
         <button class="control-button secondary" id="zoomInButton">🔍＋ Zoom In</button>
         <button class="control-button secondary" id="readableViewButton">↔ Readable View</button>
         <button class="control-button secondary" id="goToMeasureButton">📍 Go to Measure</button>
+        <button class="control-button secondary" id="showLyricsButton">♩ Show Lyrics</button>
       </div>
     </div>
-  </nav>
+  </nav>  
+
+<!-- MusicXML import dialog -->
+  <div class="mxml-import-overlay" id="mxmlImportOverlay">
+    <div class="mxml-import-dialog">
+      <div class="mxml-import-title">Import MusicXML</div>
+      <div class="mxml-import-detected" id="mxmlDetectedInfo">
+        <div class="mxml-import-row">
+          <span class="mxml-import-row-label">Title</span>
+          <span class="mxml-import-row-value" id="mxmlDetectedTitle">—</span>
+        </div>
+        <div class="mxml-import-row">
+          <span class="mxml-import-row-label">Key</span>
+          <span class="mxml-import-row-value" id="mxmlDetectedKey">—</span>
+        </div>
+        <div class="mxml-import-row">
+          <span class="mxml-import-row-label">Time signature</span>
+          <span class="mxml-import-row-value" id="mxmlDetectedTime">—</span>
+        </div>
+        <div class="mxml-import-row">
+          <span class="mxml-import-row-label">Tempo</span>
+          <span class="mxml-import-row-value" id="mxmlDetectedTempo">—</span>
+        </div>
+        <div class="mxml-import-row">
+          <span class="mxml-import-row-label">Parts</span>
+          <span class="mxml-import-row-value" id="mxmlDetectedParts">—</span>
+        </div>
+        <div class="mxml-import-row">
+          <span class="mxml-import-row-label">Lyrics</span>
+          <span class="mxml-import-row-value" id="mxmlDetectedLyrics">—</span>
+        </div>
+      </div>
+<div class="mxml-import-actions">
+        <button class="mxml-import-cancel" id="mxmlImportCancel">Cancel</button>
+        <button class="mxml-import-confirm secondary" id="mxmlImportAddBtn" style="background:transparent; color:#f4f1e8; border:1px solid rgba(255,255,255,0.3);">Add to Current Project</button>
+        <button class="mxml-import-confirm" id="mxmlImportConfirm">Import as New Project</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden file input for MusicXML -->
+  <input type="file" id="mxmlFileInput" accept=".musicxml,.xml,.mxl,.playscore" style="display:none;" />
 
   <div class="studio">
 
@@ -2955,7 +3125,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
           const beatNumLabel = document.createElement("div");
           beatNumLabel.classList.add("beat-num-label");
           beatNumLabel.style.left = beat * BEAT_WIDTH + "px";
-          beatNumLabel.textContent = beatInfo.beatWithinMeasure;
+          beatNumLabel.textContent = beat + 1;
           beatNumLabel.title = "Beat " + beatInfo.beatWithinMeasure + " of M" + beatInfo.measure + " (absolute beat " + (beat + 1) + ")";
           rulerBeats.appendChild(beatNumLabel);
         }
@@ -3242,6 +3412,23 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         laneBlocks.forEach(block => {
           track.appendChild(createBlockElement(block));
         });
+
+// Lyric strip — only render if lane has blocks with lyrics
+        const laneBlocksWithLyrics = project.blocks.filter(
+          block => block.laneId === lane.id && block.lyric
+        );
+        if (laneBlocksWithLyrics.length > 0) {
+          const lyricStrip = document.createElement("div");
+          lyricStrip.classList.add("lyric-strip");
+          laneBlocksWithLyrics.forEach(block => {
+            const token = document.createElement("div");
+            token.classList.add("lyric-token");
+            token.style.left = (block.startBeat * BEAT_WIDTH) + "px";
+            token.textContent = block.lyric;
+            lyricStrip.appendChild(token);
+          });
+          laneRow.appendChild(lyricStrip);
+        }
 
         laneRow.appendChild(label);
         laneRow.appendChild(track);
@@ -9865,8 +10052,578 @@ function applyPendingPlayerLineImport() {
     importChordButton.addEventListener("click", () => importPendingChordFromStorage(false));
     importRecordingButton.addEventListener("click", importRecording);
     importProgressionButton.addEventListener("click", importProgression);
-    exportMidiButton.addEventListener("click", exportMidi);
+exportMidiButton.addEventListener("click", exportMidi);
     importMidiButton.addEventListener("click", beginMidiImport);
+
+    // ── Show Lyrics toggle ───────────────────────────────────────────
+    let showLyrics = false;
+    const showLyricsButton = document.getElementById("showLyricsButton");
+    const lanesContainerEl = document.getElementById("lanesContainer");
+
+    showLyricsButton.addEventListener("click", () => {
+      showLyrics = !showLyrics;
+      showLyricsButton.textContent = showLyrics ? "♩ Hide Lyrics" : "♩ Show Lyrics";
+      if (lanesContainerEl) {
+        lanesContainerEl.classList.toggle("lyrics-visible", showLyrics);
+      }
+      render();
+    });
+
+    // ── MusicXML import ──────────────────────────────────────────────
+    const importMusicXmlButton = document.getElementById("importMusicXmlButton");
+    const exportMusicXmlButton = document.getElementById("exportMusicXmlButton");
+    const mxmlFileInput = document.getElementById("mxmlFileInput");
+    const mxmlImportOverlay = document.getElementById("mxmlImportOverlay");
+    const mxmlImportCancel = document.getElementById("mxmlImportCancel");
+    const mxmlImportConfirm = document.getElementById("mxmlImportConfirm");
+
+    let mxmlParsedData = null;
+
+    importMusicXmlButton.addEventListener("click", () => {
+      mxmlFileInput.value = "";
+      mxmlFileInput.click();
+    });
+
+    mxmlFileInput.addEventListener("change", async (ev) => {
+      const file = ev.target.files[0];
+      if (!file) return;
+      try {
+        const xml = await readMxmlFile(file);
+        mxmlParsedData = parseMusicXml(xml, file.name);
+        showMxmlImportDialog(mxmlParsedData);
+      } catch (err) {
+        flashStatus("Could not read MusicXML file: " + err.message);
+        console.error(err);
+      }
+    });
+
+    mxmlImportCancel.addEventListener("click", () => {
+      mxmlImportOverlay.classList.remove("visible");
+      mxmlParsedData = null;
+    });
+
+mxmlImportConfirm.addEventListener("click", () => {
+      if (!mxmlParsedData) return;
+      saveHistory();
+      applyMxmlImport(mxmlParsedData);
+      mxmlImportOverlay.classList.remove("visible");
+      mxmlParsedData = null;
+    });
+
+    document.getElementById("mxmlImportAddBtn").addEventListener("click", () => {
+      if (!mxmlParsedData) return;
+      saveHistory();
+      applyMxmlImportToCurrentProject(mxmlParsedData);
+      mxmlImportOverlay.classList.remove("visible");
+      mxmlParsedData = null;
+    });
+
+    async function readMxmlFile(file) {
+      const name = file.name.toLowerCase();
+      if (name.endsWith(".mxl") || name.endsWith(".playscore")) {
+        // Unzip and find score XML
+        const JSZip = window.JSZip;
+        if (!JSZip) throw new Error("JSZip not loaded. Try again.");
+        const zip = await JSZip.loadAsync(await file.arrayBuffer());
+
+        if (name.endsWith(".playscore")) {
+          const xmlFile = zip.file("doc.xml");
+          if (!xmlFile) throw new Error("doc.xml not found in .playscore file.");
+          return await xmlFile.async("text");
+        }
+
+        // .mxl — find via container.xml
+        let xmlPath = null;
+        const container = zip.file("META-INF/container.xml");
+        if (container) {
+          const containerText = await container.async("text");
+          const containerDoc = new DOMParser().parseFromString(containerText, "application/xml");
+          xmlPath = containerDoc.querySelector("rootfile")?.getAttribute("full-path") || null;
+        }
+        if (!xmlPath) {
+          xmlPath = Object.keys(zip.files).find(n =>
+            /\.(xml|musicxml)$/i.test(n) && !n.includes("META-INF")
+          );
+        }
+        if (!xmlPath || !zip.file(xmlPath)) throw new Error("Score XML not found in .mxl file.");
+        return await zip.file(xmlPath).async("text");
+      }
+      return await file.text();
+    }
+
+    function parseMusicXml(xmlText, fileName) {
+      const doc = new DOMParser().parseFromString(xmlText, "application/xml");
+      const err = doc.querySelector("parsererror");
+      if (err) throw new Error("XML parse error: " + err.textContent.slice(0, 200));
+
+      // Title
+      const titleEl = doc.querySelector("credit-words") ||
+        doc.querySelector("movement-title") ||
+        doc.querySelector("work-title");
+      const title = titleEl?.textContent?.trim() ||
+        fileName.replace(/\.(musicxml|xml|mxl|playscore)$/i, "") ||
+        "Imported Score";
+
+      // Key signature → root + mode
+      const fifths = parseInt(doc.querySelector("key > fifths")?.textContent || "0", 10);
+      const modeEl = doc.querySelector("key > mode");
+      const modeText = modeEl?.textContent?.trim().toLowerCase() || "major";
+      const { root, mode } = fifthsToKeyContext(fifths, modeText);
+
+      // Time signature
+      const beatsEl = doc.querySelector("time > beats");
+      const beatTypeEl = doc.querySelector("time > beat-type");
+      const timeSymbol = doc.querySelector("time")?.getAttribute("symbol");
+      const beats = parseInt(beatsEl?.textContent || "4", 10);
+      const beatType = parseInt(beatTypeEl?.textContent || "4", 10);
+      const timeSig = timeSymbol === "cut"
+        ? { numerator: 2, denominator: 2, display: "Cut time (2/2)" }
+        : { numerator: beats, denominator: beatType, display: beats + "/" + beatType };
+
+      // Tempo
+      const tempoEl = doc.querySelector("sound[tempo]") ||
+        doc.querySelector("metronome");
+      const tempo = tempoEl
+        ? Math.round(parseFloat(tempoEl.getAttribute("tempo") || "120"))
+        : 120;
+
+      // Parse parts
+      const parts = [...doc.querySelectorAll("score-partwise > part")];
+      const partNames = {};
+      [...doc.querySelectorAll("score-part")].forEach(sp => {
+        partNames[sp.getAttribute("id")] = sp.querySelector("part-name")?.textContent?.trim() || sp.getAttribute("id");
+      });
+
+      const lanes = { tenor: [], lead: [], baritone: [], bass: [] };
+
+        parts.forEach((part, partIndex) => {
+        const partId = part.getAttribute("id");
+        const isTreble = partIndex === 0;
+        let cumulativeBeat = 0;
+        let divisions = 1;
+
+        [...part.querySelectorAll(":scope > measure")].forEach(measure => {
+          const divEl = measure.querySelector(":scope > attributes > divisions");
+          if (divEl) divisions = parseInt(divEl.textContent, 10) || 1;
+
+          let measureBeat = cumulativeBeat;
+          const voicePositions = {};
+
+          [...measure.querySelectorAll(":scope > note, :scope > backup, :scope > forward")].forEach(el => {
+            if (el.tagName === "backup") {
+              const dur = parseInt(el.querySelector("duration")?.textContent || "0", 10);
+              measureBeat -= dur / divisions;
+              return;
+            }
+            if (el.tagName === "forward") {
+              const dur = parseInt(el.querySelector("duration")?.textContent || "0", 10);
+              measureBeat += dur / divisions;
+              return;
+            }
+
+            // It's a note
+            const isChord = !!el.querySelector(":scope > chord");
+            const isRest = !!el.querySelector(":scope > rest");
+            const duration = parseInt(el.querySelector(":scope > duration")?.textContent || "1", 10);
+            const durationBeats = duration / divisions;
+            const voice = el.querySelector(":scope > voice")?.textContent?.trim() || "1";
+            const stem = el.querySelector(":scope > stem")?.textContent?.trim().toLowerCase() || "up";
+            const type = el.querySelector(":scope > type")?.textContent?.trim() || "quarter";
+
+            if (isChord) {
+              // Chord note shares beat position with previous note in same voice
+              // don't advance beat
+            } else {
+              voicePositions[voice] = voicePositions[voice] || measureBeat;
+            }
+
+            const startBeat = isChord
+              ? (voicePositions[voice] || measureBeat)
+              : measureBeat;
+
+            if (!isRest) {
+              // Determine lane from staff + stem
+              let laneId;
+              if (isTreble) {
+                laneId = stem === "up" ? "tenor" : "lead";
+              } else {
+                laneId = stem === "up" ? "baritone" : "bass";
+              }
+
+              // Whole notes (type === "whole") — no stem, split by pitch
+              // if there's already a note at this beat in this staff,
+              // assign upper pitch to upper voice, lower to lower
+              if (type === "whole" || type === "half" && !el.querySelector(":scope > stem")) {
+                // No stem — use chord position
+                const existing = lanes[isTreble ? "lead" : "bass"].find(
+                  b => Math.abs(b.startBeat - startBeat) < 0.01
+                );
+                laneId = isTreble
+                  ? (existing ? "tenor" : "lead")
+                  : (existing ? "baritone" : "bass");
+              }
+
+              // MIDI pitch
+              const step = el.querySelector(":scope > pitch > step")?.textContent?.trim() || "C";
+              const octave = parseInt(el.querySelector(":scope > pitch > octave")?.textContent || "4", 10);
+              const alter = parseFloat(el.querySelector(":scope > pitch > alter")?.textContent || "0");
+              const midi = stepOctaveToMidi(step, octave, alter);
+
+              // Lyric
+              const lyricEl = el.querySelector(":scope > lyric > text");
+              const lyric = lyricEl?.textContent?.trim() || null;
+
+              lanes[laneId].push({
+                startBeat,
+                durationBeats,
+                midi,
+                name: midiToDisplayName(midi),
+                lyric,
+                voice
+              });
+            }
+
+            if (!isChord) {
+              measureBeat += durationBeats;
+            }
+          });
+
+          // Advance cumulative beat by measure length
+          const measureDivisions = [...measure.querySelectorAll(":scope > note:not(:has(> chord))")];
+          // Use time signature to determine measure length
+          cumulativeBeat += timeSig.numerator * (4 / timeSig.denominator);
+        });
+      });
+
+      // Distribute Lead lyrics to other parts by beat position
+      const leadLyrics = lanes.lead.filter(n => n.lyric);
+      ["tenor", "baritone", "bass"].forEach(laneId => {
+        lanes[laneId].forEach(note => {
+          if (!note.lyric) {
+            const match = leadLyrics.find(
+              l => Math.abs(l.startBeat - note.startBeat) < 0.1
+            );
+            if (match) note.lyric = match.lyric;
+          }
+        });
+      });
+
+      // Count total lyrics
+      const lyricCount = Object.values(lanes)
+        .flat()
+        .filter(n => n.lyric).length;
+
+      return {
+        title,
+        root,
+        mode,
+        timeSig,
+        tempo,
+        lanes,
+        lyricCount,
+        partsDescription: "Treble (Tenor + Lead), Bass (Baritone + Bass)"
+      };
+    }
+
+    function fifthsToKeyContext(fifths, modeText) {
+      const majorKeys = ["C","G","D","A","E","B","Gb","Db","Ab","Eb","Bb","F"];
+      const minorKeys = ["A","E","B","Gb","Db","Ab","Eb","Bb","F","C","G","D"];
+      const isMinor = modeText === "minor";
+      const keys = isMinor ? minorKeys : majorKeys;
+      const idx = ((fifths % 12) + 12) % 12;
+      return {
+        root: keys[idx] || "C",
+        mode: isMinor ? "aeolian" : "ionian"
+      };
+    }
+
+    function stepOctaveToMidi(step, octave, alter) {
+      const steps = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 };
+      return 12 * (octave + 1) + (steps[step] || 0) + Math.round(alter);
+    }
+
+    function showMxmlImportDialog(data) {
+      document.getElementById("mxmlDetectedTitle").textContent = data.title;
+      document.getElementById("mxmlDetectedKey").textContent =
+        data.root + " " + (data.mode === "aeolian" ? "Minor" : "Major");
+      document.getElementById("mxmlDetectedTime").textContent = data.timeSig.display;
+      document.getElementById("mxmlDetectedTempo").textContent = data.tempo + " BPM";
+      document.getElementById("mxmlDetectedParts").textContent = data.partsDescription;
+      document.getElementById("mxmlDetectedLyrics").textContent = data.lyricCount > 0
+        ? data.lyricCount + " syllables — distributing to all parts"
+        : "None found";
+      mxmlImportOverlay.classList.add("visible");
+    }
+
+    function applyMxmlImport(data) {
+      const newProject = createDefaultProject(data.title);
+
+      newProject.tempo = data.tempo;
+      newProject.context.root = data.root;
+      newProject.context.mode = data.mode;
+      newProject.context.timeSignature = {
+        numerator: data.timeSig.numerator,
+        denominator: data.timeSig.denominator
+      };
+
+      const laneIds = ["tenor", "lead", "baritone", "bass"];
+      laneIds.forEach(laneId => {
+        (data.lanes[laneId] || []).forEach(note => {
+          newProject.blocks.push({
+            id: createId("block"),
+            type: "note",
+            laneId,
+            midi: note.midi,
+            name: note.name,
+            startBeat: note.startBeat,
+            durationBeats: Math.max(0.25, note.durationBeats),
+            velocity: 86,
+            voice: newProject.lanes.find(l => l.id === laneId)?.voice || null,
+            system: newProject.context.system,
+            lyric: note.lyric || null,
+            source: "musicxml-import"
+          });
+        });
+      });
+
+      newProject.blocks.sort((a, b) => a.startBeat - b.startBeat);
+
+      const library = getProjectLibrary();
+      const newId = createId("design");
+      library[newId] = {
+        id: newId,
+        name: data.title,
+        updatedAt: new Date().toISOString(),
+        project: newProject
+      };
+      setProjectLibrary(library);
+
+      project = newProject;
+      selectedLaneId = "lead";
+      clearBlockSelection();
+      normalizeProject();
+      saveProjectSnapshotSilently();
+      render();
+
+      const lyricCount = newProject.blocks.filter(b => b.lyric).length;
+      flashStatus(
+        "Imported \"" + data.title + "\" \u2014 " +
+        Object.values(data.lanes).flat().length + " notes across 4 parts. " +
+        lyricCount + " lyrics stored."
+      );
+    }
+
+    function applyMxmlImportToCurrentProject(data) {
+      const laneIds = ["tenor", "lead", "baritone", "bass"];
+      laneIds.forEach(laneId => {
+        (data.lanes[laneId] || []).forEach(note => {
+          // Only add if this lane has no blocks yet
+          const laneHasBlocks = project.blocks.some(b => b.laneId === laneId);
+          if (!laneHasBlocks) {
+            project.blocks.push({
+              id: createId("block"),
+              type: "note",
+              laneId,
+              midi: note.midi,
+              name: note.name,
+              startBeat: note.startBeat,
+              durationBeats: Math.max(0.25, note.durationBeats),
+              velocity: 86,
+              voice: project.lanes.find(l => l.id === laneId)?.voice || null,
+              system: project.context.system,
+              lyric: note.lyric || null,
+              source: "musicxml-import"
+            });
+          }
+        });
+      });
+
+      project.blocks.sort((a, b) => a.startBeat - b.startBeat);
+      saveProjectSnapshotSilently();
+      render();
+
+      const added = data.lanes
+        ? laneIds.filter(id => (data.lanes[id] || []).length > 0).join(", ")
+        : "none";
+      flashStatus("Added parts to current project: " + added);
+    }
+        
+    // ── Export MusicXML ──────────────────────────────────────────────
+    exportMusicXmlButton.addEventListener("click", exportMusicXml);
+
+    function exportMusicXml() {
+      const title = project.title || "Orumi Export";
+      const tempo = project.tempo || 120;
+      const ts = project.context?.timeSignature || { numerator: 4, denominator: 4 };
+      const divisions = 4; // quarter note = 4 divisions
+
+      // Key signature from context
+      const fifths = rootModeToFifths(
+        project.context?.root || "C",
+        project.context?.mode || "ionian"
+      );
+
+      const laneOrder = ["tenor", "lead", "baritone", "bass"];
+      const partDefs = {
+        tenor:    { id: "P1", name: "Tenor",    clef: "G", clefLine: 2, octaveChange: -1 },
+        lead:     { id: "P2", name: "Lead",     clef: "G", clefLine: 2, octaveChange: -1 },
+        baritone: { id: "P3", name: "Baritone", clef: "F", clefLine: 4, octaveChange:  0 },
+        bass:     { id: "P4", name: "Bass",     clef: "F", clefLine: 4, octaveChange:  0 }
+      };
+
+      // Get max beat
+      const maxBeat = project.blocks.length > 0
+        ? Math.max(...project.blocks.map(b => b.startBeat + b.durationBeats))
+        : 4;
+
+      const beatsPerMeasure = ts.numerator * (4 / ts.denominator);
+      const totalMeasures = Math.ceil(maxBeat / beatsPerMeasure);
+
+      let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+      xml += `<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">\n`;
+      xml += `<score-partwise version="4.0">\n`;
+      xml += `  <movement-title>${escapeXml(title)}</movement-title>\n`;
+      xml += `  <part-list>\n`;
+
+      laneOrder.forEach(laneId => {
+        const def = partDefs[laneId];
+        xml += `    <score-part id="${def.id}"><part-name>${escapeXml(def.name)}</part-name></score-part>\n`;
+      });
+
+      xml += `  </part-list>\n`;
+
+      laneOrder.forEach(laneId => {
+        const def = partDefs[laneId];
+        const laneBlocks = project.blocks
+          .filter(b => b.laneId === laneId && b.type !== "rest")
+          .sort((a, b) => a.startBeat - b.startBeat);
+
+        xml += `  <part id="${def.id}">\n`;
+
+        for (let m = 0; m < totalMeasures; m++) {
+          const measureStartBeat = m * beatsPerMeasure;
+          const measureEndBeat = measureStartBeat + beatsPerMeasure;
+
+          xml += `    <measure number="${m + 1}">\n`;
+
+          if (m === 0) {
+            xml += `      <attributes>\n`;
+            xml += `        <divisions>${divisions}</divisions>\n`;
+            xml += `        <key><fifths>${fifths}</fifths></key>\n`;
+            xml += `        <time><beats>${ts.numerator}</beats><beat-type>${ts.denominator}</beat-type></time>\n`;
+            xml += `        <clef><sign>${def.clef}</sign><line>${def.clefLine}</line>`;
+            if (def.octaveChange !== 0) {
+              xml += `<clef-octave-change>${def.octaveChange}</clef-octave-change>`;
+            }
+            xml += `</clef>\n`;
+            xml += `      </attributes>\n`;
+            if (m === 0) {
+              xml += `      <direction placement="above"><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>${tempo}</per-minute></metronome></direction-type><sound tempo="${tempo}"/></direction>\n`;
+            }
+          }
+
+          // Get blocks in this measure
+          const measureBlocks = laneBlocks.filter(b =>
+            b.startBeat >= measureStartBeat && b.startBeat < measureEndBeat
+          );
+
+          // Fill measure with notes and rests
+          let cursor = measureStartBeat;
+
+          measureBlocks.forEach(block => {
+            // Rest before note if needed
+            if (block.startBeat > cursor + 0.01) {
+              const restDur = Math.round((block.startBeat - cursor) * divisions);
+              if (restDur > 0) {
+                xml += `      <note><rest/><duration>${restDur}</duration><voice>1</voice><type>quarter</type></note>\n`;
+              }
+            }
+
+            const dur = Math.max(1, Math.round(block.durationBeats * divisions));
+            const noteType = durToType(block.durationBeats);
+            const { step, alter, octave } = midiToStepOctave(block.midi);
+            const stemDir = (laneId === "tenor" || laneId === "baritone") ? "up" : "down";
+
+            xml += `      <note>\n`;
+            xml += `        <pitch><step>${step}</step>`;
+            if (alter !== 0) xml += `<alter>${alter}</alter>`;
+            xml += `<octave>${octave}</octave></pitch>\n`;
+            xml += `        <duration>${dur}</duration>\n`;
+            xml += `        <voice>1</voice>\n`;
+            xml += `        <type>${noteType}</type>\n`;
+            xml += `        <stem>${stemDir}</stem>\n`;
+
+            if (block.lyric) {
+              xml += `        <lyric number="1"><syllabic>single</syllabic><text>${escapeXml(block.lyric)}</text></lyric>\n`;
+            }
+
+            xml += `      </note>\n`;
+            cursor = block.startBeat + block.durationBeats;
+          });
+
+          // Rest to fill end of measure
+          if (cursor < measureEndBeat - 0.01) {
+            const restDur = Math.round((measureEndBeat - cursor) * divisions);
+            if (restDur > 0) {
+              xml += `      <note><rest/><duration>${restDur}</duration><voice>1</voice><type>quarter</type></note>\n`;
+            }
+          }
+
+          xml += `    </measure>\n`;
+        }
+
+        xml += `  </part>\n`;
+      });
+
+      xml += `</score-partwise>`;
+
+      const blob = new Blob([xml], { type: "application/vnd.recordare.musicxml+xml" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = (project.title || "orumi-export").replace(/\s+/g, "-") + ".musicxml";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(a.href);
+
+      flashStatus("Exported MusicXML — " + laneOrder.length + " parts.");
+    }
+
+    function rootModeToFifths(root, mode) {
+      const majorFifths = { C:0, G:1, D:2, A:3, E:4, B:5, Gb:-6, Db:-5, Ab:-4, Eb:-3, Bb:-2, F:-1 };
+      const minorOffset = -3;
+      const base = majorFifths[root] !== undefined ? majorFifths[root] : 0;
+      return mode === "aeolian" ? base + minorOffset : base;
+    }
+
+    function midiToStepOctave(midi) {
+      const steps = ["C","Db","D","Eb","E","F","Gb","G","Ab","A","Bb","B"];
+      const alters = [0,-1,0,-1,0,0,-1,0,-1,0,-1,0];
+      const pc = ((midi % 12) + 12) % 12;
+      const octave = Math.floor(midi / 12) - 1;
+      return { step: steps[pc].replace("b",""), alter: alters[pc], octave };
+    }
+
+    function durToType(beats) {
+      if (beats >= 4) return "whole";
+      if (beats >= 2) return "half";
+      if (beats >= 1) return "quarter";
+      if (beats >= 0.5) return "eighth";
+      return "16th";
+    }
+
+    function escapeXml(s) {
+      return String(s || "").replace(/[&<>"']/g, c => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&apos;"
+      }[c]));
+    }
+
+    // Load JSZip for MXL/playscore support
+    if (!window.JSZip) {
+      const s = document.createElement("script");
+      s.src = "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js";
+      document.head.appendChild(s);
+    }
     if (midiFileInput) {
       midiFileInput.addEventListener("change", handleMidiFileSelected);
     }
