@@ -367,7 +367,9 @@
         </div>
         <div>
           <label for="partSelect">Part</label>
-          <select id="partSelect" disabled></select>
+          <select id="partSelect" disabled>
+            <option value="all">All parts</option>
+          </select>
         </div>
         <div>
           <label for="sourceLyricNumber">Source lyric line number</label>
@@ -474,7 +476,7 @@ loved = love | d
 love = lo | ve</textarea>
 
       <div class="buttons">
-        <button id="transformBtn" disabled class="primary">Transform carried lyrics</button>
+        <button id="transformBtn" disabled class="primary">Transform lyrics</button></button>
         <button id="downloadBtn" disabled>Download for singers</button>
         <button id="downloadAceBtn" disabled>Download for ACE Studio</button>
         <button id="copyPlainBtn" disabled>Copy output lyric string</button>
@@ -590,7 +592,7 @@ love = lo | ve</textarea>
 
     function loadParts() {
       const partSelect = $("partSelect");
-      partSelect.innerHTML = "";
+      partSelect.innerHTML = "<option value=\"all\">All parts</option>";
       const scoreParts = [...xmlDoc.querySelectorAll("score-partwise > part-list > score-part")];
       const partEls = [...xmlDoc.querySelectorAll("score-partwise > part")];
 
@@ -606,7 +608,7 @@ love = lo | ve</textarea>
 
       partSelect.disabled = partEls.length === 0;
       $("analyzeBtn").disabled = partEls.length === 0;
-      $("transformBtn").disabled = true;
+      $("transformBtn").disabled = partEls.length === 0;
       $("downloadBtn").disabled = true;
       $("downloadAceBtn").disabled = true;
       $("copyPlainBtn").disabled = true;
@@ -927,6 +929,148 @@ love = lo | ve</textarea>
       $("summary").textContent = `Transformed lyrics. ${carriedCount} note(s) had carried text.`;
     }
 
+    function transformAllParts() {
+      const lyricNumber = $("sourceLyricNumber").value.trim() || "1";
+      const partSelect = $("partSelect");
+      const allPartIds = [...partSelect.options].map(o => o.value);
+
+      if (allPartIds.length === 0) {
+        $("summary").textContent = "No parts found. Load a file first.";
+        return;
+      }
+
+      const customRules = parseCustomRules();
+      let totalNotes = 0;
+      let totalCarried = 0;
+      let partsProcessed = 0;
+
+      // Save current selection to restore after
+      const originalPartId = partSelect.value;
+
+      allPartIds.forEach(partId => {
+        const part = xmlDoc.querySelector(
+          `score-partwise > part[id="${cssEscape(partId)}"]`
+        );
+        if (!part) return;
+
+        // Build noteRows for this part
+        const partNoteRows = [];
+        let index = 0;
+
+        [...part.querySelectorAll(":scope > measure")].forEach(measure => {
+          const measureNo = measure.getAttribute("number") || "";
+          [...measure.querySelectorAll(":scope > note")].forEach(note => {
+            if (note.querySelector(":scope > chord")) return;
+            if (note.querySelector(":scope > rest")) return;
+
+            const lyric = getLyric(note, lyricNumber);
+            const textEl = lyric?.querySelector("text");
+            const original = textEl?.textContent || "";
+
+            if (!lyric && !original) return;
+
+            index++;
+            partNoteRows.push({
+              index,
+              measure: measureNo,
+              pitch: pitchName(note),
+              note,
+              sourceLyric: lyric,
+              sourceTextEl: textEl,
+              original,
+              carriedIn: "",
+              carriedOut: "",
+              output: original,
+              aceOriginal: original,
+              warnings: []
+            });
+          });
+        });
+
+        if (partNoteRows.length === 0) return;
+
+        // Apply carry transform to this part's rows
+        const carryMode = $("carryMode").value;
+
+        for (const row of partNoteRows) {
+          row.carriedIn = "";
+          row.carriedOut = "";
+          row.output = row.original;
+          row.aceOriginal = row.original;
+          row.warnings = [];
+        }
+
+        for (let i = 0; i < partNoteRows.length - 1; i++) {
+          const cur = partNoteRows[i];
+          const next = partNoteRows[i + 1];
+
+          if (!cur.original || !next.original) continue;
+          if (carryMode === "none") continue;
+          if ($("preventChainCarry").checked && cur.carriedIn) continue;
+          if (carryMode === "vowelish" && !startsVowelish(next.original)) continue;
+
+          const split = splitFinalConsonant(cur.original, customRules);
+          if (!split) continue;
+
+          const first = $("useHyphenOnSplit").checked ? split.first + "-" : split.first;
+          cur.output = first;
+          cur.carriedOut = split.carried;
+
+          next.carriedIn = next.carriedIn
+            ? next.carriedIn + split.carried
+            : split.carried;
+        }
+
+        for (const row of partNoteRows) {
+          if (row.carriedIn) {
+            row.output = joinChunks([row.carriedIn, row.original]);
+          }
+        }
+
+        // Write lyrics for this part using the same settings
+        const visibleMode = $("visibleOutputMode").value;
+        const sourceNumber = lyricNumber;
+        const visibleNumber = visibleMode === "newLine"
+          ? ($("visibleLyricNumber").value.trim() || "2")
+          : sourceNumber;
+        const preserveAce = $("preserveOriginalForAce").checked;
+        const aceNumber = $("aceLyricNumber").value.trim() || "99";
+
+        for (const row of partNoteRows) {
+          const visibleLyric = visibleMode === "newLine"
+            ? getOrCreateLyric(row.note, visibleNumber)
+            : (row.sourceLyric || getOrCreateLyric(row.note, visibleNumber));
+
+          setLyricText(visibleLyric, row.output, false);
+
+          if (preserveAce && !$("hideAceLyricLine").checked) {
+            const aceLyric = getOrCreateLyric(row.note, aceNumber);
+            setLyricText(aceLyric, row.aceOriginal || row.original, false);
+          }
+        }
+
+        totalNotes += partNoteRows.length;
+        totalCarried += partNoteRows.filter(r => r.carriedIn || r.carriedOut).length;
+        partsProcessed++;
+      });
+
+      // Restore the selected part and re-analyze for preview
+      partSelect.value = originalPartId;
+      if ($("partSelect").value !== "all") analyzeLyrics();
+      if ($("partSelect").value !== "all") transformLyrics();
+
+      // Enable downloads
+      $("downloadBtn").disabled = false;
+      $("downloadAceBtn").disabled = false;
+      $("copyPlainBtn").disabled = false;
+      $("copyCsvBtn").disabled = false;
+
+      $("summary").textContent =
+        `Transformed all ${partsProcessed} part(s). ` +
+        `${totalNotes} notes processed, ${totalCarried} had carried text.`;
+    }
+
+
     function writeXmlLyrics() {
       const visibleMode = $("visibleOutputMode").value;
       const sourceNumber = $("sourceLyricNumber").value.trim() || "1";
@@ -1057,9 +1201,10 @@ love = lo | ve</textarea>
       }
       return out;
     }
-function downloadXml(includeAce = false) {
-      // Always apply edits first so output cells are current
-      applyEditedRowsToXml();
+
+    function downloadXml(includeAce = false) {
+      // Only apply edited rows if there are rows to apply
+      if (noteRows.length > 0) applyEditedRowsToXml();
 
       const preserveAce = $("preserveOriginalForAce").checked;
       const aceNumber = $("aceLyricNumber").value.trim() || "99";
@@ -1067,14 +1212,13 @@ function downloadXml(includeAce = false) {
       // For singers export: temporarily detach line 99 nodes from the XML
       const detached = [];
       if (!includeAce && preserveAce) {
-        for (const row of noteRows) {
-          [...row.note.querySelectorAll(":scope > lyric")].forEach(lyric => {
-            if ((lyric.getAttribute("number") || "1") === aceNumber) {
-              row.note.removeChild(lyric);
-              detached.push({ note: row.note, lyric });
-            }
-          });
-        }
+        xmlDoc.querySelectorAll("note > lyric").forEach(lyric => {
+          if ((lyric.getAttribute("number") || "1") === aceNumber) {
+            const note = lyric.parentNode;
+            note.removeChild(lyric);
+            detached.push({ note, lyric });
+          }
+        });
       }
 
       // Serialize with line 99 absent (singers) or present (ACE)
@@ -1141,19 +1285,42 @@ function downloadXml(includeAce = false) {
         xmlDoc = parseXml(DEMO_XML);
         currentFileName = "tiny-demo-lyric-carry-vowel-split.musicxml";
         loadParts();
-        analyzeLyrics();
+        if ($("partSelect").value !== "all") analyzeLyrics();
       } catch (err) {
         setStatus(err.message, "bad");
       }
     });
 
     $("analyzeBtn").addEventListener("click", () => {
-      try { analyzeLyrics(); } catch (err) { setStatus(err.message, "bad"); }
+      try {
+        if ($("partSelect").value === "all") {
+          setStatus("Select a specific part to preview notes.", "");
+        } else {
+          analyzeLyrics();
+        }
+      } catch (err) { setStatus(err.message, "bad"); }
     });
 
-    $("transformBtn").addEventListener("click", () => {
-      try { transformLyrics(); } catch (err) { setStatus(err.message, "bad"); console.error(err); }
+
+    $("partSelect").addEventListener("change", () => {
+      const isAll = $("partSelect").value === "all";
+      $("transformBtn").textContent = isAll
+        ? "Transform all parts"
+        : "Transform carried lyrics";
+      $("analyzeBtn").disabled = isAll;
     });
+    
+
+    $("transformBtn").addEventListener("click", () => {
+      try {
+        if ($("partSelect").value === "all") {
+          transformAllParts();
+        } else {
+          transformLyrics();
+        }
+      } catch (err) { setStatus(err.message, "bad"); console.error(err); }
+    });
+
 
     $("downloadBtn").addEventListener("click", () => downloadXml(false));
     $("downloadAceBtn").addEventListener("click", () => downloadXml(true));

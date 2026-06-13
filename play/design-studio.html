@@ -2724,7 +2724,8 @@
           sourceTrackName: block.sourceTrackName || null,
           sourceVoice: block.sourceVoice || null,
           chordLabel: block.chordLabel || block.chordSymbol || null,
-          chordSymbol: block.chordSymbol || block.chordLabel || null
+          chordSymbol: block.chordSymbol || block.chordLabel || null,
+          lyric: block.lyric || null
         };
       });
     }
@@ -10065,8 +10066,12 @@ exportMidiButton.addEventListener("click", exportMidi);
       showLyricsButton.textContent = showLyrics ? "♩ Hide Lyrics" : "♩ Show Lyrics";
       if (lanesContainerEl) {
         lanesContainerEl.classList.toggle("lyrics-visible", showLyrics);
+        console.log("lyrics-visible class present:", lanesContainerEl.classList.contains("lyrics-visible"));
+        console.log("lyric strips found:", document.querySelectorAll(".lyric-strip").length);
       }
       render();
+      console.log("after render - lyric strips found:", document.querySelectorAll(".lyric-strip").length);
+      console.log("after render - lyrics-visible class present:", lanesContainerEl.classList.contains("lyrics-visible"));
     });
 
     // ── MusicXML import ──────────────────────────────────────────────
