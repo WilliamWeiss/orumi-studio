@@ -1333,6 +1333,85 @@ love = lo | ve</textarea>
         td.style.display = show ? "" : "none";
       });
     });
+
+    // ── Auto-load from Design Studio handoff ────────────────────────
+    // ── Auto-load from Design Studio handoff ────────────────────────
+    (function checkDsHandoff() {
+      try {
+        const raw = localStorage.getItem("orumiDsToLyricBridge");
+        if (!raw) return;
+
+        const payload = JSON.parse(raw);
+        if (!payload || !payload.xml || !payload.filename) return;
+
+        // Clear it so it doesn't reload on refresh
+        localStorage.removeItem("orumiDsToLyricBridge");
+
+        xmlDoc = parseXml(payload.xml);
+        currentFileName = payload.filename.replace(
+          /\.musicxml$/i, "-lyric-carry-vowel-split.musicxml"
+        );
+
+        // Replace the file input with a clear DS source indicator
+        const fileInput = document.getElementById("fileInput");
+        const dsLabel = document.createElement("div");
+        dsLabel.style.cssText = [
+          "display:flex",
+          "align-items:center",
+          "gap:10px",
+          "padding:10px 14px",
+          "background:rgba(255,255,255,0.06)",
+          "border:1px solid rgba(255,255,255,0.14)",
+          "border-radius:10px",
+          "font-size:0.92rem",
+          "color:#f4f1e8"
+        ].join(";");
+        dsLabel.innerHTML =
+          "<span style='opacity:0.6;font-size:0.8rem;white-space:nowrap;'>From Design Studio</span>" +
+          "<span style='font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>" +
+          payload.filename + "</span>" +
+          "<button onclick='document.getElementById(\"fileInputWrap\").style.display=\"block\";this.parentNode.remove();' " +
+          "style='margin-left:auto;background:transparent;border:none;color:#b9b3a7;cursor:pointer;font-size:0.8rem;white-space:nowrap;padding:0;'>Change file</button>";
+
+        const wrap = document.createElement("div");
+        wrap.id = "fileInputWrap";
+        wrap.style.display = "none";
+        wrap.appendChild(fileInput.cloneNode(true));
+
+        fileInput.parentNode.insertBefore(dsLabel, fileInput);
+        fileInput.parentNode.insertBefore(wrap, fileInput);
+        fileInput.remove();
+
+        // Re-attach the file input change listener to the new input
+        const newInput = wrap.querySelector("input");
+        if (newInput) {
+          newInput.addEventListener("change", async (ev) => {
+            try {
+              const file = ev.target.files[0];
+              if (!file) return;
+              setStatus("Reading file...");
+              const text = await readUploadedFile(file);
+              xmlDoc = parseXml(text);
+              currentFileName = file.name.replace(/\.(xml|musicxml|mxl)$/i, "") + "-lyric-carry-vowel-split.musicxml";
+              loadParts();
+            } catch (err) {
+              setStatus(err.message, "bad");
+              console.error(err);
+            }
+          });
+        }
+
+        loadParts();
+        setStatus(
+          "Received from Design Studio: " + payload.filename +
+          " — " + (document.getElementById("partSelect").options.length - 1) + " part(s) ready.",
+          "ok"
+        );
+      } catch (err) {
+        console.warn("DS handoff load failed:", err);
+      }
+    })();
+
   </script>
 </body>
 </html>

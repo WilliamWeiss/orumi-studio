@@ -1347,6 +1347,7 @@
         <button class="control-button secondary" id="importMusicXmlButton">⤓ Import MusicXML</button>
         <button class="control-button secondary" id="exportMidiButton">⇩ Export MIDI</button>
         <button class="control-button secondary" id="exportMusicXmlButton">⇩ Export MusicXML</button>
+        <button class="control-button secondary" id="sendToLyricBridgeButton">⇨ Send to Lyric Bridge</button>
       </div>
     </div>
 
@@ -10592,6 +10593,146 @@ mxmlImportConfirm.addEventListener("click", () => {
       URL.revokeObjectURL(a.href);
 
       flashStatus("Exported MusicXML — " + laneOrder.length + " parts.");
+    }
+
+
+
+    // ── Send to Lyric Bridge ─────────────────────────────────────────
+    document.getElementById("sendToLyricBridgeButton").addEventListener("click", sendToLyricBridge);
+
+    function sendToLyricBridge() {
+      const title = project.title || "Orumi Export";
+      const tempo = project.tempo || 120;
+      const ts = project.context?.timeSignature || { numerator: 4, denominator: 4 };
+      const divisions = 4;
+
+      const fifths = rootModeToFifths(
+        project.context?.root || "C",
+        project.context?.mode || "ionian"
+      );
+
+      const laneOrder = ["tenor", "lead", "baritone", "bass"];
+      const partDefs = {
+        tenor:    { id: "P1", name: "Tenor",    clef: "G", clefLine: 2, octaveChange: -1 },
+        lead:     { id: "P2", name: "Lead",     clef: "G", clefLine: 2, octaveChange: -1 },
+        baritone: { id: "P3", name: "Baritone", clef: "F", clefLine: 4, octaveChange:  0 },
+        bass:     { id: "P4", name: "Bass",     clef: "F", clefLine: 4, octaveChange:  0 }
+      };
+
+      const maxBeat = project.blocks.length > 0
+        ? Math.max(...project.blocks.map(b => b.startBeat + b.durationBeats))
+        : 4;
+
+      const beatsPerMeasure = ts.numerator * (4 / ts.denominator);
+      const totalMeasures = Math.ceil(maxBeat / beatsPerMeasure);
+
+      let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+      xml += `<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">\n`;
+      xml += `<score-partwise version="4.0">\n`;
+      xml += `  <movement-title>${escapeXml(title)}</movement-title>\n`;
+      xml += `  <part-list>\n`;
+
+      laneOrder.forEach(laneId => {
+        const def = partDefs[laneId];
+        xml += `    <score-part id="${def.id}"><part-name>${escapeXml(def.name)}</part-name></score-part>\n`;
+      });
+
+      xml += `  </part-list>\n`;
+
+      laneOrder.forEach(laneId => {
+        const def = partDefs[laneId];
+        const laneBlocks = project.blocks
+          .filter(b => b.laneId === laneId && b.type !== "rest")
+          .sort((a, b) => a.startBeat - b.startBeat);
+
+        xml += `  <part id="${def.id}">\n`;
+
+        for (let m = 0; m < totalMeasures; m++) {
+          const measureStartBeat = m * beatsPerMeasure;
+          const measureEndBeat = measureStartBeat + beatsPerMeasure;
+
+          xml += `    <measure number="${m + 1}">\n`;
+
+          if (m === 0) {
+            xml += `      <attributes>\n`;
+            xml += `        <divisions>${divisions}</divisions>\n`;
+            xml += `        <key><fifths>${fifths}</fifths></key>\n`;
+            xml += `        <time><beats>${ts.numerator}</beats><beat-type>${ts.denominator}</beat-type></time>\n`;
+            xml += `        <clef><sign>${def.clef}</sign><line>${def.clefLine}</line>`;
+            if (def.octaveChange !== 0) {
+              xml += `<clef-octave-change>${def.octaveChange}</clef-octave-change>`;
+            }
+            xml += `</clef>\n`;
+            xml += `      </attributes>\n`;
+            xml += `      <direction placement="above"><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>${tempo}</per-minute></metronome></direction-type><sound tempo="${tempo}"/></direction>\n`;
+          }
+
+          const measureBlocks = laneBlocks.filter(b =>
+            b.startBeat >= measureStartBeat && b.startBeat < measureEndBeat
+          );
+
+          let cursor = measureStartBeat;
+
+          measureBlocks.forEach(block => {
+            if (block.startBeat > cursor + 0.01) {
+              const restDur = Math.round((block.startBeat - cursor) * divisions);
+              if (restDur > 0) {
+                xml += `      <note><rest/><duration>${restDur}</duration><voice>1</voice><type>quarter</type></note>\n`;
+              }
+            }
+
+            const dur = Math.max(1, Math.round(block.durationBeats * divisions));
+            const noteType = durToType(block.durationBeats);
+            const { step, alter, octave } = midiToStepOctave(block.midi);
+            const stemDir = (laneId === "tenor" || laneId === "baritone") ? "up" : "down";
+
+            xml += `      <note>\n`;
+            xml += `        <pitch><step>${step}</step>`;
+            if (alter !== 0) xml += `<alter>${alter}</alter>`;
+            xml += `<octave>${octave}</octave></pitch>\n`;
+            xml += `        <duration>${dur}</duration>\n`;
+            xml += `        <voice>1</voice>\n`;
+            xml += `        <type>${noteType}</type>\n`;
+            xml += `        <stem>${stemDir}</stem>\n`;
+
+            if (block.lyric) {
+              xml += `        <lyric number="1"><syllabic>single</syllabic><text>${escapeXml(block.lyric)}</text></lyric>\n`;
+            }
+
+            xml += `      </note>\n`;
+            cursor = block.startBeat + block.durationBeats;
+          });
+
+          if (cursor < measureEndBeat - 0.01) {
+            const restDur = Math.round((measureEndBeat - cursor) * divisions);
+            if (restDur > 0) {
+              xml += `      <note><rest/><duration>${restDur}</duration><voice>1</voice><type>quarter</type></note>\n`;
+            }
+          }
+
+          xml += `    </measure>\n`;
+        }
+
+        xml += `  </part>\n`;
+      });
+
+      xml += `</score-partwise>`;
+
+      const filename = title.replace(/\s+/g, "-") + ".musicxml";
+
+      try {
+        localStorage.setItem("orumiDsToLyricBridge", JSON.stringify({
+          xml,
+          filename,
+          sentAt: new Date().toISOString()
+        }));
+      } catch (e) {
+        flashStatus("Could not store file for Lyric Bridge — project may be too large.");
+        return;
+      }
+
+      flashStatus("Sending to Lyric Bridge...");
+      window.open("/lyric-bridge/", "_blank");
     }
 
     function rootModeToFifths(root, mode) {
