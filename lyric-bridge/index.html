@@ -378,8 +378,7 @@
       </div>
 
       <div class="buttons">
-        <button id="loadDemoBtn">Load tiny demo</button>
-        <button id="analyzeBtn" disabled class="primary">Analyze lyrics</button>
+        <button id="analyzeBtn" disabled class="primary">Process lyrics</button>
       </div>
 
       <p class="small">
@@ -459,21 +458,8 @@
         </div>
       </div>
 
-      <label for="customRules">Custom carry rules, one per line: <span class="mono">word = first-fragment | carried-fragment</span></label>
-      <textarea id="customRules" spellcheck="false"># Examples:
-# could = cou | ld
-# loved = love | d
-# wouldn't = would | n't
-# n't = n | t
 
-could = cou | ld
-would = wou | ld
-wouldn't = wou | ldn't
-should = shou | ld
-couldn't = cou | ldn't
-shouldn't = shou | ldn't
-loved = love | d
-love = lo | ve</textarea>
+      <div id="customRulesReport" style="display:none; margin-top:8px; font-size:0.85rem; opacity:0.8; white-space:pre; border-left:2px solid #4caf50; padding-left:10px;"></div>
 
       <div class="buttons">
         <button id="transformBtn" disabled class="primary">Transform lyrics</button></button>
@@ -485,13 +471,14 @@ love = lo | ve</textarea>
     </div>
 
     <!-- ── Step 3 ── -->
-    <div class="card">
+    <div id="summary" class="status" style="display:none;"></div>
+
+    <!-- ── Step 3 ── -->
+    <div class="card" id="previewCard">
       <div class="card-title">
         <div class="card-num">3</div>
         <h2>Preview and manual correction</h2>
       </div>
-
-      <div id="summary" class="status">Analyze a file to preview note lyrics.</div>
 
       <p class="small">
         The preview shows <span class="mono">⍽</span> where the exported MusicXML contains a non-breaking/control-space.
@@ -608,7 +595,7 @@ love = lo | ve</textarea>
 
       partSelect.disabled = partEls.length === 0;
       $("analyzeBtn").disabled = partEls.length === 0;
-      $("transformBtn").disabled = partEls.length === 0;
+      $("transformBtn").disabled = true;
       $("downloadBtn").disabled = true;
       $("downloadAceBtn").disabled = true;
       $("copyPlainBtn").disabled = true;
@@ -616,6 +603,8 @@ love = lo | ve</textarea>
       noteRows = [];
       renderTable();
       setStatus(`Loaded score with ${partEls.length} part(s).`, "ok");
+      $("customRulesReport").style.display = "none";
+      $("previewCard").style.display = "none";
     }
 
     function textOf(el, selector) {
@@ -658,7 +647,8 @@ love = lo | ve</textarea>
 
     function parseCustomRules() {
       const rules = new Map();
-      const lines = $("customRules").value.split(/\r?\n/);
+      const el = $("customRules");
+      const lines = el ? el.value.split(/\r?\n/) : [];
       for (const line of lines) {
         const raw = line.trim();
         if (!raw || raw.startsWith("#") || !raw.includes("=") || !raw.includes("|")) continue;
@@ -792,7 +782,8 @@ love = lo | ve</textarea>
         end = lastVowelIndex + 1;
       }
 
-      if (lower.endsWith("e") && lastVowelIndex === lower.length - 1 && lower.length > 2) {
+      const digraphs = new Set(["ai", "ay", "ee", "ea", "oa", "oo", "oi", "oy", "ou", "ue"]);
+      if (lower.endsWith("e") && lastVowelIndex === lower.length - 1 && lower.length > 2 && !digraphs.has(twoBack)) {
         let prior = -1;
         for (let i = lower.length - 2; i >= 0; i--) {
           if (vowels.has(lower[i])) {
@@ -868,6 +859,7 @@ love = lo | ve</textarea>
       });
 
       renderTable();
+      $("previewCard").style.display = "";
       $("transformBtn").disabled = noteRows.length === 0;
       $("downloadBtn").disabled = true;
       $("copyPlainBtn").disabled = true;
@@ -927,6 +919,7 @@ love = lo | ve</textarea>
 
       const carriedCount = noteRows.filter(r => r.carriedIn || r.carriedOut).length;
       $("summary").textContent = `Transformed lyrics. ${carriedCount} note(s) had carried text.`;
+      $("summary").style.display = "";
     }
 
     function transformAllParts() {
@@ -943,6 +936,9 @@ love = lo | ve</textarea>
       let totalNotes = 0;
       let totalCarried = 0;
       let partsProcessed = 0;
+      let leadPartId = null;
+      let leadPartMax = 0;
+      const partRuleFirings = new Map(); // partId → Map(word → count)
 
       // Save current selection to restore after
       const originalPartId = partSelect.value;
@@ -1012,6 +1008,13 @@ love = lo | ve</textarea>
           const split = splitFinalConsonant(cur.original, customRules);
           if (!split) continue;
 
+          const lowerWord = cur.original.toLowerCase().replace(/[^a-z']/g, "");
+          if (customRules.has(lowerWord)) {
+            if (!partRuleFirings.has(partId)) partRuleFirings.set(partId, new Map());
+            const wordMap = partRuleFirings.get(partId);
+            wordMap.set(lowerWord, (wordMap.get(lowerWord) || 0) + 1);
+          }
+
           const first = $("useHyphenOnSplit").checked ? split.first + "-" : split.first;
           cur.output = first;
           cur.carriedOut = split.carried;
@@ -1052,6 +1055,11 @@ love = lo | ve</textarea>
         totalNotes += partNoteRows.length;
         totalCarried += partNoteRows.filter(r => r.carriedIn || r.carriedOut).length;
         partsProcessed++;
+
+        if (partNoteRows.length > leadPartMax) {
+          leadPartMax = partNoteRows.length;
+          leadPartId = partId;
+        }
       });
 
       // Restore the selected part and re-analyze for preview
@@ -1068,6 +1076,22 @@ love = lo | ve</textarea>
       $("summary").textContent =
         `Transformed all ${partsProcessed} part(s). ` +
         `${totalNotes} notes processed, ${totalCarried} had carried text.`;
+      $("summary").style.display = "";
+
+      const reportEl = $("customRulesReport");
+      const leadFirings = leadPartId ? partRuleFirings.get(leadPartId) : null;
+      if (leadFirings && leadFirings.size > 0) {
+        const leadName = [...partSelect.options].find(o => o.value === leadPartId)?.textContent || leadPartId;
+        const lines = [`Custom rules fired in ${leadName} — most lyrics:`];
+        leadFirings.forEach((count, word) => {
+          const rule = customRules.get(word);
+          lines.push(`  ${word} \u2192 ${rule.first}- / ${rule.carried} (${count}\u00d7)`);
+        });
+        reportEl.textContent = lines.join("\n");
+        reportEl.style.display = "block";
+      } else {
+        reportEl.style.display = "none";
+      }
     }
 
 
@@ -1280,21 +1304,14 @@ love = lo | ve</textarea>
       }
     });
 
-    $("loadDemoBtn").addEventListener("click", () => {
-      try {
-        xmlDoc = parseXml(DEMO_XML);
-        currentFileName = "tiny-demo-lyric-carry-vowel-split.musicxml";
-        loadParts();
-        if ($("partSelect").value !== "all") analyzeLyrics();
-      } catch (err) {
-        setStatus(err.message, "bad");
-      }
-    });
-
     $("analyzeBtn").addEventListener("click", () => {
       try {
-        if ($("partSelect").value === "all") {
-          setStatus("Select a specific part to preview notes.", "");
+       if ($("partSelect").value === "all") {
+          $("transformBtn").disabled = false;
+          $("customRulesReport").style.display = "none";
+          $("previewCard").style.display = "none";
+          $("summary").style.display = "none";
+          setStatus("All parts selected — click Transform lyrics to process all parts, or select a specific part to review proposed changes.", "ok");
         } else {
           analyzeLyrics();
         }
@@ -1307,7 +1324,7 @@ love = lo | ve</textarea>
       $("transformBtn").textContent = isAll
         ? "Transform all parts"
         : "Transform carried lyrics";
-      $("analyzeBtn").disabled = isAll;
+      $("analyzeBtn").disabled = false;
     });
     
 
