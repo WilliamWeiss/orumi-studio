@@ -369,8 +369,9 @@
 
 .beat-label {
       position: absolute;
-      top: 2px;
+      top: 1px;
       transform: translateX(4px);
+      line-height: 1;
     }
 
 .beat-num-label {
@@ -1701,6 +1702,38 @@
     const STORAGE_PENDING_CHORD = "orumiPendingDesignChord";
     const STORAGE_RECENTLY_CLEARED = "orumiDesignStudioRecentlyClearedBackup";
     const STORAGE_RECOVERY_PREFIX = "orumiDesignStudioRecovery_";
+
+    function purgeStaleRecoveryKeys(maxAgeDays = 4) {
+      const cutoff = Date.now() - maxAgeDays * 24 * 60 * 60 * 1000;
+      try {
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (!key || !key.startsWith(STORAGE_RECOVERY_PREFIX)) continue;
+          try {
+            const parsed = JSON.parse(localStorage.getItem(key) || "null");
+            const ts = parsed && (parsed.clearedAt || parsed.updatedAt);
+            if (!ts || new Date(ts).getTime() < cutoff) {
+              keysToRemove.push(key);
+            }
+          } catch (e) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+
+        // Also clear the single recently-cleared key if stale
+        try {
+          const rc = JSON.parse(localStorage.getItem(STORAGE_RECENTLY_CLEARED) || "null");
+          const ts = rc && (rc.clearedAt || rc.updatedAt);
+          if (!ts || new Date(ts).getTime() < cutoff) {
+            localStorage.removeItem(STORAGE_RECENTLY_CLEARED);
+          }
+        } catch (e) {}
+      } catch (e) {
+        console.warn("Could not purge stale recovery keys", e);
+      }
+    }
 
     const backButton = document.getElementById("backButton");
     const paletteGrid = document.getElementById("paletteGrid");
@@ -3214,6 +3247,14 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         });
 
         rulerBeats.appendChild(label);
+
+        const beatAbsLabel = document.createElement("div");
+        beatAbsLabel.classList.add("beat-num-label");
+        beatAbsLabel.style.left = beat * BEAT_WIDTH + "px";
+        beatAbsLabel.textContent = beat + 1;
+        beatAbsLabel.title = "Absolute beat " + (beat + 1);
+        beatAbsLabel.style.transform = "translateX(7px)";
+        rulerBeats.appendChild(beatAbsLabel);
       }
 
       const selectedMarker = document.createElement("div");
@@ -9312,6 +9353,8 @@ for (let beat = 0; beat <= maxBeat; beat++) {
     saveButton.addEventListener("click", () => saveProject(true));
     saveAsButton.addEventListener("click", saveProjectAs);
     loadProjectButton.addEventListener("click", loadProjectPicker);
+    loadProjectButton.addEventListener("click", loadProjectPicker);
+    purgeStaleRecoveryKeys();
     if (closeProjectLoadButton) {
       closeProjectLoadButton.addEventListener("click", closeProjectLoadModal);
     }

@@ -759,8 +759,8 @@ love = lo | ve</textarea>
       if (protectedFinal(carriedCore)) return null;
 
       return {
-        first: p.pre + firstCore + p.post,
-        carried: carriedCore
+        first: p.pre + firstCore,
+        carried: carriedCore + p.post
       };
     }
 
@@ -788,7 +788,7 @@ love = lo | ve</textarea>
       }
 
       const twoBack = lower.slice(Math.max(0, lastVowelIndex - 1), lastVowelIndex + 1);
-      if (["ai", "ay", "ee", "ea", "oa", "oo", "oi", "oy", "ou"].includes(twoBack)) {
+      if (["ai", "ay", "ee", "ea", "oa", "oo", "oi", "oy", "ou", "ue"].includes(twoBack)) {
         end = lastVowelIndex + 1;
       }
 
