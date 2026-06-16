@@ -1152,6 +1152,33 @@
       margin-bottom: 4px;
     }
 
+    .project-load-row {
+      display: flex;
+      align-items: stretch;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+    .project-load-row .project-load-item {
+      flex: 1;
+      margin-bottom: 0;
+    }
+    .project-delete-btn {
+      flex-shrink: 0;
+      padding: 6px 12px;
+      background: transparent;
+      border: 1px solid var(--color-danger, #c0392b);
+      color: var(--color-danger, #c0392b);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      white-space: nowrap;
+      align-self: stretch;
+    }
+    .project-delete-btn:hover {
+      background: var(--color-danger, #c0392b);
+      color: #fff;
+    }
+
     .project-load-item span {
       display: block;
       color: var(--muted);
@@ -2234,7 +2261,30 @@
           "<span>" + escapeHtml(sourceLabel) + " · " + escapeHtml(date) + " · " + blockCount + " block" + (blockCount === 1 ? "" : "s") + " · " + laneCount + " lane" + (laneCount === 1 ? "" : "s") + "</span>";
 
         button.addEventListener("click", () => loadProjectFromEntry(entry));
-        projectLoadList.appendChild(button);
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.className = "project-delete-btn";
+        deleteBtn.textContent = "Delete";
+        deleteBtn.title = "Delete this project";
+        deleteBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (!confirm("Delete \u201c" + (entry.name || "Untitled Design") + "\u201d? This cannot be undone.")) return;
+          if (entry.isLegacy) {
+            localStorage.removeItem(STORAGE_LEGACY);
+          } else {
+            const lib = getProjectLibrary();
+            delete lib[entry.id];
+            setProjectLibrary(lib);
+          }
+          loadProjectPicker();
+        });
+
+        const row = document.createElement("div");
+        row.className = "project-load-row";
+        row.appendChild(button);
+        row.appendChild(deleteBtn);
+        projectLoadList.appendChild(row);
       });
 
       projectLoadModal.hidden = false;
@@ -10073,12 +10123,8 @@ exportMidiButton.addEventListener("click", exportMidi);
       showLyricsButton.textContent = showLyrics ? "♩ Hide Lyrics" : "♩ Show Lyrics";
       if (lanesContainerEl) {
         lanesContainerEl.classList.toggle("lyrics-visible", showLyrics);
-        console.log("lyrics-visible class present:", lanesContainerEl.classList.contains("lyrics-visible"));
-        console.log("lyric strips found:", document.querySelectorAll(".lyric-strip").length);
       }
       render();
-      console.log("after render - lyric strips found:", document.querySelectorAll(".lyric-strip").length);
-      console.log("after render - lyrics-visible class present:", lanesContainerEl.classList.contains("lyrics-visible"));
     });
 
     // ── MusicXML import ──────────────────────────────────────────────
