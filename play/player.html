@@ -1062,8 +1062,8 @@
     class="top-button chord-button"
     id="chordButton"
     href="design-studio.html"
-    title="Open Design Studio"
-  ><svg class="mini-design-studio-icon" viewBox="0 0 64 64" role="img" aria-label="Design Studio">
+    title="Add Harmony"
+><svg class="mini-design-studio-icon" viewBox="0 0 64 64" role="img" aria-label="Add Harmony">
       <line class="mini-grid-line" x1="9" y1="15" x2="55" y2="15"></line>
       <line class="mini-grid-line" x1="9" y1="27" x2="55" y2="27"></line>
       <line class="mini-grid-line" x1="9" y1="39" x2="55" y2="39"></line>
@@ -1149,9 +1149,9 @@
       id="recordingStudioLink"
       class="studio-link"
       href="design-studio.html"
-    >
-      Open Design Studio
-    </a>
+>
+      Add Harmony
+</a>
   </div>
 
   <button id="playChordButton">Play Highlighted Chord</button>
@@ -1202,7 +1202,7 @@
           ↷ Redo
         </button>
         <button id="applyPhraseButton" class="phrase-action-button apply" type="button">
-          ⤴ Apply Back to Design
+          ⤴ Return Line
         </button>
         <button id="returnToDesignButton" class="phrase-action-button" type="button">
           ↩ Return
@@ -1214,7 +1214,7 @@
           ＋ Rest
         </button>
         <button id="tightenPhraseLineButton" class="phrase-action-button" type="button">
-          ⌁ Tighten Line
+          ⌁ Absorb Rests
         </button>
         <button id="clearPhraseLineButton" class="phrase-action-button" type="button">
           ✕ Clear Play Line
@@ -1240,11 +1240,11 @@
     </div>
 
 <div class="phrase-editor-note">
-      Record a take, add it to the Play Line, then save or send it to Design. Rests are explicit blocks; drag right edges to resize, or use Undo if the edit goes wrong.
+      Record a take, add it to the Play Line, then save it or add harmony. Rests are explicit blocks; use Absorb Rests to lengthen notes into the rests that follow them, or use Undo if the edit goes wrong.
     </div>
 
     <div class="ds-chooser" id="dsChooser">
-      <div class="ds-chooser-title">Send to Design Studio as…</div>
+      <div class="ds-chooser-title">Add harmony to this line as…</div>
 
       <div class="ds-chooser-row" id="dsPartRow">
         <button class="ds-chooser-btn" data-part="tenor">Tenor</button>
@@ -1270,7 +1270,7 @@
 
       <hr class="ds-chooser-divider">
       <div class="ds-chooser-row">
-        <button class="ds-chooser-confirm" id="dsChooserConfirm" disabled>⤴ Send</button>
+        <button class="ds-chooser-confirm" id="dsChooserConfirm" disabled>⤴ Add Harmony</button>
         <button class="ds-chooser-cancel" id="dsChooserCancel">Cancel</button>
       </div>
     </div>
@@ -2020,13 +2020,94 @@
     }
 
     function tightenPhraseLine() {
-      if (!designPhrasePayload) return;
+  if (!designPhrasePayload) return;
 
-      savePhraseHistory();
-      sortPhraseBlocks();
-      renderDesignPhraseTimeline();
-      statusText.textContent = "Play Line tightened. Only explicit rests keep silence.";
+  const restBlocks = designPhraseBlocks.filter(block =>
+    block &&
+    (block.type === "rest" || block.midi === null || block.midi === undefined)
+  );
+
+  if (!restBlocks.length) {
+    statusText.textContent = "No rests to absorb in the Play Line.";
+    return;
+  }
+
+  savePhraseHistory();
+
+  const sortedBlocks = designPhraseBlocks
+    .map(block => ({
+      ...block,
+      type: block.type || (block.midi === null || block.midi === undefined ? "rest" : "note"),
+      relativeStartBeat: Math.max(0, Number(block.relativeStartBeat || 0)),
+      durationBeats: Math.max(0.25, Number(block.durationBeats || 1))
+    }))
+    .sort((a, b) =>
+      a.relativeStartBeat - b.relativeStartBeat ||
+      (a.type === "rest" ? 1 : 0) - (b.type === "rest" ? 1 : 0) ||
+      Number(a.midi || 0) - Number(b.midi || 0)
+    );
+
+  const nextBlocks = [];
+  let absorbedCount = 0;
+  let absorbedBeats = 0;
+
+  sortedBlocks.forEach(block => {
+    const isRest =
+      block.type === "rest" ||
+      block.midi === null ||
+      block.midi === undefined;
+
+    if (isRest) {
+      const previous = nextBlocks[nextBlocks.length - 1];
+
+      if (
+        previous &&
+        previous.type !== "rest" &&
+        previous.midi !== null &&
+        previous.midi !== undefined
+      ) {
+        const restDuration = Math.max(0.25, Number(block.durationBeats || 0.25));
+        previous.durationBeats = Math.max(0.25, Number(previous.durationBeats || 1)) + restDuration;
+        absorbedCount += 1;
+        absorbedBeats += restDuration;
+      } else {
+        // Keep leading rests, since they may represent an intentional delayed entrance.
+        nextBlocks.push({
+          ...block,
+          type: "rest",
+          durationBeats: Math.max(0.25, Number(block.durationBeats || 1))
+        });
+      }
+
+      return;
     }
+
+    nextBlocks.push({
+      ...block,
+      type: "note",
+      durationBeats: Math.max(0.25, Number(block.durationBeats || 1))
+    });
+  });
+
+  designPhraseBlocks = nextBlocks;
+  reflowPhraseSequence();
+  renderDesignPhraseTimeline();
+  updatePhraseUndoRedoButtons();
+
+  if (absorbedCount > 0) {
+    const beatLabel =
+      Math.abs(absorbedBeats - 1) < 0.001
+        ? "1 beat"
+        : absorbedBeats.toFixed(2).replace(/0+$/, "").replace(/\.$/, "") + " beats";
+
+    statusText.textContent =
+      "Absorbed " + absorbedCount + " rest" + (absorbedCount === 1 ? "" : "s") +
+      " into the notes before them, adding " + beatLabel + " of note length.";
+  } else {
+    statusText.textContent =
+      "No following rests were absorbed. Leading rests were kept.";
+  }
+}
 
     function addCurrentTakeToPlayLine() {
       if (!designPhrasePayload) return;
@@ -2099,7 +2180,7 @@
       updatePhraseUndoRedoButtons();
 
       statusText.textContent =
-        "Take added to Play Line with explicit rests. Edit it, then send to Design.";
+       "Take added to Play Line with explicit rests. Edit it, absorb rests if needed, then add harmony.";
     }
 
     function removePhraseBlock(blockId) {
