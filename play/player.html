@@ -726,14 +726,30 @@
     }
 
     .ds-chooser-btn.selected {
-      background: rgba(155,235,215,0.92);
-      color: #102522;
-    }
+  background: rgba(155,235,215,0.96);
+  color: #102522;
+  outline: 3px solid rgba(255,255,255,0.92);
+  outline-offset: 3px;
+  box-shadow:
+    0 0 22px rgba(155,235,215,0.72),
+    0 4px 12px rgba(0,0,0,0.22);
+}
 
     .ds-chooser-btn.new-line {
-      background: rgba(255,255,255,0.08);
-      color: var(--muted-text, #ccc);
-    }
+  background: rgba(255,255,255,0.08);
+  color: var(--text-color, white);
+  font-weight: 900;
+}
+
+.ds-chooser-btn.new-line.selected {
+  background: rgba(155,235,215,0.96);
+  color: #102522;
+  outline: 3px solid rgba(255,255,255,0.92);
+  outline-offset: 3px;
+  box-shadow:
+    0 0 22px rgba(155,235,215,0.72),
+    0 4px 12px rgba(0,0,0,0.22);
+}
 
     .ds-chooser-placement {
       display: none;
@@ -1264,7 +1280,7 @@
 </div>
 
     <div class="ds-chooser" id="dsChooser">
-      <div class="ds-chooser-title">Add harmony to this line as…</div>
+      <div class="ds-chooser-title">Which part will you add your new Play Line to?</div>
 
       <div class="ds-chooser-row" id="dsPartRow">
         <button class="ds-chooser-btn" data-part="tenor">Tenor</button>
@@ -1276,7 +1292,7 @@
 
       <div class="ds-chooser-placement" id="dsPlacementRow">
         <hr class="ds-chooser-divider">
-        <div class="ds-chooser-title" style="font-size:11px;">Place in part…</div>
+        <div class="ds-chooser-title" style="font-size:11px;">Where should it go?</div>
         <div class="ds-chooser-row">
           <button class="ds-chooser-btn" id="dsPlaceReplace">Replace all</button>
           <button class="ds-chooser-btn" id="dsPlaceAppend">Append to end</button>
@@ -1290,7 +1306,7 @@
 
       <hr class="ds-chooser-divider">
       <div class="ds-chooser-row">
-        <button class="ds-chooser-confirm" id="dsChooserConfirm" disabled>⤴ Add Harmony</button>
+        <button class="ds-chooser-confirm" id="dsChooserConfirm" disabled>⤴ Let’s Harmonize</button>
         <button class="ds-chooser-cancel" id="dsChooserCancel">Cancel</button>
       </div>
     </div>
