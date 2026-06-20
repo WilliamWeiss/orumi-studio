@@ -79,6 +79,10 @@
       box-sizing: border-box;
     }
 
+    .studio-link[hidden] {
+      display: none !important;
+    }
+
     .transport-row {
       display: flex;
       gap: 10px;
@@ -1146,11 +1150,13 @@
     </button>
 
     <a
-      id="recordingStudioLink"
-      class="studio-link"
-      href="design-studio.html"
+  id="recordingStudioLink"
+  class="studio-link"
+  href="design-studio.html"
+  hidden
+  aria-hidden="true"
 >
-      Add Harmony
+  Add Harmony
 </a>
   </div>
 
@@ -1177,52 +1183,66 @@
       </div>
 
       <div class="design-phrase-actions">
-        <button id="playlineToggleButton" class="phrase-action-button playline-toggle" type="button">
-          ▾ Show Play Line
-        </button>
-        <button id="playPhraseButton" class="phrase-action-button primary" type="button">
-          ▶ Play Line
-        </button>
-        <button id="stopPhraseButton" class="phrase-action-button" type="button">
-          ■ Stop
-        </button>
-        <button id="addTakeToPlayLineButton" class="phrase-action-button primary" type="button">
-          ⤓ Add Take to Play Line
-        </button>
-        <button id="saveMelodyButton" class="phrase-action-button" type="button">
-          💾 Save Melody
-        </button>
-        <button id="loadMelodyButton" class="phrase-action-button" type="button">
-          📂 Load Melody
-        </button>
-        <button id="undoPhraseButton" class="phrase-action-button" type="button" disabled>
-          ↶ Undo
-        </button>
-        <button id="redoPhraseButton" class="phrase-action-button" type="button" disabled>
-          ↷ Redo
-        </button>
-        <button id="applyPhraseButton" class="phrase-action-button apply" type="button">
-          ⤴ Return Line
-        </button>
-        <button id="returnToDesignButton" class="phrase-action-button" type="button">
-          ↩ Return
-        </button>
-        <button id="capturePhraseButton" class="phrase-action-button" type="button" hidden>
-          Add Played Notes: On
-        </button>
-        <button id="insertRestButton" class="phrase-action-button" type="button">
-          ＋ Rest
-        </button>
-        <button id="tightenPhraseLineButton" class="phrase-action-button" type="button">
-          ⌁ Absorb Rests
-        </button>
-        <button id="clearPhraseLineButton" class="phrase-action-button" type="button">
-          ✕ Clear Play Line
-        </button>
-        <button id="resetPhraseLineButton" class="phrase-action-button" type="button">
-          ↺ Reset Original
-        </button>
-      </div>
+  <button id="undoPhraseButton" class="phrase-action-button" type="button" disabled>
+    ↶ Undo
+  </button>
+
+  <button id="redoPhraseButton" class="phrase-action-button" type="button" disabled>
+    ↷ Redo
+  </button>
+
+  <button id="applyPhraseButton" class="phrase-action-button apply" type="button">
+    ⤴ Add Harmony
+  </button>
+
+  <button id="capturePhraseButton" class="phrase-action-button" type="button" hidden>
+    Add Played Notes: On
+  </button>
+
+  <button id="insertRestButton" class="phrase-action-button" type="button">
+    ＋ Rest
+  </button>
+
+  <button id="tightenPhraseLineButton" class="phrase-action-button" type="button">
+    ⌁ Absorb Rests
+  </button>
+
+  <button id="clearPhraseLineButton" class="phrase-action-button" type="button">
+    ✕ Clear Line
+  </button>
+
+  <button id="resetPhraseLineButton" class="phrase-action-button" type="button">
+    ↺ Reset Original
+  </button>
+
+  <button id="playlineToggleButton" class="phrase-action-button playline-toggle" type="button" hidden>
+    ▾ Show Play Line
+  </button>
+
+  <button id="playPhraseButton" class="phrase-action-button primary" type="button" hidden>
+    ▶ Play Line
+  </button>
+
+  <button id="stopPhraseButton" class="phrase-action-button" type="button" hidden>
+    ■ Stop
+  </button>
+
+  <button id="addTakeToPlayLineButton" class="phrase-action-button primary" type="button" hidden>
+    ⤓ Add Take to Play Line
+  </button>
+
+  <button id="saveMelodyButton" class="phrase-action-button" type="button" hidden>
+    💾 Save Melody
+  </button>
+
+  <button id="loadMelodyButton" class="phrase-action-button" type="button" hidden>
+    📂 Load Melody
+  </button>
+
+  <button id="returnToDesignButton" class="phrase-action-button" type="button" hidden>
+    ↩ Return
+  </button>
+</div>
     </div>
 
     <div class="phrase-timeline-shell">
@@ -1240,8 +1260,8 @@
     </div>
 
 <div class="phrase-editor-note">
-      Record a take, add it to the Play Line, then save it or add harmony. Rests are explicit blocks; use Absorb Rests to lengthen notes into the rests that follow them, or use Undo if the edit goes wrong.
-    </div>
+  Record a take and Orumi will open the Play Line automatically. Use Absorb Rests to lengthen notes into the rests that follow them. Then add harmony, or return the edited line to Studio.
+</div>
 
     <div class="ds-chooser" id="dsChooser">
       <div class="ds-chooser-title">Add harmony to this line as…</div>
@@ -2514,67 +2534,84 @@
     }
 
     function initializeDefaultPlayerLineMode() {
-      designPhrasePayload = buildDefaultPlayerLinePayload();
-      designPhraseBlocks = [];
-      originalDesignPhraseBlocks = [];
-      phraseHistoryStack = [];
-      phraseRedoStack = [];
-      isRecording = false;
-      if (recordButton) recordButton.classList.remove("recording");
-      if (recordButton) recordButton.disabled = false;
-      if (stopRecordingButton) stopRecordingButton.disabled = true;
-      isRecording = false;
-      if (recordButton) recordButton.classList.remove("recording");
-      if (recordButton) recordButton.disabled = false;
-      if (stopRecordingButton) stopRecordingButton.disabled = true;
-      isPhraseCaptureMode = false;
-      phraseAddPlayedNotes = true;
-      phraseInsertIndex = 0;
-      resetAutoPhraseCaptureSession();
-      updatePhraseCaptureButton();
-      updatePhraseUndoRedoButtons();
+  designPhrasePayload = buildDefaultPlayerLinePayload();
+  designPhraseBlocks = [];
+  originalDesignPhraseBlocks = [];
+  phraseHistoryStack = [];
+  phraseRedoStack = [];
 
-      document.body.classList.add("playline-mode");
-      designPhrasePanel.hidden = false;
-      designPhrasePanel.classList.add("collapsed");
-      updatePlaylineCollapseButton();
+  isRecording = false;
+  if (recordButton) recordButton.classList.remove("recording");
+  if (recordButton) recordButton.disabled = false;
+  if (stopRecordingButton) stopRecordingButton.disabled = true;
 
-      pageTitle.textContent = "Orumi Player";
-      recordingStudioLink.textContent = "Open Design Studio";
+  isPhraseCaptureMode = false;
+  phraseAddPlayedNotes = true;
+  phraseInsertIndex = 0;
+  resetAutoPhraseCaptureSession();
+  updatePhraseCaptureButton();
+  updatePhraseUndoRedoButtons();
 
-      designPhraseTitle.textContent = "Play Line";
-      designPhraseMeta.textContent =
-        "Build a melody here, then send it to Design Studio · " +
-        (ORUMI_CATALOG.voices[getActivePhraseVoice()]?.label || getActivePhraseVoice());
+  document.body.classList.remove("design-edit-mode");
+  document.body.classList.remove("playline-mode");
 
-      phraseLaneLabel.firstChild.nodeValue = "Play Line";
-      phraseLaneSubtitle.textContent = "Player sketch";
+  designPhrasePanel.hidden = true;
+  designPhrasePanel.classList.remove("collapsed");
 
-      if (applyPhraseButton) {
-        applyPhraseButton.textContent = "⤴ Send to Design Studio";
-      }
+  pageTitle.textContent = "Orumi Player";
 
-      if (returnToDesignButton) {
-        returnToDesignButton.textContent = "DS Open Design";
-      }
+  if (recordingStudioLink) {
+    recordingStudioLink.hidden = true;
+    recordingStudioLink.setAttribute("aria-hidden", "true");
+    recordingStudioLink.textContent = "Add Harmony";
+  }
 
-      if (resetPhraseLineButton) {
-        resetPhraseLineButton.style.display = "none";
-      }
+  designPhraseTitle.textContent = "Play Line";
+  designPhraseMeta.textContent =
+    "Record a melody to open the Play Line · " +
+    (ORUMI_CATALOG.voices[getActivePhraseVoice()]?.label || getActivePhraseVoice());
 
-      if (addTakeToPlayLineButton) {
-        addTakeToPlayLineButton.style.display = "";
-      }
+  phraseLaneLabel.firstChild.nodeValue = "Play Line";
+  phraseLaneSubtitle.textContent = "Player sketch";
 
-      if (recordingStudioLink) {
-        recordingStudioLink.textContent = "Open Design Studio";
-      }
+  if (applyPhraseButton) {
+    applyPhraseButton.textContent = "⤴ Add Harmony";
+  }
 
-      statusText.textContent =
-        "Press Begin Sound, record a take, play it back, then add the take to the Play Line.";
+  if (resetPhraseLineButton) {
+    resetPhraseLineButton.style.display = "none";
+  }
 
-      renderDesignPhraseTimeline();
-    }
+  statusText.textContent =
+    "Press Begin Sound, then record a melody. The Play Line will open when there is something to shape.";
+
+  renderDesignPhraseTimeline();
+}
+
+function openPlayLinePanel() {
+  if (!designPhrasePanel) return;
+
+  document.body.classList.add("playline-mode");
+  document.body.classList.remove("design-edit-mode");
+
+  designPhrasePanel.hidden = false;
+  designPhrasePanel.classList.remove("collapsed");
+
+  designPhraseTitle.textContent = "Play Line";
+  designPhraseMeta.textContent =
+    "Shape the melody, absorb rests if needed, then add harmony · " +
+    (ORUMI_CATALOG.voices[getActivePhraseVoice()]?.label || getActivePhraseVoice());
+
+  if (applyPhraseButton) {
+    applyPhraseButton.textContent = "⤴ Add Harmony";
+  }
+
+  if (resetPhraseLineButton) {
+    resetPhraseLineButton.style.display = "none";
+  }
+
+  renderDesignPhraseTimeline();
+}
 
     function buildPlayerLineRecordingEvents() {
       const settings = getSettingsFromUrl();
@@ -2923,15 +2960,19 @@
       designPhrasePanel.hidden = false;
 
       pageTitle.textContent = "Phrase Player";
-      recordingStudioLink.textContent = "↩ Return to Design Studio";
 
-      if (applyPhraseButton) {
-        applyPhraseButton.textContent = "⤴ Apply Back to Design";
-      }
+if (recordingStudioLink) {
+  recordingStudioLink.hidden = true;
+  recordingStudioLink.setAttribute("aria-hidden", "true");
+}
 
-      if (returnToDesignButton) {
-        returnToDesignButton.textContent = "↩ Return";
-      }
+if (applyPhraseButton) {
+  applyPhraseButton.textContent = "⤴ Return Line";
+}
+
+if (returnToDesignButton) {
+  returnToDesignButton.textContent = "↩ Return";
+}
 
       if (resetPhraseLineButton) {
         resetPhraseLineButton.style.display = "";
@@ -4107,74 +4148,134 @@
       }));
     }
 
+    function getSavedRecordingEvents() {
+  const parsed = safeJsonParse(localStorage.getItem("orumiCurrentRecording"));
+  return Array.isArray(parsed) ? trimRecordedEventsToFirstNote(parsed) : [];
+}
+
+function hasPlayableTransportMaterial() {
+  const hasPlayLine =
+    Array.isArray(designPhraseBlocks) &&
+    designPhraseBlocks.length > 0;
+
+  const hasCurrentTake =
+    Array.isArray(recordedEvents) &&
+    trimRecordedEventsToFirstNote(recordedEvents).length > 0;
+
+  const hasSavedTake = getSavedRecordingEvents().length > 0;
+
+  return hasPlayLine || hasCurrentTake || hasSavedTake;
+}
+
+function updateTransportActionButtons() {
+  const hasMaterial = hasPlayableTransportMaterial();
+
+  if (clearRecordingButton) {
+    clearRecordingButton.disabled = !hasMaterial && !isRecording;
+  }
+
+  if (playRecordingButton) {
+    playRecordingButton.disabled =
+      !hasMaterial ||
+      isRecording ||
+      isRecordingPlaybackActive ||
+      isPhrasePlaybackActive;
+  }
+}
+
     function startRecording() {
-      if (!requireAudioReady()) {
-        return;
-      }
+  if (!requireAudioReady()) {
+    return;
+  }
 
-      stopCurrentRecordingPlayback(false);
+  stopCurrentRecordingPlayback(false);
+  stopDesignPhrasePlayback(false);
 
-      recordedEvents = [];
-      localStorage.setItem(
-        "orumiCurrentRecording",
-        JSON.stringify(recordedEvents)
-      );
+  recordedEvents = [];
+  localStorage.setItem(
+    "orumiCurrentRecording",
+    JSON.stringify(recordedEvents)
+  );
 
-      recordingStartTime = null;
-      isRecording = true;
+  recordingStartTime = null;
+  isRecording = true;
 
-      recordButton.classList.add("recording");
-      recordButton.disabled = true;
+  recordButton.classList.add("recording");
+  recordButton.disabled = true;
 
-      stopRecordingButton.disabled = false;
+  stopRecordingButton.disabled = false;
+  updateTransportActionButtons();
 
-      statusText.textContent = "Recording armed. Timing starts on the first note, so no leading rest is created.";
-    }
+  statusText.textContent =
+    "Recording armed. Timing starts on the first note, so no leading rest is created.";
+}
 
-    function stopRecording() {
-      if (!isRecording) {
-        return;
-      }
+function stopRecording() {
+  if (!isRecording) {
+    return;
+  }
 
-      stopAllNotes();
-      isRecording = false;
+  stopAllNotes();
+  isRecording = false;
 
-      recordButton.classList.remove("recording");
-      recordButton.disabled = false;
+  recordButton.classList.remove("recording");
+  recordButton.disabled = false;
 
-      stopRecordingButton.disabled = !isRecordingPlaybackActive;
+  stopRecordingButton.disabled = !isRecordingPlaybackActive && !isPhrasePlaybackActive;
 
-      recordedEvents = trimRecordedEventsToFirstNote(recordedEvents);
-      saveCurrentRecording();
+  recordedEvents = trimRecordedEventsToFirstNote(recordedEvents);
+  saveCurrentRecording();
 
-      statusText.textContent = recordedEvents.length
-        ? recordedEvents.length +
-          " event" +
-          (recordedEvents.length === 1 ? "" : "s") +
-          " recorded. Play the take back, then use Add Take to Play Line if you like it."
-        : "Recording stopped. No notes were captured.";
-    }
+  if (!recordedEvents.length) {
+    updateTransportActionButtons();
+    statusText.textContent = "Recording stopped. No notes were captured.";
+    return;
+  }
 
-    function clearCurrentRecording() {
-      stopCurrentRecordingPlayback(false);
-      recordedEvents = [];
-      localStorage.setItem(
-        "orumiCurrentRecording",
-        JSON.stringify(recordedEvents)
-      );
+  addCurrentTakeToPlayLine();
+  openPlayLinePanel();
+  updateTransportActionButtons();
 
-      isRecording = false;
-      recordingStartTime = null;
+  statusText.textContent =
+    recordedEvents.length +
+    " event" +
+    (recordedEvents.length === 1 ? "" : "s") +
+    " recorded and added to the Play Line.";
+}
 
-      recordButton.classList.remove("recording");
-      recordButton.disabled = false;
+function clearCurrentRecording() {
+  stopCurrentRecordingPlayback(false);
+  stopDesignPhrasePlayback(false);
 
-      stopRecordingButton.disabled = true;
+  recordedEvents = [];
+  designPhraseBlocks = [];
+  phraseInsertIndex = 0;
 
-      statusText.textContent = "Current take cleared.";
-    }
+  localStorage.setItem(
+    "orumiCurrentRecording",
+    JSON.stringify(recordedEvents)
+  );
 
-    function saveCurrentRecording() {
+  isRecording = false;
+  recordingStartTime = null;
+
+  recordButton.classList.remove("recording");
+  recordButton.disabled = false;
+
+  stopRecordingButton.disabled = true;
+
+  if (designPhrasePanel && isDefaultPlayerLineMode()) {
+    designPhrasePanel.hidden = true;
+    document.body.classList.remove("playline-mode");
+  }
+
+  renderDesignPhraseTimeline();
+  updateTransportActionButtons();
+
+  statusText.textContent = "Current take and Play Line cleared.";
+}
+
+function saveCurrentRecording() {
       const eventsToSave = isRecording
         ? recordedEvents
         : trimRecordedEventsToFirstNote(recordedEvents);
@@ -4219,6 +4320,7 @@
       events = trimRecordedEventsToFirstNote(events);
       isRecordingPlaybackActive = true;
       stopRecordingButton.disabled = false;
+      updateTransportActionButtons();
       statusText.textContent = "Playing recorded take...";
 
       let latestEndMs = 0;
@@ -4287,9 +4389,11 @@
         clearRecordingPlaybackTimers();
         stopRecordingButton.disabled = !isRecording;
 
-        if (!isRecording) {
-          statusText.textContent = "Playback complete.";
-        }
+        updateTransportActionButtons();
+
+if (!isRecording) {
+  statusText.textContent = "Playback complete.";
+}
       }, latestEndMs + 250);
 
       recordingPlaybackTimers.push(doneTimer);
@@ -5003,20 +5107,46 @@ const autoStopSeconds = Number(voiceNode.autoStopSeconds);
 
     recordButton.addEventListener("click", startRecording);
     stopRecordingButton.addEventListener("click", () => {
-      if (isRecordingPlaybackActive) {
-        stopCurrentRecordingPlayback(true);
-      }
+  if (isPhrasePlaybackActive) {
+    stopDesignPhrasePlayback(true);
+  }
 
-      if (isRecording) {
-        stopRecording();
-      }
-    });
-    clearRecordingButton.addEventListener("click", clearCurrentRecording);
-    playRecordingButton.addEventListener("click", playCurrentRecording);
+  if (isRecordingPlaybackActive) {
+    stopCurrentRecordingPlayback(true);
+  }
 
-    document.addEventListener("pointerup", event => {
-      stopHeldNote(event.pointerId);
-    });
+  if (isRecording) {
+    stopRecording();
+  }
+});
+    clearRecordingButton.addEventListener("click", () => {
+  if (!hasPlayableTransportMaterial() && !isRecording) {
+    statusText.textContent = "Nothing to clear yet.";
+    updateTransportActionButtons();
+    return;
+  }
+
+  clearCurrentRecording();
+});
+    playRecordingButton.addEventListener("click", () => {
+  if (!hasPlayableTransportMaterial()) {
+    statusText.textContent = "Record a melody before using Play.";
+    updateTransportActionButtons();
+    return;
+  }
+
+  if (designPhraseBlocks && designPhraseBlocks.length > 0) {
+    playDesignPhrase();
+    updateTransportActionButtons();
+    return;
+  }
+
+  playCurrentRecording();
+});
+
+document.addEventListener("pointerup", event => {
+  stopHeldNote(event.pointerId);
+});
 
     document.addEventListener("pointercancel", event => {
       stopHeldNote(event.pointerId);
@@ -5045,6 +5175,7 @@ const autoStopSeconds = Number(voiceNode.autoStopSeconds);
     initializeDesignPhraseMode();
     refreshNavLinks();
     buildGrid();
+    updateTransportActionButtons();
   </script>
 
 </body>
