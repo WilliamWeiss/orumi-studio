@@ -4154,6 +4154,43 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       }, 220);
     }
 
+    function beginSendLaneToPlayer() {
+      const lane = project.lanes.find(l => l.id === selectedLaneId);
+      if (!lane) {
+        flashStatus("Select a lane first.");
+        return;
+      }
+
+      const laneBlocks = project.blocks
+        .filter(b => b.laneId === lane.id && b.type !== "rest")
+        .sort((a, b) => Number(a.startBeat || 0) - Number(b.startBeat || 0));
+
+      if (laneBlocks.length === 0) {
+        window.alert("The selected lane has no notes to send to Player.");
+        return;
+      }
+
+      const payload = buildPlayerEditPayload(laneBlocks);
+      payload.mode = "editDesignSelection";
+      payload.laneName = lane.name;
+      payload.laneRole = lane.role;
+
+      localStorage.setItem("orumiPlayerEditPayload", JSON.stringify(payload));
+      localStorage.setItem("orumiPendingPlayerEditPayload", JSON.stringify(payload));
+      localStorage.setItem("orumiDesignSelectionForPlayer", JSON.stringify(payload));
+      localStorage.setItem("orumiDesignStudioProjectForPlayer", JSON.stringify({
+        currentProjectId,
+        project: JSON.parse(JSON.stringify(project))
+      }));
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+
+      flashStatus("Opening Player with all " + laneBlocks.length + " notes from " + lane.name + "…");
+
+      window.setTimeout(() => {
+        window.location.href = "player.html?mode=editDesignSelection&source=design-studio";
+      }, 220);
+    }
+
     function buildSuggestHarmonyPayload(selectedBlocks) {
       const minStart = Math.min(...selectedBlocks.map(block => Number(block.startBeat || 0)));
       const maxEnd = Math.max(...selectedBlocks.map(block => Number(block.startBeat || 0) + Number(block.durationBeats || MIN_DURATION)));
@@ -5848,6 +5885,73 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
       laneInspector.appendChild(roleInput);
 
+      if (lane.role === "imported melody") {
+        const assignLabel = document.createElement("label");
+        assignLabel.textContent = "Assign to Part";
+        laneInspector.appendChild(assignLabel);
+
+        const assignRow = document.createElement("div");
+        assignRow.style.cssText = "display:flex; gap:6px; flex-wrap:wrap;";
+
+        const partOrder = ["upper harmony", "melody", "lower harmony", "bass"];
+
+        [
+          { name: "Tenor",    role: "upper harmony" },
+          { name: "Lead",     role: "melody" },
+          { name: "Baritone", role: "lower harmony" },
+          { name: "Bass",     role: "bass" }
+        ].forEach(({ name, role }) => {
+          const btn = document.createElement("button");
+          btn.textContent = name;
+          btn.style.cssText = "flex:1; min-width:60px;";
+          btn.addEventListener("click", () => {
+            // Check if a lane with this role already exists
+            const existing = project.lanes.find(l => l.id !== lane.id && l.role === role);
+
+            if (existing) {
+              const choice = window.confirm(
+                "A " + name + " lane already exists.\n\nOK = Replace it with this Play Line.\nCancel = Keep both lanes."
+              );
+              if (choice) {
+                // Replace: delete existing lane and its blocks
+                saveHistory();
+                project.blocks = project.blocks.filter(b => b.laneId !== existing.id);
+                project.lanes = project.lanes.filter(l => l.id !== existing.id);
+              } else {
+                // Keep both — just rename/re-role, no reorder
+                saveHistory();
+                lane.name = name;
+                lane.role = role;
+                localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+                render();
+                return;
+              }
+            } else {
+              saveHistory();
+            }
+
+            // Rename and re-role the play line
+            lane.name = name;
+            lane.role = role;
+
+            // Reorder lanes: sort by partOrder, unknown roles go to end
+            project.lanes.sort((a, b) => {
+              const ai = partOrder.indexOf(a.role);
+              const bi = partOrder.indexOf(b.role);
+              const av = ai === -1 ? 99 : ai;
+              const bv = bi === -1 ? 99 : bi;
+              return av - bv;
+            });
+
+            selectedLaneId = lane.id;
+            localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+            render();
+          });
+          assignRow.appendChild(btn);
+        });
+
+        laneInspector.appendChild(assignRow);
+      }
       const voiceLabel = document.createElement("label");
       voiceLabel.textContent = "Lane Voice";
       laneInspector.appendChild(voiceLabel);
@@ -5884,6 +5988,16 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       playSelectedLaneButton.title = "Play only the currently selected lane / track";
       playSelectedLaneButton.addEventListener("click", playSelectedLane);
       laneInspector.appendChild(playSelectedLaneButton);
+
+      const sendLaneToPlayerButton = document.createElement("button");
+      sendLaneToPlayerButton.textContent = "↗ Send Lane to Player";
+      sendLaneToPlayerButton.title = "Send all notes in this lane to Player for editing.";
+      sendLaneToPlayerButton.style.marginTop = "8px";
+      sendLaneToPlayerButton.disabled = project.blocks.filter(b => b.laneId === lane.id && b.type !== "rest").length === 0;
+      sendLaneToPlayerButton.addEventListener("click", () => {
+        beginSendLaneToPlayer();
+      });
+      laneInspector.appendChild(sendLaneToPlayerButton);
 
       const duplicateLaneButton = document.createElement("button");
       duplicateLaneButton.classList.add("control-button", "secondary");
@@ -6704,10 +6818,23 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       if (!block) return;
 
       const deltaBeats = (event.clientX - resizeState.startX) / BEAT_WIDTH;
-      block.durationBeats = Math.max(
+      const newDuration = Math.max(
         MIN_DURATION,
         snapBeat(resizeState.originalDuration + deltaBeats)
       );
+
+      const oldEnd = block.startBeat + block.durationBeats;
+      const newEnd = block.startBeat + newDuration;
+      const push = newEnd - oldEnd;
+
+      block.durationBeats = newDuration;
+
+      // Push right: shift blocks in same lane that start at or after old end
+      if (push > 0) {
+        project.blocks
+          .filter(b => b.id !== block.id && b.laneId === block.laneId && b.startBeat >= oldEnd - 0.001)
+          .forEach(b => { b.startBeat += push; });
+      }
 
       render();
       status.textContent =
