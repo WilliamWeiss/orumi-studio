@@ -31,6 +31,7 @@
 --note-a: #9d4edd;
 --note-b: #ff8fab;
 --note-bb: linear-gradient(135deg, #9d4edd, #ff8fab);
+--note-eb: linear-gradient(135deg, #f7b267, #ffd93d);
 
 --orumi-border: rgba(255, 255, 255, 0.11);
       --orumi-shadow: rgba(0, 0, 0, 0.35);
@@ -79,6 +80,12 @@
 .note-e {
   --note-color: var(--note-e);
   --note-glow: rgba(255, 217, 61, 0.58);
+  --note-text: #222;
+}
+
+.note-eb {
+  --note-color: var(--note-eb);
+  --note-glow: rgba(255, 198, 82, 0.58);
   --note-text: #222;
 }
 
@@ -1137,8 +1144,614 @@
   font-weight: 800;
 }
 
+.fourth-color-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+  color: var(--orumi-muted);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.fourth-color-key span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.fourth-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  display: inline-block;
+  box-shadow: 0 0 12px rgba(255,255,255,0.18);
+}
+
+.fourth-dot.c-dot {
+  background: var(--note-c, #ff6b6b);
+}
+
+.fourth-dot.f-dot {
+  background: var(--note-f, #6bcb77);
+}
+
+.fourth-dot.g-dot {
+  background: var(--note-g, #4d96ff);
+}
+
 @media (max-width: 1040px) {
   .fourth-stage {
+    grid-template-columns: 1fr;
+  }
+}
+
+    .third-stage {
+  padding: clamp(20px, 3vw, 34px);
+  display: grid;
+  grid-template-columns: minmax(300px, 1fr) minmax(300px, 1fr);
+  gap: 24px;
+  align-items: stretch;
+}
+
+.third-card {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--orumi-border);
+  border-radius: var(--radius-large);
+  padding: 22px;
+}
+
+.third-card h3 {
+  margin: 0 0 8px;
+  font-size: 1.2rem;
+}
+
+.third-card p {
+  margin: 0;
+  color: var(--orumi-muted);
+}
+
+.third-block-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: 24px 0;
+}
+
+.third-note-block {
+  width: 112px;
+  height: 112px;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 23px;
+  display: grid;
+  place-items: center;
+  color: var(--note-text, white);
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.22), rgba(255,255,255,0.03)),
+    var(--note-color);
+  box-shadow:
+    0 18px 34px rgba(0,0,0,0.34),
+    0 0 34px var(--note-glow);
+  font-size: 1.75rem;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 160ms ease, filter 160ms ease, box-shadow 160ms ease;
+}
+
+.third-note-block:hover {
+  transform: translateY(-3px);
+  filter: brightness(1.08);
+}
+
+.third-note-block.playing {
+  transform: translateY(2px) scale(0.98);
+  box-shadow:
+    0 10px 22px rgba(0,0,0,0.38),
+    0 0 46px var(--note-glow);
+}
+
+.third-note-block small {
+  display: block;
+  margin-top: 5px;
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.78);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.third-plus {
+  color: var(--orumi-gold);
+  font-size: 1.8rem;
+  font-weight: 900;
+}
+
+.third-mood-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(130px, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.third-mood-btn {
+  min-height: 104px;
+  border-radius: var(--radius-medium);
+  border: 1px solid var(--orumi-border);
+  color: var(--orumi-text);
+  background: rgba(255,255,255,0.045);
+  cursor: pointer;
+  padding: 14px;
+  text-align: left;
+  transition: 150ms ease;
+}
+
+.third-mood-btn:hover,
+.third-mood-btn.selected {
+  background: var(--orumi-gold-soft);
+  border-color: rgba(214,183,106,0.55);
+  transform: translateY(-2px);
+}
+
+.third-mood-btn strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 1rem;
+}
+
+.third-mood-btn span {
+  display: block;
+  color: var(--orumi-muted);
+  font-size: 0.84rem;
+}
+
+.third-color-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+  color: var(--orumi-muted);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.third-color-key span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.third-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  display: inline-block;
+  box-shadow: 0 0 12px rgba(255,255,255,0.18);
+}
+
+.third-dot.c-dot {
+  background: var(--note-c, #ff6b6b);
+}
+
+.third-dot.eb-dot {
+  background: var(--note-eb, linear-gradient(135deg, #f7b267, #ffd93d));
+}
+
+.third-dot.e-dot {
+  background: var(--note-e, #ffd93d);
+}
+
+.third-dot.f-dot {
+  background: var(--note-f, #6bcb77);
+}
+
+.third-dot.g-dot {
+  background: var(--note-g, #4d96ff);
+}
+
+.third-game {
+  margin-top: 22px;
+  padding: 18px;
+  border-radius: var(--radius-medium);
+  background: rgba(0,0,0,0.18);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.third-game label {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-weight: 900;
+  color: var(--orumi-text);
+  margin-bottom: 12px;
+}
+
+.third-game input {
+  width: 100%;
+  accent-color: var(--note-e, #ffd93d);
+}
+
+.third-readout {
+  margin-top: 12px;
+  color: var(--orumi-muted);
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.third-feedback {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: var(--radius-medium);
+  background: rgba(255,255,255,0.055);
+  border: 1px solid rgba(255,255,255,0.10);
+  color: var(--orumi-text);
+  font-weight: 900;
+}
+
+.third-feedback.warm {
+  border-color: rgba(214,183,106,0.42);
+  background: rgba(214,183,106,0.10);
+}
+
+.third-feedback.hot {
+  border-color: rgba(255,217,61,0.66);
+  background: rgba(255,217,61,0.14);
+  box-shadow: 0 0 22px rgba(255,217,61,0.22);
+}
+
+.third-feedback.locked {
+  color: #17130a;
+  border-color: rgba(255,255,255,0.82);
+  background: rgba(255,217,61,0.92);
+  box-shadow: 0 0 32px rgba(255,217,61,0.34);
+}
+
+.third-string-track {
+  position: relative;
+  height: 88px;
+  margin-top: 22px;
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.02));
+  border: 1px solid rgba(255,255,255,0.10);
+  overflow: hidden;
+}
+
+.third-string-base,
+.third-string-target {
+  position: absolute;
+  left: 18px;
+  top: 50%;
+  height: 5px;
+  border-radius: 999px;
+  transform: translateY(-50%);
+}
+
+.third-string-base {
+  right: 18px;
+  background: var(--note-c, #ff6b6b);
+  box-shadow: 0 0 22px rgba(255,107,107,0.46);
+  opacity: 0.56;
+}
+
+.third-string-target {
+  width: calc((100% - 36px) * 0.8);
+  background: var(--note-e, #ffd93d);
+  box-shadow: 0 0 26px rgba(255,217,61,0.62);
+}
+
+.third-bridge {
+  position: absolute;
+  top: 18px;
+  bottom: 18px;
+  width: 5px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.72);
+  box-shadow: 0 0 16px rgba(255,255,255,0.5);
+}
+
+@media (max-width: 1040px) {
+  .third-stage {
+    grid-template-columns: 1fr;
+  }
+
+  .third-mood-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.seventh-stage {
+  padding: clamp(20px, 3vw, 34px);
+  display: grid;
+  grid-template-columns: minmax(300px, 1fr) minmax(300px, 1fr);
+  gap: 24px;
+  align-items: stretch;
+}
+
+.seventh-card {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--orumi-border);
+  border-radius: var(--radius-large);
+  padding: 22px;
+}
+
+.seventh-card h3 {
+  margin: 0 0 8px;
+  font-size: 1.2rem;
+}
+
+.seventh-card p {
+  margin: 0;
+  color: var(--orumi-muted);
+}
+
+.seventh-magnet-board {
+  margin-top: 22px;
+  padding: 18px;
+  border-radius: var(--radius-medium);
+  background: rgba(0,0,0,0.18);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.seventh-round-label {
+  color: var(--orumi-gold);
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 0.82rem;
+}
+
+.seventh-prompt {
+  margin-top: 8px;
+  color: var(--orumi-text);
+  font-weight: 850;
+  font-size: 1.05rem;
+}
+
+.seventh-magnet-area {
+  min-height: 260px;
+  margin-top: 18px;
+  border-radius: 24px;
+  border: 1px solid rgba(255,255,255,0.09);
+  background:
+    radial-gradient(circle at center, rgba(214,183,106,0.10), transparent 55%),
+    rgba(255,255,255,0.025);
+  position: relative;
+  overflow: hidden;
+}
+
+.seventh-note-block {
+  width: 104px;
+  height: 104px;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 23px;
+  display: grid;
+  place-items: center;
+  color: var(--note-text, white);
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.22), rgba(255,255,255,0.03)),
+    var(--note-color);
+  box-shadow:
+    0 18px 34px rgba(0,0,0,0.34),
+    0 0 34px var(--note-glow);
+  font-size: 1.65rem;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 160ms ease, filter 160ms ease, box-shadow 160ms ease;
+  position: absolute;
+}
+
+.seventh-note-block:hover {
+  transform: translateY(-3px);
+  filter: brightness(1.08);
+}
+
+.seventh-note-block.playing,
+.seventh-note-block.selected-destination {
+  transform: translateY(2px) scale(0.98);
+  box-shadow:
+    0 10px 22px rgba(0,0,0,0.38),
+    0 0 46px var(--note-glow);
+}
+
+.seventh-note-block small {
+  display: block;
+  margin-top: 5px;
+  font-size: 0.68rem;
+  color: rgba(255,255,255,0.78);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.seventh-note-center {
+  left: 50%;
+  top: 58%;
+  transform: translate(-50%, -50%);
+}
+
+.seventh-note-top {
+  left: 50%;
+  top: 16px;
+  transform: translateX(-50%);
+}
+
+.seventh-note-left {
+  left: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.seventh-note-right {
+  right: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.seventh-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(130px, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.seventh-choice-btn,
+.seventh-chord-btn {
+  min-height: 96px;
+  border-radius: var(--radius-medium);
+  border: 1px solid var(--orumi-border);
+  color: var(--orumi-text);
+  background: rgba(255,255,255,0.045);
+  cursor: pointer;
+  padding: 14px;
+  text-align: left;
+  transition: 150ms ease;
+}
+
+.seventh-choice-btn:hover,
+.seventh-choice-btn.selected,
+.seventh-chord-btn:hover,
+.seventh-chord-btn.selected {
+  background: var(--orumi-gold-soft);
+  border-color: rgba(214,183,106,0.55);
+  transform: translateY(-2px);
+}
+
+.seventh-choice-btn strong,
+.seventh-chord-btn strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 1rem;
+}
+
+.seventh-choice-btn span,
+.seventh-chord-btn span {
+  display: block;
+  color: var(--orumi-muted);
+  font-size: 0.84rem;
+}
+
+.seventh-pull-meter {
+  margin-top: 18px;
+  padding: 14px;
+  border-radius: var(--radius-medium);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.seventh-pull-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--orumi-muted);
+  font-weight: 850;
+  margin-bottom: 9px;
+}
+
+.seventh-pull-track {
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.09);
+  overflow: hidden;
+}
+
+.seventh-pull-fill {
+  height: 100%;
+  width: 62%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--note-c, #ff6b6b), var(--note-b, #ff8fab));
+  box-shadow: 0 0 20px rgba(255,143,171,0.35);
+  transition: width 220ms ease;
+}
+
+.seventh-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.seventh-badge {
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 999px;
+  padding: 8px 11px;
+  color: var(--orumi-muted);
+  background: rgba(255,255,255,0.04);
+  font-size: 0.84rem;
+  font-weight: 850;
+}
+
+.seventh-badge.earned {
+  color: #17130a;
+  background: rgba(155,235,215,0.92);
+  border-color: rgba(255,255,255,0.68);
+  box-shadow: 0 0 22px rgba(155,235,215,0.26);
+}
+
+.seventh-chord-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.seventh-chord-display {
+  margin-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.seventh-mini-block {
+  width: 70px;
+  height: 70px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  color: var(--note-text, white);
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.22), rgba(255,255,255,0.03)),
+    var(--note-color);
+  box-shadow: 0 0 24px var(--note-glow);
+  font-weight: 900;
+}
+
+.seventh-color-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+  color: var(--orumi-muted);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.seventh-color-key span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.seventh-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  display: inline-block;
+  box-shadow: 0 0 12px rgba(255,255,255,0.18);
+}
+
+.seventh-dot.c-dot { background: var(--note-c, #ff6b6b); }
+.seventh-dot.a-dot { background: var(--note-a, #9d4edd); }
+.seventh-dot.b-dot { background: var(--note-b, #ff8fab); }
+.seventh-dot.bb-dot { background: var(--note-bb, linear-gradient(135deg, #9d4edd, #ff8fab)); }
+.seventh-dot.g-dot { background: var(--note-g, #4d96ff); }
+
+@media (max-width: 1040px) {
+  .seventh-stage {
+    grid-template-columns: 1fr;
+  }
+
+  .seventh-choice-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -1640,16 +2253,24 @@
         built: true
       },
       {
-        id: "tension",
+        id: "third",
         number: 5,
-        title: "The Seventh and the Pull",
-        subtitle: "Color, ache, and resolution",
+        title: "The Third",
+        subtitle: "The chord gets its feeling",
         level: "Intervals",
-        built: false
+        built: true
       },
+     {
+  id: "tension",
+  number: 6,
+  title: "The Seventh and the Pull",
+  subtitle: "Color with a destination",
+  level: "Intervals",
+  built: true
+},
       {
         id: "chord-birth",
-        number: 6,
+        number: 7,
         title: "The Birth of Chords",
         subtitle: "Choosing which relationships to bring forward",
         level: "Chord Creation",
@@ -1657,7 +2278,7 @@
       },
       {
         id: "resolution",
-        number: 7,
+        number: 8,
         title: "Resolution",
         subtitle: "Where intervals want to go",
         level: "Motion",
@@ -1665,7 +2286,7 @@
       },
       {
         id: "compose-feeling",
-        number: 8,
+        number: 9,
         title: "Compose by Feeling",
         subtitle: "Build sound from emotional intention",
         level: "Creation",
@@ -1921,8 +2542,12 @@ function renderCurrentLesson() {
     renderOctaveLesson();
     } else if (lesson.id === "fifth") {
     renderFifthLesson();
-  } else if (lesson.id === "fourth") {
+    } else if (lesson.id === "fourth") {
     renderFourthLesson();
+    } else if (lesson.id === "third") {
+    renderThirdLesson();
+  } else if (lesson.id === "tension") {
+    renderSeventhLesson();
   } else {
     renderPlaceholderLesson(lesson);
   }
@@ -2341,27 +2966,42 @@ function playOctaveTone(mode) {
 }
 
 function playSimpleTone(ctx, frequency, startTime, duration, gainValue) {
-  const oscillator = ctx.createOscillator();
-  const gain = ctx.createGain();
-  const filter = ctx.createBiquadFilter();
+  const scheduleTone = () => {
+    const safeStartTime = Math.max(ctx.currentTime + 0.03, startTime || 0);
 
-  oscillator.type = "triangle";
-  oscillator.frequency.setValueAtTime(frequency, startTime);
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
 
-  filter.type = "lowpass";
-  filter.frequency.setValueAtTime(1800, startTime);
+    oscillator.type = "triangle";
+    oscillator.frequency.setValueAtTime(frequency, safeStartTime);
 
-  gain.gain.setValueAtTime(0.0001, startTime);
-  gain.gain.exponentialRampToValueAtTime(gainValue, startTime + 0.04);
-  gain.gain.setValueAtTime(gainValue, startTime + duration - 0.18);
-  gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(1800, safeStartTime);
 
-  oscillator.connect(filter);
-  filter.connect(gain);
-  gain.connect(ctx.destination);
+    gain.gain.setValueAtTime(0.0001, safeStartTime);
+    gain.gain.exponentialRampToValueAtTime(gainValue, safeStartTime + 0.04);
+    gain.gain.setValueAtTime(gainValue, safeStartTime + Math.max(0.08, duration - 0.18));
+    gain.gain.exponentialRampToValueAtTime(0.0001, safeStartTime + duration);
 
-  oscillator.start(startTime);
-  oscillator.stop(startTime + duration + 0.1);
+    oscillator.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+
+    oscillator.start(safeStartTime);
+    oscillator.stop(safeStartTime + duration + 0.1);
+  };
+
+  if (ctx.state === "running") {
+    scheduleTone();
+    return;
+  }
+
+  ctx.resume()
+    .then(scheduleTone)
+    .catch((error) => {
+      console.warn("Audio could not start:", error);
+    });
 }
 
 function handleStringLengthChange(event) {
@@ -2613,9 +3253,9 @@ function handleOctaveReflectionChoice(button) {
   }
 
   if (readout) {
-    readout.textContent =
-      `Length: ${lengthPercent.toFixed(2)}% · Frequency: ${frequency.toFixed(2)} Hz · Ratio: ${ratio.toFixed(3)}:1`;
-  }
+  readout.textContent =
+    `Ground: C · Target: F · Length: ${lengthPercent.toFixed(2)}% · Frequency: ${frequency.toFixed(2)} Hz · Ratio: ${ratio.toFixed(3)}:1`;
+}
 
   if (bridge) {
     const leftPercent = Math.max(0, Math.min(100, lengthPercent));
@@ -2798,9 +3438,15 @@ function handleFifthReflectionChoice(button) {
       </p>
 
       <p>
-        Starting from C, the perfect fourth is F. Its frequency is four-thirds of
-        the root, and the vibrating string is three-fourths as long.
-      </p>
+  This lesson shows the fourth in two ways. First, G to C is a fourth when the
+  fifth is turned around. Then we return to C as the ground and find F, the
+  fourth above C.
+</p>
+
+<p>
+  Starting from C, the perfect fourth above it is F. Its frequency is four-thirds
+  of the root, and the vibrating string is three-fourths as long.
+</p>
     </section>
 
     <section class="fourth-stage">
@@ -2835,27 +3481,38 @@ function handleFifthReflectionChoice(button) {
         </div>
 
         <div class="fourth-game">
-          <label>
-            <span>Find the fourth</span>
-            <span id="fourthLengthPercent">85.00%</span>
-          </label>
+  <label>
+    <span>Find F above C</span>
+    <span id="fourthLengthPercent">85.00%</span>
+  </label>
 
-          <input id="fourthLengthSlider" type="range" min="65" max="90" value="85" step="0.01" />
+  <p>
+    Now keep C as the ground. Shorten the red C string until it reaches F,
+    the green fourth above C.
+  </p>
 
-          <div class="fourth-string-track">
-            <span class="fourth-string-base"></span>
-            <span class="fourth-string-target"></span>
-            <span class="fourth-bridge" id="fourthBridge"></span>
-          </div>
+  <div class="fourth-color-key">
+    <span><i class="fourth-dot c-dot"></i>C = ground/root</span>
+    <span><i class="fourth-dot f-dot"></i>F = fourth above C</span>
+    <span><i class="fourth-dot g-dot"></i>G = fifth from the first game</span>
+  </div>
 
-          <div class="fourth-readout" id="fourthReadout">
-            Length: 85.00% · Frequency: 153.89 Hz · Ratio: 1.176:1
-          </div>
+  <input id="fourthLengthSlider" type="range" min="65" max="90" value="85" step="0.01" />
 
-          <div class="fourth-feedback" id="fourthFeedback">
-            Too low — make the string shorter.
-          </div>
-        </div>
+  <div class="fourth-string-track">
+    <span class="fourth-string-base"></span>
+    <span class="fourth-string-target"></span>
+    <span class="fourth-bridge" id="fourthBridge"></span>
+  </div>
+
+  <div class="fourth-readout" id="fourthReadout">
+    Ground: C · Target: F · Length: 85.00% · Frequency: 153.89 Hz · Ratio: 1.176:1
+  </div>
+
+  <div class="fourth-feedback" id="fourthFeedback">
+    Too low for F — make the C string shorter.
+  </div>
+</div>
 
         <div class="controls">
           <button class="btn primary" id="playFourthTuningBtn">Play tuning note</button>
@@ -3082,12 +3739,12 @@ function handleFourthLengthChange(event) {
 
   if (distance <= 0.35) {
     feedback.classList.add("locked");
-    message = "Perfect fourth found: three-fourths of the string, four-thirds of the frequency.";
+    message = "F found: the fourth above C. The string is three-fourths as long, and the frequency is four-thirds of C.";
 
     setFourthCurrentTone(
-      "Perfect fourth found · F · 4:3",
-      "The string is three-fourths as long. The frequency is four-thirds of C. This is the perfect fourth."
-    );
+  "F found above C · Perfect fourth · 4:3",
+  "This is the second way to meet the fourth: keep C as the ground and rise to F. C is red. F is green."
+);
   } else if (distance <= 2.0) {
     feedback.classList.add("hot");
     message = lengthPercent > targetLength
@@ -3100,8 +3757,8 @@ function handleFourthLengthChange(event) {
       : "Warm — getting close. Lengthen the string.";
   } else {
     message = lengthPercent > targetLength
-      ? "Too low — make the string shorter."
-      : "Too high — make the string longer.";
+  ? "Too low for F — make the C string shorter."
+  : "Too high for F — make the C string longer.";
   }
 
   feedback.textContent = message;
@@ -3231,6 +3888,1008 @@ function handleFourthReflectionChoice(button) {
     string: "Yes. The perfect fourth appears at three-fourths string length, producing a 4:3 frequency relationship.",
     suspension: "Yes. The fourth can feel suspended. In C, F often relaxes into E, the third.",
     all: "Exactly. The fourth teaches perspective, proportion, and suspension."
+  };
+
+  responseBox.innerHTML = `
+    <strong>Good noticing.</strong>
+    <p style="margin: 6px 0 0; color: var(--orumi-muted);">${responses[choice]}</p>
+  `;
+
+  responseBox.classList.add("visible");
+}
+
+function renderThirdLesson() {
+  mainPanel.innerHTML = `
+    <section class="hero">
+      <div class="eyebrow">Lesson 5 · Intervals</div>
+      <h2>The Third</h2>
+      <p class="hero-question">How does a chord get its feeling?</p>
+    </section>
+
+    <section class="context-card">
+      <div class="eyebrow">Color · feeling · emotional weather</div>
+      <h3>The fifth gives the chord a frame. The third gives it a face.</h3>
+
+      <p>
+        C and G create an open fifth. It feels strong and spacious, but it has not
+        yet chosen its emotional color. The third is the note that changes the
+        chord from structure into feeling.
+      </p>
+
+      <p>
+        In C, E is the major third. It brings brightness, warmth, and openness.
+        Eb is the minor third. It brings tenderness, shadow, and ache.
+      </p>
+
+      <p>
+        The suspended fourth from the last lesson is also nearby. F can wait above C,
+        then relax into E. That is how waiting becomes warmth.
+      </p>
+    </section>
+
+    <section class="third-stage">
+      <article class="third-card">
+        <h3>Choose the color of the chord</h3>
+        <p>
+          Start with C and G: the open fifth. Then choose the missing middle note
+          that gives the chord its emotional color.
+        </p>
+
+        <div class="third-block-row">
+          <button class="third-note-block note-c" id="thirdCBlock" type="button">
+            <div>C<small>Root</small></div>
+          </button>
+
+          <div class="third-plus">+</div>
+
+          <button class="third-note-block note-g" id="thirdGBlock" type="button">
+            <div>G<small>Fifth</small></div>
+          </button>
+        </div>
+
+        <div class="controls">
+          <button class="btn primary" id="playThirdCBtn">Play C</button>
+          <button class="btn primary" id="playThirdGBtn">Play G</button>
+          <button class="btn" id="playOpenFifthBtn">Play C + G</button>
+        </div>
+
+        <div class="third-mood-grid">
+          <button class="third-mood-btn" data-third-mood="major">
+            <strong>Bright / warm / open</strong>
+            <span>Add E: C + E + G</span>
+          </button>
+
+          <button class="third-mood-btn" data-third-mood="minor">
+            <strong>Tender / shadowed / aching</strong>
+            <span>Add Eb: C + Eb + G</span>
+          </button>
+
+          <button class="third-mood-btn" data-third-mood="suspended">
+            <strong>Waiting / suspended</strong>
+            <span>Add F: C + F + G</span>
+          </button>
+        </div>
+
+        <div class="third-color-key">
+          <span><i class="third-dot c-dot"></i>C = root</span>
+          <span><i class="third-dot eb-dot"></i>Eb = minor third</span>
+          <span><i class="third-dot e-dot"></i>E = major third</span>
+          <span><i class="third-dot f-dot"></i>F = suspended fourth</span>
+          <span><i class="third-dot g-dot"></i>G = fifth</span>
+        </div>
+
+        <div class="current-tone" id="thirdCurrentTone">
+          <h4>Ready</h4>
+          <p>
+            Play C + G first. Then add E, Eb, or F to hear how one note changes
+            the feeling of the whole chord.
+          </p>
+        </div>
+      </article>
+
+      <article class="third-card">
+        <h3>Find E above C</h3>
+        <p>
+          Now keep C as the ground. Find E, the major third above C. The target is
+          four-fifths of the string: 80%.
+        </p>
+
+        <div class="third-game">
+          <label>
+            <span>Find E above C</span>
+            <span id="thirdLengthPercent">90.00%</span>
+          </label>
+
+          <input id="thirdLengthSlider" type="range" min="75" max="95" value="90" step="0.01" />
+
+          <div class="third-string-track">
+            <span class="third-string-base"></span>
+            <span class="third-string-target"></span>
+            <span class="third-bridge" id="thirdBridge"></span>
+          </div>
+
+          <div class="third-readout" id="thirdReadout">
+            Ground: C · Target: E · Length: 90.00% · Frequency: 145.34 Hz · Ratio: 1.111:1
+          </div>
+
+          <div class="third-feedback" id="thirdFeedback">
+            Too low for E — make the C string shorter.
+          </div>
+        </div>
+
+        <div class="controls">
+          <button class="btn primary" id="playThirdTuningBtn">Play tuning note</button>
+          <button class="btn" id="resetThirdGameBtn">Reset game</button>
+          <button class="btn" id="playMajorThirdBtn">Play C → E</button>
+          <button class="btn" id="playMinorThirdBtn">Play C → Eb</button>
+        </div>
+
+        <div class="current-tone" id="thirdIntervalTone">
+          <h4>Major third · 5:4</h4>
+          <p>
+            E sits at 80% string length. Eb sits a little farther out at 83.33%.
+            That small difference changes the whole emotional weather.
+          </p>
+        </div>
+      </article>
+    </section>
+
+    <section class="reflection-card visible">
+      <h3>What does the third add?</h3>
+      <p>The third gives harmony its emotional color.</p>
+
+      <div class="choice-grid">
+        <button class="choice-btn" data-third-choice="frame">
+          <strong>The fifth is the frame</strong>
+          <span>C + G gives strength and space.</span>
+        </button>
+
+        <button class="choice-btn" data-third-choice="major">
+          <strong>E brightens the chord</strong>
+          <span>The major third brings warmth.</span>
+        </button>
+
+        <button class="choice-btn" data-third-choice="minor">
+          <strong>Eb darkens the chord</strong>
+          <span>The minor third brings ache.</span>
+        </button>
+
+        <button class="choice-btn" data-third-choice="all">
+          <strong>All of these</strong>
+          <span>The third gives the chord its face.</span>
+        </button>
+      </div>
+
+      <div class="response-box" id="thirdResponseBox"></div>
+
+      <div class="next-panel">
+        <p>
+          Structure becomes feeling when the third enters. The next lesson can explore
+          the seventh: color that does not only feel, but pulls.
+        </p>
+        <button class="btn primary" id="completeThirdLessonBtn">Complete lesson</button>
+      </div>
+    </section>
+  `;
+
+  document.getElementById("playThirdCBtn").addEventListener("click", () => playThirdLessonTone("c"));
+  document.getElementById("playThirdGBtn").addEventListener("click", () => playThirdLessonTone("g"));
+  document.getElementById("playOpenFifthBtn").addEventListener("click", () => playThirdLessonTone("open"));
+  document.getElementById("thirdCBlock").addEventListener("click", () => playThirdLessonTone("c"));
+  document.getElementById("thirdGBlock").addEventListener("click", () => playThirdLessonTone("g"));
+
+  document.querySelectorAll("[data-third-mood]").forEach((button) => {
+    button.addEventListener("click", () => handleThirdMoodChoice(button));
+  });
+
+  document.getElementById("thirdLengthSlider").addEventListener("input", handleThirdLengthChange);
+  document.getElementById("playThirdTuningBtn").addEventListener("click", playCurrentThirdTuningNote);
+  document.getElementById("resetThirdGameBtn").addEventListener("click", resetThirdTuningGame);
+  document.getElementById("playMajorThirdBtn").addEventListener("click", () => playThirdInterval("major"));
+  document.getElementById("playMinorThirdBtn").addEventListener("click", () => playThirdInterval("minor"));
+
+  document.querySelectorAll("[data-third-choice]").forEach((button) => {
+    button.addEventListener("click", () => handleThirdReflectionChoice(button));
+  });
+
+  document.getElementById("completeThirdLessonBtn").addEventListener("click", completeCurrentLesson);
+
+  handleThirdLengthChange({
+    target: document.getElementById("thirdLengthSlider")
+  });
+}
+
+function playThirdLessonTone(mode) {
+  const ctx = getAudioContext();
+
+  if (ctx.state === "suspended") {
+    ctx.resume();
+  }
+
+  const now = ctx.currentTime;
+  const duration = 1.65;
+
+  if (mode === "c" || mode === "open" || mode === "major" || mode === "minor" || mode === "suspended") {
+    playSimpleTone(ctx, 130.81, now, duration, mode === "c" ? 0.22 : 0.14);
+    pulseThirdBlock("thirdCBlock", duration * 1000);
+  }
+
+  if (mode === "g" || mode === "open" || mode === "major" || mode === "minor" || mode === "suspended") {
+    playSimpleTone(ctx, 196.00, now, duration, mode === "g" ? 0.22 : 0.13);
+    pulseThirdBlock("thirdGBlock", duration * 1000);
+  }
+
+  if (mode === "major") {
+    playSimpleTone(ctx, 163.51, now, duration, 0.14);
+  }
+
+  if (mode === "minor") {
+    playSimpleTone(ctx, 156.97, now, duration, 0.14);
+  }
+
+  if (mode === "suspended") {
+    playSimpleTone(ctx, 174.61, now, duration, 0.14);
+  }
+
+  const messages = {
+    c: ["C · Root · Red", "C is the ground. It gives the chord its center."],
+    g: ["G · Fifth · Blue", "G gives the chord space and strength, but not yet its emotional color."],
+    open: ["C + G · Open fifth", "The fifth gives the chord a frame: strong, spacious, and clear."],
+    major: ["C + E + G · Major color", "E brings brightness and warmth. The chord now has a face."],
+    minor: ["C + Eb + G · Minor color", "Eb brings tenderness, shadow, and ache. One note changes the emotional weather."],
+    suspended: ["C + F + G · Suspended color", "F remembers the previous lesson. It waits, hovers, and wants to resolve."]
+  };
+
+  if (messages[mode]) {
+    setThirdCurrentTone(messages[mode][0], messages[mode][1]);
+  }
+}
+
+function handleThirdMoodChoice(button) {
+  const mood = button.dataset.thirdMood;
+
+  document.querySelectorAll("[data-third-mood]").forEach((btn) => {
+    btn.classList.remove("selected");
+  });
+
+  button.classList.add("selected");
+  playThirdLessonTone(mood);
+}
+
+function handleThirdLengthChange(event) {
+  const lengthPercent = Number(event.target.value);
+  const baseFrequency = 130.81;
+  const targetLength = 80;
+  const frequency = baseFrequency / (lengthPercent / 100);
+  const ratio = frequency / baseFrequency;
+  const distance = Math.abs(lengthPercent - targetLength);
+
+  const lengthLabel = document.getElementById("thirdLengthPercent");
+  const readout = document.getElementById("thirdReadout");
+  const feedback = document.getElementById("thirdFeedback");
+  const bridge = document.getElementById("thirdBridge");
+
+  if (lengthLabel) {
+    lengthLabel.textContent = `${lengthPercent.toFixed(2)}%`;
+  }
+
+  if (readout) {
+    readout.textContent =
+      `Ground: C · Target: E · Length: ${lengthPercent.toFixed(2)}% · Frequency: ${frequency.toFixed(2)} Hz · Ratio: ${ratio.toFixed(3)}:1`;
+  }
+
+  if (bridge) {
+    bridge.style.left = `calc(18px + (100% - 36px) * ${lengthPercent / 100})`;
+  }
+
+  if (!feedback) return;
+
+  feedback.classList.remove("warm", "hot", "locked");
+
+  let message = "";
+
+  if (distance <= 0.35) {
+    feedback.classList.add("locked");
+    message = "E found: the major third above C. The string is four-fifths as long, and the frequency is five-fourths of C.";
+
+    setThirdIntervalTone(
+      "E found above C · Major third · 5:4",
+      "C is red. E is yellow. The chord now has brightness, warmth, and color."
+    );
+  } else if (distance <= 2.0) {
+    feedback.classList.add("hot");
+    message = lengthPercent > targetLength
+      ? "Hot — very close. Shorten the C string just a little."
+      : "Hot — very close. Lengthen the C string just a little.";
+  } else if (distance <= 5.0) {
+    feedback.classList.add("warm");
+    message = lengthPercent > targetLength
+      ? "Warm — getting close. Shorten the C string."
+      : "Warm — getting close. Lengthen the C string.";
+  } else {
+    message = lengthPercent > targetLength
+      ? "Too low for E — make the C string shorter."
+      : "Too high for E — make the C string longer.";
+  }
+
+  feedback.textContent = message;
+}
+
+function playCurrentThirdTuningNote() {
+  const slider = document.getElementById("thirdLengthSlider");
+  const lengthPercent = slider ? Number(slider.value) : 90;
+  const baseFrequency = 130.81;
+  const frequency = baseFrequency / (lengthPercent / 100);
+
+  const ctx = getAudioContext();
+
+  if (ctx.state === "suspended") {
+    ctx.resume();
+  }
+
+  playSimpleTone(ctx, frequency, ctx.currentTime, 1.4, 0.2);
+}
+
+function resetThirdTuningGame() {
+  const slider = document.getElementById("thirdLengthSlider");
+
+  if (slider) {
+    slider.value = "90";
+    handleThirdLengthChange({ target: slider });
+  }
+
+  setThirdIntervalTone(
+    "Major third · 5:4",
+    "E sits at 80% string length. Eb sits a little farther out at 83.33%. That small difference changes the whole emotional weather."
+  );
+}
+
+function playThirdInterval(type) {
+  const ctx = getAudioContext();
+
+  if (ctx.state === "suspended") {
+    ctx.resume();
+  }
+
+  const now = ctx.currentTime;
+
+  if (type === "major") {
+    playSimpleTone(ctx, 130.81, now, 0.9, 0.2);
+    playSimpleTone(ctx, 163.51, now + 0.72, 1.25, 0.2);
+
+    setThirdIntervalTone(
+      "C → E · Major third",
+      "The major third rises from C into yellow brightness."
+    );
+  }
+
+  if (type === "minor") {
+    playSimpleTone(ctx, 130.81, now, 0.9, 0.2);
+    playSimpleTone(ctx, 156.97, now + 0.72, 1.25, 0.2);
+
+    setThirdIntervalTone(
+      "C → Eb · Minor third",
+      "The minor third rises from C into a softer, shadowed color."
+    );
+  }
+}
+
+function pulseThirdBlock(id, duration) {
+  const block = document.getElementById(id);
+
+  if (!block) return;
+
+  block.classList.add("playing");
+  setTimeout(() => block.classList.remove("playing"), duration);
+}
+
+function setThirdCurrentTone(title, body) {
+  const currentTone = document.getElementById("thirdCurrentTone");
+
+  if (!currentTone) return;
+
+  currentTone.innerHTML = `
+    <h4>${title}</h4>
+    <p>${body}</p>
+  `;
+}
+
+function setThirdIntervalTone(title, body) {
+  const currentTone = document.getElementById("thirdIntervalTone");
+
+  if (!currentTone) return;
+
+  currentTone.innerHTML = `
+    <h4>${title}</h4>
+    <p>${body}</p>
+  `;
+}
+
+function handleThirdReflectionChoice(button) {
+  const choice = button.dataset.thirdChoice;
+  const responseBox = document.getElementById("thirdResponseBox");
+
+  document.querySelectorAll("[data-third-choice]").forEach((btn) => {
+    btn.classList.remove("selected");
+  });
+
+  button.classList.add("selected");
+
+  const responses = {
+    frame: "Yes. C + G gives the chord strength and space, but not yet its full emotional color.",
+    major: "Yes. E brightens the chord. The major third gives warmth and openness.",
+    minor: "Yes. Eb darkens the chord. The minor third gives tenderness, shadow, and ache.",
+    all: "Exactly. The third is where harmony begins to feel personal."
+  };
+
+  responseBox.innerHTML = `
+    <strong>Good noticing.</strong>
+    <p style="margin: 6px 0 0; color: var(--orumi-muted);">${responses[choice]}</p>
+  `;
+
+  responseBox.classList.add("visible");
+}
+
+function renderSeventhLesson() {
+  mainPanel.innerHTML = `
+    <section class="hero">
+      <div class="eyebrow">Lesson 6 · Intervals</div>
+      <h2>The Seventh and the Pull</h2>
+      <p class="hero-question">What happens when color has a destination?</p>
+    </section>
+
+    <section class="context-card">
+      <div class="eyebrow">Magnetized color · overtone pull</div>
+      <h3>The third gives feeling. The seventh gives direction.</h3>
+
+      <p>
+        The seventh is not merely a color. It is a color with a pull. It creates
+        longing because it stands near a stronger resting place.
+      </p>
+
+      <p>
+        The lowered seventh is also part of the overtone story. The seventh partial
+        gives us a seventh-like color: not as settled as the octave, fifth, or third,
+        but real enough to have a primary pull of its own.
+      </p>
+
+      <p>
+        Because that seventh is farther from the root's simplest relationships, it
+        often tries to resolve toward a simpler pull closer to the root: home,
+        release, or a stronger chord tone.
+      </p>
+    </section>
+
+    <section class="seventh-stage">
+      <article class="seventh-card">
+        <h3>Magnet Game</h3>
+        <p>
+          Listen to the pulling note, then choose where it wants to go. The goal is
+          not just to name the note, but to feel the direction.
+        </p>
+
+        <div class="seventh-magnet-board">
+          <div class="seventh-round-label" id="seventhRoundLabel">Round 1 · Almost home</div>
+          <div class="seventh-prompt" id="seventhPrompt">
+            B is almost home. Where does it want to go?
+          </div>
+
+          <div class="seventh-magnet-area" id="seventhMagnetArea">
+            <button class="seventh-note-block note-c seventh-note-top" id="seventhTopBlock" type="button">
+              <div>C<small>Home</small></div>
+            </button>
+
+            <button class="seventh-note-block note-a seventh-note-left" id="seventhLeftBlock" type="button">
+              <div>A<small>Release</small></div>
+            </button>
+
+            <button class="seventh-note-block note-g seventh-note-right" id="seventhRightBlock" type="button">
+              <div>G<small>Escape</small></div>
+            </button>
+
+            <button class="seventh-note-block note-b seventh-note-center" id="seventhCenterBlock" type="button">
+              <div>B<small>Pull</small></div>
+            </button>
+          </div>
+
+          <div class="seventh-choice-grid" id="seventhChoiceGrid">
+            <button class="seventh-choice-btn" data-seventh-choice="c">
+              <strong>B → C</strong>
+              <span>Arrival</span>
+            </button>
+
+            <button class="seventh-choice-btn" data-seventh-choice="a">
+              <strong>B → A</strong>
+              <span>Release, but not home</span>
+            </button>
+
+            <button class="seventh-choice-btn" data-seventh-choice="g">
+              <strong>B → G</strong>
+              <span>Escape</span>
+            </button>
+          </div>
+
+          <div class="seventh-pull-meter">
+            <div class="seventh-pull-label">
+              <span>Pull meter</span>
+              <span id="seventhPullLabel">Pulling</span>
+            </div>
+            <div class="seventh-pull-track">
+              <div class="seventh-pull-fill" id="seventhPullFill"></div>
+            </div>
+          </div>
+
+          <div class="seventh-badge-row">
+            <span class="seventh-badge" id="arrivalBadge">Arrival found</span>
+            <span class="seventh-badge" id="releaseBadge">Release heard</span>
+            <span class="seventh-badge" id="dominantBadge">Dominant pull recognized</span>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button class="btn primary" id="playSeventhPullBtn">Play pulling note</button>
+          <button class="btn" id="nextSeventhRoundBtn">Next round</button>
+          <button class="btn ghost" id="resetSeventhGameBtn">Reset magnet game</button>
+        </div>
+
+        <div class="current-tone" id="seventhCurrentTone">
+          <h4>Round 1 · B wants C</h4>
+          <p>
+            B is the leading tone: very close to C, but not yet home. Hear the pull,
+            then choose a destination.
+          </p>
+        </div>
+      </article>
+
+      <article class="seventh-card">
+        <h3>Chord magnet</h3>
+        <p>
+          Now listen to the seventh inside a chord. The third gave the chord feeling.
+          The seventh gives it longing and direction.
+        </p>
+
+        <div class="seventh-chord-display">
+          <span class="seventh-mini-block note-c">C</span>
+          <span class="seventh-mini-block note-e">E</span>
+          <span class="seventh-mini-block note-g">G</span>
+          <span class="seventh-mini-block note-b" id="seventhChordBBlock">B</span>
+          <span class="seventh-mini-block note-bb" id="seventhChordBbBlock">Bb</span>
+        </div>
+
+        <div class="seventh-chord-grid">
+          <button class="seventh-chord-btn" data-seventh-chord="major">
+            <strong>C + E + G</strong>
+            <span>Major chord: clear feeling, little pull</span>
+          </button>
+
+          <button class="seventh-chord-btn" data-seventh-chord="maj7">
+            <strong>C + E + G + B</strong>
+            <span>Major seventh: luminous upward longing</span>
+          </button>
+
+          <button class="seventh-chord-btn" data-seventh-chord="dom7">
+            <strong>C + E + G + Bb</strong>
+            <span>Dominant seventh: stronger motion-pull</span>
+          </button>
+        </div>
+
+        <div class="seventh-color-key">
+          <span><i class="seventh-dot c-dot"></i>C = home/root</span>
+          <span><i class="seventh-dot b-dot"></i>B = leading seventh</span>
+          <span><i class="seventh-dot bb-dot"></i>Bb = overtone seventh color</span>
+          <span><i class="seventh-dot a-dot"></i>A = soft release</span>
+          <span><i class="seventh-dot g-dot"></i>G = fifth</span>
+        </div>
+
+        <div class="current-tone" id="seventhChordTone">
+          <h4>Ready</h4>
+          <p>
+            Compare the plain major chord, the glowing major seventh, and the
+            stronger dominant pull of the lowered seventh.
+          </p>
+        </div>
+      </article>
+    </section>
+
+    <section class="reflection-card visible">
+      <h3>What does the seventh add?</h3>
+      <p>The seventh adds color, longing, and direction.</p>
+
+      <div class="choice-grid">
+        <button class="choice-btn" data-seventh-reflection="feeling">
+          <strong>The third gives feeling</strong>
+          <span>The chord gets its emotional face.</span>
+        </button>
+
+        <button class="choice-btn" data-seventh-reflection="pull">
+          <strong>The seventh gives pull</strong>
+          <span>The color wants a destination.</span>
+        </button>
+
+        <button class="choice-btn" data-seventh-reflection="overtone">
+          <strong>The lowered seventh is an overtone color</strong>
+          <span>The seventh partial has its own gravity.</span>
+        </button>
+
+        <button class="choice-btn" data-seventh-reflection="all">
+          <strong>All of these</strong>
+          <span>The seventh is magnetized color.</span>
+        </button>
+      </div>
+
+      <div class="response-box" id="seventhResponseBox"></div>
+
+      <div class="next-panel">
+        <p>
+          The seventh creates a question. The next lesson, Resolution, answers it.
+        </p>
+        <button class="btn primary" id="completeSeventhLessonBtn">Complete lesson</button>
+      </div>
+    </section>
+  `;
+
+  seventhRoundIndex = 0;
+  renderSeventhRound();
+
+  document.getElementById("playSeventhPullBtn").addEventListener("click", playCurrentSeventhPull);
+  document.getElementById("nextSeventhRoundBtn").addEventListener("click", nextSeventhRound);
+  document.getElementById("resetSeventhGameBtn").addEventListener("click", resetSeventhGame);
+
+  document.querySelectorAll("[data-seventh-chord]").forEach((button) => {
+    button.addEventListener("click", () => handleSeventhChordChoice(button));
+  });
+
+  document.querySelectorAll("[data-seventh-reflection]").forEach((button) => {
+    button.addEventListener("click", () => handleSeventhReflectionChoice(button));
+  });
+
+  document.getElementById("completeSeventhLessonBtn").addEventListener("click", completeCurrentLesson);
+}
+
+let seventhRoundIndex = 0;
+
+const seventhRounds = [
+  {
+    label: "Round 1 · Almost home",
+    prompt: "B is almost home. Where does it want to go?",
+    center: { note: "B", small: "Pull", className: "note-b", frequency: 246.94 },
+    top: { note: "C", small: "Home", className: "note-c", frequency: 261.63, choice: "c" },
+    left: { note: "A", small: "Release", className: "note-a", frequency: 220.00, choice: "a" },
+    right: { note: "G", small: "Escape", className: "note-g", frequency: 196.00, choice: "g" },
+    choices: [
+      { key: "c", label: "B → C", sub: "Arrival", result: "arrival" },
+      { key: "a", label: "B → A", sub: "Release, but not home", result: "partial" },
+      { key: "g", label: "B → G", sub: "Escape", result: "escape" }
+    ],
+    best: "c"
+  },
+  {
+    label: "Round 2 · The overtone seventh",
+    prompt: "Bb is an overtone color. Where does it most naturally soften?",
+    center: { note: "Bb", small: "7th color", className: "note-bb", frequency: 233.08 },
+    top: { note: "C", small: "Earthy return", className: "note-c", frequency: 261.63, choice: "c" },
+    left: { note: "A", small: "Soft release", className: "note-a", frequency: 220.00, choice: "a" },
+    right: { note: "B", small: "Tightening", className: "note-b", frequency: 246.94, choice: "b" },
+    choices: [
+      { key: "a", label: "Bb → A", sub: "Soft release", result: "release" },
+      { key: "c", label: "Bb → C", sub: "Earthy return", result: "return" },
+      { key: "b", label: "Bb → B", sub: "Tightening", result: "tighten" }
+    ],
+    best: "a"
+  },
+  {
+    label: "Round 3 · Stronger pull",
+    prompt: "Which destination feels like the seventh finding a simpler pull?",
+    center: { note: "Bb", small: "7th color", className: "note-bb", frequency: 233.08 },
+    top: { note: "C", small: "Root return", className: "note-c", frequency: 261.63, choice: "c" },
+    left: { note: "A", small: "Next resting tone", className: "note-a", frequency: 220.00, choice: "a" },
+    right: { note: "G", small: "Fifth", className: "note-g", frequency: 196.00, choice: "g" },
+    choices: [
+      { key: "a", label: "Bb → A", sub: "Seventh softens to a nearby rest", result: "release" },
+      { key: "c", label: "Bb → C", sub: "Seventh lifts back to root", result: "return" },
+      { key: "g", label: "Bb → G", sub: "Back toward the fifth", result: "fifth" }
+    ],
+    best: "a"
+  }
+];
+
+function renderSeventhRound() {
+  const round = seventhRounds[seventhRoundIndex];
+
+  const roundLabel = document.getElementById("seventhRoundLabel");
+  const prompt = document.getElementById("seventhPrompt");
+  const centerBlock = document.getElementById("seventhCenterBlock");
+  const topBlock = document.getElementById("seventhTopBlock");
+  const leftBlock = document.getElementById("seventhLeftBlock");
+  const rightBlock = document.getElementById("seventhRightBlock");
+  const choiceGrid = document.getElementById("seventhChoiceGrid");
+
+  if (!roundLabel || !prompt || !centerBlock || !topBlock || !leftBlock || !rightBlock || !choiceGrid) return;
+
+  roundLabel.textContent = round.label;
+  prompt.textContent = round.prompt;
+
+  setSeventhBlock(centerBlock, round.center);
+  setSeventhBlock(topBlock, round.top);
+  setSeventhBlock(leftBlock, round.left);
+  setSeventhBlock(rightBlock, round.right);
+
+  choiceGrid.innerHTML = round.choices.map((choice) => `
+    <button class="seventh-choice-btn" data-seventh-choice="${choice.key}">
+      <strong>${choice.label}</strong>
+      <span>${choice.sub}</span>
+    </button>
+  `).join("");
+
+  document.querySelectorAll("[data-seventh-choice]").forEach((button) => {
+    button.addEventListener("click", () => handleSeventhChoice(button));
+  });
+
+  setSeventhPullMeter(68, "Pulling");
+
+  setSeventhCurrentTone(
+    round.label,
+    "Play the pulling note, then choose where it wants to go."
+  );
+}
+
+function setSeventhBlock(block, noteData) {
+  block.className = block.className
+    .split(" ")
+    .filter((name) => !name.startsWith("note-"))
+    .join(" ");
+
+  block.classList.add(noteData.className);
+  block.innerHTML = `<div>${noteData.note}<small>${noteData.small}</small></div>`;
+}
+
+function playCurrentSeventhPull() {
+  const round = seventhRounds[seventhRoundIndex];
+  const ctx = getAudioContext();
+
+  if (ctx.state === "suspended") {
+    ctx.resume();
+  }
+
+  playSimpleTone(ctx, round.center.frequency, ctx.currentTime, 1.35, 0.22);
+  pulseSeventhBlock("seventhCenterBlock", 1350);
+
+  setSeventhPullMeter(82, "Still pulling");
+
+  setSeventhCurrentTone(
+    `${round.center.note} alone`,
+    "The note is colored, but unfinished. It wants somewhere to go."
+  );
+}
+
+function handleSeventhChoice(button) {
+  const choice = button.dataset.seventhChoice;
+  const round = seventhRounds[seventhRoundIndex];
+  const destination = [round.top, round.left, round.right].find((item) => item.choice === choice);
+  const ctx = getAudioContext();
+
+  document.querySelectorAll("[data-seventh-choice]").forEach((btn) => {
+    btn.classList.remove("selected");
+  });
+
+  button.classList.add("selected");
+
+  if (ctx.state === "suspended") {
+    ctx.resume();
+  }
+
+  const now = ctx.currentTime;
+  playSimpleTone(ctx, round.center.frequency, now, 0.72, 0.2);
+  playSimpleTone(ctx, destination.frequency, now + 0.62, 1.15, 0.22);
+
+  pulseSeventhBlock("seventhCenterBlock", 720);
+
+  if (destination.choice === round.top.choice) {
+    setTimeout(() => pulseSeventhBlock("seventhTopBlock", 1150), 620);
+  } else if (destination.choice === round.left.choice) {
+    setTimeout(() => pulseSeventhBlock("seventhLeftBlock", 1150), 620);
+  } else {
+    setTimeout(() => pulseSeventhBlock("seventhRightBlock", 1150), 620);
+  }
+
+  giveSeventhFeedback(round, choice);
+}
+
+function giveSeventhFeedback(round, choice) {
+  if (seventhRoundIndex === 0 && choice === "c") {
+    setSeventhPullMeter(12, "Arrived");
+    earnSeventhBadge("arrivalBadge");
+    setSeventhCurrentTone(
+      "B → C · Arrival",
+      "Yes. B is the leading tone. It is almost home, so C answers the pull."
+    );
+    return;
+  }
+
+  if (seventhRoundIndex === 0 && choice === "a") {
+    setSeventhPullMeter(42, "Released, not home");
+    setSeventhCurrentTone(
+      "B → A · Release",
+      "This softens the tension, but it does not arrive home the way B → C does."
+    );
+    return;
+  }
+
+  if (seventhRoundIndex === 1 && choice === "a") {
+    setSeventhPullMeter(25, "Softened");
+    earnSeventhBadge("releaseBadge");
+    setSeventhCurrentTone(
+      "Bb → A · Soft release",
+      "Yes. The overtone seventh color softens downward, moving toward a calmer nearby rest."
+    );
+    return;
+  }
+
+  if ((seventhRoundIndex === 1 || seventhRoundIndex === 2) && choice === "c") {
+    setSeventhPullMeter(30, "Earthy return");
+    setSeventhCurrentTone(
+      "Bb → C · Earthy return",
+      "Also natural. The lowered seventh can lean back toward the root, though it does not behave like the leading tone B."
+    );
+    return;
+  }
+
+  if (choice === "b") {
+    setSeventhPullMeter(92, "Tightening");
+    setSeventhCurrentTone(
+      "Bb → B · Tightening",
+      "That raises the tension. It sharpens the seventh rather than resolving it."
+    );
+    return;
+  }
+
+  if (choice === "g") {
+    setSeventhPullMeter(52, "Redirected");
+    setSeventhCurrentTone(
+      "Back toward G",
+      "G is a stronger primary tone than the seventh, but this motion feels more like redirection than full resolution."
+    );
+    return;
+  }
+
+  setSeventhPullMeter(55, "Still moving");
+  setSeventhCurrentTone(
+    "A partial answer",
+    "The pull changed, but it has not fully arrived."
+  );
+}
+
+function nextSeventhRound() {
+  seventhRoundIndex = (seventhRoundIndex + 1) % seventhRounds.length;
+  renderSeventhRound();
+}
+
+function resetSeventhGame() {
+  seventhRoundIndex = 0;
+  renderSeventhRound();
+
+  ["arrivalBadge", "releaseBadge", "dominantBadge"].forEach((id) => {
+    const badge = document.getElementById(id);
+    if (badge) badge.classList.remove("earned");
+  });
+}
+
+function handleSeventhChordChoice(button) {
+  const chord = button.dataset.seventhChord;
+
+  document.querySelectorAll("[data-seventh-chord]").forEach((btn) => {
+    btn.classList.remove("selected");
+  });
+
+  button.classList.add("selected");
+  playSeventhChord(chord);
+}
+
+function playSeventhChord(chord) {
+  const ctx = getAudioContext();
+
+  if (ctx.state === "suspended") {
+    ctx.resume();
+  }
+
+  const now = ctx.currentTime;
+  const duration = 1.9;
+
+  playSimpleTone(ctx, 130.81, now, duration, 0.12);
+  playSimpleTone(ctx, 163.51, now, duration, 0.11);
+  playSimpleTone(ctx, 196.00, now, duration, 0.11);
+
+  if (chord === "maj7") {
+    playSimpleTone(ctx, 246.94, now, duration, 0.1);
+    setSeventhPullMeter(66, "Glowing upward");
+    setSeventhChordTone(
+      "C + E + G + B · Major seventh",
+      "B adds luminous upward longing. It glows near home, but does not push as strongly as the lowered seventh."
+    );
+  } else if (chord === "dom7") {
+    playSimpleTone(ctx, 233.08, now, duration, 0.1);
+    setSeventhPullMeter(84, "Dominant pull");
+    earnSeventhBadge("dominantBadge");
+    setSeventhChordTone(
+      "C + E + G + Bb · Dominant seventh",
+      "Bb adds stronger motion-pull. The overtone seventh color wants to move toward a simpler resting place."
+    );
+  } else {
+    setSeventhPullMeter(28, "Stable feeling");
+    setSeventhChordTone(
+      "C + E + G · Major chord",
+      "The third gives this chord its warm face. Without the seventh, the chord has much less directional pull."
+    );
+  }
+}
+
+function setSeventhPullMeter(percent, label) {
+  const fill = document.getElementById("seventhPullFill");
+  const pullLabel = document.getElementById("seventhPullLabel");
+
+  if (fill) {
+    fill.style.width = `${percent}%`;
+  }
+
+  if (pullLabel) {
+    pullLabel.textContent = label;
+  }
+}
+
+function earnSeventhBadge(id) {
+  const badge = document.getElementById(id);
+
+  if (badge) {
+    badge.classList.add("earned");
+  }
+}
+
+function pulseSeventhBlock(id, duration) {
+  const block = document.getElementById(id);
+
+  if (!block) return;
+
+  block.classList.add("playing");
+  setTimeout(() => block.classList.remove("playing"), duration);
+}
+
+function setSeventhCurrentTone(title, body) {
+  const currentTone = document.getElementById("seventhCurrentTone");
+
+  if (!currentTone) return;
+
+  currentTone.innerHTML = `
+    <h4>${title}</h4>
+    <p>${body}</p>
+  `;
+}
+
+function setSeventhChordTone(title, body) {
+  const currentTone = document.getElementById("seventhChordTone");
+
+  if (!currentTone) return;
+
+  currentTone.innerHTML = `
+    <h4>${title}</h4>
+    <p>${body}</p>
+  `;
+}
+
+function handleSeventhReflectionChoice(button) {
+  const choice = button.dataset.seventhReflection;
+  const responseBox = document.getElementById("seventhResponseBox");
+
+  document.querySelectorAll("[data-seventh-reflection]").forEach((btn) => {
+    btn.classList.remove("selected");
+  });
+
+  button.classList.add("selected");
+
+  const responses = {
+    feeling: "Yes. The third gives the chord its emotional face.",
+    pull: "Yes. The seventh gives color a destination. It makes the ear ask what comes next.",
+    overtone: "Yes. The lowered seventh is tied to the seventh partial: a real overtone color with its own gravity, though farther from the root's simplest pulls.",
+    all: "Exactly. The seventh is magnetized color: born from overtone color, but seeking resolution toward simpler relationships."
   };
 
   responseBox.innerHTML = `
