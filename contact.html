@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Contact Orumi</title>
+
+  <style>
+    :root {
+      --orumi-bg: #0f1115;
+      --orumi-panel: #171a21;
+      --orumi-text: #f5f2e9;
+      --orumi-muted: #b9b3a4;
+      --orumi-gold: #d6b76a;
+      --orumi-gold-soft: rgba(214, 183, 106, 0.18);
+      --orumi-border: rgba(255, 255, 255, 0.11);
+      --orumi-shadow: rgba(0, 0, 0, 0.35);
+      --radius-large: 22px;
+      --radius-medium: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(214, 183, 106, 0.14), transparent 34%),
+        radial-gradient(circle at bottom right, rgba(90, 141, 238, 0.11), transparent 32%),
+        var(--orumi-bg);
+      color: var(--orumi-text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .page-shell {
+      width: min(1100px, 100%);
+      margin: 0 auto;
+      padding: 22px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 28px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-mark {
+      width: 46px;
+      height: 46px;
+      border-radius: 13px;
+      background:
+        linear-gradient(135deg, #d85c5c, #5a8dee 42%, #e7c85f 72%, #67b26f);
+      box-shadow: 0 10px 28px var(--orumi-shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .brand-mark::after {
+      content: "";
+      position: absolute;
+      inset: 9px;
+      border: 2px solid rgba(255, 255, 255, 0.55);
+      border-radius: 8px;
+    }
+
+    .brand-logo {
+  width: 125px;
+  height: 125px;
+  object-fit: contain;
+  display: block;
+}
+
+@media (max-width: 720px) {
+  .brand-logo {
+    width: 86px;
+    height: 86px;
+  }
+}
+
+    .brand-text h1 {
+      margin: 0;
+      font-size: clamp(1.25rem, 2.2vw, 2rem);
+      letter-spacing: 0.03em;
+    }
+
+    .brand-text p {
+      margin: 2px 0 0;
+      color: var(--orumi-muted);
+      font-size: 0.95rem;
+    }
+
+    .nav-links {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .nav-links a {
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 999px;
+      padding: 9px 13px;
+      color: var(--orumi-text);
+      background: rgba(255, 255, 255, 0.05);
+      font-weight: 750;
+      transition: 150ms ease;
+    }
+
+    .nav-links a:hover {
+      background: var(--orumi-gold-soft);
+      border-color: rgba(214, 183, 106, 0.55);
+      transform: translateY(-1px);
+    }
+
+    .hero {
+      padding: clamp(24px, 5vw, 46px);
+      border: 1px solid var(--orumi-border);
+      border-radius: var(--radius-large);
+      background:
+        linear-gradient(135deg, rgba(214, 183, 106, 0.09), transparent 42%),
+        rgba(255, 255, 255, 0.035);
+      box-shadow: 0 18px 46px var(--orumi-shadow);
+      margin-bottom: 24px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--orumi-gold);
+      font-size: 0.83rem;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+      font-weight: 800;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: var(--orumi-gold);
+      box-shadow: 0 0 16px rgba(214, 183, 106, 0.75);
+    }
+
+    .hero h2 {
+      margin: 14px 0 8px;
+      font-size: clamp(2.2rem, 6vw, 4.6rem);
+      line-height: 1.02;
+      letter-spacing: -0.055em;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--orumi-muted);
+      font-size: clamp(1.08rem, 2vw, 1.35rem);
+      max-width: 780px;
+    }
+
+    .contact-layout {
+      display: grid;
+      grid-template-columns: minmax(280px, 1fr) minmax(320px, 1.25fr);
+      gap: 24px;
+      align-items: start;
+    }
+
+    .panel {
+      border: 1px solid var(--orumi-border);
+      border-radius: var(--radius-large);
+      background: rgba(255, 255, 255, 0.035);
+      box-shadow: 0 18px 46px var(--orumi-shadow);
+      padding: 24px;
+    }
+
+    .panel h3 {
+      margin: 0 0 8px;
+      color: var(--orumi-gold);
+      font-size: 1.25rem;
+    }
+
+    .panel p {
+      color: var(--orumi-muted);
+      margin: 0 0 14px;
+    }
+
+    .contact-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .contact-item {
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: var(--radius-medium);
+      background: rgba(0,0,0,0.16);
+      padding: 14px;
+    }
+
+    .contact-item strong {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--orumi-text);
+    }
+
+    .contact-item span {
+      color: var(--orumi-muted);
+      font-size: 0.92rem;
+    }
+
+    form {
+      display: grid;
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    label {
+      display: grid;
+      gap: 7px;
+      color: var(--orumi-text);
+      font-weight: 800;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: var(--radius-medium);
+      background: rgba(0,0,0,0.22);
+      color: var(--orumi-text);
+      padding: 12px 13px;
+      font: inherit;
+      outline: none;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: rgba(214, 183, 106, 0.65);
+      box-shadow: 0 0 0 3px rgba(214, 183, 106, 0.13);
+    }
+
+    textarea {
+      min-height: 160px;
+      resize: vertical;
+    }
+
+    .btn {
+      justify-self: start;
+      border: 1px solid rgba(214, 183, 106, 0.8);
+      border-radius: 999px;
+      padding: 11px 17px;
+      background: linear-gradient(135deg, rgba(214, 183, 106, 0.95), rgba(231, 200, 95, 0.78));
+      color: #17130a;
+      cursor: pointer;
+      font-weight: 850;
+      transition: 150ms ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.04);
+    }
+
+    .form-note {
+      color: var(--orumi-muted);
+      font-size: 0.9rem;
+      margin-top: 4px;
+    }
+
+    @media (max-width: 820px) {
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .nav-links {
+        justify-content: flex-start;
+      }
+
+      .contact-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page-shell">
+    <header class="topbar">
+      <a class="brand" href="./index.html" aria-label="Return to Orumi home">
+  <img class="brand-logo" src="./assets/orumi-icon.png" alt="" aria-hidden="true" />
+  <div class="brand-text">
+    <h1>Orumi</h1>
+    <p>Sound as relationship</p>
+  </div>
+</a>
+
+      <nav class="nav-links" aria-label="Main navigation">
+        <a href="./index.html">Home</a>
+        <a href="./learn/interval-training.html">Learning Path</a>
+        <a href="./contact.html">Contact</a>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <div class="eyebrow">Contact Orumi</div>
+      <h2>Send a note</h2>
+      <p>
+        Have a question, comment, collaboration idea, or inquiry about Orumi?
+        Send a note and help shape the language of sound.
+      </p>
+    </section>
+
+    <main class="contact-layout">
+      <section class="panel">
+        <h3>What this form is for</h3>
+        <p>
+          Orumi is still growing. Notes from musicians, teachers, learners,
+          singers, arrangers, developers, and curious visitors are welcome.
+        </p>
+
+        <div class="contact-list">
+          <div class="contact-item">
+            <strong>Comments</strong>
+            <span>Share what resonates, what confuses you, or what you would improve.</span>
+          </div>
+
+          <div class="contact-item">
+            <strong>Inquiries</strong>
+            <span>Ask about Orumi, the learning path, collaboration, or future tools.</span>
+          </div>
+
+          <div class="contact-item">
+            <strong>Creative notes</strong>
+            <span>Send thoughts about music, color, learning, arranging, or composition.</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h3>Contact form</h3>
+        <p>
+          This first version opens your email app with the message prepared.
+        </p>
+
+        <form id="contactForm">
+          <label>
+            Your name
+            <input type="text" id="contactName" name="name" autocomplete="name" />
+          </label>
+
+          <label>
+            Your email
+            <input type="email" id="contactEmail" name="email" autocomplete="email" />
+          </label>
+
+          <label>
+            Reason for contact
+            <select id="contactReason" name="reason">
+              <option value="Comment">Comment</option>
+              <option value="Question">Question</option>
+              <option value="Inquiry">Inquiry</option>
+              <option value="Collaboration">Collaboration</option>
+              <option value="Technical note">Technical note</option>
+              <option value="Other">Other</option>
+            </select>
+          </label>
+
+          <label>
+            Message
+            <textarea id="contactMessage" name="message" placeholder="Write your note here..."></textarea>
+          </label>
+
+          <button class="btn" type="submit">Prepare email</button>
+
+          <div class="form-note">
+            Note: this version uses your email app. A direct website submission form can be added later.
+          </div>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const CONTACT_EMAIL = "hello@orumi.world";
+
+    document.getElementById("contactForm").addEventListener("submit", function(event) {
+      event.preventDefault();
+
+      const name = document.getElementById("contactName").value.trim();
+      const email = document.getElementById("contactEmail").value.trim();
+      const reason = document.getElementById("contactReason").value;
+      const message = document.getElementById("contactMessage").value.trim();
+
+      const subject = `Orumi contact: ${reason}`;
+
+      const bodyParts = [
+        "Hello Orumi,",
+        "",
+        message || "[No message entered]",
+        "",
+        "—",
+        `Name: ${name || "[Not provided]"}`,
+        `Email: ${email || "[Not provided]"}`,
+        `Reason: ${reason}`
+      ];
+
+      const mailtoUrl =
+        `mailto:${CONTACT_EMAIL}` +
+        `?subject=${encodeURIComponent(subject)}` +
+        `&body=${encodeURIComponent(bodyParts.join("\n"))}`;
+
+      window.location.href = mailtoUrl;
+    });
+  </script>
+</body>
+</html>

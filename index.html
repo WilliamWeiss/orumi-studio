@@ -8,6 +8,38 @@
   <meta name="description" content="Orumi is a human-centered musical playground for exploring harmony, intervals, rhythm, and voice-leading." />
 
   <link rel="stylesheet" href="/styles.css" />
+  <style>
+  .logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 18px;
+    text-decoration: none;
+  }
+
+  .logo img {
+    width: 150px;
+    height: 150px;
+    object-fit: contain;
+    display: block;
+  }
+
+  .logo span {
+    font-size: clamp(2rem, 4vw, 3.2rem);
+    font-weight: 800;
+    letter-spacing: 0.02em;
+  }
+
+  @media (max-width: 720px) {
+    .logo img {
+      width: 96px;
+      height: 96px;
+    }
+
+    .logo span {
+      font-size: 2rem;
+    }
+  }
+</style>
   <link rel="icon" href="/assets/orumi-icon.png" />
   <link rel="apple-touch-icon" href="/assets/orumi-icon.png" />
 
@@ -26,13 +58,18 @@
 
 <body>
   <header class="site-header">
-    <a class="logo" href="/">Orumi</a>
+    <a class="logo" href="/" aria-label="Return to Orumi home">
+  <img src="/assets/orumi-icon.png" alt="" aria-hidden="true" />
+  <span>Orumi</span>
+</a>
     <nav>
       <a href="/studio/">Studio</a>
       <a href="/intervals/">Intervals</a>
       <a href="/language/">Language</a>
       <a href="/play/">Play</a>
       <a href="/lyric-bridge/">Lyric Bridge</a>
+      <a href="./learn/interval-training.html">Learning Path</a>
+      <a href="./contact.html">Contact</a>
     </nav>
   </header>
 

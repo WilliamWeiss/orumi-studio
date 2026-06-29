@@ -164,6 +164,13 @@
       border-radius: 8px;
     }
 
+    .brand-logo {
+      width: 150px;
+      height: 150px;
+      object-fit: contain;
+      display: block;
+    }
+
     .brand-text h1 {
       margin: 0;
       font-size: clamp(1.25rem, 2.2vw, 2rem);
@@ -2903,13 +2910,15 @@
 <body>
   <div class="page-shell">
     <header class="topbar">
-      <a class="brand" href="./index.html" aria-label="Return to Orumi home">
-        <div class="brand-mark" aria-hidden="true"></div>
-        <div class="brand-text">
-          <h1>Orumi</h1>
-          <p>Interval Training · Sound as relationship</p>
-        </div>
-      </a>
+      <a class="brand" href="../index.html" aria-label="Return to Orumi home">
+  <img class="brand-logo" src="../assets/orumi-icon.png" alt="Orumi" />
+  <div class="brand-text">
+    <h1>Orumi</h1>
+    <p>Interval Training · Sound as relationship</p>
+  </div>
+</a>>
+
+
 
       <div class="top-actions">
         <button class="btn ghost" id="resetProgressBtn">Reset progress</button>

@@ -8,7 +8,7 @@
   <style>
     /* ── Orumi base tokens ─────────────────────────────────────────── */
     :root {
-      --bg:            #111111;
+      --bg:            #0f1115;
       --panel:         #1c1c1c;
       --panel2:        #242424;
       --text:          #f4f1e8;
@@ -41,10 +41,35 @@
     }
 
     .logo {
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      font-size: 1rem;
-    }
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  text-decoration: none;
+}
+
+.logo img {
+  width: 125px;
+  height: 125px;
+  object-fit: contain;
+  display: block;
+}
+
+.logo span {
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+@media (max-width: 720px) {
+  .logo img {
+    width: 86px;
+    height: 86px;
+  }
+
+  .logo span {
+    font-size: 2rem;
+  }
+}
 
     nav {
       display: flex;
@@ -332,7 +357,10 @@
 <body>
 
   <header class="site-header">
-    <a class="logo" href="/">Orumi</a>
+    <a class="logo" href="/" aria-label="Return to Orumi home">
+  <img src="/assets/orumi-icon.png" alt="" aria-hidden="true" />
+  <span>Orumi</span>
+</a>
     <nav>
       <a href="/studio/">Studio</a>
       <a href="/intervals/">Intervals</a>
