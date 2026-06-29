@@ -9,17 +9,91 @@
 
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #111;
-      color: #f5f0e8;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      margin: 0;
-      min-height: 100vh;
-      overflow: hidden;
-    }
+  font-family: Arial, sans-serif;
+  background: #0f1115;
+  color: #f5f0e8;
+  margin: 0;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+    .site-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px clamp(20px, 5vw, 72px);
+  border-bottom: 1px solid rgba(255,255,255,0.12);
+}
+
+.logo,
+.logo:visited {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  text-decoration: none;
+  color: #f5f0e8;
+}
+
+.logo img {
+  width: 125px;
+  height: 125px;
+  object-fit: contain;
+  display: block;
+}
+
+.logo span {
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 22px;
+  font-size: 0.95rem;
+}
+
+nav a,
+nav a:visited {
+  color: #b9b3a7;
+  text-decoration: none;
+}
+
+nav a:hover {
+  color: #f5f0e8;
+}
+
+.play-page {
+  min-height: calc(100vh - 174px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px 48px;
+}
+
+@media (max-width: 720px) {
+  .site-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .logo img {
+    width: 86px;
+    height: 86px;
+  }
+
+  .logo span {
+    font-size: 2rem;
+  }
+
+  .play-page {
+    min-height: auto;
+    justify-content: flex-start;
+  }
+}
 
     h1 {
       margin: 10px 0 6px 0;
@@ -185,10 +259,22 @@
 
 <body>
 
-  <a href="/" title="← Orumi Home" style="position:fixed; top:14px; left:18px; opacity:1; display:block; text-decoration:none;">
-    <img src="/assets/orumi-icon.png" alt="Orumi Home" style="width:150px; height:150px; object-fit:contain; display:block;" />
+  <header class="site-header">
+  <a class="logo" href="/" aria-label="Return to Orumi home">
+    <img src="/assets/orumi-icon.png" alt="" aria-hidden="true" />
+    <span>Orumi</span>
   </a>
 
+  <nav>
+    <a href="/studio/">Studio</a>
+    <a href="/intervals/">Intervals</a>
+    <a href="/language/">Language</a>
+    <a href="/play/">Play</a>
+    <a href="/lyric-bridge/">Lyric Bridge</a>
+  </nav>
+</header>
+
+<main class="play-page">
   <h1>Orumi Sound Squares</h1>
 
   <div class="subtitle">
@@ -196,9 +282,10 @@
   </div>
 
   <div class="menu-grid" id="menuGrid"></div>
+</main>
 
-  <script>
-    const menuGrid = document.getElementById("menuGrid");
+<script>
+  const menuGrid = document.getElementById("menuGrid");
     const systems = ORUMI_CATALOG.systems;
     const CUSTOM_SOUND_SQUARE_KEY = "orumiCustomSoundSquare";
 

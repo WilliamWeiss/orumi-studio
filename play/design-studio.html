@@ -10,7 +10,7 @@
 
   <style>
     :root {
-      --bg: #111;
+      --bg: #0f1115;
       --panel: rgba(255,255,255,0.06);
       --panel-2: rgba(255,255,255,0.10);
       --text: #f5f0e8;
@@ -119,32 +119,43 @@
     }
 
     .logo-button {
-      left: 18px;
-      width: 58px;
-      height: 58px;
-      background: transparent;
-      box-shadow: none;
-      border-radius: 0;
-    }
+  position: fixed;
+  top: 24px;
+  left: 72px;
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  text-decoration: none;
+  color: #f5f0e8;
+  z-index: 1000;
+}
 
-    .logo-button:hover,
-    .logo-button:active {
-      background: transparent;
-      box-shadow: none;
-      filter: brightness(1.12);
-    }
+.logo-button:visited {
+  color: #f5f0e8;
+}
 
-    .logo-button img {
-      width: 58px;
-      height: 58px;
-      object-fit: contain;
-      border-radius: 0;
-    }
+.logo-button:hover,
+.logo-button:active {
+  filter: brightness(1.08);
+}
 
-    .back-button { left: 88px; }
-    .home-button { right: 18px; }
-    .player-button { right: 76px; }
-    .progression-button { right: 134px; }
+.logo-button img {
+  width: 125px;
+  height: 125px;
+  object-fit: contain;
+  display: block;
+}
+
+.logo-button span {
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+    .back-button { left: 18px; }
+.home-button { right: 18px; }
+.player-button { right: 76px; }
+.progression-button { right: 134px; }
 
     .studio {
       width: min(98vw, 1380px);
@@ -1276,18 +1287,23 @@
       }
 
       .logo-button {
-        width: 52px;
-        height: 52px;
-      }
+  top: 18px;
+  left: 64px;
+  gap: 12px;
+}
 
-      .logo-button img {
-        width: 52px;
-        height: 52px;
-      }
+.logo-button img {
+  width: 86px;
+  height: 86px;
+}
 
-      .back-button { left: 80px; }
-      .player-button { right: 69px; }
-      .progression-button { right: 120px; }
+.logo-button span {
+  font-size: 2rem;
+}
+
+.back-button { left: 12px; }
+.player-button { right: 69px; }
+.progression-button { right: 120px; }
     }
 
     @media (max-width: 620px) {
@@ -1301,12 +1317,13 @@
 <body>
 
   <a
-    class="top-button logo-button"
-    href="../index.html"
-    title="Orumi Home"
-  >
-    <img src="../assets/orumi-black.png" alt="Orumi" />
-  </a>
+  class="logo-button"
+  href="../index.html"
+  aria-label="Return to Orumi home"
+>
+  <img src="../assets/orumi-icon.png" alt="" aria-hidden="true" />
+  <span>Orumi</span>
+</a>
 
   <button
     class="top-button back-button"

@@ -65,30 +65,41 @@
     }
 
     .logo-button {
-      left: 18px;
-      width: 58px;
-      height: 58px;
-      background: transparent;
-      box-shadow: none;
-      border-radius: 0;
-    }
+  position: fixed;
+  top: 24px;
+  left: 72px;
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  text-decoration: none;
+  color: #f5f0e8;
+  z-index: 1000;
+}
 
-    .logo-button:hover,
-    .logo-button:active {
-      background: transparent;
-      box-shadow: none;
-      filter: brightness(1.12);
-    }
+.logo-button:visited {
+  color: #f5f0e8;
+}
 
-    .logo-button img {
-      width: 58px;
-      height: 58px;
-      object-fit: contain;
-      border-radius: 0;
-    }
+.logo-button:hover,
+.logo-button:active {
+  filter: brightness(1.08);
+}
 
-    .back-button { left: 88px; }
-    .home-button { right: 18px; }
+.logo-button img {
+  width: 125px;
+  height: 125px;
+  object-fit: contain;
+  display: block;
+}
+
+.logo-button span {
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+    .back-button { left: 18px; }
+.home-button { right: 18px; }
 
     .builder {
       width: min(96vw, 1100px);
