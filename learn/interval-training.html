@@ -32,6 +32,7 @@
 --note-b: #ff8fab;
 --note-bb: linear-gradient(135deg, #9d4edd, #ff8fab);
 --note-eb: linear-gradient(135deg, #f7b267, #ffd93d);
+--note-ab: linear-gradient(135deg, #4d96ff, #9d4edd);
 
 --orumi-border: rgba(255, 255, 255, 0.11);
       --orumi-shadow: rgba(0, 0, 0, 0.35);
@@ -107,6 +108,11 @@
   --note-text: white;
 }
 
+.note-ab {
+  --note-color: var(--note-ab);
+  --note-glow: rgba(105, 110, 235, 0.58);
+  --note-text: white;
+}
 .note-b {
   --note-color: var(--note-b);
   --note-glow: rgba(255, 143, 171, 0.58);
@@ -1756,6 +1762,728 @@
   }
 }
 
+.resolution-stage {
+  padding: clamp(20px, 3vw, 34px);
+  display: grid;
+  grid-template-columns: minmax(300px, 1fr) minmax(300px, 1fr);
+  gap: 24px;
+  align-items: stretch;
+}
+
+.resolution-card {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--orumi-border);
+  border-radius: var(--radius-large);
+  padding: 22px;
+}
+
+.resolution-card h3 {
+  margin: 0 0 8px;
+  font-size: 1.2rem;
+}
+
+.resolution-card p {
+  margin: 0;
+  color: var(--orumi-muted);
+}
+
+.resolution-path-display {
+  margin-top: 22px;
+  padding: 18px;
+  border-radius: var(--radius-medium);
+  border: 1px solid rgba(255,255,255,0.09);
+  background:
+    radial-gradient(circle at center, rgba(214,183,106,0.10), transparent 55%),
+    rgba(0,0,0,0.18);
+}
+
+.resolution-path-title {
+  color: var(--orumi-gold);
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 0.82rem;
+}
+
+.resolution-path-prompt {
+  margin-top: 8px;
+  color: var(--orumi-text);
+  font-weight: 850;
+  font-size: 1.05rem;
+}
+
+.resolution-path-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin: 26px 0 18px;
+}
+
+.resolution-note-block {
+  width: 106px;
+  height: 106px;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 23px;
+  display: grid;
+  place-items: center;
+  color: var(--note-text, white);
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.22), rgba(255,255,255,0.03)),
+    var(--note-color);
+  box-shadow:
+    0 18px 34px rgba(0,0,0,0.34),
+    0 0 34px var(--note-glow);
+  font-size: 1.65rem;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 160ms ease, filter 160ms ease, box-shadow 160ms ease;
+}
+
+.resolution-note-block:hover {
+  transform: translateY(-3px);
+  filter: brightness(1.08);
+}
+
+.resolution-note-block.playing {
+  transform: translateY(2px) scale(0.98);
+  box-shadow:
+    0 10px 22px rgba(0,0,0,0.38),
+    0 0 46px var(--note-glow);
+}
+
+.resolution-note-block small {
+  display: block;
+  margin-top: 5px;
+  font-size: 0.68rem;
+  color: rgba(255,255,255,0.78);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.resolution-arrow {
+  color: var(--orumi-gold);
+  font-weight: 900;
+  font-size: 2rem;
+}
+
+.resolution-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(140px, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.resolution-choice-btn,
+.resolution-chord-btn {
+  min-height: 98px;
+  border-radius: var(--radius-medium);
+  border: 1px solid var(--orumi-border);
+  color: var(--orumi-text);
+  background: rgba(255,255,255,0.045);
+  cursor: pointer;
+  padding: 14px;
+  text-align: left;
+  transition: 150ms ease;
+}
+
+.resolution-choice-btn:hover,
+.resolution-choice-btn.selected,
+.resolution-chord-btn:hover,
+.resolution-chord-btn.selected {
+  background: var(--orumi-gold-soft);
+  border-color: rgba(214,183,106,0.55);
+  transform: translateY(-2px);
+}
+
+.resolution-choice-btn strong,
+.resolution-chord-btn strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 1rem;
+}
+
+.resolution-choice-btn span,
+.resolution-chord-btn span {
+  display: block;
+  color: var(--orumi-muted);
+  font-size: 0.84rem;
+}
+
+.resolution-palette {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(140px, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.resolution-palette-card {
+  border-radius: var(--radius-medium);
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.04);
+  padding: 14px;
+}
+
+.resolution-palette-card strong {
+  display: block;
+  color: var(--orumi-text);
+  margin-bottom: 4px;
+}
+
+.resolution-palette-card span {
+  color: var(--orumi-muted);
+  font-size: 0.88rem;
+}
+
+.resolution-chord-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.resolution-chord-display {
+  margin-top: 22px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.resolution-mini-block {
+  width: 70px;
+  height: 70px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  color: var(--note-text, white);
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.22), rgba(255,255,255,0.03)),
+    var(--note-color);
+  box-shadow: 0 0 24px var(--note-glow);
+  font-weight: 900;
+}
+
+.resolution-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.resolution-badge {
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 999px;
+  padding: 8px 11px;
+  color: var(--orumi-muted);
+  background: rgba(255,255,255,0.04);
+  font-size: 0.84rem;
+  font-weight: 850;
+}
+
+.resolution-badge.earned {
+  color: #17130a;
+  background: rgba(155,235,215,0.92);
+  border-color: rgba(255,255,255,0.68);
+  box-shadow: 0 0 22px rgba(155,235,215,0.26);
+}
+
+@media (max-width: 1040px) {
+  .resolution-stage {
+    grid-template-columns: 1fr;
+  }
+
+  .resolution-choice-grid,
+  .resolution-palette {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chord-birth-stage {
+  padding: clamp(20px, 3vw, 34px);
+  display: grid;
+  grid-template-columns: minmax(300px, 1fr) minmax(300px, 1fr);
+  gap: 24px;
+  align-items: stretch;
+}
+
+.chord-birth-card {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--orumi-border);
+  border-radius: var(--radius-large);
+  padding: 22px;
+}
+
+.chord-birth-card h3 {
+  margin: 0 0 8px;
+  font-size: 1.2rem;
+}
+
+.chord-birth-card p {
+  margin: 0;
+  color: var(--orumi-muted);
+}
+
+.chord-build-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  margin: 24px 0 18px;
+}
+
+.chord-build-block,
+.chord-voice-block {
+  width: 86px;
+  height: 86px;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 20px;
+  display: grid;
+  place-items: center;
+  color: var(--note-text, white);
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.22), rgba(255,255,255,0.03)),
+    var(--note-color);
+  box-shadow:
+    0 14px 28px rgba(0,0,0,0.30),
+    0 0 28px var(--note-glow);
+  font-size: 1.45rem;
+  font-weight: 900;
+  transition: transform 160ms ease, filter 160ms ease, box-shadow 160ms ease;
+}
+
+.chord-build-block.playing,
+.chord-voice-block.playing {
+  transform: translateY(2px) scale(0.98);
+  box-shadow:
+    0 10px 22px rgba(0,0,0,0.38),
+    0 0 46px var(--note-glow);
+}
+
+.chord-build-block small,
+.chord-voice-block small {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.64rem;
+  color: rgba(255,255,255,0.78);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.chord-plus {
+  color: var(--orumi-gold);
+  font-size: 1.5rem;
+  font-weight: 900;
+}
+
+.chord-step-grid,
+.chord-intention-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(140px, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.chord-step-btn,
+.chord-intention-btn {
+  min-height: 98px;
+  border-radius: var(--radius-medium);
+  border: 1px solid var(--orumi-border);
+  color: var(--orumi-text);
+  background: rgba(255,255,255,0.045);
+  cursor: pointer;
+  padding: 14px;
+  text-align: left;
+  transition: 150ms ease;
+}
+
+.chord-step-btn:hover,
+.chord-step-btn.selected,
+.chord-intention-btn:hover,
+.chord-intention-btn.selected {
+  background: var(--orumi-gold-soft);
+  border-color: rgba(214,183,106,0.55);
+  transform: translateY(-2px);
+}
+
+.chord-step-btn strong,
+.chord-intention-btn strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 1rem;
+}
+
+.chord-step-btn span,
+.chord-intention-btn span {
+  display: block;
+  color: var(--orumi-muted);
+  font-size: 0.84rem;
+}
+
+.voice-stack {
+  margin-top: 22px;
+  display: grid;
+  gap: 12px;
+}
+
+.voice-row {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.voice-label {
+  color: var(--orumi-gold);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.78rem;
+}
+
+.voice-slot {
+  min-height: 86px;
+  border-radius: var(--radius-medium);
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.18);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+}
+
+.voice-role {
+  color: var(--orumi-muted);
+  font-size: 0.86rem;
+  font-weight: 750;
+}
+
+.ring-meter {
+  margin-top: 18px;
+  padding: 14px;
+  border-radius: var(--radius-medium);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.ring-meter-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--orumi-muted);
+  font-weight: 850;
+  margin-bottom: 9px;
+}
+
+.ring-meter-track {
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.09);
+  overflow: hidden;
+}
+
+.ring-meter-fill {
+  height: 100%;
+  width: 40%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--note-c, #ff6b6b), var(--note-g, #4d96ff), var(--note-bb, #ff8fab));
+  box-shadow: 0 0 20px rgba(214,183,106,0.35);
+  transition: width 220ms ease;
+}
+
+.chord-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.chord-badge {
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 999px;
+  padding: 8px 11px;
+  color: var(--orumi-muted);
+  background: rgba(255,255,255,0.04);
+  font-size: 0.84rem;
+  font-weight: 850;
+}
+
+.chord-badge.earned {
+  color: #17130a;
+  background: rgba(155,235,215,0.92);
+  border-color: rgba(255,255,255,0.68);
+  box-shadow: 0 0 22px rgba(155,235,215,0.26);
+}
+
+.chord-role-list {
+  margin-top: 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.chord-role-item {
+  border-radius: var(--radius-medium);
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.04);
+  padding: 13px;
+}
+
+.chord-role-item strong {
+  display: block;
+  color: var(--orumi-text);
+  margin-bottom: 3px;
+}
+
+.chord-role-item span {
+  color: var(--orumi-muted);
+  font-size: 0.88rem;
+}
+
+@media (max-width: 1040px) {
+  .chord-birth-stage {
+    grid-template-columns: 1fr;
+  }
+
+  .chord-step-grid,
+  .chord-intention-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.compose-stage {
+  padding: clamp(20px, 3vw, 34px);
+  display: grid;
+  grid-template-columns: minmax(300px, 1fr) minmax(300px, 1fr);
+  gap: 24px;
+  align-items: stretch;
+}
+
+.compose-card {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--orumi-border);
+  border-radius: var(--radius-large);
+  padding: 22px;
+}
+
+.compose-card h3 {
+  margin: 0 0 8px;
+  font-size: 1.2rem;
+}
+
+.compose-card p {
+  margin: 0;
+  color: var(--orumi-muted);
+}
+
+.toolkit-label {
+  display: inline-flex;
+  margin-bottom: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  color: #17130a;
+  background: rgba(214, 183, 106, 0.92);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.chord-id-display {
+  margin-top: 22px;
+  padding: 18px;
+  border-radius: var(--radius-medium);
+  border: 1px solid rgba(255,255,255,0.09);
+  background:
+    radial-gradient(circle at center, rgba(214,183,106,0.10), transparent 55%),
+    rgba(0,0,0,0.18);
+}
+
+.mystery-chord-block {
+  width: 132px;
+  height: 132px;
+  margin: 20px auto;
+  border-radius: 28px;
+  border: 1px solid rgba(255,255,255,0.18);
+  display: grid;
+  place-items: center;
+  color: var(--orumi-text);
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.16), rgba(255,255,255,0.025)),
+    rgba(255,255,255,0.05);
+  box-shadow:
+    0 18px 34px rgba(0,0,0,0.34),
+    0 0 30px rgba(214,183,106,0.24);
+  font-size: 2.1rem;
+  font-weight: 950;
+}
+
+.mystery-chord-block.playing {
+  transform: translateY(2px) scale(0.98);
+  box-shadow:
+    0 10px 22px rgba(0,0,0,0.38),
+    0 0 46px rgba(214,183,106,0.45);
+}
+
+.chord-guess-grid,
+.feeling-slot-grid,
+.progression-card-grid {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.chord-guess-grid {
+  grid-template-columns: repeat(2, minmax(130px, 1fr));
+}
+
+.feeling-slot-grid {
+  grid-template-columns: 1fr;
+}
+
+.progression-card-grid {
+  grid-template-columns: repeat(5, minmax(96px, 1fr));
+}
+
+.chord-guess-btn,
+.feeling-slot,
+.progression-card-btn {
+  border-radius: var(--radius-medium);
+  border: 1px solid var(--orumi-border);
+  color: var(--orumi-text);
+  background: rgba(255,255,255,0.045);
+  cursor: pointer;
+  padding: 14px;
+  text-align: left;
+  transition: 150ms ease;
+}
+
+.chord-guess-btn {
+  min-height: 84px;
+}
+
+.feeling-slot {
+  min-height: 92px;
+}
+
+.progression-card-btn {
+  min-height: 104px;
+}
+
+.chord-guess-btn:hover,
+.chord-guess-btn.selected,
+.feeling-slot:hover,
+.feeling-slot.selected,
+.feeling-slot.filled,
+.progression-card-btn:hover,
+.progression-card-btn.selected {
+  background: var(--orumi-gold-soft);
+  border-color: rgba(214,183,106,0.55);
+  transform: translateY(-2px);
+}
+
+.chord-guess-btn.correct,
+.feeling-slot.correct {
+  background: rgba(155,235,215,0.16);
+  border-color: rgba(155,235,215,0.55);
+}
+
+.chord-guess-btn.incorrect,
+.feeling-slot.incorrect {
+  background: rgba(216,92,92,0.14);
+  border-color: rgba(216,92,92,0.55);
+}
+
+.chord-guess-btn strong,
+.feeling-slot strong,
+.progression-card-btn strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 1rem;
+}
+
+.chord-guess-btn span,
+.feeling-slot span,
+.progression-card-btn span {
+  display: block;
+  color: var(--orumi-muted);
+  font-size: 0.84rem;
+}
+
+.feeling-slot .placed-chord {
+  margin-top: 8px;
+  display: inline-flex;
+  padding: 6px 9px;
+  border-radius: 999px;
+  color: #17130a;
+  background: rgba(155,235,215,0.92);
+  font-weight: 900;
+  font-size: 0.84rem;
+}
+
+.progression-arrow-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 9px;
+  margin-top: 18px;
+  color: var(--orumi-gold);
+  font-weight: 950;
+}
+
+.progression-feedback {
+  margin-top: 18px;
+  padding: 14px;
+  border-radius: var(--radius-medium);
+  background: rgba(0,0,0,0.18);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: var(--orumi-muted);
+  font-weight: 750;
+}
+
+.toolkit-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.toolkit-badge {
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 999px;
+  padding: 8px 11px;
+  color: var(--orumi-muted);
+  background: rgba(255,255,255,0.04);
+  font-size: 0.84rem;
+  font-weight: 850;
+}
+
+.toolkit-badge.earned {
+  color: #17130a;
+  background: rgba(155,235,215,0.92);
+  border-color: rgba(255,255,255,0.68);
+  box-shadow: 0 0 22px rgba(155,235,215,0.26);
+}
+
+@media (max-width: 1040px) {
+  .compose-stage {
+    grid-template-columns: 1fr;
+  }
+
+  .progression-card-grid {
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .chord-guess-grid,
+  .progression-card-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
     .reflection-card {
       background: rgba(255, 255, 255, 0.035);
       border: 1px solid var(--orumi-border);
@@ -2269,29 +2997,29 @@
   built: true
 },
       {
-        id: "chord-birth",
-        number: 7,
-        title: "The Birth of Chords",
-        subtitle: "Choosing which relationships to bring forward",
-        level: "Chord Creation",
-        built: false
-      },
-      {
-        id: "resolution",
-        number: 8,
-        title: "Resolution",
-        subtitle: "Where intervals want to go",
-        level: "Motion",
-        built: false
-      },
-      {
-        id: "compose-feeling",
-        number: 9,
-        title: "Compose by Feeling",
-        subtitle: "Build sound from emotional intention",
-        level: "Creation",
-        built: false
-      }
+  id: "resolution",
+  number: 7,
+  title: "Resolution",
+  subtitle: "Answering the pull",
+  level: "Motion",
+  built: true
+},
+{
+  id: "chord-birth",
+  number: 8,
+  title: "The Birth of Chords",
+  subtitle: "Four voices, one relationship",
+  level: "Chord Creation",
+  built: true
+},
+{
+  id: "compose-feeling",
+  number: 9,
+  title: "Compose by Feeling",
+  subtitle: "Play toolkits for emotional motion",
+  level: "Creation",
+  built: true
+}
     ];
 
     const overtones = [
@@ -2547,10 +3275,16 @@ function renderCurrentLesson() {
     } else if (lesson.id === "third") {
     renderThirdLesson();
   } else if (lesson.id === "tension") {
-    renderSeventhLesson();
-  } else {
-    renderPlaceholderLesson(lesson);
-  }
+  renderSeventhLesson();
+} else if (lesson.id === "resolution") {
+  renderResolutionLesson();
+} else if (lesson.id === "chord-birth") {
+  renderChordBirthLesson();
+} else if (lesson.id === "compose-feeling") {
+  renderComposeFeelingLesson();
+} else {
+  renderPlaceholderLesson(lesson);
+}
 }
 
     function renderHiddenLifeLesson() {
@@ -4890,6 +5624,1736 @@ function handleSeventhReflectionChoice(button) {
     pull: "Yes. The seventh gives color a destination. It makes the ear ask what comes next.",
     overtone: "Yes. The lowered seventh is tied to the seventh partial: a real overtone color with its own gravity, though farther from the root's simplest pulls.",
     all: "Exactly. The seventh is magnetized color: born from overtone color, but seeking resolution toward simpler relationships."
+  };
+
+  responseBox.innerHTML = `
+    <strong>Good noticing.</strong>
+    <p style="margin: 6px 0 0; color: var(--orumi-muted);">${responses[choice]}</p>
+  `;
+
+  responseBox.classList.add("visible");
+}
+
+function renderResolutionLesson() {
+  mainPanel.innerHTML = `
+    <section class="hero">
+      <div class="eyebrow">Lesson 7 · Motion</div>
+      <h2>Resolution</h2>
+      <p class="hero-question">Where does the pull go?</p>
+    </section>
+
+    <section class="context-card">
+      <div class="eyebrow">Answering the pull</div>
+      <h3>Resolution is the moment a pull becomes a path.</h3>
+
+      <p>
+        In the last lesson, the seventh became magnetized color. It had a pull of
+        its own because it belonged to the overtone story, but it also wanted to
+        move toward a simpler resting place.
+      </p>
+
+      <p>
+        Resolution does not always mean returning home. Sometimes it means arrival.
+        Sometimes it means softening. Sometimes it means returning. Sometimes it
+        means transforming the whole chord into a new center.
+      </p>
+
+      <p>
+        Resolution does not erase tension. It explains why the tension was there.
+      </p>
+    </section>
+
+    <section class="resolution-stage">
+      <article class="resolution-card">
+        <h3>Path Game</h3>
+        <p>
+          Choose the kind of resolution you want to hear. Each path answers the pull
+          in a different way.
+        </p>
+
+        <div class="resolution-path-display">
+          <div class="resolution-path-title" id="resolutionPathTitle">Arrival</div>
+          <div class="resolution-path-prompt" id="resolutionPathPrompt">
+            B is almost home. C answers it.
+          </div>
+
+          <div class="resolution-path-row">
+            <button class="resolution-note-block note-b" id="resolutionFromBlock" type="button">
+              <div>B<small>Pull</small></div>
+            </button>
+
+            <div class="resolution-arrow">→</div>
+
+            <button class="resolution-note-block note-c" id="resolutionToBlock" type="button">
+              <div>C<small>Home</small></div>
+            </button>
+          </div>
+
+          <div class="controls">
+            <button class="btn primary" id="playResolutionPathBtn">Play this path</button>
+            <button class="btn" id="nextResolutionPathBtn">Next path</button>
+          </div>
+
+          <div class="resolution-choice-grid">
+            <button class="resolution-choice-btn" data-resolution-path="arrival">
+              <strong>Arrival</strong>
+              <span>B → C</span>
+            </button>
+
+            <button class="resolution-choice-btn" data-resolution-path="soft-release">
+              <strong>Soft release</strong>
+              <span>Bb → A</span>
+            </button>
+
+            <button class="resolution-choice-btn" data-resolution-path="earthy-return">
+              <strong>Earthy return</strong>
+              <span>Bb → C</span>
+            </button>
+
+            <button class="resolution-choice-btn" data-resolution-path="suspension">
+              <strong>Suspension release</strong>
+              <span>F → E</span>
+            </button>
+          </div>
+
+          <div class="resolution-badge-row">
+            <span class="resolution-badge" id="arrivalResolutionBadge">Arrival heard</span>
+            <span class="resolution-badge" id="releaseResolutionBadge">Release heard</span>
+            <span class="resolution-badge" id="returnResolutionBadge">Return heard</span>
+            <span class="resolution-badge" id="suspensionResolutionBadge">Suspension resolved</span>
+          </div>
+        </div>
+
+        <div class="current-tone" id="resolutionCurrentTone">
+          <h4>Arrival · B → C</h4>
+          <p>
+            B is close to home. C explains the pull by arriving.
+          </p>
+        </div>
+      </article>
+
+      <article class="resolution-card">
+        <h3>Chord Arrow</h3>
+        <p>
+          Now let a whole chord become an arrow. C7 contains a lowered seventh,
+          and that lowered seventh helps point the chord toward F.
+        </p>
+
+        <div class="resolution-chord-display">
+          <span class="resolution-mini-block note-c">C</span>
+          <span class="resolution-mini-block note-e">E</span>
+          <span class="resolution-mini-block note-g">G</span>
+          <span class="resolution-mini-block note-bb">Bb</span>
+          <span class="resolution-arrow">→</span>
+          <span class="resolution-mini-block note-f">F</span>
+          <span class="resolution-mini-block note-a">A</span>
+          <span class="resolution-mini-block note-c">C</span>
+        </div>
+
+        <div class="resolution-chord-grid">
+          <button class="resolution-chord-btn" data-resolution-chord="stay">
+            <strong>Stay on C7</strong>
+            <span>The question remains open.</span>
+          </button>
+
+          <button class="resolution-chord-btn" data-resolution-chord="home">
+            <strong>C7 → C</strong>
+            <span>The chord relaxes back to itself.</span>
+          </button>
+
+          <button class="resolution-chord-btn" data-resolution-chord="f">
+            <strong>C7 → F</strong>
+            <span>The chord becomes an arrow.</span>
+          </button>
+        </div>
+
+        <div class="resolution-palette">
+          <div class="resolution-palette-card">
+            <strong>Arrival</strong>
+            <span>The pull lands at home.</span>
+          </div>
+
+          <div class="resolution-palette-card">
+            <strong>Release</strong>
+            <span>The pull softens without fully arriving.</span>
+          </div>
+
+          <div class="resolution-palette-card">
+            <strong>Return</strong>
+            <span>The pull bends back toward the root.</span>
+          </div>
+
+          <div class="resolution-palette-card">
+            <strong>Transformation</strong>
+            <span>The pull creates a new center.</span>
+          </div>
+        </div>
+
+        <div class="current-tone" id="resolutionChordTone">
+          <h4>Ready</h4>
+          <p>
+            Try C7 by itself, then hear how it changes when it resolves to F.
+          </p>
+        </div>
+      </article>
+    </section>
+
+    <section class="reflection-card visible">
+      <h3>What is resolution?</h3>
+      <p>Resolution is not just the next note. It is the note that makes the previous note make sense.</p>
+
+      <div class="choice-grid">
+        <button class="choice-btn" data-resolution-reflection="erase">
+          <strong>It erases tension</strong>
+          <span>The tension disappears and no longer matters.</span>
+        </button>
+
+        <button class="choice-btn" data-resolution-reflection="explain">
+          <strong>It explains tension</strong>
+          <span>The pull makes sense after it resolves.</span>
+        </button>
+
+        <button class="choice-btn" data-resolution-reflection="path">
+          <strong>It creates a path</strong>
+          <span>A note or chord moves somewhere meaningful.</span>
+        </button>
+
+        <button class="choice-btn" data-resolution-reflection="both">
+          <strong>Both explanation and path</strong>
+          <span>Resolution gives motion meaning.</span>
+        </button>
+      </div>
+
+      <div class="response-box" id="resolutionResponseBox"></div>
+
+      <div class="next-panel">
+        <p>
+          Once resolution is understood, chords are no longer static stacks. They
+          become living structures that can move.
+        </p>
+        <button class="btn primary" id="completeResolutionLessonBtn">Complete lesson</button>
+      </div>
+    </section>
+  `;
+
+  resolutionPathIndex = 0;
+  renderResolutionPath();
+
+  document.getElementById("playResolutionPathBtn").addEventListener("click", playCurrentResolutionPath);
+  document.getElementById("nextResolutionPathBtn").addEventListener("click", nextResolutionPath);
+
+  document.querySelectorAll("[data-resolution-path]").forEach((button) => {
+    button.addEventListener("click", () => handleResolutionPathChoice(button));
+  });
+
+  document.querySelectorAll("[data-resolution-chord]").forEach((button) => {
+    button.addEventListener("click", () => handleResolutionChordChoice(button));
+  });
+
+  document.querySelectorAll("[data-resolution-reflection]").forEach((button) => {
+    button.addEventListener("click", () => handleResolutionReflectionChoice(button));
+  });
+
+  document.getElementById("completeResolutionLessonBtn").addEventListener("click", completeCurrentLesson);
+}
+
+let resolutionPathIndex = 0;
+
+const resolutionPaths = [
+  {
+    id: "arrival",
+    title: "Arrival",
+    prompt: "B is almost home. C answers it.",
+    from: { note: "B", small: "Pull", className: "note-b", frequency: 246.94 },
+    to: { note: "C", small: "Home", className: "note-c", frequency: 261.63 },
+    badge: "arrivalResolutionBadge",
+    toneTitle: "Arrival · B → C",
+    toneBody: "B is close to home. C explains the pull by arriving."
+  },
+  {
+    id: "soft-release",
+    title: "Soft release",
+    prompt: "Bb is an overtone color. A softens it.",
+    from: { note: "Bb", small: "7th color", className: "note-bb", frequency: 233.08 },
+    to: { note: "A", small: "Release", className: "note-a", frequency: 220.00 },
+    badge: "releaseResolutionBadge",
+    toneTitle: "Soft release · Bb → A",
+    toneBody: "The lowered seventh relaxes downward. It does not go home, but it softens."
+  },
+  {
+    id: "earthy-return",
+    title: "Earthy return",
+    prompt: "Bb can also bend back toward C.",
+    from: { note: "Bb", small: "7th color", className: "note-bb", frequency: 233.08 },
+    to: { note: "C", small: "Root", className: "note-c", frequency: 261.63 },
+    badge: "returnResolutionBadge",
+    toneTitle: "Earthy return · Bb → C",
+    toneBody: "The lowered seventh leans back toward the root. It returns, but differently than B → C."
+  },
+  {
+    id: "suspension",
+    title: "Suspension release",
+    prompt: "F waits above C. E releases the suspension.",
+    from: { note: "F", small: "Suspension", className: "note-f", frequency: 174.61 },
+    to: { note: "E", small: "Third", className: "note-e", frequency: 163.51 },
+    badge: "suspensionResolutionBadge",
+    toneTitle: "Suspension release · F → E",
+    toneBody: "F was waiting. E answers it by returning the chord to its emotional color."
+  }
+];
+
+function renderResolutionPath() {
+  const path = resolutionPaths[resolutionPathIndex];
+
+  const title = document.getElementById("resolutionPathTitle");
+  const prompt = document.getElementById("resolutionPathPrompt");
+  const fromBlock = document.getElementById("resolutionFromBlock");
+  const toBlock = document.getElementById("resolutionToBlock");
+
+  if (!title || !prompt || !fromBlock || !toBlock) return;
+
+  title.textContent = path.title;
+  prompt.textContent = path.prompt;
+
+  setResolutionBlock(fromBlock, path.from);
+  setResolutionBlock(toBlock, path.to);
+
+  document.querySelectorAll("[data-resolution-path]").forEach((button) => {
+    button.classList.toggle("selected", button.dataset.resolutionPath === path.id);
+  });
+
+  setResolutionCurrentTone(path.toneTitle, path.toneBody);
+}
+
+function setResolutionBlock(block, noteData) {
+  block.className = block.className
+    .split(" ")
+    .filter((name) => !name.startsWith("note-"))
+    .join(" ");
+
+  block.classList.add("resolution-note-block", noteData.className);
+  block.innerHTML = `<div>${noteData.note}<small>${noteData.small}</small></div>`;
+}
+
+function playCurrentResolutionPath() {
+  const path = resolutionPaths[resolutionPathIndex];
+  const ctx = getAudioContext();
+
+  if (ctx.state === "suspended") {
+    ctx.resume();
+  }
+
+  const now = ctx.currentTime;
+
+  playSimpleTone(ctx, path.from.frequency, now, 0.8, 0.22);
+  playSimpleTone(ctx, path.to.frequency, now + 0.7, 1.25, 0.22);
+
+  pulseResolutionBlock("resolutionFromBlock", 800);
+  setTimeout(() => pulseResolutionBlock("resolutionToBlock", 1250), 700);
+
+  earnResolutionBadge(path.badge);
+  setResolutionCurrentTone(path.toneTitle, path.toneBody);
+}
+
+function nextResolutionPath() {
+  resolutionPathIndex = (resolutionPathIndex + 1) % resolutionPaths.length;
+  renderResolutionPath();
+}
+
+function handleResolutionPathChoice(button) {
+  const pathId = button.dataset.resolutionPath;
+  const index = resolutionPaths.findIndex((path) => path.id === pathId);
+
+  if (index === -1) return;
+
+  resolutionPathIndex = index;
+  renderResolutionPath();
+  playCurrentResolutionPath();
+}
+
+function handleResolutionChordChoice(button) {
+  const chord = button.dataset.resolutionChord;
+
+  document.querySelectorAll("[data-resolution-chord]").forEach((btn) => {
+    btn.classList.remove("selected");
+  });
+
+  button.classList.add("selected");
+  playResolutionChord(chord);
+}
+
+function playResolutionChord(chord) {
+  const ctx = getAudioContext();
+
+  if (ctx.state === "suspended") {
+    ctx.resume();
+  }
+
+  const now = ctx.currentTime;
+
+  if (chord === "stay") {
+    playChordTones(ctx, [130.81, 163.51, 196.00, 233.08], now, 1.9, 0.105);
+
+    setResolutionChordTone(
+      "C7 stays open",
+      "The chord still feels like a question. Its lowered seventh has not yet been answered."
+    );
+
+    return;
+  }
+
+  if (chord === "home") {
+    playChordTones(ctx, [130.81, 163.51, 196.00, 233.08], now, 1.25, 0.095);
+    playChordTones(ctx, [130.81, 163.51, 196.00], now + 1.2, 1.65, 0.11);
+
+    setResolutionChordTone(
+      "C7 → C",
+      "This relaxes the chord back into itself. It resolves some tension, but does not transform the center."
+    );
+
+    return;
+  }
+
+  if (chord === "f") {
+    playChordTones(ctx, [130.81, 163.51, 196.00, 233.08], now, 1.25, 0.095);
+    playChordTones(ctx, [174.61, 220.00, 261.63], now + 1.2, 1.75, 0.12);
+
+    setResolutionChordTone(
+      "C7 → F · Chord arrow",
+      "Yes. C7 becomes an arrow toward F. The pull transforms the music into a new center."
+    );
+
+    return;
+  }
+}
+
+function playChordTones(ctx, frequencies, startTime, duration, gainValue) {
+  frequencies.forEach((frequency) => {
+    playSimpleTone(ctx, frequency, startTime, duration, gainValue);
+  });
+}
+
+function pulseResolutionBlock(id, duration) {
+  const block = document.getElementById(id);
+
+  if (!block) return;
+
+  block.classList.add("playing");
+  setTimeout(() => block.classList.remove("playing"), duration);
+}
+
+function earnResolutionBadge(id) {
+  const badge = document.getElementById(id);
+
+  if (badge) {
+    badge.classList.add("earned");
+  }
+}
+
+function setResolutionCurrentTone(title, body) {
+  const currentTone = document.getElementById("resolutionCurrentTone");
+
+  if (!currentTone) return;
+
+  currentTone.innerHTML = `
+    <h4>${title}</h4>
+    <p>${body}</p>
+  `;
+}
+
+function setResolutionChordTone(title, body) {
+  const currentTone = document.getElementById("resolutionChordTone");
+
+  if (!currentTone) return;
+
+  currentTone.innerHTML = `
+    <h4>${title}</h4>
+    <p>${body}</p>
+  `;
+}
+
+function handleResolutionReflectionChoice(button) {
+  const choice = button.dataset.resolutionReflection;
+  const responseBox = document.getElementById("resolutionResponseBox");
+
+  document.querySelectorAll("[data-resolution-reflection]").forEach((btn) => {
+    btn.classList.remove("selected");
+  });
+
+  button.classList.add("selected");
+
+  const responses = {
+    erase: "Not quite. Resolution does not erase tension. It gives the tension meaning.",
+    explain: "Yes. Resolution explains why the pull was there.",
+    path: "Yes. Resolution turns a pull into a path.",
+    both: "Exactly. Resolution gives motion meaning: it explains the pull and shows where it was going."
+  };
+
+  responseBox.innerHTML = `
+    <strong>Good noticing.</strong>
+    <p style="margin: 6px 0 0; color: var(--orumi-muted);">${responses[choice]}</p>
+  `;
+
+  responseBox.classList.add("visible");
+}
+
+function renderChordBirthLesson() {
+  mainPanel.innerHTML = `
+    <section class="hero">
+      <div class="eyebrow">Lesson 8 · Chord Creation</div>
+      <h2>The Birth of Chords</h2>
+      <p class="hero-question">When do separate intervals become one relationship?</p>
+    </section>
+
+    <section class="context-card">
+      <div class="eyebrow">Four voices · one ringing relationship</div>
+      <h3>A chord is not a pile of notes. It is a chosen set of relationships.</h3>
+
+      <p>
+        Everything we have learned now comes together. The fifth gives a chord its
+        frame. The third gives it feeling. The seventh gives it pull. Resolution
+        gives the pull a path.
+      </p>
+
+      <p>
+        In barbershop, the fourth note is not decoration. It can activate the chord:
+        making it fuller, sweeter, more directional, or more likely to ring.
+      </p>
+
+      <p>
+        A barbershop chord is not only judged by what notes it contains, but by how
+        well four voices become one balanced relationship.
+      </p>
+    </section>
+
+    <section class="chord-birth-stage">
+      <article class="chord-birth-card">
+        <h3>Build the chord from relationships</h3>
+        <p>
+          Start with the root, then add the relationships from the earlier lessons.
+          Each new note gives the chord a new job.
+        </p>
+
+        <div class="chord-build-row" id="chordBuildRow">
+          <span class="chord-build-block note-c" id="birthBuildC">
+            <div>C<small>Root</small></div>
+          </span>
+        </div>
+
+        <div class="chord-step-grid">
+          <button class="chord-step-btn" data-chord-step="root">
+            <strong>Root</strong>
+            <span>C gives the chord its center.</span>
+          </button>
+
+          <button class="chord-step-btn" data-chord-step="frame">
+            <strong>Frame</strong>
+            <span>C + G gives strength and openness.</span>
+          </button>
+
+          <button class="chord-step-btn" data-chord-step="feeling">
+            <strong>Feeling</strong>
+            <span>C + E + G gives the chord its face.</span>
+          </button>
+
+          <button class="chord-step-btn" data-chord-step="pull">
+            <strong>Pull</strong>
+            <span>C + E + G + Bb gives direction.</span>
+          </button>
+        </div>
+
+        <div class="chord-role-list">
+          <div class="chord-role-item">
+            <strong>Root</strong>
+            <span>The center the other notes relate to.</span>
+          </div>
+
+          <div class="chord-role-item">
+            <strong>Fifth</strong>
+            <span>The frame: strength, stability, space.</span>
+          </div>
+
+          <div class="chord-role-item">
+            <strong>Third</strong>
+            <span>The face: emotional color.</span>
+          </div>
+
+          <div class="chord-role-item">
+            <strong>Seventh or sixth</strong>
+            <span>The activation: pull, sweetness, glow, or motion.</span>
+          </div>
+        </div>
+
+        <div class="current-tone" id="chordBirthCurrentTone">
+          <h4>Root · C</h4>
+          <p>
+            A chord begins with a center. Press the relationship cards to hear the
+            chord become more alive.
+          </p>
+        </div>
+      </article>
+
+      <article class="chord-birth-card">
+        <h3>Build the ringing chord</h3>
+        <p>
+          Choose what you want the four voices to do. This is not yet composition;
+          it is chord intention: rest, glow, pull, sweeten, or wait.
+        </p>
+
+        <div class="voice-stack">
+          <div class="voice-row">
+            <div class="voice-label">Tenor</div>
+            <div class="voice-slot" id="tenorVoiceSlot"></div>
+          </div>
+
+          <div class="voice-row">
+            <div class="voice-label">Lead</div>
+            <div class="voice-slot" id="leadVoiceSlot"></div>
+          </div>
+
+          <div class="voice-row">
+            <div class="voice-label">Baritone</div>
+            <div class="voice-slot" id="baritoneVoiceSlot"></div>
+          </div>
+
+          <div class="voice-row">
+            <div class="voice-label">Bass</div>
+            <div class="voice-slot" id="bassVoiceSlot"></div>
+          </div>
+        </div>
+
+        <div class="chord-intention-grid">
+          <button class="chord-intention-btn" data-chord-intention="rest">
+            <strong>Rest</strong>
+            <span>C + E + G + C</span>
+          </button>
+
+          <button class="chord-intention-btn" data-chord-intention="glow">
+            <strong>Glow</strong>
+            <span>C + E + G + B</span>
+          </button>
+
+          <button class="chord-intention-btn" data-chord-intention="pull">
+            <strong>Pull</strong>
+            <span>C + E + G + Bb</span>
+          </button>
+
+          <button class="chord-intention-btn" data-chord-intention="sweeten">
+            <strong>Sweeten</strong>
+            <span>C + E + G + A</span>
+          </button>
+
+          <button class="chord-intention-btn" data-chord-intention="wait">
+            <strong>Wait</strong>
+            <span>C + F + G + Bb</span>
+          </button>
+        </div>
+
+        <div class="ring-meter">
+          <div class="ring-meter-label">
+            <span>Ring meter</span>
+            <span id="ringMeterLabel">Ready</span>
+          </div>
+          <div class="ring-meter-track">
+            <div class="ring-meter-fill" id="ringMeterFill"></div>
+          </div>
+        </div>
+
+        <div class="chord-badge-row">
+          <span class="chord-badge" id="stableChordBadge">Stable chord built</span>
+          <span class="chord-badge" id="sweetChordBadge">Sweet color heard</span>
+          <span class="chord-badge" id="dominantChordBadge">Four-note pull built</span>
+          <span class="chord-badge" id="suspensionChordBadge">Suspension built</span>
+        </div>
+
+        <div class="controls">
+          <button class="btn primary" id="playCurrentBirthChordBtn">Play current chord</button>
+          <button class="btn ghost" id="resetBirthChordBtn">Reset chord</button>
+        </div>
+
+        <div class="current-tone" id="birthChordTone">
+          <h4>Ready</h4>
+          <p>
+            Choose an intention. The voices will form a four-note chord that matches
+            what you want the harmony to do.
+          </p>
+        </div>
+      </article>
+    </section>
+
+    <section class="reflection-card visible">
+      <h3>What makes a chord alive?</h3>
+      <p>A chord becomes alive when its intervals begin acting together.</p>
+
+      <div class="choice-grid">
+        <button class="choice-btn" data-chord-birth-reflection="pile">
+          <strong>A chord is a pile of notes</strong>
+          <span>The notes simply happen at the same time.</span>
+        </button>
+
+        <button class="choice-btn" data-chord-birth-reflection="relationships">
+          <strong>A chord is chosen relationships</strong>
+          <span>Each note has a job.</span>
+        </button>
+
+        <button class="choice-btn" data-chord-birth-reflection="voices">
+          <strong>Four voices can become one</strong>
+          <span>Balance can make the chord ring.</span>
+        </button>
+
+        <button class="choice-btn" data-chord-birth-reflection="all">
+          <strong>Relationships and voices together</strong>
+          <span>The chord has structure, feeling, pull, and sound.</span>
+        </button>
+      </div>
+
+      <div class="response-box" id="chordBirthResponseBox"></div>
+
+      <div class="next-panel">
+        <p>
+          Once chords can be built by intention, the next step is composing by
+          feeling: choosing how one chord moves into another.
+        </p>
+        <button class="btn primary" id="completeChordBirthLessonBtn">Complete lesson</button>
+      </div>
+    </section>
+  `;
+
+  currentBirthChord = "pull";
+  renderChordBuildStep("root");
+  renderBirthChord("pull");
+
+  document.querySelectorAll("[data-chord-step]").forEach((button) => {
+    button.addEventListener("click", () => handleChordBuildStep(button));
+  });
+
+  document.querySelectorAll("[data-chord-intention]").forEach((button) => {
+    button.addEventListener("click", () => handleBirthChordIntention(button));
+  });
+
+  document.getElementById("playCurrentBirthChordBtn").addEventListener("click", () => playBirthChord(currentBirthChord));
+  document.getElementById("resetBirthChordBtn").addEventListener("click", resetBirthChord);
+
+  document.querySelectorAll("[data-chord-birth-reflection]").forEach((button) => {
+    button.addEventListener("click", () => handleChordBirthReflectionChoice(button));
+  });
+
+  document.getElementById("completeChordBirthLessonBtn").addEventListener("click", completeCurrentLesson);
+}
+
+let currentBirthChord = "pull";
+
+const chordBuildSteps = {
+  root: {
+    title: "Root · C",
+    body: "A chord begins with a center. C gives the other notes something to relate to.",
+    notes: [
+      { note: "C", role: "Root", className: "note-c", frequency: 130.81 }
+    ]
+  },
+  frame: {
+    title: "Frame · C + G",
+    body: "The fifth gives the chord a frame: strong, open, and spacious.",
+    notes: [
+      { note: "C", role: "Root", className: "note-c", frequency: 130.81 },
+      { note: "G", role: "Fifth", className: "note-g", frequency: 196.00 }
+    ]
+  },
+  feeling: {
+    title: "Feeling · C + E + G",
+    body: "The third gives the chord its face. C major now feels warm and clear.",
+    notes: [
+      { note: "C", role: "Root", className: "note-c", frequency: 130.81 },
+      { note: "E", role: "Third", className: "note-e", frequency: 163.51 },
+      { note: "G", role: "Fifth", className: "note-g", frequency: 196.00 }
+    ]
+  },
+  pull: {
+    title: "Pull · C + E + G + Bb",
+    body: "The lowered seventh activates the chord. It now has frame, feeling, and direction.",
+    notes: [
+      { note: "C", role: "Root", className: "note-c", frequency: 130.81 },
+      { note: "E", role: "Third", className: "note-e", frequency: 163.51 },
+      { note: "G", role: "Fifth", className: "note-g", frequency: 196.00 },
+      { note: "Bb", role: "Seventh", className: "note-bb", frequency: 233.08 }
+    ]
+  }
+};
+
+const birthChords = {
+  rest: {
+    name: "Rest · C + E + G + C",
+    body: "Doubling the root strengthens the center. This chord feels stable, clear, and settled.",
+    ring: 62,
+    ringLabel: "Stable",
+    badge: "stableChordBadge",
+    voices: {
+      tenor: { note: "C", role: "Doubled root", className: "note-c", frequency: 261.63 },
+      lead: { note: "G", role: "Fifth / frame", className: "note-g", frequency: 196.00 },
+      baritone: { note: "E", role: "Third / feeling", className: "note-e", frequency: 163.51 },
+      bass: { note: "C", role: "Root / foundation", className: "note-c", frequency: 130.81 }
+    }
+  },
+  glow: {
+    name: "Glow · C + E + G + B",
+    body: "The major seventh adds luminous upward longing. It glows close to home.",
+    ring: 72,
+    ringLabel: "Glowing",
+    badge: "sweetChordBadge",
+    voices: {
+      tenor: { note: "B", role: "Major seventh / glow", className: "note-b", frequency: 246.94 },
+      lead: { note: "G", role: "Fifth / frame", className: "note-g", frequency: 196.00 },
+      baritone: { note: "E", role: "Third / feeling", className: "note-e", frequency: 163.51 },
+      bass: { note: "C", role: "Root / foundation", className: "note-c", frequency: 130.81 }
+    }
+  },
+  pull: {
+    name: "Pull · C + E + G + Bb",
+    body: "This is the barbershop engine: root, third, fifth, and lowered seventh. The chord has direction.",
+    ring: 92,
+    ringLabel: "Ringing pull",
+    badge: "dominantChordBadge",
+    voices: {
+      tenor: { note: "Bb", role: "Seventh / pull", className: "note-bb", frequency: 233.08 },
+      lead: { note: "G", role: "Fifth / frame", className: "note-g", frequency: 196.00 },
+      baritone: { note: "E", role: "Third / feeling", className: "note-e", frequency: 163.51 },
+      bass: { note: "C", role: "Root / foundation", className: "note-c", frequency: 130.81 }
+    }
+  },
+  sweeten: {
+    name: "Sweeten · C + E + G + A",
+    body: "The sixth adds sweetness and old-time warmth without the same urgent pull as the seventh.",
+    ring: 82,
+    ringLabel: "Sweet ring",
+    badge: "sweetChordBadge",
+    voices: {
+      tenor: { note: "A", role: "Sixth / sweetness", className: "note-a", frequency: 220.00 },
+      lead: { note: "G", role: "Fifth / frame", className: "note-g", frequency: 196.00 },
+      baritone: { note: "E", role: "Third / feeling", className: "note-e", frequency: 163.51 },
+      bass: { note: "C", role: "Root / foundation", className: "note-c", frequency: 130.81 }
+    }
+  },
+  wait: {
+    name: "Wait · C + F + G + Bb",
+    body: "The fourth keeps the chord suspended. The seventh adds color, but the chord still waits.",
+    ring: 58,
+    ringLabel: "Suspended",
+    badge: "suspensionChordBadge",
+    voices: {
+      tenor: { note: "Bb", role: "Seventh / color", className: "note-bb", frequency: 233.08 },
+      lead: { note: "G", role: "Fifth / frame", className: "note-g", frequency: 196.00 },
+      baritone: { note: "F", role: "Fourth / suspension", className: "note-f", frequency: 174.61 },
+      bass: { note: "C", role: "Root / foundation", className: "note-c", frequency: 130.81 }
+    }
+  }
+};
+
+function handleChordBuildStep(button) {
+  const step = button.dataset.chordStep;
+
+  document.querySelectorAll("[data-chord-step]").forEach((btn) => {
+    btn.classList.remove("selected");
+  });
+
+  button.classList.add("selected");
+  renderChordBuildStep(step);
+  playChordBuildStep(step);
+}
+
+function renderChordBuildStep(step) {
+  const chord = chordBuildSteps[step];
+  const row = document.getElementById("chordBuildRow");
+
+  if (!chord || !row) return;
+
+  row.innerHTML = chord.notes.map((note, index) => `
+    ${index > 0 ? '<span class="chord-plus">+</span>' : ''}
+    <span class="chord-build-block ${note.className}" id="buildStepNote${index}">
+      <div>${note.note}<small>${note.role}</small></div>
+    </span>
+  `).join("");
+
+  setChordBirthCurrentTone(chord.title, chord.body);
+}
+
+function playChordBuildStep(step) {
+  const chord = chordBuildSteps[step];
+
+  if (!chord) return;
+
+  const ctx = getAudioContext();
+
+  if (ctx.state === "suspended") {
+    ctx.resume();
+  }
+
+  const now = ctx.currentTime;
+
+  chord.notes.forEach((note, index) => {
+    playSimpleTone(ctx, note.frequency, now, 1.7, 0.13);
+    setTimeout(() => pulseChordBirthBlock(`buildStepNote${index}`, 900), index * 80);
+  });
+}
+
+function handleBirthChordIntention(button) {
+  const intention = button.dataset.chordIntention;
+
+  document.querySelectorAll("[data-chord-intention]").forEach((btn) => {
+    btn.classList.remove("selected");
+  });
+
+  button.classList.add("selected");
+  currentBirthChord = intention;
+  renderBirthChord(intention);
+  playBirthChord(intention);
+}
+
+function renderBirthChord(intention) {
+  const chord = birthChords[intention];
+
+  if (!chord) return;
+
+  renderVoiceSlot("tenorVoiceSlot", chord.voices.tenor);
+  renderVoiceSlot("leadVoiceSlot", chord.voices.lead);
+  renderVoiceSlot("baritoneVoiceSlot", chord.voices.baritone);
+  renderVoiceSlot("bassVoiceSlot", chord.voices.bass);
+
+  setRingMeter(chord.ring, chord.ringLabel);
+  setBirthChordTone(chord.name, chord.body);
+}
+
+function renderVoiceSlot(slotId, voice) {
+  const slot = document.getElementById(slotId);
+
+  if (!slot) return;
+
+  slot.innerHTML = `
+    <span class="chord-voice-block ${voice.className}">
+      <div>${voice.note}<small>${voice.role.split("/")[0].trim()}</small></div>
+    </span>
+    <span class="voice-role">${voice.role}</span>
+  `;
+}
+
+function playBirthChord(intention) {
+  const chord = birthChords[intention];
+
+  if (!chord) return;
+
+  const ctx = getAudioContext();
+
+  if (ctx.state === "suspended") {
+    ctx.resume();
+  }
+
+  const now = ctx.currentTime;
+  const voices = [
+    chord.voices.bass,
+    chord.voices.baritone,
+    chord.voices.lead,
+    chord.voices.tenor
+  ];
+
+  voices.forEach((voice) => {
+    playSimpleTone(ctx, voice.frequency, now, 2.0, 0.105);
+  });
+
+  ["bassVoiceSlot", "baritoneVoiceSlot", "leadVoiceSlot", "tenorVoiceSlot"].forEach((slotId, index) => {
+    setTimeout(() => pulseVoiceSlot(slotId), index * 70);
+  });
+
+  setRingMeter(chord.ring, chord.ringLabel);
+  setBirthChordTone(chord.name, chord.body);
+  earnChordBadge(chord.badge);
+}
+
+function resetBirthChord() {
+  currentBirthChord = "pull";
+  renderBirthChord("pull");
+
+  document.querySelectorAll("[data-chord-intention]").forEach((btn) => {
+    btn.classList.remove("selected");
+  });
+
+  ["stableChordBadge", "sweetChordBadge", "dominantChordBadge", "suspensionChordBadge"].forEach((id) => {
+    const badge = document.getElementById(id);
+    if (badge) badge.classList.remove("earned");
+  });
+
+  setBirthChordTone(
+    "Ready",
+    "Choose an intention. The voices will form a four-note chord that matches what you want the harmony to do."
+  );
+}
+
+function setRingMeter(percent, label) {
+  const fill = document.getElementById("ringMeterFill");
+  const ringLabel = document.getElementById("ringMeterLabel");
+
+  if (fill) {
+    fill.style.width = `${percent}%`;
+  }
+
+  if (ringLabel) {
+    ringLabel.textContent = label;
+  }
+}
+
+function earnChordBadge(id) {
+  const badge = document.getElementById(id);
+
+  if (badge) {
+    badge.classList.add("earned");
+  }
+}
+
+function pulseChordBirthBlock(id, duration) {
+  const block = document.getElementById(id);
+
+  if (!block) return;
+
+  block.classList.add("playing");
+  setTimeout(() => block.classList.remove("playing"), duration);
+}
+
+function pulseVoiceSlot(slotId) {
+  const slot = document.getElementById(slotId);
+  const block = slot ? slot.querySelector(".chord-voice-block") : null;
+
+  if (!block) return;
+
+  block.classList.add("playing");
+  setTimeout(() => block.classList.remove("playing"), 950);
+}
+
+function setChordBirthCurrentTone(title, body) {
+  const currentTone = document.getElementById("chordBirthCurrentTone");
+
+  if (!currentTone) return;
+
+  currentTone.innerHTML = `
+    <h4>${title}</h4>
+    <p>${body}</p>
+  `;
+}
+
+function setBirthChordTone(title, body) {
+  const currentTone = document.getElementById("birthChordTone");
+
+  if (!currentTone) return;
+
+  currentTone.innerHTML = `
+    <h4>${title}</h4>
+    <p>${body}</p>
+  `;
+}
+
+function handleChordBirthReflectionChoice(button) {
+  const choice = button.dataset.chordBirthReflection;
+  const responseBox = document.getElementById("chordBirthResponseBox");
+
+  document.querySelectorAll("[data-chord-birth-reflection]").forEach((btn) => {
+    btn.classList.remove("selected");
+  });
+
+  button.classList.add("selected");
+
+  const responses = {
+    pile: "Not quite. Notes can happen at the same time without becoming a meaningful chord. A chord is organized relationship.",
+    relationships: "Yes. A chord is chosen relationships. Root, fifth, third, and seventh each do different work.",
+    voices: "Yes. In barbershop, four voices can balance so well that the chord seems to become one ringing sound.",
+    all: "Exactly. A living chord joins structure, feeling, pull, and voice balance into one relationship."
+  };
+
+  responseBox.innerHTML = `
+    <strong>Good noticing.</strong>
+    <p style="margin: 6px 0 0; color: var(--orumi-muted);">${responses[choice]}</p>
+  `;
+
+  responseBox.classList.add("visible");
+}
+
+function renderComposeFeelingLesson() {
+  mainPanel.innerHTML = `
+    <section class="hero">
+      <div class="eyebrow">Lesson 9 · Creation</div>
+      <h2>Compose by Feeling</h2>
+      <p class="hero-question">How do chords become an emotional path?</p>
+    </section>
+
+    <section class="context-card">
+      <div class="eyebrow">Play toolkits · emotional motion</div>
+      <h3>A progression is a path of feeling.</h3>
+
+      <p>
+        You have learned the pieces: root, fifth, third, seventh, suspension, and
+        resolution. Now those pieces become play tools.
+      </p>
+
+      <p>
+        Composition begins when you choose not only what a chord is, but what it
+        is doing in time. A chord can rest, pull, resolve, darken, sweeten, or return.
+      </p>
+
+      <p>
+        Compose by Feeling means choosing the next relationship because of what it
+        makes the listener feel.
+      </p>
+    </section>
+
+    <section class="compose-stage">
+      <article class="compose-card">
+        <span class="toolkit-label">Toolkit 1 · Chord Identifier</span>
+        <h3>Can you identify the chord?</h3>
+        <p>
+          Listen to the mystery chord. Guess its identity, or use the hint lens to
+          inspect the chord through root, third, fifth, and seventh.
+        </p>
+
+        <div class="chord-id-display">
+          <div class="mystery-chord-block" id="mysteryChordBlock">?</div>
+
+          <div class="controls">
+            <button class="btn primary" id="playMysteryChordBtn">Play mystery chord</button>
+            <button class="btn" id="hintMysteryChordBtn">Hint</button>
+            <button class="btn ghost" id="nextMysteryChordBtn">Next chord</button>
+          </div>
+
+          <div class="chord-guess-grid">
+            <button class="chord-guess-btn" data-chord-guess="c">
+              <strong>C</strong>
+              <span>Solid home</span>
+            </button>
+
+            <button class="chord-guess-btn" data-chord-guess="c7">
+              <strong>C7</strong>
+              <span>Activated pull</span>
+            </button>
+
+            <button class="chord-guess-btn" data-chord-guess="f">
+              <strong>F</strong>
+              <span>Resolution</span>
+            </button>
+
+            <button class="chord-guess-btn" data-chord-guess="fm">
+              <strong>Fm</strong>
+              <span>Shadowed color</span>
+            </button>
+
+            <button class="chord-guess-btn" data-chord-guess="c6">
+              <strong>C6</strong>
+              <span>Sweetened home</span>
+            </button>
+
+            <button class="chord-guess-btn" data-chord-guess="csus">
+              <strong>Csus</strong>
+              <span>Waiting</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="current-tone" id="mysteryChordTone">
+          <h4>Ready</h4>
+          <p>
+            Play the mystery chord. Use hints if you want to choose with more confidence.
+          </p>
+        </div>
+
+        <div class="toolkit-badge-row">
+          <span class="toolkit-badge" id="chordIdentifierBadge">Chord identified</span>
+          <span class="toolkit-badge" id="hintLensBadge">Hint lens used</span>
+        </div>
+      </article>
+
+      <article class="compose-card">
+        <span class="toolkit-label">Toolkit 2 · Feeling Mapper</span>
+        <h3>Place the chords into the feeling path</h3>
+        <p>
+          Click a chord card, then click the feeling slot where it belongs. Then
+          play the progression and hear the emotional arc.
+        </p>
+
+        <div class="feeling-slot-grid">
+          <button class="feeling-slot" data-feeling-slot="solid">
+            <strong>1. Solid</strong>
+            <span>The music begins at home.</span>
+          </button>
+
+          <button class="feeling-slot" data-feeling-slot="activated">
+            <strong>2. Activated</strong>
+            <span>The chord gains pull and asks a question.</span>
+          </button>
+
+          <button class="feeling-slot" data-feeling-slot="resolved">
+            <strong>3. Resolved</strong>
+            <span>The pull finds an answer.</span>
+          </button>
+
+          <button class="feeling-slot" data-feeling-slot="shadowed">
+            <strong>4. Shadowed</strong>
+            <span>The answer changes color.</span>
+          </button>
+
+          <button class="feeling-slot" data-feeling-slot="returned">
+            <strong>5. Returned</strong>
+            <span>Home comes back, but with memory.</span>
+          </button>
+        </div>
+
+        <div class="progression-arrow-row">
+          Solid → Activated → Resolved → Shadowed → Returned
+        </div>
+
+        <div class="progression-card-grid">
+          <button class="progression-card-btn" data-progression-card="c-open">
+            <strong>C opening</strong>
+            <span>Home / solid</span>
+          </button>
+
+          <button class="progression-card-btn" data-progression-card="c7">
+            <strong>C7</strong>
+            <span>Pull / activated</span>
+          </button>
+
+          <button class="progression-card-btn" data-progression-card="f">
+            <strong>F</strong>
+            <span>Answer / resolved</span>
+          </button>
+
+          <button class="progression-card-btn" data-progression-card="fm">
+            <strong>Fm</strong>
+            <span>Minor color / shadowed</span>
+          </button>
+
+          <button class="progression-card-btn" data-progression-card="c-return">
+            <strong>C return</strong>
+            <span>Home with memory</span>
+          </button>
+        </div>
+
+        <div class="controls">
+          <button class="btn primary" id="playMappedProgressionBtn">Play my progression</button>
+          <button class="btn" id="playCorrectProgressionBtn">Play correct progression</button>
+          <button class="btn ghost" id="resetFeelingMapBtn">Reset map</button>
+        </div>
+
+        <div class="progression-feedback" id="progressionFeedback">
+          Select a chord card, then place it in a feeling slot.
+        </div>
+
+        <div class="toolkit-badge-row">
+          <span class="toolkit-badge" id="feelingMapperBadge">Feeling path mapped</span>
+          <span class="toolkit-badge" id="progressionPlayerBadge">Progression played</span>
+        </div>
+      </article>
+    </section>
+
+    <section class="reflection-card visible">
+      <h3>What does it mean to compose by feeling?</h3>
+      <p>A progression is not only a sequence of chords. It is a sequence of emotional states.</p>
+
+      <div class="choice-grid">
+        <button class="choice-btn" data-compose-reflection="labels">
+          <strong>Name the chords</strong>
+          <span>Useful, but not the whole art.</span>
+        </button>
+
+        <button class="choice-btn" data-compose-reflection="feeling">
+          <strong>Choose what the listener feels next</strong>
+          <span>This is the heart of the lesson.</span>
+        </button>
+
+        <button class="choice-btn" data-compose-reflection="tools">
+          <strong>Use chords as tools</strong>
+          <span>Rest, pull, resolve, darken, return.</span>
+        </button>
+
+        <button class="choice-btn" data-compose-reflection="all">
+          <strong>All of these together</strong>
+          <span>Name, feel, choose, and move.</span>
+        </button>
+      </div>
+
+      <div class="response-box" id="composeResponseBox"></div>
+
+      <div class="next-panel">
+        <p>
+          You have completed the interval path. The next doorway is play: using
+          Orumi tools to explore, build, and compose.
+        </p>
+        <button class="btn primary" id="completeComposeLessonBtn">Complete lesson</button>
+      </div>
+    </section>
+  `;
+
+  currentMysteryChordIndex = 0;
+  currentMysteryHintIndex = 0;
+  selectedProgressionCard = null;
+  progressionMap = {};
+
+  setupComposeFeelingEvents();
+  renderMysteryChordState();
+}
+
+let currentMysteryChordIndex = 0;
+let currentMysteryHintIndex = 0;
+let selectedProgressionCard = null;
+let progressionMap = {};
+
+const composeChords = {
+  c: {
+    name: "C",
+    feeling: "Solid home",
+    notes: [
+      { note: "C", frequency: 130.81 },
+      { note: "E", frequency: 163.51 },
+      { note: "G", frequency: 196.00 }
+    ],
+    hints: [
+      "Root lens: C is the center.",
+      "Third lens: E gives the chord a bright major feeling.",
+      "Fifth lens: G gives the chord its frame.",
+      "Feeling lens: this chord feels solid and at home."
+    ]
+  },
+  c7: {
+    name: "C7",
+    feeling: "Activated pull",
+    notes: [
+      { note: "C", frequency: 130.81 },
+      { note: "E", frequency: 163.51 },
+      { note: "G", frequency: 196.00 },
+      { note: "Bb", frequency: 233.08 }
+    ],
+    hints: [
+      "Root lens: C is the center.",
+      "Third lens: E makes the chord major.",
+      "Seventh lens: Bb gives the chord a strong pull.",
+      "Feeling lens: this chord asks to move."
+    ]
+  },
+  f: {
+    name: "F",
+    feeling: "Resolved answer",
+    notes: [
+      { note: "F", frequency: 174.61 },
+      { note: "A", frequency: 220.00 },
+      { note: "C", frequency: 261.63 }
+    ],
+    hints: [
+      "Root lens: F is the center.",
+      "Third lens: A gives it major brightness.",
+      "Resolution lens: this chord answers the pull of C7.",
+      "Feeling lens: this chord feels like arrival."
+    ]
+  },
+  fm: {
+    name: "Fm",
+    feeling: "Shadowed answer",
+    notes: [
+      { note: "F", frequency: 174.61 },
+      { note: "Ab", frequency: 207.65 },
+      { note: "C", frequency: 261.63 }
+    ],
+    hints: [
+      "Root lens: F is still the center.",
+      "Third lens: Ab darkens the chord into minor color.",
+      "Feeling lens: this chord is the answer after it changes color.",
+      "Memory lens: it feels tender or bittersweet."
+    ]
+  },
+  c6: {
+    name: "C6",
+    feeling: "Sweetened home",
+    notes: [
+      { note: "C", frequency: 130.81 },
+      { note: "E", frequency: 163.51 },
+      { note: "G", frequency: 196.00 },
+      { note: "A", frequency: 220.00 }
+    ],
+    hints: [
+      "Root lens: C is the center.",
+      "Third lens: E gives major brightness.",
+      "Sixth lens: A adds sweetness.",
+      "Feeling lens: this chord feels warm and old-time."
+    ]
+  },
+  csus: {
+    name: "Csus",
+    feeling: "Waiting",
+    notes: [
+      { note: "C", frequency: 130.81 },
+      { note: "F", frequency: 174.61 },
+      { note: "G", frequency: 196.00 }
+    ],
+    hints: [
+      "Root lens: C is the center.",
+      "Fourth lens: F is waiting where E could resolve.",
+      "Fifth lens: G gives the chord a frame.",
+      "Feeling lens: this chord feels suspended."
+    ]
+  }
+};
+
+const mysteryChordOrder = ["c7", "fm", "c", "f", "c6", "csus"];
+
+const progressionCards = {
+  "c-open": {
+    label: "C opening",
+    chordKey: "c",
+    correctSlot: "solid"
+  },
+  c7: {
+    label: "C7",
+    chordKey: "c7",
+    correctSlot: "activated"
+  },
+  f: {
+    label: "F",
+    chordKey: "f",
+    correctSlot: "resolved"
+  },
+  fm: {
+    label: "Fm",
+    chordKey: "fm",
+    correctSlot: "shadowed"
+  },
+  "c-return": {
+    label: "C return",
+    chordKey: "c",
+    correctSlot: "returned"
+  }
+};
+
+const correctProgressionOrder = ["c-open", "c7", "f", "fm", "c-return"];
+
+function setupComposeFeelingEvents() {
+  document.getElementById("playMysteryChordBtn").addEventListener("click", playCurrentMysteryChord);
+  document.getElementById("hintMysteryChordBtn").addEventListener("click", showMysteryChordHint);
+  document.getElementById("nextMysteryChordBtn").addEventListener("click", nextMysteryChord);
+
+  document.querySelectorAll("[data-chord-guess]").forEach((button) => {
+    button.addEventListener("click", () => handleChordGuess(button));
+  });
+
+  document.querySelectorAll("[data-progression-card]").forEach((button) => {
+    button.addEventListener("click", () => selectProgressionCard(button));
+  });
+
+  document.querySelectorAll("[data-feeling-slot]").forEach((button) => {
+    button.addEventListener("click", () => placeProgressionCard(button));
+  });
+
+  document.getElementById("playMappedProgressionBtn").addEventListener("click", playMappedProgression);
+  document.getElementById("playCorrectProgressionBtn").addEventListener("click", playCorrectProgression);
+  document.getElementById("resetFeelingMapBtn").addEventListener("click", resetFeelingMap);
+
+  document.querySelectorAll("[data-compose-reflection]").forEach((button) => {
+    button.addEventListener("click", () => handleComposeReflectionChoice(button));
+  });
+
+  document.getElementById("completeComposeLessonBtn").addEventListener("click", completeCurrentLesson);
+}
+
+function renderMysteryChordState() {
+  const chordKey = mysteryChordOrder[currentMysteryChordIndex];
+  const chord = composeChords[chordKey];
+
+  document.querySelectorAll("[data-chord-guess]").forEach((button) => {
+    button.classList.remove("selected", "correct", "incorrect");
+  });
+
+  const mysteryBlock = document.getElementById("mysteryChordBlock");
+  if (mysteryBlock) {
+    mysteryBlock.textContent = "?";
+  }
+
+  setMysteryChordTone(
+    "Mystery chord",
+    `Listen for root, third, fifth, and color tones. The feeling may help you name it.`
+  );
+}
+
+function playCurrentMysteryChord() {
+  const chordKey = mysteryChordOrder[currentMysteryChordIndex];
+  playComposeChord(chordKey, 0, 2.0);
+
+  const block = document.getElementById("mysteryChordBlock");
+
+  if (block) {
+    block.classList.add("playing");
+    setTimeout(() => block.classList.remove("playing"), 1000);
+  }
+}
+
+function showMysteryChordHint() {
+  const chordKey = mysteryChordOrder[currentMysteryChordIndex];
+  const chord = composeChords[chordKey];
+  const hint = chord.hints[currentMysteryHintIndex % chord.hints.length];
+
+  currentMysteryHintIndex += 1;
+
+  setMysteryChordTone("Hint lens", hint);
+  earnToolkitBadge("hintLensBadge");
+}
+
+function nextMysteryChord() {
+  currentMysteryChordIndex = (currentMysteryChordIndex + 1) % mysteryChordOrder.length;
+  currentMysteryHintIndex = 0;
+  renderMysteryChordState();
+}
+
+function handleChordGuess(button) {
+  const guess = button.dataset.chordGuess;
+  const chordKey = mysteryChordOrder[currentMysteryChordIndex];
+  const chord = composeChords[chordKey];
+
+  document.querySelectorAll("[data-chord-guess]").forEach((btn) => {
+    btn.classList.remove("selected", "correct", "incorrect");
+  });
+
+  button.classList.add("selected");
+
+  if (guess === chordKey) {
+    button.classList.add("correct");
+    earnToolkitBadge("chordIdentifierBadge");
+
+    const mysteryBlock = document.getElementById("mysteryChordBlock");
+    if (mysteryBlock) {
+      mysteryBlock.textContent = chord.name;
+    }
+
+    setMysteryChordTone(
+      `Correct · ${chord.name}`,
+      `${chord.name} is ${chord.feeling}. You identified the chord by hearing what it does.`
+    );
+
+    playCurrentMysteryChord();
+  } else {
+    button.classList.add("incorrect");
+
+    setMysteryChordTone(
+      "Not quite — use the hint lens",
+      "Try listening for the third first. Is the chord bright, shadowed, sweetened, suspended, or pulling?"
+    );
+  }
+}
+
+function selectProgressionCard(button) {
+  selectedProgressionCard = button.dataset.progressionCard;
+
+  document.querySelectorAll("[data-progression-card]").forEach((btn) => {
+    btn.classList.remove("selected");
+  });
+
+  button.classList.add("selected");
+
+  const card = progressionCards[selectedProgressionCard];
+  const chord = composeChords[card.chordKey];
+
+  setProgressionFeedback(
+    `Selected ${card.label}. Now click the feeling slot where it belongs.`
+  );
+
+  playComposeChord(card.chordKey, 0, 1.3);
+}
+
+function placeProgressionCard(button) {
+  if (!selectedProgressionCard) {
+    setProgressionFeedback("Choose a chord card first, then place it in a feeling slot.");
+    return;
+  }
+
+  const slot = button.dataset.feelingSlot;
+  const card = progressionCards[selectedProgressionCard];
+
+  progressionMap[slot] = selectedProgressionCard;
+
+  button.classList.add("filled");
+  button.classList.remove("correct", "incorrect");
+
+  button.innerHTML = `
+    <strong>${getFeelingSlotTitle(slot)}</strong>
+    <span>${getFeelingSlotDescription(slot)}</span>
+    <span class="placed-chord">${card.label}</span>
+  `;
+
+  if (card.correctSlot === slot) {
+    button.classList.add("correct");
+  } else {
+    button.classList.add("incorrect");
+  }
+
+  checkFeelingMapProgress();
+
+  document.querySelectorAll("[data-progression-card]").forEach((btn) => {
+    btn.classList.remove("selected");
+  });
+
+  selectedProgressionCard = null;
+}
+
+function checkFeelingMapProgress() {
+  const slots = ["solid", "activated", "resolved", "shadowed", "returned"];
+  const allFilled = slots.every((slot) => progressionMap[slot]);
+
+  if (!allFilled) {
+    setProgressionFeedback("Good. Keep placing chords until all five feeling slots are filled.");
+    return;
+  }
+
+  const allCorrect = slots.every((slot) => {
+    const cardKey = progressionMap[slot];
+    return progressionCards[cardKey] && progressionCards[cardKey].correctSlot === slot;
+  });
+
+  if (allCorrect) {
+    earnToolkitBadge("feelingMapperBadge");
+    setProgressionFeedback(
+      "Excellent. You mapped the emotional path: solid → activated → resolved → shadowed → returned."
+    );
+  } else {
+    setProgressionFeedback(
+      "The map is complete, but some chords do not match the feeling yet. Look for the chord that pulls, the chord that resolves, and the chord that darkens."
+    );
+  }
+}
+
+function playMappedProgression() {
+  const slots = ["solid", "activated", "resolved", "shadowed", "returned"];
+  const cardKeys = slots.map((slot) => progressionMap[slot]).filter(Boolean);
+
+  if (cardKeys.length === 0) {
+    setProgressionFeedback("Place at least one chord in the map before playing your progression.");
+    return;
+  }
+
+  const chordKeys = cardKeys.map((cardKey) => progressionCards[cardKey].chordKey);
+  playComposeProgression(chordKeys);
+  earnToolkitBadge("progressionPlayerBadge");
+}
+
+function playCorrectProgression() {
+  const chordKeys = correctProgressionOrder.map((cardKey) => progressionCards[cardKey].chordKey);
+  playComposeProgression(chordKeys);
+  earnToolkitBadge("progressionPlayerBadge");
+
+  setProgressionFeedback(
+    "Correct progression: C opening → C7 → F → Fm → C return. Home, pull, answer, shadow, return."
+  );
+}
+
+function playComposeProgression(chordKeys) {
+  chordKeys.forEach((chordKey, index) => {
+    playComposeChord(chordKey, index * 1.15, 1.25);
+  });
+}
+
+function playComposeChord(chordKey, delaySeconds = 0, duration = 1.6) {
+  const chord = composeChords[chordKey];
+
+  if (!chord) return;
+
+  const ctx = getAudioContext();
+
+  if (ctx.state === "suspended") {
+    ctx.resume();
+  }
+
+  const startTime = ctx.currentTime + delaySeconds;
+
+  chord.notes.forEach((note) => {
+    playSimpleTone(ctx, note.frequency, startTime, duration, 0.105);
+  });
+}
+
+function resetFeelingMap() {
+  selectedProgressionCard = null;
+  progressionMap = {};
+
+  document.querySelectorAll("[data-progression-card]").forEach((button) => {
+    button.classList.remove("selected");
+  });
+
+  document.querySelectorAll("[data-feeling-slot]").forEach((button) => {
+    const slot = button.dataset.feelingSlot;
+
+    button.classList.remove("selected", "filled", "correct", "incorrect");
+    button.innerHTML = `
+      <strong>${getFeelingSlotTitle(slot)}</strong>
+      <span>${getFeelingSlotDescription(slot)}</span>
+    `;
+  });
+
+  setProgressionFeedback("Select a chord card, then place it in a feeling slot.");
+}
+
+function getFeelingSlotTitle(slot) {
+  const titles = {
+    solid: "1. Solid",
+    activated: "2. Activated",
+    resolved: "3. Resolved",
+    shadowed: "4. Shadowed",
+    returned: "5. Returned"
+  };
+
+  return titles[slot] || slot;
+}
+
+function getFeelingSlotDescription(slot) {
+  const descriptions = {
+    solid: "The music begins at home.",
+    activated: "The chord gains pull and asks a question.",
+    resolved: "The pull finds an answer.",
+    shadowed: "The answer changes color.",
+    returned: "Home comes back, but with memory."
+  };
+
+  return descriptions[slot] || "";
+}
+
+function setMysteryChordTone(title, body) {
+  const currentTone = document.getElementById("mysteryChordTone");
+
+  if (!currentTone) return;
+
+  currentTone.innerHTML = `
+    <h4>${title}</h4>
+    <p>${body}</p>
+  `;
+}
+
+function setProgressionFeedback(message) {
+  const feedback = document.getElementById("progressionFeedback");
+
+  if (feedback) {
+    feedback.textContent = message;
+  }
+}
+
+function earnToolkitBadge(id) {
+  const badge = document.getElementById(id);
+
+  if (badge) {
+    badge.classList.add("earned");
+  }
+}
+
+function handleComposeReflectionChoice(button) {
+  const choice = button.dataset.composeReflection;
+  const responseBox = document.getElementById("composeResponseBox");
+
+  document.querySelectorAll("[data-compose-reflection]").forEach((btn) => {
+    btn.classList.remove("selected");
+  });
+
+  button.classList.add("selected");
+
+  const responses = {
+    labels: "Yes, naming helps. But composing by feeling goes beyond naming the chord.",
+    feeling: "Yes. This is the heart of the lesson: choose what the listener feels next.",
+    tools: "Yes. Chords become tools for rest, pull, resolution, shadow, sweetness, and return.",
+    all: "Exactly. Compose by Feeling means naming, hearing, choosing, and moving through emotional relationships."
   };
 
   responseBox.innerHTML = `
