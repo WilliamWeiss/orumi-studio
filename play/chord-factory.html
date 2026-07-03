@@ -321,6 +321,25 @@
       background: #38444a;
     }
 
+    .quality-square.recommended {
+      outline: 2px solid rgba(34,211,238,0.65);
+      outline-offset: -1px;
+    }
+
+    .quality-square.recommended::after {
+      content: "✦";
+      font-size: 8px;
+      position: absolute;
+      top: 3px;
+      right: 4px;
+      color: rgba(34,211,238,0.85);
+      line-height: 1;
+    }
+
+    .quality-square {
+      position: relative;
+    }
+
     .result {
       padding: 12px;
       border-radius: 20px;
@@ -578,7 +597,7 @@
 
     .stack-row {
       display: grid;
-      grid-template-columns: 86px minmax(72px, 1fr);
+      grid-template-columns: 24px 86px minmax(72px, 1fr);
       gap: 9px;
       align-items: center;
       margin-bottom: 8px;
@@ -586,6 +605,35 @@
 
     .stack-row:last-child {
       margin-bottom: 0;
+    }
+
+    .stack-reorder-btns {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .stack-reorder-btn {
+      background: rgba(255,255,255,0.10);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 4px;
+      color: #f5f0e8;
+      cursor: pointer;
+      font-size: 9px;
+      line-height: 1;
+      padding: 2px 4px;
+      opacity: 0.65;
+      transition: opacity 0.15s, background 0.15s;
+    }
+
+    .stack-reorder-btn:hover:not(:disabled) {
+      opacity: 1;
+      background: rgba(255,255,255,0.22);
+    }
+
+    .stack-reorder-btn:disabled {
+      opacity: 0.18;
+      cursor: default;
     }
 
     .stack-lane-label {
@@ -1050,7 +1098,14 @@ h1 {
           <div class="grid mini-voicing-grid" id="voicingGrid"></div>
 
           <div class="mini-characteristic-label">Base Octave</div>
-          <div class="grid mini-octave-grid" id="octaveGrid"></div>
+          <select id="octaveGrid" style="background:#38444a;color:#f5f0e8;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:6px 10px;font-size:13px;font-weight:700;width:100%;cursor:pointer;">
+            <option value="1">Octave 1</option>
+            <option value="2">Octave 2</option>
+            <option value="3">Octave 3</option>
+            <option value="4">Octave 4</option>
+            <option value="5">Octave 5</option>
+            <option value="6">Octave 6</option>
+          </select>
 
           <div class="mini-characteristic-label">Progression</div>
           <button
@@ -1093,6 +1148,10 @@ h1 {
 
       <div class="section note-picker-section">
         <div class="section-title">Customize Notes in Chord</div>
+        <p style="font-size:12px;color:var(--muted);margin:0 0 10px;text-align:center;">
+          Click a note to toggle it (auto-assigned by pitch). Or <strong>drag</strong> a note directly onto a specific voice row in the Current/New panel above to place it exactly where you want — including crossed voices.
+        </p>
+        <div id="octaveCheckboxRow" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:12px;"></div>
         <div id="noteGrid"></div>
       </div>
     </div>
@@ -1136,6 +1195,13 @@ h1 {
     const qualityGrid = document.getElementById("qualityGrid");
     const voicingGrid = document.getElementById("voicingGrid");
     const octaveGrid = document.getElementById("octaveGrid");
+    if (octaveGrid && octaveGrid.tagName === "SELECT") {
+      octaveGrid.addEventListener("change", () => {
+        selectedOctave = parseInt(octaveGrid.value, 10);
+        resetSelectedNotesToFactory();
+        buildAll();
+      });
+    }
     const noteGrid = document.getElementById("noteGrid");
     const selectedNotesRow = document.getElementById("selectedNotesRow");
     const stackComparisonPanel = document.getElementById("stackComparisonPanel");
@@ -1230,9 +1296,12 @@ h1 {
         ? parseInt(params.get("chordOctave"), 10)
         : 3;
 
-    if (![3, 4].includes(selectedOctave)) {
+    if (![2, 3, 4, 5].includes(selectedOctave)) {
       selectedOctave = 3;
     }
+
+    // Octaves to show in the note grid — default 2-5
+    let selectedVisibleOctaves = new Set([2, 3, 4, 5]);
 
     let selectedFamily =
       params.get("family") ||
@@ -1253,6 +1322,7 @@ h1 {
     let chordEditStarted = false;
     let selectedPerspectiveLaneId = null;
     let designEditPayload = null;
+    let userLaneOrder = null; // user-defined lane order (overrides auto-detection)
     let progressionEditContext = null;
     let progressionReturnButton = null;
     let sendProgressionChordToDesignButton = null;
@@ -1659,9 +1729,15 @@ h1 {
       selectedVoicing = 1;
       if (selectedNoteMidis.length) {
         selectedOctave = Math.floor(Math.min(...selectedNoteMidis) / 12) - 1;
-        if (![3, 4].includes(selectedOctave)) {
+        if (![2, 3, 4, 5, 6].includes(selectedOctave)) {
           selectedOctave = selectedNoteMidis[0] < 60 ? 3 : 4;
         }
+        // Auto-set visible octaves to span the range of the incoming notes
+        const minOct = Math.max(1, Math.floor(Math.min(...selectedNoteMidis) / 12) - 1);
+        const maxOct = Math.min(6, Math.floor(Math.max(...selectedNoteMidis) / 12) - 1);
+        selectedVisibleOctaves = new Set();
+        for (let o = minOct; o <= maxOct; o++) selectedVisibleOctaves.add(o);
+        if (selectedVisibleOctaves.size === 0) selectedVisibleOctaves = new Set([2, 3, 4, 5]);
       }
 
       // Treat the Progression chord as the locked/current stack only.
@@ -1832,6 +1908,7 @@ h1 {
       }
 
       designEditPayload = payload;
+      userLaneOrder = null; // reset so auto-detection runs fresh
       selectedPerspectiveLaneId = payload.anchorLaneId || null;
 
       const context = payload.context || {};
@@ -1887,7 +1964,7 @@ h1 {
       selectedOctave =
         Math.floor(selectedNoteMidis[0] / 12) - 1;
 
-      if (![3, 4].includes(selectedOctave)) {
+      if (![2, 3, 4, 5].includes(selectedOctave)) {
         selectedOctave = selectedNoteMidis[0] < 60 ? 3 : 4;
       }
 
@@ -2003,17 +2080,77 @@ h1 {
     }
 
     function getDesignVoiceLanesLowToHigh() {
+      // User-defined order takes highest priority (set via ▲/▼ arrows in stack panel)
+      if (userLaneOrder && userLaneOrder.length) {
+        return [...userLaneOrder];
+      }
+
+      // Prefer laneOrder from payload (index 0 = topmost = highest voice in barbershop)
+      if (designEditPayload && Array.isArray(designEditPayload.laneOrder) && designEditPayload.laneOrder.length) {
+        return [...designEditPayload.laneOrder]
+          .sort((a, b) => a.index - b.index)
+          .map(l => l.id)
+          .reverse();
+      }
+
+      // Use selectedBlocks sorted by actual MIDI pitch (lowest = lowest voice)
+      if (designEditPayload && Array.isArray(designEditPayload.selectedBlocks) && designEditPayload.selectedBlocks.length) {
+        // Separate note blocks from rest blocks
+        const noteBlocks = designEditPayload.selectedBlocks.filter(b => {
+          const midi = midiFromPayloadBlock(b);
+          return Number.isFinite(Number(midi));
+        });
+        const restBlocks = designEditPayload.selectedBlocks.filter(b => {
+          const midi = midiFromPayloadBlock(b);
+          return !Number.isFinite(Number(midi));
+        });
+
+        if (noteBlocks.length > 0) {
+          // Sort notes low-to-high by MIDI pitch
+          const sorted = noteBlocks
+            .slice()
+            .sort((a, b) => Number(midiFromPayloadBlock(a)) - Number(midiFromPayloadBlock(b)));
+
+          const seen = new Set();
+          const laneIds = [];
+          sorted.forEach(b => {
+            if (b.laneId && !seen.has(b.laneId)) {
+              seen.add(b.laneId);
+              laneIds.push(b.laneId);
+            }
+          });
+
+          // Append rest-only lanes at the end (we don't know their pitch order)
+          restBlocks.forEach(b => {
+            if (b.laneId && !seen.has(b.laneId)) {
+              seen.add(b.laneId);
+              laneIds.push(b.laneId);
+            }
+          });
+
+          if (laneIds.length) return laneIds;
+        }
+
+        // All rests — fall back to reversed DS order
+        const seen2 = new Set();
+        const laneIds2 = [];
+        [...designEditPayload.selectedBlocks].reverse().forEach(b => {
+          if (b.laneId && !seen2.has(b.laneId)) {
+            seen2.add(b.laneId);
+            laneIds2.push(b.laneId);
+          }
+        });
+        if (laneIds2.length) return laneIds2;
+      }
+
+      // Last resort: project lanes reversed
       const projectInfo = getDesignProjectForEdit();
       const lanes = projectInfo.project && Array.isArray(projectInfo.project.lanes)
-        ? projectInfo.project.lanes
-        : [];
-      const laneIds = lanes.map(lane => lane && lane.id).filter(Boolean);
+        ? projectInfo.project.lanes : [];
+      const laneIds = lanes.map(l => l && l.id).filter(Boolean);
+      if (laneIds.length) return [...laneIds].reverse();
 
-      const orderedDefaults = DEFAULT_VOICE_LANES_LOW_TO_HIGH.filter(id => laneIds.includes(id));
-      const extras = laneIds.filter(id => !orderedDefaults.includes(id));
-      const result = [...orderedDefaults, ...extras];
-
-      return result.length ? result : DEFAULT_VOICE_LANES_LOW_TO_HIGH.slice();
+      return DEFAULT_VOICE_LANES_LOW_TO_HIGH.slice();
     }
 
     function getBlockAnchorInfo(block, fallbackLaneId = "lead") {
@@ -2274,7 +2411,7 @@ h1 {
       selectedRoot = suggestion.root;
       selectedQuality = suggestion.quality;
       selectedVoicing = 1;
-      selectedOctave = Math.max(3, Math.min(4, Math.floor(Math.min(...suggestion.notes.map(note => note.midi)) / 12) - 1));
+      selectedOctave = Math.max(2, Math.min(5, Math.floor(Math.min(...suggestion.notes.map(note => note.midi)) / 12) - 1));
       selectedNoteMidis = suggestion.notes.map(note => note.midi).sort((a, b) => a - b);
       selectedVoiceAwareSuggestion = JSON.parse(JSON.stringify(suggestion));
       chordEditStarted = true;
@@ -2477,10 +2614,34 @@ h1 {
         ? lowToHigh.filter(laneId => originalByLane.has(laneId))
         : lowToHigh.slice(0, Math.max(1, currentNotes.length));
 
-      const notesLowToHigh = currentNotes.slice().sort((a, b) => a.midi - b.midi);
+      let notesLowToHigh = currentNotes.slice().sort((a, b) => a.midi - b.midi);
+
+      // If we have more lanes than notes, double notes to fill all voices
+      // (barbershop convention: double root first, then fifth)
+      const targetLaneCount = lowToHigh.length;
+      if (notesLowToHigh.length > 0 && notesLowToHigh.length < targetLaneCount) {
+        const pcs = chordPitchClasses(selectedRoot, selectedQuality);
+        const rootPc = pcs[0]; // root is always first interval (0)
+        const fifthPc = pcs.length > 2 ? pcs[2] : pcs[0];
+
+        while (notesLowToHigh.length < targetLaneCount) {
+          // Find the lowest note, double it an octave up preferring root then fifth
+          const lastMidi = notesLowToHigh[notesLowToHigh.length - 1].midi;
+          const rootCandidate = midiForPitchClassNear(rootPc, lastMidi + 5, { above: lastMidi });
+          const fifthCandidate = midiForPitchClassNear(fifthPc, lastMidi + 5, { above: lastMidi });
+          // Pick whichever is closer to a good spacing interval (prefer root doubling)
+          const doubledMidi = rootCandidate;
+          const doubledName = midiToDisplayName(doubledMidi);
+          notesLowToHigh.push({ midi: doubledMidi, displayName: doubledName });
+          notesLowToHigh.sort((a, b) => a.midi - b.midi);
+        }
+      }
+
+      // Use all lanes, not just the ones with original notes
+      const allLanes = lowToHigh.slice(0, Math.max(notesLowToHigh.length, lanesToUse.length));
 
       return notesLowToHigh.map((note, index) => ({
-        laneId: lanesToUse[index] || lowToHigh[index] || "lead",
+        laneId: allLanes[index] || lowToHigh[index] || "lead",
         midi: note.midi,
         displayName: note.displayName
       }));
@@ -2492,8 +2653,11 @@ h1 {
         ...currentStack.map(item => item.laneId),
         ...newStack.map(item => item.laneId)
       ]);
-      const ordered = lowToHigh.filter(laneId => allLaneIds.has(laneId)).reverse();
-      const extras = Array.from(allLaneIds).filter(laneId => !lowToHigh.includes(laneId)).sort();
+
+      // High-to-low for display (top = highest voice)
+      const highToLow = [...lowToHigh].reverse();
+      const ordered = highToLow.filter(laneId => allLaneIds.has(laneId));
+      const extras = Array.from(allLaneIds).filter(laneId => !highToLow.includes(laneId));
       return [...ordered, ...extras];
     }
 
@@ -2575,16 +2739,59 @@ h1 {
         "Replaced " + getLaneLabel(laneId) + " in New with " + midiToDisplayName(Number(midi)) + ".";
     }
 
+    function moveLaneInUserOrder(laneId, direction) {
+      // Build current display order (high-to-low) and find the lane
+      const highToLow = [...getDesignVoiceLanesLowToHigh()].reverse();
+      const idx = highToLow.indexOf(laneId);
+      if (idx === -1) return;
+
+      const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+      if (swapIdx < 0 || swapIdx >= highToLow.length) return;
+
+      [highToLow[idx], highToLow[swapIdx]] = [highToLow[swapIdx], highToLow[idx]];
+
+      // Store as low-to-high (reversed)
+      userLaneOrder = [...highToLow].reverse();
+      renderStackComparison();
+      buildNoteGrid();
+    }
+
     function renderStackRows(container, laneOrder, assignments, comparisonMap = null, stackType = "current") {
       if (!container) return;
       container.innerHTML = "";
       const byLane = new Map(assignments.map(item => [item.laneId, item]));
       const isNewStack = stackType === "new";
+      const isCurrentStack = stackType === "current";
 
-      laneOrder.forEach(laneId => {
+      laneOrder.forEach((laneId, rowIndex) => {
         const row = document.createElement("div");
         row.className = "stack-row";
         row.dataset.laneId = laneId;
+
+        // Reorder buttons (only on current stack)
+        const reorderCell = document.createElement("div");
+        reorderCell.className = "stack-reorder-btns";
+
+        if (isCurrentStack) {
+          const upBtn = document.createElement("button");
+          upBtn.className = "stack-reorder-btn";
+          upBtn.textContent = "▲";
+          upBtn.title = "Move this voice up";
+          upBtn.disabled = rowIndex === 0;
+          upBtn.addEventListener("click", e => { e.stopPropagation(); moveLaneInUserOrder(laneId, "up"); });
+
+          const downBtn = document.createElement("button");
+          downBtn.className = "stack-reorder-btn";
+          downBtn.textContent = "▼";
+          downBtn.title = "Move this voice down";
+          downBtn.disabled = rowIndex === laneOrder.length - 1;
+          downBtn.addEventListener("click", e => { e.stopPropagation(); moveLaneInUserOrder(laneId, "down"); });
+
+          reorderCell.appendChild(upBtn);
+          reorderCell.appendChild(downBtn);
+        }
+
+        row.appendChild(reorderCell);
 
         const label = document.createElement("div");
         label.className = "stack-lane-label";
@@ -3091,6 +3298,11 @@ h1 {
 
       qualityGrid.innerHTML = "";
 
+      const laneCount = (designEditPayload && designEditPayload.laneCount) ||
+        (designEditPayload && Array.isArray(designEditPayload.laneOrder) && designEditPayload.laneOrder.length) ||
+        (designEditPayload && Array.isArray(designEditPayload.selectedBlocks) && designEditPayload.selectedBlocks.length) ||
+        0;
+
       Object.entries(qualities)
         .forEach(([key, quality]) => {
 
@@ -3104,6 +3316,12 @@ h1 {
 
         if (key === selectedQuality) {
           button.classList.add("selected");
+        }
+
+        // Highlight qualities whose note count matches the lane count
+        if (laneCount > 0 && quality.intervals.length === laneCount) {
+          button.classList.add("recommended");
+          button.title = quality.label + " — " + laneCount + " notes, matches your " + laneCount + " lanes";
         }
 
         button.textContent =
@@ -3178,36 +3396,47 @@ h1 {
     }
 
     function buildOctaveGrid() {
+      const select = document.getElementById("octaveGrid");
+      if (!select) return;
+      select.value = String(selectedOctave);
+    }
 
-      octaveGrid.innerHTML = "";
+    function buildOctaveCheckboxRow() {
+      const row = document.getElementById("octaveCheckboxRow");
+      if (!row) return;
+      row.innerHTML = "";
 
-      [3,4].forEach(octave => {
+      [1, 2, 3, 4, 5, 6].forEach(octave => {
+        const label = document.createElement("label");
+        label.style.cssText = "display:flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#f5f0e8;cursor:pointer;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.14);border-radius:8px;padding:5px 10px;user-select:none;";
 
-        const button =
-          document.createElement("button");
-
-        button.classList.add(
-          "square",
-          "octave-square"
-        );
-
-        if (octave === selectedOctave) {
-          button.classList.add("selected");
-        }
-
-        button.textContent =
-          "Octave " + octave;
-
-        button.addEventListener("click", () => {
-
-          selectedOctave = octave;
-
-          resetSelectedNotesToFactory();
-
-          buildAll();
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = selectedVisibleOctaves.has(octave);
+        cb.style.cssText = "accent-color:#22d3ee;width:14px;height:14px;cursor:pointer;";
+        cb.addEventListener("change", () => {
+          if (cb.checked) {
+            selectedVisibleOctaves.add(octave);
+          } else {
+            if (selectedVisibleOctaves.size <= 1) {
+              cb.checked = true; // keep at least one
+              return;
+            }
+            selectedVisibleOctaves.delete(octave);
+          }
+          buildNoteGrid();
         });
 
-        octaveGrid.appendChild(button);
+        const span = document.createElement("span");
+        span.textContent = "Oct " + octave;
+        if (selectedVisibleOctaves.has(octave)) {
+          label.style.borderColor = "rgba(34,211,238,0.5)";
+          label.style.background = "rgba(34,211,238,0.10)";
+        }
+
+        label.appendChild(cb);
+        label.appendChild(span);
+        row.appendChild(label);
       });
     }
 
@@ -3218,7 +3447,9 @@ h1 {
       const chromaticNotes =
         getChromaticFromRoot(selectedKeyRoot);
 
-      [3,4].forEach(octave => {
+      const octavesToShow = [...selectedVisibleOctaves].sort((a, b) => b - a); // high to low
+
+      octavesToShow.forEach(octave => {
 
         const row =
           document.createElement("div");
@@ -4147,6 +4378,21 @@ h1 {
       buildQualityGrid();
       buildVoicingGrid();
       buildOctaveGrid();
+      buildOctaveCheckboxRow();
+
+      // Sync selectedNoteMidis to include auto-doubled notes from stack assignments
+      if (chordEditStarted) {
+        const stackAssignments = getCurrentSelectionStackAssignments();
+        if (stackAssignments.length > 0) {
+          const allMidis = stackAssignments
+            .map(a => Number(a.midi))
+            .filter(m => Number.isFinite(m));
+          if (allMidis.length > 0) {
+            selectedNoteMidis = [...new Set(allMidis)].sort((a, b) => a - b);
+          }
+        }
+      }
+
       buildNoteGrid();
       updateResult();
       renderVoiceAwareSuggestions();

@@ -25,7 +25,7 @@
       color: var(--text);
       margin: 0;
       min-height: 100vh;
-      padding: 24px 18px 80px;
+      padding: 128px 18px 80px;
       box-sizing: border-box;
       user-select: none;
       overflow-x: hidden;
@@ -50,7 +50,7 @@
     .design-studio-mark {
       width: 86px;
       height: 86px;
-      margin: 74px auto 8px;
+      margin: 8px auto 8px;
       display: grid;
       place-items: center;
       border-radius: 24px;
@@ -92,6 +92,18 @@
       stroke-width: 1;
     }
 
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 122px;
+      background: var(--bg);
+      box-shadow: 0 2px 18px rgba(0,0,0,0.35);
+      z-index: 999;
+    }
+
     .top-button {
       position: fixed;
       top: 18px;
@@ -120,11 +132,11 @@
 
     .logo-button {
   position: fixed;
-  top: 24px;
+  top: 12px;
   left: 72px;
   display: inline-flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   text-decoration: none;
   color: #f5f0e8;
   z-index: 1000;
@@ -140,14 +152,14 @@
 }
 
 .logo-button img {
-  width: 125px;
-  height: 125px;
+  width: 50px;
+  height: 50px;
   object-fit: contain;
   display: block;
 }
 
 .logo-button span {
-  font-size: clamp(2rem, 4vw, 3rem);
+  font-size: clamp(1.1rem, 2vw, 1.6rem);
   font-weight: 800;
   letter-spacing: 0.02em;
 }
@@ -288,6 +300,16 @@
       transform: scale(0.96);
       filter: brightness(1.14);
       box-shadow: 0 2px 8px rgba(0,0,0,0.32);
+    }
+
+    .control-button.button-success {
+      animation: buttonSuccess 0.6s ease forwards;
+    }
+
+    @keyframes buttonSuccess {
+      0%   { box-shadow: 0 0 0px rgba(34,211,238,0);   border-color: rgba(34,211,238,0); }
+      25%  { box-shadow: 0 0 18px rgba(34,211,238,0.8); border-color: rgba(34,211,238,0.9); color: #a5f3fc; }
+      100% { box-shadow: 0 0 0px rgba(34,211,238,0);   border-color: inherit; color: inherit; }
     }
 
     .status.status-pulse {
@@ -441,8 +463,9 @@
       border: 1px solid rgba(255,255,255,0.10);
       border-right: none;
       display: flex;
-      flex-direction: column;
-      justify-content: center;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
       padding: 10px;
       box-sizing: border-box;
       font-weight: 900;
@@ -451,6 +474,12 @@
       grid-row: 1 / 3;
     }
 
+    .lane-label-text {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      flex: 1;
+    }
     .lane-label.selected {
       outline: 3px solid rgba(255,255,255,0.85);
       outline-offset: -3px;
@@ -462,6 +491,36 @@
       box-shadow:
         0 0 24px rgba(255,255,255,0.48),
         inset 0 0 0 2px rgba(255,255,255,0.22);
+    }
+
+    .lane-reorder-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin-left: 4px;
+    }
+
+    .lane-reorder-btn {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 4px;
+      color: #fff7ea;
+      cursor: pointer;
+      font-size: 9px;
+      line-height: 1;
+      padding: 2px 4px;
+      opacity: 0.7;
+      transition: opacity 0.15s, background 0.15s;
+    }
+
+    .lane-reorder-btn:hover:not(:disabled) {
+      opacity: 1;
+      background: rgba(255,255,255,0.22);
+    }
+
+    .lane-reorder-btn:disabled {
+      opacity: 0.2;
+      cursor: default;
     }
 
     .drag-ghost.lane-ghost {
@@ -702,6 +761,93 @@
       z-index: 30;
     }
 
+    .orumi-block.generated-rest {
+      opacity: 0.13;
+    }
+
+    .orumi-block.generated-rest .resize-handle {
+      opacity: 0.6;
+      cursor: ew-resize;
+    }
+
+    .orumi-block.generated-rest:hover .resize-handle {
+      opacity: 1;
+    }
+
+    .show-generated-rests .orumi-block.generated-rest {
+      opacity: 0.45;
+      outline: 1px dashed rgba(255,255,255,0.35);
+      outline-offset: -1px;
+    }
+
+    .orumi-block.in-clipboard,
+    .orumi-block.selected.in-clipboard {
+      outline: 4px solid rgba(34,211,238,0.95);
+      outline-offset: 3px;
+      box-shadow:
+        0 0 32px rgba(34,211,238,0.80),
+        0 7px 14px rgba(0,0,0,0.40);
+      z-index: 32;
+    }
+
+    .control-button.clipboard-active {
+      background: rgba(34,211,238,0.22) !important;
+      border-color: rgba(34,211,238,0.60) !important;
+      color: #a5f3fc !important;
+      box-shadow: 0 0 12px rgba(34,211,238,0.40) !important;
+    }
+
+    #bannerStatus {
+      position: fixed;
+      top: 0;
+      right: 190px;
+      height: 66px;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      z-index: 1001;
+      pointer-events: none;
+    }
+
+    .banner-message {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      color: rgba(245,240,232,0.92);
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 999px;
+      padding: 5px 14px;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 320px;
+    }
+
+    .banner-message.visible {
+      opacity: 1;
+    }
+
+    .banner-message.type-clipboard {
+      color: #7dd3fc;
+      background: rgba(56,130,246,0.15);
+      border-color: rgba(99,163,255,0.35);
+    }
+
+    .banner-message.type-success {
+      color: #86efac;
+      background: rgba(34,197,94,0.12);
+      border-color: rgba(74,222,128,0.30);
+    }
+
+    .banner-message.type-warning {
+      color: #fde68a;
+      background: rgba(234,179,8,0.12);
+      border-color: rgba(250,204,21,0.30);
+    }
+
 
     .orumi-block.playing {
       outline: 4px solid rgba(255,235,120,0.98);
@@ -898,14 +1044,17 @@
 
     .app-menu-bar {
       width: min(98vw, 1380px);
-      margin: 0 auto 16px;
+      position: fixed;
+      top: 66px;
+      left: 50%;
+      transform: translateX(-50%);
+      margin: 0 auto;
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
       justify-content: center;
       align-items: center;
-      position: relative;
-      z-index: 900;
+      z-index: 1000;
     }
 
     .menu-group {
@@ -1316,6 +1465,8 @@
 
 <body>
 
+  <div id="bannerStatus"><span class="banner-message" id="bannerMessage"></span></div>
+
   <a
   class="logo-button"
   href="../index.html"
@@ -1505,6 +1656,7 @@
         <button class="control-button secondary" id="addLaneButton">＋ Add Lane</button>
         <button class="control-button secondary" id="insertMeasuresButton">＋ Insert Measures</button>
         <button class="control-button secondary" id="quantizeTimingButton">⌁ Quantize / Clean Timing</button>
+        <button class="control-button secondary" id="insertModeButton">⇥ Insert Mode: Off</button>
         <div class="menu-note">Lane duplicate/delete stay in the Selected Lane panel.</div>
       </div>
     </div>
@@ -1517,6 +1669,7 @@
         <button class="control-button secondary" id="readableViewButton">↔ Readable View</button>
         <button class="control-button secondary" id="goToMeasureButton">📍 Go to Measure</button>
         <button class="control-button secondary" id="showLyricsButton">♩ Show Lyrics</button>
+        <button class="control-button secondary" id="toggleGeneratedRestsButton">☁ Show Rest Fill</button>
       </div>
     </div>
   </nav>  
@@ -1692,6 +1845,9 @@
     let currentProjectId = null;
     let pendingChordChecked = false;
     let blockClipboard = [];
+    let clipboardBlockIds = new Set();
+    let insertMode = false;
+    let showGeneratedRests = false;
     let selectedInsertBeat = 0;
     let playbackState = "stopped";
     let playbackStartTime = 0;
@@ -2007,6 +2163,7 @@
 
       if (showMessage) {
         status.textContent = "Saved “" + project.title + ".”";
+        flashButtonSuccess(document.getElementById("saveButton"));
       }
 
       renderProjectName();
@@ -2251,6 +2408,7 @@
       selectedInsertBeat = 0;
       pausedBeat = 0;
       blockClipboard = [];
+      clipboardBlockIds = new Set();
 
       saveCurrentProjectId();
       localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
@@ -2524,14 +2682,11 @@
         return;
       }
 
-      redoStack.push(JSON.stringify({
-        project,
-        currentProjectId
-      }));
-
+      redoStack.push(JSON.stringify({ project, currentProjectId }));
       const snapshot = JSON.parse(historyStack.pop());
       restoreSnapshot(snapshot);
       status.textContent = "Undid last action.";
+      flashButtonSuccess(document.getElementById("undoButton"));
     }
 
     function redo() {
@@ -2540,18 +2695,12 @@
         return;
       }
 
-      historyStack.push(JSON.stringify({
-        project,
-        currentProjectId
-      }));
-
-      if (historyStack.length > MAX_HISTORY) {
-        historyStack.shift();
-      }
-
+      historyStack.push(JSON.stringify({ project, currentProjectId }));
+      if (historyStack.length > MAX_HISTORY) historyStack.shift();
       const snapshot = JSON.parse(redoStack.pop());
       restoreSnapshot(snapshot);
       status.textContent = "Redid last action.";
+      flashButtonSuccess(document.getElementById("redoButton"));
     }
 
     function normalizeTimeSignature(value) {
@@ -2832,7 +2981,8 @@
           sourceVoice: block.sourceVoice || null,
           chordLabel: block.chordLabel || block.chordSymbol || null,
           chordSymbol: block.chordSymbol || block.chordLabel || null,
-          lyric: block.lyric || null
+          lyric: block.lyric || null,
+          generated: block.generated || false
         };
       });
     }
@@ -2907,6 +3057,7 @@
       selectedInsertBeat = 0;
       pausedBeat = 0;
       blockClipboard = [];
+      clipboardBlockIds = new Set();
       historyStack = [];
       redoStack = [];
 
@@ -3374,16 +3525,73 @@ for (let beat = 0; beat <= maxBeat; beat++) {
     }
 
     function getProjectLength() {
-      if (project.blocks.length === 0) return 8;
+      const realBlocks = project.blocks.filter(b => !b.generated);
+      if (realBlocks.length === 0) return 8;
+      return Math.max(8, ...realBlocks.map(b => b.startBeat + b.durationBeats));
+    }
 
-      return Math.max(
-        8,
-        ...project.blocks.map(block => block.startBeat + block.durationBeats)
-      );
+    function generateRestFill(laneId) {
+      // Remove existing generated rests for this lane
+      project.blocks = project.blocks.filter(b => !(b.laneId === laneId && b.generated));
+
+      const projectEnd = getProjectLength();
+      if (projectEnd <= 0) return;
+
+      const bpm = getBeatsPerMeasure() || 4;
+
+      // Real blocks on this lane sorted by start
+      const realBlocks = project.blocks
+        .filter(b => b.laneId === laneId && !b.generated)
+        .sort((a, b) => Number(a.startBeat) - Number(b.startBeat));
+
+      // Collect gap regions
+      const gaps = [];
+      let cursor = 0;
+      realBlocks.forEach(block => {
+        const start = Number(block.startBeat);
+        if (start > cursor + 0.01) gaps.push({ start: cursor, end: start });
+        cursor = Math.max(cursor, start + Number(block.durationBeats));
+      });
+      if (cursor < projectEnd - 0.01) gaps.push({ start: cursor, end: projectEnd });
+
+      // Slice each gap into measure-aligned chunks
+      gaps.forEach(gap => {
+        let pos = gap.start;
+        while (pos < gap.end - 0.01) {
+          // Snap to next measure boundary or gap end, whichever comes first
+          const measureIndex = Math.floor(pos / bpm);
+          const nextMeasureStart = (measureIndex + 1) * bpm;
+          const chunkEnd = Math.min(nextMeasureStart, gap.end);
+          const dur = snapBeat(chunkEnd - pos);
+          if (dur >= MIN_DURATION) {
+            project.blocks.push({
+              id: createId("rest"),
+              type: "rest",
+              laneId,
+              startBeat: snapBeat(pos),
+              durationBeats: dur,
+              velocity: 0,
+              name: "Rest",
+              voice: null,
+              system: project.context.system,
+              source: "generated",
+              sourceId: null,
+              generated: true
+            });
+          }
+          pos = chunkEnd;
+        }
+      });
+    }
+
+    function syncGeneratedRests() {
+      project.lanes.forEach(lane => generateRestFill(lane.id));
     }
 
     function render() {
       normalizeProject();
+      syncGeneratedRests();
+      document.body.classList.toggle("show-generated-rests", showGeneratedRests);
       renderProjectName();
       populateContextControls();
       createPalette();
@@ -3392,14 +3600,15 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       renderLanes();
       renderInspectors();
 
+      const realBlockCount = project.blocks.filter(b => !b.generated).length;
       projectStatus.textContent =
         project.lanes.length +
         " lane" +
         (project.lanes.length === 1 ? "" : "s") +
         " · " +
-        project.blocks.length +
+        realBlockCount +
         " block" +
-        (project.blocks.length === 1 ? "" : "s") +
+        (realBlockCount === 1 ? "" : "s") +
         " · " +
         getCurrentSystem().label +
         " · " +
@@ -3440,6 +3649,11 @@ for (let beat = 0; beat <= maxBeat; beat++) {
           selectedBlockId = blockId;
         }
       } else {
+        if (clipboardBlockIds.size > 0) {
+          clipboardBlockIds = new Set();
+          blockClipboard = [];
+          clearBannerMessage();
+        }
         selectedBlockIds.clear();
         selectedBlockIds.add(blockId);
         selectedBlockId = blockId;
@@ -3481,8 +3695,14 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         }
 
         label.innerHTML =
+          "<div class='lane-label-text'>" +
           "<div>" + escapeHtml(lane.name) + "</div>" +
-          "<div class='lane-role'>" + escapeHtml(lane.role || "part") + "</div>";
+          "<div class='lane-role'>" + escapeHtml(lane.role || "part") + "</div>" +
+          "</div>" +
+          "<div class='lane-reorder-buttons'>" +
+          "<button class='lane-reorder-btn' data-dir='up' title='Move lane up'" + (index === 0 ? " disabled" : "") + ">▲</button>" +
+          "<button class='lane-reorder-btn' data-dir='down' title='Move lane down'" + (index === project.lanes.length - 1 ? " disabled" : "") + ">▼</button>" +
+          "</div>";
 
         label.title = "Click to select this lane. Drag this lane label to the trash to delete the whole track.";
 
@@ -3490,6 +3710,23 @@ for (let beat = 0; beat <= maxBeat; beat++) {
           selectedLaneId = lane.id;
           clearBlockSelection();
           render();
+        });
+
+        label.addEventListener("click", e => {
+          const btn = e.target.closest(".lane-reorder-btn");
+          if (!btn) return;
+          e.stopPropagation();
+          const dir = btn.dataset.dir;
+          const idx = project.lanes.findIndex(l => l.id === lane.id);
+          const swapIdx = dir === "up" ? idx - 1 : idx + 1;
+          if (swapIdx < 0 || swapIdx >= project.lanes.length) return;
+          saveHistory();
+          [project.lanes[idx], project.lanes[swapIdx]] = [project.lanes[swapIdx], project.lanes[idx]];
+          selectedLaneId = lane.id;
+          localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+          render();
+          flashButtonSuccess(btn);
+          flashStatus("Moved " + lane.name + " " + dir + ".");
         });
 
         label.addEventListener("pointerdown", event => {
@@ -3616,6 +3853,10 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         element.classList.add("selected");
       }
 
+      if (clipboardBlockIds.has(block.id)) {
+        element.classList.add("in-clipboard");
+      }
+
       if (activeBlockIds.has(block.id)) {
         element.classList.add("playing");
       }
@@ -3629,6 +3870,12 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
       const intensityHandle = document.createElement("div");
       intensityHandle.classList.add("intensity-handle");
+
+      if (block.generated) {
+        element.classList.add("generated-rest");
+        element.style.pointerEvents = "none";
+        resizeHandle.style.pointerEvents = "auto";
+      }
 
       element.appendChild(resizeHandle);
 
@@ -3657,13 +3904,13 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
         event.preventDefault();
         selectBlock(block.id, block.laneId, false);
-        beginExistingBlockDrag(event, block.id);
+        armBlockDrag(event, block.id);
       });
 
       resizeHandle.addEventListener("pointerdown", event => {
         event.stopPropagation();
         event.preventDefault();
-        selectBlock(block.id, block.laneId, false);
+        if (!block.generated) selectBlock(block.id, block.laneId, false);
         beginResize(event, block.id);
       });
 
@@ -3860,33 +4107,27 @@ for (let beat = 0; beat <= maxBeat; beat++) {
     }
 
     function getVerticalChordSelection() {
-      const selectedBlocks = getNoteBlocksFromSelection();
+      // Get all selected blocks (notes and rests)
+      const allSelected = getSelectedBlocks();
+      if (allSelected.length === 0) return null;
 
-      if (selectedBlocks.length < 2) {
-        return null;
-      }
+      // Must have at least one note
+      const noteBlocks = allSelected.filter(b => b.type === "note");
+      if (noteBlocks.length === 0) return null;
 
-      const laneIds = selectedBlocks.map(block => block.laneId);
-      const uniqueLaneIds = new Set(laneIds);
+      // Must span at least 2 lanes total
+      const uniqueLaneIds = new Set(allSelected.map(b => b.laneId));
+      if (uniqueLaneIds.size < 2) return null;
 
-      if (uniqueLaneIds.size < 2 || uniqueLaneIds.size !== selectedBlocks.length) {
-        return null;
-      }
+      // Check there's temporal overlap among note blocks
+      const overlapStart = Math.max(...noteBlocks.map(b => Number(b.startBeat || 0)));
+      const overlapEnd = Math.min(...noteBlocks.map(b =>
+        Number(b.startBeat || 0) + Number(b.durationBeats || MIN_DURATION)
+      ));
 
-      const overlapStart = Math.max(
-        ...selectedBlocks.map(block => Number(block.startBeat || 0))
-      );
-      const overlapEnd = Math.min(
-        ...selectedBlocks.map(block =>
-          Number(block.startBeat || 0) + Number(block.durationBeats || MIN_DURATION)
-        )
-      );
+      if (overlapEnd <= overlapStart + 0.0001) return null;
 
-      if (overlapEnd <= overlapStart + 0.0001) {
-        return null;
-      }
-
-      return selectedBlocks;
+      return allSelected;
     }
 
     function getSelectedChordAnchorBeat(selectedBlocks) {
@@ -4547,12 +4788,53 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         project.lanes.find(lane => lane.id === perspectiveBlock.laneId) ||
         null;
 
+      // Auto-include blocks for lanes with no selected block at the anchor beat
+      const chordAnchorBeat = getSelectedChordAnchorBeat(selectedBlocks);
+      const lanesAlreadyCovered = new Set(selectedBlocks.map(b => b.laneId));
+      project.lanes.forEach(lane => {
+        if (lanesAlreadyCovered.has(lane.id)) return;
+
+        // Find any block on this lane that covers the anchor beat
+        const coveringBlock = project.blocks.find(b =>
+          b.laneId === lane.id &&
+          Number(b.startBeat) <= chordAnchorBeat + 0.01 &&
+          Number(b.startBeat) + Number(b.durationBeats) > chordAnchorBeat
+        );
+
+        if (coveringBlock) {
+          selectedBlocks.push(coveringBlock);
+        } else {
+          // No block at all — synthesize a rest placeholder so the lane appears in Chord Factory
+          selectedBlocks.push({
+            id: "placeholder-" + lane.id,
+            type: "rest",
+            laneId: lane.id,
+            startBeat: chordAnchorBeat,
+            durationBeats: MIN_DURATION,
+            velocity: 0,
+            name: "Rest",
+            generated: true
+          });
+        }
+      });
+
       const analysis = analyzeSelectedHarmony(selectedBlocks);
       const minStart = Math.min(...selectedBlocks.map(block => Number(block.startBeat || 0)));
       const maxEnd = Math.max(...selectedBlocks.map(block => Number(block.startBeat || 0) + Number(block.durationBeats || MIN_DURATION)));
-      const chordAnchorBeat = getSelectedChordAnchorBeat(selectedBlocks);
       const location = beatToMeasureInfo(chordAnchorBeat);
       const returnFile = window.location.pathname.split("/").pop() || "design-studio.html";
+
+      // Sort blocks by barbershop role order: Tenor → Lead → Baritone → Bass
+      const roleOrder = ["tenor", "lead", "baritone", "bari", "bass"];
+      selectedBlocks.sort((a, b) => {
+        const laneA = project.lanes.find(l => l.id === a.laneId);
+        const laneB = project.lanes.find(l => l.id === b.laneId);
+        const roleA = ((laneA && laneA.role) || "").toLowerCase();
+        const roleB = ((laneB && laneB.role) || "").toLowerCase();
+        const idxA = roleOrder.findIndex(r => roleA.includes(r));
+        const idxB = roleOrder.findIndex(r => roleB.includes(r));
+        return (idxA === -1 ? 99 : idxA) - (idxB === -1 ? 99 : idxB);
+      });
 
       const chordFactoryPayload = {
         version: 1,
@@ -4583,9 +4865,12 @@ for (let beat = 0; beat <= maxBeat; beat++) {
             blockId: block.id,
             laneId: block.laneId,
             laneName: lane ? lane.name : block.laneId,
+            laneRole: lane ? (lane.role || "").toLowerCase() : "",
             midi: block.midi,
             name: block.name || midiToDisplayName(block.midi),
             note: block.name || midiToDisplayName(block.midi),
+            type: block.type,
+            isRest: block.type === "rest",
             startBeat: Number(block.startBeat || 0),
             relativeStartBeat: Number(block.startBeat || 0) - minStart,
             durationBeats: Number(block.durationBeats || MIN_DURATION),
@@ -4603,9 +4888,12 @@ for (let beat = 0; beat <= maxBeat; beat++) {
             laneId: block.laneId,
             lane: block.laneId,
             laneName: lane ? lane.name : block.laneId,
+            laneRole: lane ? (lane.role || "").toLowerCase() : "",
             midi: block.midi,
             name: block.name || midiToDisplayName(block.midi),
             note: block.name || midiToDisplayName(block.midi),
+            type: block.type,
+            isRest: block.type === "rest",
             startBeat: Number(block.startBeat || 0),
             relativeStartBeat: Number(block.startBeat || 0) - minStart,
             durationBeats: Number(block.durationBeats || MIN_DURATION),
@@ -4628,6 +4916,9 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         locationLabel: "M" + location.measure + " beat " + formatBeatValue(location.beatWithinMeasure),
         laneIds: selectedBlocks.map(block => block.laneId)
       };
+
+      // Auto-save project before opening Chord Factory so no unsaved edits are lost
+      saveProject(false);
 
       localStorage.setItem("orumiChordFactoryPayload", JSON.stringify(chordFactoryPayload));
       localStorage.setItem("orumiPendingChordFactoryPayload", JSON.stringify(chordFactoryPayload));
@@ -5098,6 +5389,14 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       copyButton.addEventListener("click", copySelectedBlock);
       blockInspector.appendChild(copyButton);
 
+      const closeGapButton = document.createElement("button");
+      closeGapButton.classList.add("control-button", "secondary");
+      closeGapButton.style.marginTop = "8px";
+      closeGapButton.textContent = "⇤ Close Gap After";
+      closeGapButton.title = "Shift all blocks to the right of this one on the same lane leftward to close any gap.";
+      closeGapButton.addEventListener("click", e => closeGapAfterBlock(block, e.currentTarget));
+      blockInspector.appendChild(closeGapButton);
+
       const deleteButton = document.createElement("button");
       deleteButton.classList.add("control-button", "danger");
       deleteButton.style.marginTop = "8px";
@@ -5114,6 +5413,36 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       });
 
       blockInspector.appendChild(deleteButton);
+    }
+
+    function closeGapAfterBlock(block, sourceBtn) {
+      const blockEnd = Number(block.startBeat) + Number(block.durationBeats);
+      const lanBlocks = project.blocks
+        .filter(b => b.laneId === block.laneId && b.id !== block.id && !b.generated)
+        .sort((a, b) => Number(a.startBeat) - Number(b.startBeat));
+
+      const nextBlock = lanBlocks.find(b => Number(b.startBeat) >= blockEnd);
+      if (!nextBlock) {
+        flashStatus("No blocks to the right of this one.");
+        return;
+      }
+
+      const gap = Number(nextBlock.startBeat) - blockEnd;
+      if (gap <= 0.0001) {
+        flashStatus("No gap to close.");
+        return;
+      }
+
+      saveHistory();
+      project.blocks.forEach(b => {
+        if (b.laneId === block.laneId && !b.generated && Number(b.startBeat) >= Number(nextBlock.startBeat)) {
+          b.startBeat = snapBeat(Number(b.startBeat) - gap);
+        }
+      });
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+      render();
+      flashButtonSuccess(sourceBtn);
+      flashStatus("Closed gap of " + formatBeatValue(gap) + " beat" + (gap === 1 ? "" : "s") + ". Undo is available.");
     }
 
     function copySelectedBlock() {
@@ -5147,6 +5476,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       const selectedBlocks = getSelectedBlocks();
 
       if (selectedBlocks.length === 0) {
+        showBannerMessage("Select one or more blocks to copy.", "warning");
         status.textContent = "Select one or more blocks to copy.";
         return;
       }
@@ -5158,11 +5488,18 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         relativeStartBeat: Number(block.startBeat || 0) - minStart
       }));
 
-      status.textContent =
-        selectedBlocks.length +
-        " block" +
-        (selectedBlocks.length === 1 ? "" : "s") +
-        " copied to phrase clipboard.";
+      clipboardBlockIds = new Set(selectedBlocks.map(b => b.id));
+
+      const count = selectedBlocks.length;
+      const msg = "📋 " + count + " block" + (count === 1 ? "" : "s") + " copied";
+      status.textContent = msg;
+      showBannerMessage(msg, "clipboard", true);
+
+      const copyBtn = document.getElementById("copySelectionButton");
+      if (copyBtn) copyBtn.classList.add("clipboard-active");
+      flashButtonSuccess(copyBtn);
+
+      render();
     }
 
     function selectMeasureRange() {
@@ -5289,15 +5626,38 @@ for (let beat = 0; beat <= maxBeat; beat++) {
     }
 
 
+    function getLaneLength(laneId) {
+      const laneBlocks = project.blocks.filter(b => b.laneId === laneId && !b.generated);
+      if (laneBlocks.length === 0) return 0;
+      return Math.max(...laneBlocks.map(b => Number(b.startBeat || 0) + Number(b.durationBeats || 0)));
+    }
+
+    function clearClipboardAfterPaste(pastedCount) {
+      clipboardBlockIds = new Set();
+      blockClipboard = [];
+      const copyBtn = document.getElementById("copySelectionButton");
+      if (copyBtn) copyBtn.classList.remove("clipboard-active");
+      ["pasteSelectionButton", "pasteAtMeasureButton", "insertPasteAtLocationButton"].forEach(id => {
+        flashButtonSuccess(document.getElementById(id));
+      });
+      const msg = "✓ " + pastedCount + " block" + (pastedCount === 1 ? "" : "s") + " pasted";
+      showBannerMessage(msg, "success");
+      if (status) status.textContent = msg;
+    }
+
     function pasteClipboardAtEnd() {
       if (!blockClipboard || blockClipboard.length === 0) {
+        showBannerMessage("Copy a block or selection first.", "warning");
         status.textContent = "Copy a block or selection first.";
         return;
       }
 
       saveHistory();
 
-      const pasteStart = getProjectLength() + 0.5;
+      const clipboardLaneIds = [...new Set(blockClipboard.map(item => item.laneId))];
+      const isSingleLaneCopy = clipboardLaneIds.length === 1;
+      const targetLaneId = isSingleLaneCopy ? clipboardLaneIds[0] : selectedLaneId;
+      const pasteStart = targetLaneId ? getLaneLength(targetLaneId) : getProjectLength();
       const newIds = [];
 
       blockClipboard.forEach(item => {
@@ -5308,39 +5668,57 @@ for (let beat = 0; beat <= maxBeat; beat++) {
           source: item.source || "manual",
           sourceId: item.sourceId || null
         };
-
         delete copy.relativeStartBeat;
-
         project.blocks.push(copy);
         newIds.push(copy.id);
       });
 
       selectedBlockIds = new Set(newIds);
       selectedBlockId = newIds[0] || null;
-
-      const firstBlock = project.blocks.find(block => block.id === selectedBlockId);
-      if (firstBlock) {
-        selectedLaneId = firstBlock.laneId;
-      }
+      const firstBlock = project.blocks.find(b => b.id === selectedBlockId);
+      if (firstBlock) selectedLaneId = firstBlock.laneId;
 
       localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+      clearClipboardAfterPaste(newIds.length);
       render();
+    }
 
-      status.textContent =
-        newIds.length +
-        " copied block" +
-        (newIds.length === 1 ? "" : "s") +
-        " pasted at end.";
+    function confirmAndAdjustPasteLocation() {
+      const info = beatToMeasureInfo(getSelectedLocationBeat());
+
+      const measureAnswer = window.prompt(
+        "Paste at — measure number:\n\nCurrent selected location: " + getSelectedLocationLabel(),
+        String(info.measure)
+      );
+      if (measureAnswer === null) { status.textContent = "Paste cancelled."; return null; }
+
+      const measure = Math.max(1, Math.round(Number(measureAnswer)));
+      if (!Number.isFinite(measure)) { status.textContent = "Paste cancelled."; return null; }
+
+      const beatAnswer = window.prompt(
+        "Paste at — beat within measure:\n\nUse decimals if needed, such as 2.5 or 3.75.",
+        formatBeatValue(info.beatWithinMeasure)
+      );
+      if (beatAnswer === null) { status.textContent = "Paste cancelled."; return null; }
+
+      const beatWithinMeasure = Math.max(1, Number(beatAnswer));
+      if (!Number.isFinite(beatWithinMeasure)) { status.textContent = "Paste cancelled."; return null; }
+
+      const absoluteBeat = snapBeat(getMeasureStartBeat(measure) + (beatWithinMeasure - 1));
+      selectedInsertBeat = absoluteBeat;
+      render();
+      status.textContent = "Paste location set: " + getSelectedLocationLabel() + ".";
+      return absoluteBeat;
     }
 
     function pasteClipboardAtSelectedMeasure() {
       if (!blockClipboard || blockClipboard.length === 0) {
+        showBannerMessage("Copy a block or selection first.", "warning");
         status.textContent = "Copy a block or selection first.";
         return;
       }
 
       saveHistory();
-
       const pasteStart = getSelectedLocationBeat();
       const newIds = [];
 
@@ -5352,31 +5730,19 @@ for (let beat = 0; beat <= maxBeat; beat++) {
           source: item.source || "manual",
           sourceId: item.sourceId || null
         };
-
         delete copy.relativeStartBeat;
-
         project.blocks.push(copy);
         newIds.push(copy.id);
       });
 
       selectedBlockIds = new Set(newIds);
       selectedBlockId = newIds[0] || null;
-
-      const firstBlock = project.blocks.find(block => block.id === selectedBlockId);
-      if (firstBlock) {
-        selectedLaneId = firstBlock.laneId;
-      }
+      const firstBlock = project.blocks.find(b => b.id === selectedBlockId);
+      if (firstBlock) selectedLaneId = firstBlock.laneId;
 
       localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+      clearClipboardAfterPaste(newIds.length);
       render();
-
-      status.textContent =
-        newIds.length +
-        " copied block" +
-        (newIds.length === 1 ? "" : "s") +
-        " pasted at selected location " +
-        getSelectedLocationLabel() +
-        ".";
     }
 
     function getClipboardPhraseLength() {
@@ -5410,6 +5776,9 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         status.textContent = "Copied phrase has no usable length.";
         return;
       }
+
+      const adjustedBeat = confirmAndAdjustPasteLocation();
+      if (adjustedBeat === null) return;
 
       const scopeAnswer = window.prompt(
         "Insert paste how?\n\n" +
@@ -5503,24 +5872,8 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       }
 
       localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+      clearClipboardAfterPaste(newIds.length);
       render();
-
-      status.textContent =
-        "Inserted " +
-        newIds.length +
-        " copied block" +
-        (newIds.length === 1 ? "" : "s") +
-        " at " +
-        locationLabel +
-        ", making " +
-        formatBeatValue(phraseLength) +
-        " beat" +
-        (Math.abs(phraseLength - 1) < 0.0001 ? "" : "s") +
-        " of space. Shifted " +
-        shiftedCount +
-        " later block" +
-        (shiftedCount === 1 ? "" : "s") +
-        ". Undo is available.";
     }
 
     function deleteSelectedBlocks() {
@@ -5552,7 +5905,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
       localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
       render();
-
+      flashButtonSuccess(document.getElementById("deleteSelectionButton"));
       status.textContent =
         "Deleted " +
         deleteIds.size +
@@ -5689,6 +6042,9 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         return;
       }
 
+      const adjustedBeat = confirmAndAdjustPasteLocation();
+      if (adjustedBeat === null) return;
+
       pasteClipboardAtSelectedMeasure();
     }
 
@@ -5729,7 +6085,8 @@ for (let beat = 0; beat <= maxBeat; beat++) {
     }
 
     function selectStackAtBeat(beat, label, anchorBlockId = null) {
-      const stackBlocks = getBlocksActiveAtBeat(beat);
+      // Get note blocks active at this beat
+      let stackBlocks = getBlocksActiveAtBeat(beat);
 
       if (stackBlocks.length === 0) {
         clearBlockSelection();
@@ -5738,9 +6095,47 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         return;
       }
 
+      // For lanes not covered by a note at this beat, look within ±1 beat tolerance
+      // and also include any rest block covering the beat
+      const bpm = getBeatsPerMeasure() || 4;
+      const tolerance = Math.min(1, bpm / 4);
+      const coveredLanes = new Set(stackBlocks.map(b => b.laneId));
+
+      project.lanes.forEach(lane => {
+        if (coveredLanes.has(lane.id)) return;
+
+        // First: exact-beat coverage (any block type)
+        const exactBlock = project.blocks.find(b =>
+          b.laneId === lane.id &&
+          Number(b.startBeat) <= beat + 0.001 &&
+          Number(b.startBeat) + Number(b.durationBeats) > beat + 0.001
+        );
+        if (exactBlock) {
+          stackBlocks.push(exactBlock);
+          coveredLanes.add(lane.id);
+          return;
+        }
+
+        // Second: note within tolerance window
+        const nearbyNote = project.blocks
+          .filter(b =>
+            b.laneId === lane.id &&
+            b.type === "note" &&
+            !b.generated &&
+            Math.abs(Number(b.startBeat) - beat) <= tolerance
+          )
+          .sort((a, b) => Math.abs(Number(a.startBeat) - beat) - Math.abs(Number(b.startBeat) - beat))[0];
+
+        if (nearbyNote) {
+          stackBlocks.push(nearbyNote);
+          coveredLanes.add(lane.id);
+        }
+      });
+
       const anchorBlock =
         (anchorBlockId && stackBlocks.find(block => block.id === anchorBlockId)) ||
         (selectedBlockId && stackBlocks.find(block => block.id === selectedBlockId)) ||
+        stackBlocks.find(b => b.type === "note") ||
         stackBlocks[0];
 
       selectedBlockIds = new Set(stackBlocks.map(block => block.id));
@@ -5750,18 +6145,16 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
       render();
 
+      const noteCount = stackBlocks.filter(b => b.type === "note").length;
+      const restCount = stackBlocks.length - noteCount;
       const anchorLane = project.lanes.find(lane => lane.id === anchorBlock.laneId);
 
       status.textContent =
-        "Selected " +
-        stackBlocks.length +
-        " active note" +
-        (stackBlocks.length === 1 ? "" : "s") +
-        " at " +
-        label +
+        "Selected " + noteCount + " note" + (noteCount === 1 ? "" : "s") +
+        (restCount > 0 ? " (+" + restCount + " rest" + (restCount === 1 ? "" : "s") + ")" : "") +
+        " at " + label +
         ". Perspective: " +
-        (anchorLane ? anchorLane.name : anchorBlock.laneId || "selected note") +
-        ".";
+        (anchorLane ? anchorLane.name : anchorBlock.laneId || "selected note") + ".";
     }
 
     function selectStackAtSelectedBeat() {
@@ -6007,6 +6400,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       laneInspector.appendChild(playSelectedLaneButton);
 
       const sendLaneToPlayerButton = document.createElement("button");
+      sendLaneToPlayerButton.classList.add("control-button", "secondary");
       sendLaneToPlayerButton.textContent = "↗ Send Lane to Player";
       sendLaneToPlayerButton.title = "Send all notes in this lane to Player for editing.";
       sendLaneToPlayerButton.style.marginTop = "8px";
@@ -6015,6 +6409,15 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         beginSendLaneToPlayer();
       });
       laneInspector.appendChild(sendLaneToPlayerButton);
+
+      const clearLaneButton = document.createElement("button");
+      clearLaneButton.classList.add("control-button", "danger");
+      clearLaneButton.style.marginTop = "8px";
+      clearLaneButton.textContent = "✕ Clear Lane";
+      clearLaneButton.title = "Remove all notes from this lane without deleting the lane or its voice assignment.";
+      clearLaneButton.disabled = project.blocks.filter(b => b.laneId === lane.id).length === 0;
+      clearLaneButton.addEventListener("click", e => clearSelectedLane(lane.id, e.currentTarget));
+      laneInspector.appendChild(clearLaneButton);
 
       const duplicateLaneButton = document.createElement("button");
       duplicateLaneButton.classList.add("control-button", "secondary");
@@ -6036,6 +6439,36 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       });
 
       laneInspector.appendChild(deleteLaneButton);
+    }
+
+    function clearSelectedLane(laneId, sourceBtn) {
+      const lane = project.lanes.find(l => l.id === laneId);
+      if (!lane) return;
+
+      const blockCount = project.blocks.filter(b => b.laneId === laneId).length;
+      if (blockCount === 0) {
+        flashStatus(lane.name + " has no notes to clear.");
+        return;
+      }
+
+      const confirmed = window.confirm(
+  "Clear all " + blockCount + " note" + (blockCount === 1 ? "" : "s") +
+  " from \"" + lane.name + "\"?\n\n" +
+  "The lane and its voice assignment will be kept. You can Undo if needed."
+);
+
+      if (!confirmed) {
+        flashStatus("Clear lane cancelled.");
+        return;
+      }
+
+      saveHistory();
+      project.blocks = project.blocks.filter(b => b.laneId !== laneId);
+      clearBlockSelection();
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+      render();
+      flashButtonSuccess(sourceBtn);
+      flashStatus("Cleared " + blockCount + " note" + (blockCount === 1 ? "" : "s") + " from " + lane.name + ". Undo is available.");
     }
 
     function buildNoteOptions(select, currentMidi) {
@@ -6142,6 +6575,42 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
       window.addEventListener("pointermove", handleGlobalPointerMove);
       window.addEventListener("pointerup", handleGlobalPointerUp);
+    }
+
+    const DRAG_THRESHOLD_PX = 4;
+    let pendingBlockDrag = null;
+
+    function armBlockDrag(event, blockId) {
+      pendingBlockDrag = {
+        blockId,
+        startX: event.clientX,
+        startY: event.clientY,
+        pointerId: event.pointerId
+      };
+
+      window.addEventListener("pointermove", handlePendingDragMove);
+      window.addEventListener("pointerup", handlePendingDragRelease);
+    }
+
+    function handlePendingDragMove(event) {
+      if (!pendingBlockDrag) return;
+
+      const dx = event.clientX - pendingBlockDrag.startX;
+      const dy = event.clientY - pendingBlockDrag.startY;
+
+      if (Math.hypot(dx, dy) >= DRAG_THRESHOLD_PX) {
+        const blockId = pendingBlockDrag.blockId;
+        window.removeEventListener("pointermove", handlePendingDragMove);
+        window.removeEventListener("pointerup", handlePendingDragRelease);
+        pendingBlockDrag = null;
+        beginExistingBlockDrag(event, blockId);
+      }
+    }
+
+    function handlePendingDragRelease() {
+      window.removeEventListener("pointermove", handlePendingDragMove);
+      window.removeEventListener("pointerup", handlePendingDragRelease);
+      pendingBlockDrag = null;
     }
 
     function beginExistingBlockDrag(event, blockId) {
@@ -6418,10 +6887,17 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
       const indicator = track.querySelector(".drop-indicator");
 
-      if (target.mode === "replace" && target.blockId) {
+      if (target.mode === "replace" && target.blockId && !insertMode) {
         const blockElement = track.querySelector("[data-block-id='" + target.blockId + "']");
         if (blockElement) {
           blockElement.classList.add("glow-replace");
+        }
+      } else if (target.mode === "replace" && target.blockId && insertMode) {
+        // Insert mode: show insert indicator at the block's start beat instead of replace glow
+        const targetBlock = project.blocks.find(b => b.id === target.blockId);
+        if (targetBlock) {
+          indicator.style.display = "block";
+          indicator.style.left = targetBlock.startBeat * BEAT_WIDTH + "px";
         }
       } else if (target.mode === "insert" || target.mode === "append") {
         indicator.style.display = "block";
@@ -6510,7 +6986,42 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
       saveHistory();
 
-      if (target.mode === "replace" && target.blockId) {
+      if (target.mode === "replace" && target.blockId && insertMode) {
+        // INSERT MODE: place new note at target's beat, shift all later real blocks right
+        const targetBlock = project.blocks.find(block => block.id === target.blockId);
+
+        if (targetBlock) {
+          const insertBeat = snapBeat(targetBlock.startBeat);
+          const newBlock = createBlockFromDragItem(
+            movingItem,
+            targetBlock.laneId,
+            insertBeat,
+            movingExisting ? movingItem.durationBeats : DEFAULT_DURATION,
+            movingExisting ? movingItem.velocity : 82
+          );
+          const shiftBy = newBlock.durationBeats;
+
+          project.blocks.forEach(block => {
+            if (
+              block.laneId === targetBlock.laneId &&
+              !block.generated &&
+              Number(block.startBeat) >= insertBeat - 0.01 &&
+              block.id !== originalBlockId
+            ) {
+              block.startBeat = snapBeat(Number(block.startBeat) + shiftBy);
+            }
+          });
+
+          if (movingExisting) {
+            project.blocks = project.blocks.filter(b => b.id !== originalBlockId);
+          }
+
+          project.blocks.push(newBlock);
+          selectedBlockId = newBlock.id;
+          selectedLaneId = newBlock.laneId;
+          status.textContent = "Block inserted — " + shiftBy + " beat" + (shiftBy === 1 ? "" : "s") + " shifted right. Undo available.";
+        }
+      } else if (target.mode === "replace" && target.blockId) {
         const targetBlock = project.blocks.find(block => block.id === target.blockId);
 
         if (movingExisting && target.blockId === originalBlockId) {
@@ -6842,20 +7353,29 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
       const oldEnd = block.startBeat + block.durationBeats;
       const newEnd = block.startBeat + newDuration;
-      const push = newEnd - oldEnd;
+      const delta = newEnd - oldEnd;
 
       block.durationBeats = newDuration;
 
-      // Push right: shift blocks in same lane that start at or after old end
-      if (push > 0) {
+      if (Math.abs(delta) > 0.001) {
+        // Shift all non-generated blocks on this lane that start at or after the old end
         project.blocks
-          .filter(b => b.id !== block.id && b.laneId === block.laneId && b.startBeat >= oldEnd - 0.001)
-          .forEach(b => { b.startBeat += push; });
+          .filter(b =>
+            b.id !== block.id &&
+            b.laneId === block.laneId &&
+            !b.generated &&
+            b.startBeat >= oldEnd - 0.001
+          )
+          .forEach(b => {
+            b.startBeat = Math.max(
+              block.startBeat + block.durationBeats,
+              snapBeat(b.startBeat + delta)
+            );
+          });
       }
 
       render();
-      status.textContent =
-        "Duration: " + getDurationText(block.durationBeats);
+      status.textContent = "Duration: " + getDurationText(block.durationBeats);
     }
 
     function finishResize() {
@@ -9453,26 +9973,47 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
 
 
-    function flashStatus(message) {
-      status.textContent = message;
+    let bannerFadeTimer = null;
 
-      if (status) {
-        status.classList.remove("status-pulse");
+    function showBannerMessage(message, type = "info", persist = false) {
+      const el = document.getElementById("bannerMessage");
+      if (!el) return;
+      el.textContent = message;
+      el.className = "banner-message visible";
+      if (type === "clipboard") el.classList.add("type-clipboard");
+      else if (type === "success") el.classList.add("type-success");
+      else if (type === "warning") el.classList.add("type-warning");
+      if (bannerFadeTimer) { clearTimeout(bannerFadeTimer); bannerFadeTimer = null; }
+      if (!persist) {
+        bannerFadeTimer = setTimeout(() => {
+          el.classList.remove("visible");
+          bannerFadeTimer = null;
+        }, 3000);
       }
+    }
 
-      if (projectStatus) {
-        projectStatus.classList.remove("status-pulse");
-      }
+    function clearBannerMessage() {
+      const el = document.getElementById("bannerMessage");
+      if (!el) return;
+      if (bannerFadeTimer) { clearTimeout(bannerFadeTimer); bannerFadeTimer = null; }
+      el.classList.remove("visible");
+      const copyBtn = document.getElementById("copySelectionButton");
+      if (copyBtn) copyBtn.classList.remove("clipboard-active");
+    }
 
+    function flashButtonSuccess(el) {
+      if (!el) return;
+      el.classList.remove("button-success");
       window.requestAnimationFrame(() => {
-        if (status) {
-          status.classList.add("status-pulse");
-        }
-
-        if (projectStatus) {
-          projectStatus.classList.add("status-pulse");
-        }
+        el.classList.add("button-success");
+        window.setTimeout(() => el.classList.remove("button-success"), 620);
       });
+    }
+
+    function flashStatus(message, type = "info") {
+      if (status) status.textContent = message;
+      if (projectStatus) projectStatus.textContent = message;
+      showBannerMessage(message, type);
     }
 
     document.addEventListener("pointerdown", event => {
@@ -10737,11 +11278,17 @@ mxmlImportConfirm.addEventListener("click", () => {
 
       xml += `  </part-list>\n`;
 
-      laneOrder.forEach(laneId => {
-        const def = partDefs[laneId];
-        const laneBlocks = project.blocks
-          .filter(b => b.laneId === laneId && b.type !== "rest")
-          .sort((a, b) => a.startBeat - b.startBeat);
+      laneOrder.forEach(role => {
+        const def = partDefs[role];
+        const lane = project.lanes.find(l =>
+          (l.role || "").toLowerCase() === role.toLowerCase() ||
+          (l.name || "").toLowerCase() === role.toLowerCase()
+        );
+        const laneBlocks = lane
+          ? project.blocks
+              .filter(b => b.laneId === lane.id && b.type !== "rest")
+              .sort((a, b) => a.startBeat - b.startBeat)
+          : [];
 
         xml += `  <part id="${def.id}">\n`;
 
@@ -10778,16 +11325,17 @@ mxmlImportConfirm.addEventListener("click", () => {
           measureBlocks.forEach(block => {
             // Rest before note if needed
             if (block.startBeat > cursor + 0.01) {
-              const restDur = Math.round((block.startBeat - cursor) * divisions);
+              const restBeats = block.startBeat - cursor;
+              const restDur = Math.round(restBeats * divisions);
               if (restDur > 0) {
-                xml += `      <note><rest/><duration>${restDur}</duration><voice>1</voice><type>quarter</type></note>\n`;
+                xml += `      <note><rest/><duration>${restDur}</duration><voice>1</voice><type>${durToType(restBeats)}</type></note>\n`;
               }
             }
 
             const dur = Math.max(1, Math.round(block.durationBeats * divisions));
             const noteType = durToType(block.durationBeats);
             const { step, alter, octave } = midiToStepOctave(block.midi);
-            const stemDir = (laneId === "tenor" || laneId === "baritone") ? "up" : "down";
+            const stemDir = (role === "tenor" || role === "baritone") ? "up" : "down";
 
             xml += `      <note>\n`;
             xml += `        <pitch><step>${step}</step>`;
@@ -10808,9 +11356,10 @@ mxmlImportConfirm.addEventListener("click", () => {
 
           // Rest to fill end of measure
           if (cursor < measureEndBeat - 0.01) {
-            const restDur = Math.round((measureEndBeat - cursor) * divisions);
+            const restBeats = measureEndBeat - cursor;
+            const restDur = Math.round(restBeats * divisions);
             if (restDur > 0) {
-              xml += `      <note><rest/><duration>${restDur}</duration><voice>1</voice><type>quarter</type></note>\n`;
+              xml += `      <note><rest/><duration>${restDur}</duration><voice>1</voice><type>${durToType(restBeats)}</type></note>\n`;
             }
           }
 
@@ -10878,11 +11427,17 @@ mxmlImportConfirm.addEventListener("click", () => {
 
       xml += `  </part-list>\n`;
 
-      laneOrder.forEach(laneId => {
-        const def = partDefs[laneId];
-        const laneBlocks = project.blocks
-          .filter(b => b.laneId === laneId && b.type !== "rest")
-          .sort((a, b) => a.startBeat - b.startBeat);
+      laneOrder.forEach(role => {
+        const def = partDefs[role];
+        const lane = project.lanes.find(l =>
+          (l.role || "").toLowerCase() === role.toLowerCase() ||
+          (l.name || "").toLowerCase() === role.toLowerCase()
+        );
+        const laneBlocks = lane
+          ? project.blocks
+              .filter(b => b.laneId === lane.id && b.type !== "rest")
+              .sort((a, b) => a.startBeat - b.startBeat)
+          : [];
 
         xml += `  <part id="${def.id}">\n`;
 
@@ -10914,16 +11469,17 @@ mxmlImportConfirm.addEventListener("click", () => {
 
           measureBlocks.forEach(block => {
             if (block.startBeat > cursor + 0.01) {
-              const restDur = Math.round((block.startBeat - cursor) * divisions);
+              const restBeats = block.startBeat - cursor;
+              const restDur = Math.round(restBeats * divisions);
               if (restDur > 0) {
-                xml += `      <note><rest/><duration>${restDur}</duration><voice>1</voice><type>quarter</type></note>\n`;
+                xml += `      <note><rest/><duration>${restDur}</duration><voice>1</voice><type>${durToType(restBeats)}</type></note>\n`;
               }
             }
 
             const dur = Math.max(1, Math.round(block.durationBeats * divisions));
             const noteType = durToType(block.durationBeats);
             const { step, alter, octave } = midiToStepOctave(block.midi);
-            const stemDir = (laneId === "tenor" || laneId === "baritone") ? "up" : "down";
+            const stemDir = (role === "tenor" || role === "baritone") ? "up" : "down";
 
             xml += `      <note>\n`;
             xml += `        <pitch><step>${step}</step>`;
@@ -10943,9 +11499,10 @@ mxmlImportConfirm.addEventListener("click", () => {
           });
 
           if (cursor < measureEndBeat - 0.01) {
-            const restDur = Math.round((measureEndBeat - cursor) * divisions);
+            const restBeats = measureEndBeat - cursor;
+            const restDur = Math.round(restBeats * divisions);
             if (restDur > 0) {
-              xml += `      <note><rest/><duration>${restDur}</duration><voice>1</voice><type>quarter</type></note>\n`;
+              xml += `      <note><rest/><duration>${restDur}</duration><voice>1</voice><type>${durToType(restBeats)}</type></note>\n`;
             }
           }
 
@@ -11015,6 +11572,26 @@ mxmlImportConfirm.addEventListener("click", () => {
     insertMeasuresButton.addEventListener("click", insertMeasuresAtSelectedPoint);
     quantizeTimingButton.addEventListener("click", quantizeCleanTiming);
     resetViewButton.addEventListener("click", resetView);
+
+    document.getElementById("insertModeButton")?.addEventListener("click", e => {
+      insertMode = !insertMode;
+      const btn = e.currentTarget;
+      btn.textContent = insertMode ? "⇥ Insert Mode: On" : "⇥ Insert Mode: Off";
+      btn.classList.toggle("clipboard-active", insertMode);
+      flashButtonSuccess(btn);
+      flashStatus(insertMode
+        ? "Insert Mode ON — dropping a note pushes later notes right."
+        : "Insert Mode OFF — dropping replaces the target.");
+    });
+
+    document.getElementById("toggleGeneratedRestsButton")?.addEventListener("click", e => {
+      showGeneratedRests = !showGeneratedRests;
+      const btn = e.currentTarget;
+      btn.textContent = showGeneratedRests ? "☁ Hide Rest Fill" : "☁ Show Rest Fill";
+      btn.classList.toggle("clipboard-active", showGeneratedRests);
+      flashButtonSuccess(btn);
+      render();
+    });
     jumpToEndButton.addEventListener("click", jumpToEnd);
     zoomOutButton.addEventListener("click", zoomOutTimeline);
     zoomInButton.addEventListener("click", zoomInTimeline);
