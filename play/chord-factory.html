@@ -1062,6 +1062,14 @@ h1 {
             </button>
 
             <button
+              class="action-button secondary-button"
+              id="copyCurrentToNewButton"
+              title="Copy current chord into New stack so you can tweak individual notes"
+            >
+              ⇒ Copy to New
+            </button>
+
+            <button
               class="action-button primary-play-button"
               id="playChordButton"
               title="Play the new/edited chord selection"
@@ -1149,7 +1157,7 @@ h1 {
       <div class="section note-picker-section">
         <div class="section-title">Customize Notes in Chord</div>
         <p style="font-size:12px;color:var(--muted);margin:0 0 10px;text-align:center;">
-          Click a note to toggle it (auto-assigned by pitch). Or <strong>drag</strong> a note directly onto a specific voice row in the Current/New panel above to place it exactly where you want — including crossed voices.
+          <strong>Click</strong> any note to hear it. <strong>Drag</strong> a note onto a voice row in the New panel above to assign it to that voice.
         </p>
         <div id="octaveCheckboxRow" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:12px;"></div>
         <div id="noteGrid"></div>
@@ -3000,6 +3008,8 @@ h1 {
             return laneA.localeCompare(laneB);
           });
 
+      const noteOnlyBlocks = originalBlocks.filter(b => b.type === "note" || (Number.isFinite(Number(b.midi)) && Number(b.midi) > 0));
+
       const startBeat =
         Number.isFinite(designEditPayload.startBeat)
           ? Number(designEditPayload.startBeat)
@@ -3007,13 +3017,16 @@ h1 {
               ...originalBlocks.map(block => Number(block.startBeat || 0))
             );
 
+      // Use note durations only — rest durations can span whole measures and aren't meaningful
       const durationBeats =
-        Number.isFinite(designEditPayload.durationBeats)
+        Number.isFinite(designEditPayload.durationBeats) && designEditPayload.durationBeats <= 8
           ? Number(designEditPayload.durationBeats)
-          : Math.max(
-              1,
-              ...originalBlocks.map(block => Number(block.durationBeats || 1))
-            );
+          : noteOnlyBlocks.length > 0
+            ? Math.min(...noteOnlyBlocks.map(block => Number(block.durationBeats || 1)))
+            : Math.max(
+                1,
+                ...originalBlocks.map(block => Math.min(Number(block.durationBeats || 1), 8))
+              );
 
       designProject.blocks =
         designProject.blocks.filter(block => !selectedIds.has(block.id));
@@ -3049,7 +3062,7 @@ h1 {
               ? startBeat + Number(original.relativeStartBeat)
               : startBeat,
           durationBeats:
-            Number.isFinite(original.durationBeats)
+            (original.type === "note" || (Number.isFinite(Number(original.midi)) && Number(original.midi) > 0)) && Number.isFinite(original.durationBeats)
               ? Number(original.durationBeats)
               : durationBeats,
           velocity:
@@ -3489,15 +3502,13 @@ h1 {
             pitch.display + octave;
 
           button.draggable = true;
-          button.title =
-            "Click to hear and add/remove, or drag " + pitch.display + octave + " onto the New stack.";
+          button.title = "Click to hear " + pitch.display + octave + ". Drag onto a voice row in the New panel to assign it there.";
           button.addEventListener("dragstart", event => {
             setMidiDragData(event, midi);
           });
 
           button.addEventListener("click", () => {
             playSingleMidiNote(midi, selectedVoice, button);
-            toggleSelectedNote(midi);
           });
 
           row.appendChild(button);
@@ -4371,6 +4382,44 @@ h1 {
 
         buildAll();
       });
+
+    const copyCurrentToNewButton = document.getElementById("copyCurrentToNewButton");
+    if (copyCurrentToNewButton) {
+      copyCurrentToNewButton.addEventListener("click", () => {
+        const currentStack = getPayloadStackAssignments();
+        if (!currentStack.length) {
+          factoryStatus.textContent = "No current chord to copy.";
+          return;
+        }
+
+        // Build a voice-aware suggestion from the current stack
+        selectedVoiceAwareSuggestion = {
+          root: selectedRoot,
+          quality: selectedQuality,
+          qualityLabel: qualities[selectedQuality]?.label || selectedQuality,
+          symbol: selectedRoot + (qualities[selectedQuality]?.symbol || ""),
+          targetLaneId: designEditPayload?.anchorLaneId || currentStack[0]?.laneId || "lead",
+          targetLaneLabel: getLaneLabel(designEditPayload?.anchorLaneId || currentStack[0]?.laneId || "lead"),
+          anchorMidi: currentStack[0]?.midi || 0,
+          anchorMember: "copied from current",
+          customManual: true,
+          notes: currentStack
+            .filter(item => Number.isFinite(Number(item.midi)) && Number(item.midi) > 0)
+            .map(item => ({
+              laneId: item.laneId,
+              midi: Number(item.midi),
+              displayName: item.displayName || midiToDisplayName(Number(item.midi))
+            }))
+        };
+
+        selectedNoteMidis = selectedVoiceAwareSuggestion.notes.map(n => n.midi).sort((a, b) => a - b);
+        chordEditStarted = true;
+        buildAll();
+        factoryStatus.textContent = "Current chord copied to New — adjust as needed, then Apply.";
+      });
+    }
+
+
 
     function buildAll() {
 

@@ -1645,6 +1645,7 @@
         <button class="control-button secondary" id="pasteAtMeasureButton">📍 Paste at Selected Location</button>
         <button class="control-button secondary" id="insertPasteAtLocationButton">⤓ Insert Paste at Selected Location</button>
         <button class="control-button secondary" id="moveSelectionButton">⇥ Move Selection to Selected Location</button>
+        <button class="control-button secondary clipboard-active" id="insertModeButton">⇤ Insert Mode: On</button>
         <button class="control-button danger" id="deleteSelectionButton">🗑 Delete Selection</button>
         <button class="control-button danger" id="clearButton">🗑 Clear Design</button>
       </div>
@@ -1656,7 +1657,6 @@
         <button class="control-button secondary" id="addLaneButton">＋ Add Lane</button>
         <button class="control-button secondary" id="insertMeasuresButton">＋ Insert Measures</button>
         <button class="control-button secondary" id="quantizeTimingButton">⌁ Quantize / Clean Timing</button>
-        <button class="control-button secondary" id="insertModeButton">⇥ Insert Mode: Off</button>
         <div class="menu-note">Lane duplicate/delete stay in the Selected Lane panel.</div>
       </div>
     </div>
@@ -3537,38 +3537,23 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       const projectEnd = getProjectLength();
       if (projectEnd <= 0) return;
 
-      const bpm = getBeatsPerMeasure() || 4;
-
       // Real blocks on this lane sorted by start
       const realBlocks = project.blocks
         .filter(b => b.laneId === laneId && !b.generated)
         .sort((a, b) => Number(a.startBeat) - Number(b.startBeat));
 
-      // Collect gap regions
-      const gaps = [];
+      // Find gaps and fill each with one generated rest
       let cursor = 0;
       realBlocks.forEach(block => {
         const start = Number(block.startBeat);
-        if (start > cursor + 0.01) gaps.push({ start: cursor, end: start });
-        cursor = Math.max(cursor, start + Number(block.durationBeats));
-      });
-      if (cursor < projectEnd - 0.01) gaps.push({ start: cursor, end: projectEnd });
-
-      // Slice each gap into measure-aligned chunks
-      gaps.forEach(gap => {
-        let pos = gap.start;
-        while (pos < gap.end - 0.01) {
-          // Snap to next measure boundary or gap end, whichever comes first
-          const measureIndex = Math.floor(pos / bpm);
-          const nextMeasureStart = (measureIndex + 1) * bpm;
-          const chunkEnd = Math.min(nextMeasureStart, gap.end);
-          const dur = snapBeat(chunkEnd - pos);
+        if (start > cursor + 0.01) {
+          const dur = snapBeat(start - cursor);
           if (dur >= MIN_DURATION) {
             project.blocks.push({
               id: createId("rest"),
               type: "rest",
               laneId,
-              startBeat: snapBeat(pos),
+              startBeat: snapBeat(cursor),
               durationBeats: dur,
               velocity: 0,
               name: "Rest",
@@ -3579,9 +3564,30 @@ for (let beat = 0; beat <= maxBeat; beat++) {
               generated: true
             });
           }
-          pos = chunkEnd;
         }
+        cursor = Math.max(cursor, start + Number(block.durationBeats));
       });
+
+      // Fill gap after last real block to project end
+      if (cursor < projectEnd - 0.01) {
+        const dur = snapBeat(projectEnd - cursor);
+        if (dur >= MIN_DURATION) {
+          project.blocks.push({
+            id: createId("rest"),
+            type: "rest",
+            laneId,
+            startBeat: snapBeat(cursor),
+            durationBeats: dur,
+            velocity: 0,
+            name: "Rest",
+            voice: null,
+            system: project.context.system,
+            source: "generated",
+            sourceId: null,
+            generated: true
+          });
+        }
+      }
     }
 
     function syncGeneratedRests() {
@@ -4107,19 +4113,40 @@ for (let beat = 0; beat <= maxBeat; beat++) {
     }
 
     function getVerticalChordSelection() {
-      // Get all selected blocks (notes and rests)
+      // Get all selected blocks including rests
       const allSelected = getSelectedBlocks();
       if (allSelected.length === 0) return null;
 
-      // Must have at least one note
+      // Must have at least one note block
       const noteBlocks = allSelected.filter(b => b.type === "note");
       if (noteBlocks.length === 0) return null;
 
-      // Must span at least 2 lanes total
-      const uniqueLaneIds = new Set(allSelected.map(b => b.laneId));
-      if (uniqueLaneIds.size < 2) return null;
+      // If only one note selected, auto-include blocks from other lanes at that beat
+      if (noteBlocks.length === 1 || new Set(allSelected.map(b => b.laneId)).size < 2) {
+        const anchorBeat = Number(noteBlocks[0].startBeat || 0);
+        const augmented = [...allSelected];
+        const coveredLanes = new Set(allSelected.map(b => b.laneId));
 
-      // Check there's temporal overlap among note blocks
+        project.lanes.forEach(lane => {
+          if (coveredLanes.has(lane.id)) return;
+          const covering = project.blocks.find(b =>
+            b.laneId === lane.id &&
+            Number(b.startBeat) <= anchorBeat + 0.01 &&
+            Number(b.startBeat) + Number(b.durationBeats) > anchorBeat
+          );
+          if (covering) augmented.push(covering);
+        });
+
+        // Accept if we now have 2+ lanes
+        if (new Set(augmented.map(b => b.laneId)).size >= 2) {
+          return augmented;
+        }
+
+        // Still only one lane — accept anyway so single-note → Chord Factory works
+        return augmented;
+      }
+
+      // Check temporal overlap among note blocks
       const overlapStart = Math.max(...noteBlocks.map(b => Number(b.startBeat || 0)));
       const overlapEnd = Math.min(...noteBlocks.map(b =>
         Number(b.startBeat || 0) + Number(b.durationBeats || MIN_DURATION)
@@ -4172,7 +4199,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
           return Number(a.midi || 0) - Number(b.midi || 0);
         });
 
-      if (selectedBlocks.length < 2) {
+      if (selectedBlocks.length < 1) {
         return [];
       }
 
@@ -4202,7 +4229,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
         const laneIds = new Set(stackBlocks.map(block => block.laneId));
 
-        if (stackBlocks.length < 2 || laneIds.size < 2) {
+        if (stackBlocks.length < 1 || laneIds.size < 1) {
           return;
         }
 
@@ -4233,10 +4260,6 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       const selectedBlocks = getNoteBlocksFromSelection();
 
       if (selectedBlocks.length === 0) {
-        return null;
-      }
-
-      if (getHorizontalPhraseSelection()) {
         return null;
       }
 
@@ -4734,15 +4757,9 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         return;
       }
 
-      if (shape === "horizontal-phrase") {
-        flashStatus("That is a single-line melody phrase. Use Suggest Harmony when you want voice preservation.");
-        beginSuggestHarmonyInProgression();
-        return;
-      }
-
       if (!reviewSelection) {
-        flashStatus("No vertical chord stacks found in that selection.");
-        window.alert("Select at least two notes sounding together across different lanes, or select a measure range across tracks.");
+        flashStatus("No chord stacks found in that selection.");
+        window.alert("Select at least one note, or select a measure range across tracks.");
         return;
       }
 
@@ -4788,34 +4805,18 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         project.lanes.find(lane => lane.id === perspectiveBlock.laneId) ||
         null;
 
-      // Auto-include blocks for lanes with no selected block at the anchor beat
+      // Auto-include generated rests for lanes with no real block at the anchor beat
       const chordAnchorBeat = getSelectedChordAnchorBeat(selectedBlocks);
       const lanesAlreadyCovered = new Set(selectedBlocks.map(b => b.laneId));
       project.lanes.forEach(lane => {
         if (lanesAlreadyCovered.has(lane.id)) return;
-
-        // Find any block on this lane that covers the anchor beat
-        const coveringBlock = project.blocks.find(b =>
+        const genRest = project.blocks.find(b =>
           b.laneId === lane.id &&
-          Number(b.startBeat) <= chordAnchorBeat + 0.01 &&
+          b.generated &&
+          Number(b.startBeat) <= chordAnchorBeat &&
           Number(b.startBeat) + Number(b.durationBeats) > chordAnchorBeat
         );
-
-        if (coveringBlock) {
-          selectedBlocks.push(coveringBlock);
-        } else {
-          // No block at all — synthesize a rest placeholder so the lane appears in Chord Factory
-          selectedBlocks.push({
-            id: "placeholder-" + lane.id,
-            type: "rest",
-            laneId: lane.id,
-            startBeat: chordAnchorBeat,
-            durationBeats: MIN_DURATION,
-            velocity: 0,
-            name: "Rest",
-            generated: true
-          });
-        }
+        if (genRest) selectedBlocks.push(genRest);
       });
 
       const analysis = analyzeSelectedHarmony(selectedBlocks);
@@ -4917,9 +4918,14 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         laneIds: selectedBlocks.map(block => block.laneId)
       };
 
+      // Store current scroll position so we can return to it
+      const shell = document.querySelector(".timeline-shell");
+      const scrollBeat = shell ? shell.scrollLeft / BEAT_WIDTH : 0;
+
       // Auto-save project before opening Chord Factory so no unsaved edits are lost
       saveProject(false);
 
+      localStorage.setItem("orumiChordFactoryScrollBeat", String(scrollBeat));
       localStorage.setItem("orumiChordFactoryPayload", JSON.stringify(chordFactoryPayload));
       localStorage.setItem("orumiPendingChordFactoryPayload", JSON.stringify(chordFactoryPayload));
       localStorage.setItem("orumiDesignStudioProjectForChordFactory", JSON.stringify({
@@ -5117,7 +5123,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
         blockInspector.appendChild(createHarmonyCard(selectedBlocks));
 
-        if (selectionShape === "vertical-chord") {
+        if (selectionShape === "vertical-chord" || (selectedBlocks.some(b => b.type === "note") && getVerticalChordSelection())) {
           const replaceChordButton = document.createElement("button");
           replaceChordButton.classList.add("control-button", "secondary");
           replaceChordButton.style.marginTop = "12px";
@@ -5377,6 +5383,21 @@ for (let beat = 0; beat <= maxBeat; beat++) {
             "secondary",
             analyzePlayheadChord,
             "Select and analyze notes active at the current playhead position"
+          )
+        );
+
+        blockInspector.appendChild(
+          createInspectorActionButton(
+            "✧ Edit Selected Chord",
+            "secondary",
+            () => {
+              // Auto-select the stack at this beat, then open Chord Factory
+              const beat = Number(block.startBeat || 0);
+              const loc = beatToMeasureInfo(beat);
+              selectStackAtBeat(beat, "M" + loc.measure + " beat " + formatBeatValue(loc.beatWithinMeasure), block.id);
+              setTimeout(() => beginReplaceSelectedChord(), 50);
+            },
+            "Open Chord Factory to build or adjust harmony around this note"
           )
         );
       }
@@ -6085,8 +6106,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
     }
 
     function selectStackAtBeat(beat, label, anchorBlockId = null) {
-      // Get note blocks active at this beat
-      let stackBlocks = getBlocksActiveAtBeat(beat);
+      const stackBlocks = getBlocksActiveAtBeat(beat);
 
       if (stackBlocks.length === 0) {
         clearBlockSelection();
@@ -6095,47 +6115,9 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         return;
       }
 
-      // For lanes not covered by a note at this beat, look within ±1 beat tolerance
-      // and also include any rest block covering the beat
-      const bpm = getBeatsPerMeasure() || 4;
-      const tolerance = Math.min(1, bpm / 4);
-      const coveredLanes = new Set(stackBlocks.map(b => b.laneId));
-
-      project.lanes.forEach(lane => {
-        if (coveredLanes.has(lane.id)) return;
-
-        // First: exact-beat coverage (any block type)
-        const exactBlock = project.blocks.find(b =>
-          b.laneId === lane.id &&
-          Number(b.startBeat) <= beat + 0.001 &&
-          Number(b.startBeat) + Number(b.durationBeats) > beat + 0.001
-        );
-        if (exactBlock) {
-          stackBlocks.push(exactBlock);
-          coveredLanes.add(lane.id);
-          return;
-        }
-
-        // Second: note within tolerance window
-        const nearbyNote = project.blocks
-          .filter(b =>
-            b.laneId === lane.id &&
-            b.type === "note" &&
-            !b.generated &&
-            Math.abs(Number(b.startBeat) - beat) <= tolerance
-          )
-          .sort((a, b) => Math.abs(Number(a.startBeat) - beat) - Math.abs(Number(b.startBeat) - beat))[0];
-
-        if (nearbyNote) {
-          stackBlocks.push(nearbyNote);
-          coveredLanes.add(lane.id);
-        }
-      });
-
       const anchorBlock =
         (anchorBlockId && stackBlocks.find(block => block.id === anchorBlockId)) ||
         (selectedBlockId && stackBlocks.find(block => block.id === selectedBlockId)) ||
-        stackBlocks.find(b => b.type === "note") ||
         stackBlocks[0];
 
       selectedBlockIds = new Set(stackBlocks.map(block => block.id));
@@ -6145,16 +6127,18 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
       render();
 
-      const noteCount = stackBlocks.filter(b => b.type === "note").length;
-      const restCount = stackBlocks.length - noteCount;
       const anchorLane = project.lanes.find(lane => lane.id === anchorBlock.laneId);
 
       status.textContent =
-        "Selected " + noteCount + " note" + (noteCount === 1 ? "" : "s") +
-        (restCount > 0 ? " (+" + restCount + " rest" + (restCount === 1 ? "" : "s") + ")" : "") +
-        " at " + label +
+        "Selected " +
+        stackBlocks.length +
+        " active note" +
+        (stackBlocks.length === 1 ? "" : "s") +
+        " at " +
+        label +
         ". Perspective: " +
-        (anchorLane ? anchorLane.name : anchorBlock.laneId || "selected note") + ".";
+        (anchorLane ? anchorLane.name : anchorBlock.laneId || "selected note") +
+        ".";
     }
 
     function selectStackAtSelectedBeat() {
@@ -6910,7 +6894,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       const x = event.clientX - rect.left;
       const beat = Math.max(0, x / BEAT_WIDTH);
       const laneBlocks = project.blocks
-        .filter(block => block.laneId === laneId)
+        .filter(block => block.laneId === laneId && !block.generated)
         .sort((a, b) => a.startBeat - b.startBeat);
 
       for (const block of laneBlocks) {
@@ -7066,20 +7050,40 @@ for (let beat = 0; beat <= maxBeat; beat++) {
           movingExisting ? movingItem.velocity : 82
         );
 
+        if (!movingExisting) {
+          movedBlock.id = createId(movedBlock.type === "rest" ? "rest" : "note");
+        }
+
         if (movingExisting) {
           project.blocks = project.blocks.filter(block => block.id !== originalBlockId);
+        }
+
+        if (insertMode && target.mode !== "append") {
+          const insertBeat = movedBlock.startBeat;
+          const shiftBy = movedBlock.durationBeats;
+          project.blocks.forEach(block => {
+            if (
+              block.laneId === target.laneId &&
+              !block.generated &&
+              block.id !== movedBlock.id &&
+              Number(block.startBeat) >= insertBeat - 0.01
+            ) {
+              block.startBeat = snapBeat(Number(block.startBeat) + shiftBy);
+            }
+          });
+          status.textContent = "Block inserted — later notes shifted right. Undo available.";
+        } else {
+          status.textContent =
+            target.mode === "append"
+              ? "Block added to end of lane."
+              : movingExisting
+                ? "Block moved."
+                : "Block placed.";
         }
 
         project.blocks.push(movedBlock);
         selectedBlockId = movedBlock.id;
         selectedLaneId = movedBlock.laneId;
-
-        status.textContent =
-          target.mode === "append"
-            ? "Block added to end of lane."
-            : movingExisting
-              ? "Block moved."
-              : "Block inserted.";
       }
 
       localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
@@ -11610,6 +11614,18 @@ mxmlImportConfirm.addEventListener("click", () => {
     render();
     if (chordFactoryUndoReady) {
       flashStatus("Chord Factory edit applied. Use Undo if you want to restore the previous chord.");
+
+      // Restore scroll position from before opening Chord Factory
+      const savedScrollBeat = parseFloat(localStorage.getItem("orumiChordFactoryScrollBeat") || "0");
+      localStorage.removeItem("orumiChordFactoryScrollBeat");
+      if (savedScrollBeat > 0) {
+        const shell = document.querySelector(".timeline-shell");
+        if (shell) {
+          requestAnimationFrame(() => {
+            shell.scrollLeft = savedScrollBeat * BEAT_WIDTH;
+          });
+        }
+      }
     }
     applyPendingPlayerReplacement();
     applyPendingPlayerLineImport();
