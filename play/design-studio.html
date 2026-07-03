@@ -3598,23 +3598,37 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       const projectEnd = getProjectLength();
       if (projectEnd <= 0) return;
 
+      const bpm = getBeatsPerMeasure() || 4;
+
       // Real blocks on this lane sorted by start
       const realBlocks = project.blocks
         .filter(b => b.laneId === laneId && !b.generated)
         .sort((a, b) => Number(a.startBeat) - Number(b.startBeat));
 
-      // Find gaps and fill each with one generated rest
+      // Collect gap regions
+      const gaps = [];
       let cursor = 0;
       realBlocks.forEach(block => {
         const start = Number(block.startBeat);
-        if (start > cursor + 0.01) {
-          const dur = snapBeat(start - cursor);
+        if (start > cursor + 0.01) gaps.push({ start: cursor, end: start });
+        cursor = Math.max(cursor, start + Number(block.durationBeats));
+      });
+      if (cursor < projectEnd - 0.01) gaps.push({ start: cursor, end: projectEnd });
+
+      // Slice each gap into measure-aligned chunks
+      gaps.forEach(gap => {
+        let pos = gap.start;
+        while (pos < gap.end - 0.01) {
+          const measureIndex = Math.floor(pos / bpm);
+          const nextMeasureStart = (measureIndex + 1) * bpm;
+          const chunkEnd = Math.min(nextMeasureStart, gap.end);
+          const dur = snapBeat(chunkEnd - pos);
           if (dur >= MIN_DURATION) {
             project.blocks.push({
               id: createId("rest"),
               type: "rest",
               laneId,
-              startBeat: snapBeat(cursor),
+              startBeat: snapBeat(pos),
               durationBeats: dur,
               velocity: 0,
               name: "Rest",
@@ -3625,30 +3639,9 @@ for (let beat = 0; beat <= maxBeat; beat++) {
               generated: true
             });
           }
+          pos = chunkEnd;
         }
-        cursor = Math.max(cursor, start + Number(block.durationBeats));
       });
-
-      // Fill gap after last real block to project end
-      if (cursor < projectEnd - 0.01) {
-        const dur = snapBeat(projectEnd - cursor);
-        if (dur >= MIN_DURATION) {
-          project.blocks.push({
-            id: createId("rest"),
-            type: "rest",
-            laneId,
-            startBeat: snapBeat(cursor),
-            durationBeats: dur,
-            velocity: 0,
-            name: "Rest",
-            voice: null,
-            system: project.context.system,
-            source: "generated",
-            sourceId: null,
-            generated: true
-          });
-        }
-      }
     }
 
     function syncGeneratedRests() {
