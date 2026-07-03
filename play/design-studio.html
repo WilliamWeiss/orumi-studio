@@ -761,6 +761,15 @@
       z-index: 30;
     }
 
+    .orumi-block.overlap-error {
+      outline: 3px solid rgba(255,60,60,0.95) !important;
+      outline-offset: 2px;
+      box-shadow:
+        0 0 24px rgba(255,60,60,0.80),
+        0 7px 14px rgba(0,0,0,0.40) !important;
+      z-index: 40 !important;
+    }
+
     .orumi-block.generated-rest {
       opacity: 0.13;
     }
@@ -1670,6 +1679,7 @@
         <button class="control-button secondary" id="goToMeasureButton">📍 Go to Measure</button>
         <button class="control-button secondary" id="showLyricsButton">♩ Show Lyrics</button>
         <button class="control-button secondary" id="toggleGeneratedRestsButton">☁ Show Rest Fill</button>
+        <button class="control-button secondary" id="findOverlapsButton">🔍 Find Overlapping Notes</button>
       </div>
     </div>
   </nav>  
@@ -3528,6 +3538,57 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       const realBlocks = project.blocks.filter(b => !b.generated);
       if (realBlocks.length === 0) return 8;
       return Math.max(8, ...realBlocks.map(b => b.startBeat + b.durationBeats));
+    }
+
+    let showingOverlaps = false;
+
+    function findAndHighlightOverlaps() {
+      if (showingOverlaps) {
+        showingOverlaps = false;
+        render();
+        flashStatus("Overlap highlight cleared.");
+        const btn = document.getElementById("findOverlapsButton");
+        if (btn) { btn.textContent = "🔍 Find Overlapping Notes"; btn.classList.remove("clipboard-active"); }
+        return;
+      }
+
+      const overlapBlockIds = new Set();
+
+      project.lanes.forEach(lane => {
+        const laneBlocks = project.blocks
+          .filter(b => b.laneId === lane.id && !b.generated)
+          .sort((a, b) => Number(a.startBeat) - Number(b.startBeat));
+
+        for (let i = 0; i < laneBlocks.length; i++) {
+          const a = laneBlocks[i];
+          const aEnd = Number(a.startBeat) + Number(a.durationBeats);
+          for (let j = i + 1; j < laneBlocks.length; j++) {
+            const b = laneBlocks[j];
+            const bStart = Number(b.startBeat);
+            if (bStart >= aEnd - 0.001) break;
+            overlapBlockIds.add(a.id);
+            overlapBlockIds.add(b.id);
+          }
+        }
+      });
+
+      if (overlapBlockIds.size === 0) {
+        flashStatus("No overlapping notes found.");
+        return;
+      }
+
+      showingOverlaps = true;
+      render();
+
+      overlapBlockIds.forEach(id => {
+        const el = document.querySelector("[data-block-id='" + id + "']");
+        if (el) el.classList.add("overlap-error");
+      });
+
+      const btn = document.getElementById("findOverlapsButton");
+      if (btn) { btn.textContent = "🔍 Clear Overlap Highlights"; btn.classList.add("clipboard-active"); }
+
+      flashStatus("Found " + overlapBlockIds.size + " overlapping block" + (overlapBlockIds.size === 1 ? "" : "s") + " (highlighted in red). Click again to clear.");
     }
 
     function generateRestFill(laneId) {
@@ -11586,6 +11647,10 @@ mxmlImportConfirm.addEventListener("click", () => {
       flashStatus(insertMode
         ? "Insert Mode ON — dropping a note pushes later notes right."
         : "Insert Mode OFF — dropping replaces the target.");
+    });
+
+    document.getElementById("findOverlapsButton")?.addEventListener("click", () => {
+      findAndHighlightOverlaps();
     });
 
     document.getElementById("toggleGeneratedRestsButton")?.addEventListener("click", e => {
