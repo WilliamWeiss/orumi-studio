@@ -777,6 +777,7 @@
     .orumi-block.generated-rest .resize-handle {
       opacity: 0.6;
       cursor: ew-resize;
+      pointer-events: auto;
     }
 
     .orumi-block.generated-rest:hover .resize-handle {
@@ -2650,6 +2651,9 @@
       document.addEventListener("click", event => {
         if (!event.target.closest(".menu-group")) {
           menuGroups.forEach(item => item.classList.remove("menu-open"));
+        } else if (event.target.closest(".menu-dropdown")) {
+          // Close menu when any item inside it is clicked
+          menuGroups.forEach(item => item.classList.remove("menu-open"));
         }
       });
 
@@ -3933,8 +3937,6 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
       if (block.generated) {
         element.classList.add("generated-rest");
-        element.style.pointerEvents = "none";
-        resizeHandle.style.pointerEvents = "auto";
       }
 
       element.appendChild(resizeHandle);
@@ -3970,7 +3972,13 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       resizeHandle.addEventListener("pointerdown", event => {
         event.stopPropagation();
         event.preventDefault();
-        if (!block.generated) selectBlock(block.id, block.laneId, false);
+        if (block.generated) {
+          // Convert to real rest before resizing so syncGeneratedRests won't overwrite it
+          saveHistory();
+          block.generated = false;
+          block.source = "manual";
+        }
+        selectBlock(block.id, block.laneId, false);
         beginResize(event, block.id);
       });
 
