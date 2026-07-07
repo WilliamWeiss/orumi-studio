@@ -770,6 +770,37 @@
       z-index: 40 !important;
     }
 
+    .focus-range-overlay {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.55);
+      pointer-events: none;
+      z-index: 20;
+    }
+
+    .focus-exit-pill {
+      position: fixed;
+      top: 130px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(34,211,238,0.92);
+      color: #0f1115;
+      font-size: 13px;
+      font-weight: 800;
+      padding: 7px 20px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      z-index: 2000;
+      box-shadow: 0 4px 18px rgba(34,211,238,0.45);
+      letter-spacing: 0.02em;
+    }
+
+    .focus-exit-pill:hover {
+      background: rgba(34,211,238,1);
+    }
+
     .orumi-block.generated-rest {
       opacity: 0.13;
     }
@@ -1680,6 +1711,7 @@
         <button class="control-button secondary" id="goToMeasureButton">📍 Go to Measure</button>
         <button class="control-button secondary" id="showLyricsButton">♩ Show Lyrics</button>
         <button class="control-button secondary" id="toggleGeneratedRestsButton">☁ Show Rest Fill</button>
+        <button class="control-button secondary" id="focusRangeButton">🔎 Focus Range</button>
         <button class="control-button secondary" id="findOverlapsButton">🔍 Find Overlapping Notes</button>
       </div>
     </div>
@@ -1859,6 +1891,7 @@
     let clipboardBlockIds = new Set();
     let insertMode = false;
     let showGeneratedRests = false;
+    let focusRange = null; // { startBeat, endBeat } when active, null otherwise
     let selectedInsertBeat = 0;
     let playbackState = "stopped";
     let playbackStartTime = 0;
@@ -3623,9 +3656,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       gaps.forEach(gap => {
         let pos = gap.start;
         while (pos < gap.end - 0.01) {
-          const measureIndex = Math.floor(pos / bpm);
-          const nextMeasureStart = (measureIndex + 1) * bpm;
-          const chunkEnd = Math.min(nextMeasureStart, gap.end);
+          const chunkEnd = Math.min(pos + 1, gap.end);
           const dur = snapBeat(chunkEnd - pos);
           if (dur >= MIN_DURATION) {
             project.blocks.push({
@@ -3656,6 +3687,9 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       normalizeProject();
       syncGeneratedRests();
       document.body.classList.toggle("show-generated-rests", showGeneratedRests);
+      if (focusRange) {
+        requestAnimationFrame(() => applyFocusOverlay());
+      }
       renderProjectName();
       populateContextControls();
       createPalette();
@@ -4327,14 +4361,30 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
       const chordGroups = getChordStackGroupsFromSelection(selectedBlocks);
 
-      if (chordGroups.length === 0) {
-        return null;
+      if (chordGroups.length > 0) {
+        return { blocks: selectedBlocks, chordGroups };
       }
 
-      return {
-        blocks: selectedBlocks,
-        chordGroups
-      };
+      // Fallback: sample at measure boundaries within the selection range
+      const bpm = getBeatsPerMeasure() || 4;
+      const minBeat = Math.min(...selectedBlocks.map(b => Number(b.startBeat)));
+      const maxBeat = Math.max(...selectedBlocks.map(b => Number(b.startBeat) + Number(b.durationBeats)));
+      const fallbackGroups = [];
+      const seenSigs = new Set();
+
+      for (let beat = Math.floor(minBeat / bpm) * bpm; beat < maxBeat; beat += bpm) {
+        const stackBlocks = getBlocksAtChordBeat(selectedBlocks, beat + 0.01)
+          .filter(b => b.type === "note" && Number.isFinite(b.midi));
+        if (stackBlocks.length === 0) continue;
+        const sig = stackBlocks.map(b => b.id).sort().join(",");
+        if (seenSigs.has(sig)) continue;
+        seenSigs.add(sig);
+        fallbackGroups.push({ beat: beat + 0.01, blocks: stackBlocks });
+      }
+
+      if (fallbackGroups.length === 0) return null;
+
+      return { blocks: selectedBlocks, chordGroups: fallbackGroups };
     }
 
     function getCurrentSelectionShape() {
@@ -4660,13 +4710,31 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
     function getBlocksAtChordBeat(selectedBlocks, beat) {
       const tolerance = 0.0001;
-      return selectedBlocks.filter(block => {
+
+      // First find selected blocks active at this beat
+      const active = selectedBlocks.filter(block => {
         const start = Number(block.startBeat || 0);
         const end = start + Number(block.durationBeats || MIN_DURATION);
         return start <= beat + tolerance && end > beat + tolerance;
       });
-    }
 
+      // Fill in missing lanes from the full project at this beat
+      const coveredLanes = new Set(active.map(b => b.laneId));
+      project.lanes.forEach(lane => {
+        if (coveredLanes.has(lane.id)) return;
+        const covering = project.blocks.find(b =>
+          b.laneId === lane.id &&
+          b.type === "note" &&
+          !b.generated &&
+          Number.isFinite(b.midi) &&
+          Number(b.startBeat) <= beat + tolerance &&
+          Number(b.startBeat) + Number(b.durationBeats) > beat + tolerance
+        );
+        if (covering) active.push(covering);
+      });
+
+      return active;
+    }
     function buildProgressionReviewPayload(selectedBlocks) {
       const noteBlocks = selectedBlocks
         .filter(block => block.type === "note" && Number.isFinite(block.midi))
@@ -9828,6 +9896,25 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         return;
       }
 
+      if (focusRange) {
+        // In focus mode: only play blocks within the focus range
+        const startBeat = playbackState === "paused" && pausedBeat >= focusRange.startBeat
+          ? pausedBeat
+          : focusRange.startBeat;
+        const focusBlocks = project.blocks.filter(b =>
+          !b.generated &&
+          Number(b.startBeat) < focusRange.endBeat &&
+          Number(b.startBeat) + Number(b.durationBeats) > focusRange.startBeat
+        );
+        playBlocks(
+          focusBlocks,
+          "Playing focus range beats " + focusRange.startLabel + "–" + focusRange.endLabel + ".",
+          "Focus range playback complete.",
+          startBeat
+        );
+        return;
+      }
+
       const startBeat = playbackState === "paused" ? pausedBeat : 0;
       playBlocks(project.blocks, "Playing Design Studio.", "Playback complete.", startBeat);
     }
@@ -9955,6 +10042,123 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       const maxBeat = Math.max(12, Math.ceil(getProjectLength()) + 4);
       return Math.max(1040, 104 + ((maxBeat + 2) * BEAT_WIDTH) + 40);
     }
+
+
+    function enterFocusRange() {
+      const shell = document.querySelector(".timeline-shell");
+      if (!shell) return;
+
+      // Use selected location as center, or prompt for a measure range
+      const bpm = getBeatsPerMeasure() || 4;
+      const answer = window.prompt(
+        "Focus on beats — enter start and end beat numbers as shown on the ruler\n(e.g. \"16-30\" to focus from beat 16 through beat 30):",
+        ""
+      );
+      if (!answer) return;
+
+      const parts = answer.split(/[-–—]/);
+      if (parts.length < 2) {
+        flashStatus("Enter a range like '11-25'.");
+        return;
+      }
+
+      const startLabel = parts[0].trim();
+      const endLabel = parts[1].trim();
+      const startBeat = Math.max(0, Number(startLabel) - 1);
+      const endBeat = Math.max(startBeat + 1, Number(endLabel));
+
+      if (!Number.isFinite(startBeat) || !Number.isFinite(endBeat)) {
+        flashStatus("Invalid beat range.");
+        return;
+      }
+
+      focusRange = { startBeat, endBeat, startLabel, endLabel };
+
+      // Scroll to start of range without changing zoom
+      requestAnimationFrame(() => {
+        shell.scrollLeft = Math.max(0, startBeat * BEAT_WIDTH - 40);
+        applyFocusOverlay();
+      });
+
+      flashStatus("Focused on beats " + startLabel + "–" + endLabel + ". Press Escape or click Exit Focus to return.");
+
+      const btn = document.getElementById("focusRangeButton");
+      if (btn) { btn.textContent = "🔎 Exit Focus"; btn.classList.add("clipboard-active"); }
+    }
+
+    function exitFocusRange() {
+      focusRange = null;
+      removeFocusOverlay();
+      render();
+      flashStatus("Focus mode exited.");
+      const btn = document.getElementById("focusRangeButton");
+      if (btn) { btn.textContent = "🔎 Focus Range"; btn.classList.remove("clipboard-active"); }
+    }
+
+    function applyFocusOverlay() {
+      if (!focusRange) return;
+      removeFocusOverlay();
+
+      const lanesContainer = document.getElementById("lanesContainer");
+      const anchor = lanesContainer || document.getElementById("timeline");
+      if (!anchor) return;
+
+      const firstTrack = anchor.querySelector(".lane-track");
+      let beatZeroOffset = 0;
+      if (firstTrack) {
+        const anchorRect = anchor.getBoundingClientRect();
+        const trackRect = firstTrack.getBoundingClientRect();
+        beatZeroOffset = trackRect.left - anchorRect.left;
+      }
+
+      // Expand focus boundaries to include any block that overlaps the range
+      const overlapping = project.blocks.filter(b =>
+        !b.generated &&
+        Number(b.startBeat) < focusRange.endBeat &&
+        Number(b.startBeat) + Number(b.durationBeats) > focusRange.startBeat
+      );
+
+      const visualStart = overlapping.length > 0
+        ? Math.min(...overlapping.map(b => Number(b.startBeat)))
+        : focusRange.startBeat;
+
+      const visualEnd = overlapping.length > 0
+        ? Math.max(...overlapping.map(b => Number(b.startBeat) + Number(b.durationBeats)))
+        : focusRange.endBeat;
+
+      const startPx = beatZeroOffset + visualStart * BEAT_WIDTH;
+      const endPx = beatZeroOffset + visualEnd * BEAT_WIDTH;
+
+      if (startPx > 0) {
+        const leftEl = document.createElement("div");
+        leftEl.className = "focus-range-overlay";
+        leftEl.style.cssText = "position:absolute;top:0;bottom:0;left:0;z-index:20;pointer-events:none;background:rgba(0,0,0,0.55);";
+        leftEl.style.width = startPx + "px";
+        anchor.appendChild(leftEl);
+      }
+
+      const rightEl = document.createElement("div");
+      rightEl.className = "focus-range-overlay";
+      rightEl.style.cssText = "position:absolute;top:0;bottom:0;z-index:20;pointer-events:none;background:rgba(0,0,0,0.55);width:99999px;";
+      rightEl.style.left = endPx + "px";
+      anchor.appendChild(rightEl);
+
+      if (!document.getElementById("focusExitPill")) {
+        const pill = document.createElement("button");
+        pill.className = "focus-exit-pill";
+        pill.id = "focusExitPill";
+        pill.textContent = "✕ Exit Focus  beats " + focusRange.startLabel + "–" + focusRange.endLabel;
+        pill.addEventListener("click", exitFocusRange);
+        document.body.appendChild(pill);
+      }
+    }
+
+    function removeFocusOverlay() {
+      document.querySelectorAll(".focus-range-overlay").forEach(el => el.remove());
+      const pill = document.getElementById("focusExitPill");
+      if (pill) pill.remove();
+    }
+
 
     function applyTimelineScale() {
       document.documentElement.style.setProperty("--beat-width", BEAT_WIDTH + "px");
@@ -11352,7 +11556,7 @@ mxmlImportConfirm.addEventListener("click", () => {
         );
         const laneBlocks = lane
           ? project.blocks
-              .filter(b => b.laneId === lane.id && b.type !== "rest")
+              .filter(b => b.laneId === lane.id && !b.generated && (b.type === "note" || b.type === "rest"))
               .sort((a, b) => a.startBeat - b.startBeat)
           : [];
 
@@ -11381,46 +11585,58 @@ mxmlImportConfirm.addEventListener("click", () => {
           }
 
           // Get blocks in this measure
-          const measureBlocks = laneBlocks.filter(b =>
-            b.startBeat >= measureStartBeat && b.startBeat < measureEndBeat
-          );
+         // Get blocks overlapping this measure (including cross-barline blocks)
+          const measureBlocks = laneBlocks.filter(b => {
+            const bStart = Number(b.startBeat);
+            const bEnd = bStart + Number(b.durationBeats);
+            return bStart < measureEndBeat && bEnd > measureStartBeat;
+          });
 
-          // Fill measure with notes and rests
           let cursor = measureStartBeat;
 
           measureBlocks.forEach(block => {
-            // Rest before note if needed
-            if (block.startBeat > cursor + 0.01) {
-              const restBeats = block.startBeat - cursor;
+            const blockStart = Math.max(Number(block.startBeat), measureStartBeat);
+            const blockEnd = Math.min(Number(block.startBeat) + Number(block.durationBeats), measureEndBeat);
+            if (blockEnd <= cursor + 0.001) return;
+
+            // Gap rest before this block
+            if (blockStart > cursor + 0.01) {
+              const restBeats = blockStart - cursor;
               const restDur = Math.round(restBeats * divisions);
               if (restDur > 0) {
                 xml += `      <note><rest/><duration>${restDur}</duration><voice>1</voice><type>${durToType(restBeats)}</type></note>\n`;
               }
             }
 
-            const dur = Math.max(1, Math.round(block.durationBeats * divisions));
-            const noteType = durToType(block.durationBeats);
-            const { step, alter, octave } = midiToStepOctave(block.midi);
-            const stemDir = (role === "tenor" || role === "baritone") ? "up" : "down";
+            const clippedBeats = blockEnd - Math.max(blockStart, cursor);
+            const dur = Math.max(1, Math.round(clippedBeats * divisions));
+            const noteType = durToType(clippedBeats);
 
-            xml += `      <note>\n`;
-            xml += `        <pitch><step>${step}</step>`;
-            if (alter !== 0) xml += `<alter>${alter}</alter>`;
-            xml += `<octave>${octave}</octave></pitch>\n`;
-            xml += `        <duration>${dur}</duration>\n`;
-            xml += `        <voice>1</voice>\n`;
-            xml += `        <type>${noteType}</type>\n`;
-            xml += `        <stem>${stemDir}</stem>\n`;
+            if (block.type === "rest") {
+              xml += `      <note><rest/><duration>${dur}</duration><voice>1</voice><type>${noteType}</type></note>\n`;
+            } else {
+              const { step, alter, octave } = midiToStepOctave(block.midi);
+              const stemDir = (role === "tenor" || role === "baritone") ? "up" : "down";
 
-            if (block.lyric) {
-              xml += `        <lyric number="1"><syllabic>single</syllabic><text>${escapeXml(block.lyric)}</text></lyric>\n`;
+              xml += `      <note>\n`;
+              xml += `        <pitch><step>${step}</step>`;
+              if (alter !== 0) xml += `<alter>${alter}</alter>`;
+              xml += `<octave>${octave}</octave></pitch>\n`;
+              xml += `        <duration>${dur}</duration>\n`;
+              xml += `        <voice>1</voice>\n`;
+              xml += `        <type>${noteType}</type>\n`;
+              xml += `        <stem>${stemDir}</stem>\n`;
+
+              if (block.lyric) {
+                xml += `        <lyric number="1"><syllabic>single</syllabic><text>${escapeXml(block.lyric)}</text></lyric>\n`;
+              }
+
+              xml += `      </note>\n`;
             }
-
-            xml += `      </note>\n`;
-            cursor = block.startBeat + block.durationBeats;
+            cursor = blockEnd;
           });
 
-          // Rest to fill end of measure
+          // Fill remainder of measure with rest
           if (cursor < measureEndBeat - 0.01) {
             const restBeats = measureEndBeat - cursor;
             const restDur = Math.round(restBeats * divisions);
@@ -11473,8 +11689,9 @@ mxmlImportConfirm.addEventListener("click", () => {
         bass:     { id: "P4", name: "Bass",     clef: "F", clefLine: 4, octaveChange:  0 }
       };
 
-      const maxBeat = project.blocks.length > 0
-        ? Math.max(...project.blocks.map(b => b.startBeat + b.durationBeats))
+      const realBlocks = project.blocks.filter(b => !b.generated);
+      const maxBeat = realBlocks.length > 0
+        ? Math.max(...realBlocks.map(b => Number(b.startBeat) + Number(b.durationBeats)))
         : 4;
 
       const beatsPerMeasure = ts.numerator * (4 / ts.denominator);
@@ -11495,10 +11712,17 @@ mxmlImportConfirm.addEventListener("click", () => {
 
       laneOrder.forEach(role => {
         const def = partDefs[role];
-        const lane = project.lanes.find(l =>
-          (l.role || "").toLowerCase() === role.toLowerCase() ||
-          (l.name || "").toLowerCase() === role.toLowerCase()
-        );
+        const lane = project.lanes.find(l => {
+          const r = (l.role || "").toLowerCase();
+          const n = (l.name || "").toLowerCase();
+          return r === role || n === role ||
+            r.includes(role) || n.includes(role) ||
+            (role === "tenor" && (r.includes("upper") || r.includes("tenor"))) ||
+            (role === "lead" && (r.includes("lead") || r.includes("melody") || r.includes("soprano"))) ||
+            (role === "baritone" && (r.includes("bari") || n.includes("bari"))) ||
+            (role === "bass" && (r.includes("bass") || n.includes("bass")));
+        });
+
         const laneBlocks = lane
           ? project.blocks
               .filter(b => b.laneId === lane.id && b.type !== "rest")
@@ -11653,6 +11877,21 @@ mxmlImportConfirm.addEventListener("click", () => {
     document.getElementById("findOverlapsButton")?.addEventListener("click", () => {
       findAndHighlightOverlaps();
     });
+
+    document.getElementById("focusRangeButton")?.addEventListener("click", () => {
+      if (focusRange) {
+        exitFocusRange();
+      } else {
+        enterFocusRange();
+      }
+    });
+
+    document.addEventListener("keydown", e => {
+      if (e.key === "Escape" && focusRange) {
+        exitFocusRange();
+      }
+    });
+
 
     document.getElementById("toggleGeneratedRestsButton")?.addEventListener("click", e => {
       showGeneratedRests = !showGeneratedRests;

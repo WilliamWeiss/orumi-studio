@@ -3437,9 +3437,10 @@
       progression.splice(index, 1);
 
       saveProgression(progression);
-      const suggestModeActive = initializeSuggestHarmonyMode();
+      const reviewModeActive = initializeProgressionReviewMode();
+    const suggestModeActive = reviewModeActive ? false : initializeSuggestHarmonyMode();
 
-    if (!suggestModeActive) {
+    if (!reviewModeActive && !suggestModeActive) {
       renderProgression();
     }
     }
@@ -3867,9 +3868,10 @@
       }
     );
 
-    const suggestModeActive = initializeSuggestHarmonyMode();
+    const reviewModeActive = initializeProgressionReviewMode();
+    const suggestModeActive = reviewModeActive ? false : initializeSuggestHarmonyMode();
 
-    if (!suggestModeActive) {
+    if (!reviewModeActive && !suggestModeActive) {
       renderProgression();
     }
   </script>
