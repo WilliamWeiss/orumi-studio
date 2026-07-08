@@ -208,6 +208,26 @@
       text-shadow: none;
     }
 
+    .note-block.rest-block {
+      background: repeating-linear-gradient(
+        135deg,
+        rgba(255,255,255,0.06),
+        rgba(255,255,255,0.06) 6px,
+        rgba(255,255,255,0.02) 6px,
+        rgba(255,255,255,0.02) 12px
+      );
+      background-color: #3a3f47;
+      color: #9aa1ac;
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: 0.02em;
+      text-shadow: none;
+      box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,0.08),
+        0 4px 10px rgba(0,0,0,0.28);
+      cursor: default;
+    }
+
     .card-actions {
       width: 100%;
       display: grid;
@@ -1262,19 +1282,25 @@
       if (Array.isArray(rawChord.notes)) {
         notes = rawChord.notes
           .map(note => {
-            if (typeof note === "string") return note;
+            if (typeof note === "string") return note || "Rest";
             if (note && typeof note === "object") {
-              return note.name || note.note || note.displayName || normalizeMidiToNoteName(note.midi);
+              if (note.isRest || note.type === "rest") return "Rest";
+              return note.name || note.note || note.displayName || normalizeMidiToNoteName(note.midi) || "Rest";
             }
             return null;
           })
-          .filter(Boolean);
+          .filter(n => n !== null && n !== undefined);
       }
 
       if (!notes.length && rawBlocks.length) {
         notes = rawBlocks
-          .map(block => block.name || block.note || block.displayName || normalizeMidiToNoteName(block.midi))
-          .filter(Boolean);
+          .map(block => {
+            const isRest = block.isRest || block.type === "rest" || block.name === "Rest" ||
+              (!Number.isFinite(Number(block.midi)) && block.midi !== undefined);
+            if (isRest) return "Rest";
+            return block.name || block.note || block.displayName || normalizeMidiToNoteName(block.midi);
+          })
+          .filter(n => n !== null && n !== undefined);
       }
 
       if (!notes.length) {
@@ -1311,13 +1337,18 @@
         detail: rawChord.detail || rawChord.chordDetail || "Imported from Design Studio.",
         voiceAssignments: Array.isArray(rawChord.voiceAssignments)
           ? rawChord.voiceAssignments
-          : rawBlocks.map(block => ({
-              laneId: block.laneId || null,
-              laneName: block.laneName || block.laneId || null,
-              voice: block.voice || null,
-              midi: Number(block.midi),
-              name: block.name || block.note || block.displayName || normalizeMidiToNoteName(block.midi)
-            })).filter(item => Number.isFinite(item.midi)),
+          : rawBlocks.map(block => {
+              const isRest = block.isRest || block.type === "rest" || block.name === "Rest" ||
+                (!Number.isFinite(Number(block.midi)));
+              return {
+                laneId: block.laneId || null,
+                laneName: block.laneName || block.laneId || null,
+                voice: block.voice || null,
+                midi: isRest ? null : Number(block.midi),
+                name: isRest ? "Rest" : (block.name || block.note || block.displayName || normalizeMidiToNoteName(block.midi)),
+                isRest
+              };
+            }),
         blocks: rawBlocks
       };
     }
@@ -2873,6 +2904,66 @@
       return pitchName + octave;
     }
 
+    function isRestSource(source) {
+      if (!source || typeof source !== "object") return false;
+      if (source.isRest) return true;
+      if (source.type === "rest") return true;
+      if (source.name === "Rest" || source.note === "Rest" || source.displayName === "Rest") return true;
+      const midi = Number(source.midi);
+      return source.midi !== undefined && !Number.isFinite(midi);
+    }
+
+    function makeRestTile(source, chord) {
+      return {
+        pitchName: null,
+        octave: null,
+        midi: null,
+        displayName: "Rest",
+        frequency: null,
+        className: "rest-block",
+        display: "Rest",
+        isRest: true,
+        voice: (source && source.voice) || (chord && chord.voice) || null,
+        laneId: (source && (source.laneId || source.role)) || null,
+        laneName: (source && (source.laneName || source.role)) || null
+      };
+    }
+
+    // Sorts a chord's tiles top-to-bottom. "voice" on a Design Studio block
+    // means the instrument timbre (softKeys, piano...), not the vocal part,
+    // so voice register order has to be derived from laneId/laneName via
+    // normalizeHarmonyVoiceRole (same helper the harmony-suggestion pipeline
+    // uses) rather than from tile.voice. When every tile resolves to a known
+    // TLBB role, sort by that role's register so a resting voice lands in its
+    // correct row. Otherwise fall back to sorting by pitch, high to low.
+    function getTileVoiceRole(tile) {
+      return (
+        normalizeHarmonyVoiceRole(tile.laneId) ||
+        normalizeHarmonyVoiceRole(tile.laneName) ||
+        normalizeHarmonyVoiceRole(tile.voice) ||
+        null
+      );
+    }
+
+    function sortChordTiles(tiles) {
+      const list = tiles.slice();
+      const roles = list.map(getTileVoiceRole);
+      const allHaveVoiceOrder = list.length > 0 && roles.every(role => role && HARMONY_VOICE_ROLE_BY_ID[role]);
+
+      if (allHaveVoiceOrder) {
+        return list
+          .map((tile, index) => ({ tile, role: roles[index] }))
+          .sort((a, b) => HARMONY_VOICE_ROLE_BY_ID[b.role].order - HARMONY_VOICE_ROLE_BY_ID[a.role].order)
+          .map(entry => entry.tile);
+      }
+
+      return list.sort((a, b) => {
+        const aMidi = Number.isFinite(a.midi) ? a.midi : -Infinity;
+        const bMidi = Number.isFinite(b.midi) ? b.midi : -Infinity;
+        return bMidi - aMidi;
+      });
+    }
+
     function normalizeChordNotes(chord) {
       if (!chord) {
         return [];
@@ -2883,58 +2974,64 @@
         : [];
 
       if (voiceAssignments.length) {
-        return voiceAssignments
-          .map(item => {
-            const midi = Number(item.midi);
-            const parsed = Number.isFinite(midi)
-              ? parseNoteName(item.name || midiToDisplayName(midi))
-              : parseNoteName(item.name || item.note || item.displayName);
-            if (!parsed) return null;
-            return {
-              ...parsed,
-              voice: item.voice || chord.voice || null,
-              laneId: item.laneId || item.role || null,
-              laneName: item.laneName || item.role || null
-            };
-          })
-          .filter(Boolean)
-          .sort((a, b) => b.midi - a.midi);
+        return sortChordTiles(
+          voiceAssignments
+            .map(item => {
+              if (isRestSource(item)) return makeRestTile(item, chord);
+              const midi = Number(item.midi);
+              const parsed = Number.isFinite(midi)
+                ? parseNoteName(item.name || midiToDisplayName(midi))
+                : parseNoteName(item.name || item.note || item.displayName);
+              if (!parsed) return null;
+              return {
+                ...parsed,
+                voice: item.voice || chord.voice || null,
+                laneId: item.laneId || item.role || null,
+                laneName: item.laneName || item.role || null
+              };
+            })
+            .filter(Boolean)
+        );
       }
 
       if (Array.isArray(chord.blocks) && chord.blocks.length) {
-        return chord.blocks
-          .map(block => {
-            const midi = Number(block.midi);
-            const parsed = Number.isFinite(midi)
-              ? parseNoteName(block.name || block.note || block.displayName || midiToDisplayName(midi))
-              : parseNoteName(block.name || block.note || block.displayName);
-            if (!parsed) return null;
-            return {
-              ...parsed,
-              voice: block.voice || chord.voice || null,
-              laneId: block.laneId || null,
-              laneName: block.laneName || block.laneId || null
-            };
-          })
-          .filter(Boolean)
-          .sort((a, b) => b.midi - a.midi);
+        return sortChordTiles(
+          chord.blocks
+            .map(block => {
+              if (isRestSource(block)) return makeRestTile(block, chord);
+              const midi = Number(block.midi);
+              const parsed = Number.isFinite(midi)
+                ? parseNoteName(block.name || block.note || block.displayName || midiToDisplayName(midi))
+                : parseNoteName(block.name || block.note || block.displayName);
+              if (!parsed) return null;
+              return {
+                ...parsed,
+                voice: block.voice || chord.voice || null,
+                laneId: block.laneId || null,
+                laneName: block.laneName || block.laneId || null
+              };
+            })
+            .filter(Boolean)
+        );
       }
 
       if (!Array.isArray(chord.notes)) {
         return [];
       }
 
-      return chord.notes
-        .map((noteName, index) => {
-          const parsed = parseNoteName(noteName);
-          if (!parsed) return null;
-          return {
-            ...parsed,
-            voice: chord.voice || null
-          };
-        })
-        .filter(Boolean)
-        .sort((a, b) => b.midi - a.midi);
+      return sortChordTiles(
+        chord.notes
+          .map((noteName, index) => {
+            if (isRestSource(noteName) || noteName === "Rest") return makeRestTile(null, chord);
+            const parsed = parseNoteName(noteName);
+            if (!parsed) return null;
+            return {
+              ...parsed,
+              voice: chord.voice || null
+            };
+          })
+          .filter(Boolean)
+      );
     }
 
     function getChordVoice(chord) {
@@ -2957,7 +3054,7 @@
     }
 
     function getChordVoiceSummary(chord) {
-      const notes = normalizeChordNotes(chord);
+      const notes = normalizeChordNotes(chord).filter(note => !note.isRest);
       const noteVoices = [...new Set(notes.map(note => getNoteVoice(note, chord)).filter(Boolean))];
 
       if (noteVoices.length > 1) {
@@ -3188,6 +3285,13 @@
 
       block.title =
         note.displayName;
+
+      if (note.isRest) {
+        const restRole = getTileVoiceRole(note);
+        const restLabel = restRole ? getHarmonyVoiceRoleLabel(restRole) : (note.laneName || null);
+        block.title = restLabel ? "Rest · " + restLabel : "Rest";
+        return block;
+      }
 
       if (Number.isFinite(Number(note.midi))) {
         block.dataset.midi = String(note.midi);
@@ -3671,6 +3775,7 @@
 
       const notes =
         normalizeChordNotes(chord)
+          .filter(note => !note.isRest && Number.isFinite(note.midi))
           .slice()
           .sort((a, b) => a.midi - b.midi);
 

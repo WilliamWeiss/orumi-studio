@@ -967,13 +967,6 @@ h1 {
   >⌂</a>
 
   <a
-    class="top-button player-button"
-    id="playerButton"
-    href="player.html"
-    title="Open Note Player"
-  >□</a>
-
-  <a
     class="top-button progression-button"
     href="progression-builder.html"
     title="Open Progression Builder"
@@ -1248,9 +1241,6 @@ h1 {
 
     const openDesignButton =
       document.getElementById("openDesignButton");
-
-    const playerButton =
-      document.getElementById("playerButton");
 
     let selectedSystemKey =
       params.get("system") || "western";
@@ -1718,15 +1708,24 @@ h1 {
         selectedRoot = choice.root;
       }
 
-      if (choice.quality && qualities[choice.quality]) {
-        selectedQuality = choice.quality;
-      }
-
       const midis = Array.isArray(choice.voiceAssignments)
         ? choice.voiceAssignments
             .map(item => Number(item.midi))
             .filter(midi => Number.isFinite(midi))
         : [];
+
+      if (choice.quality && qualities[choice.quality]) {
+        selectedQuality = choice.quality;
+      } else {
+        // Design Studio always tags reviewed chords with quality "custom",
+        // which isn't one of Chord Factory's canned quality keys, so the
+        // check above never fires for a progression-sourced chord. Without
+        // this fallback, selectedQuality would keep whatever was left over
+        // from the last chord edited in this tab (this is how two different
+        // Progression chords both ended up saved back as "DMv1"). Re-derive
+        // the closest matching quality from the actual incoming notes instead.
+        selectedQuality = guessQualityKeyForRoot(selectedRoot, midis) || "major";
+      }
 
       if (midis.length > 0) {
         selectedNoteMidis = [...new Set(midis)].sort((a, b) => a - b);
@@ -2101,54 +2100,19 @@ h1 {
           .reverse();
       }
 
-      // Use selectedBlocks sorted by actual MIDI pitch (lowest = lowest voice)
+      // Use DS position order from selectedBlocks (already sorted top-to-bottom by DS)
+      // This preserves rest lane positions correctly — reverse gives low-to-high
       if (designEditPayload && Array.isArray(designEditPayload.selectedBlocks) && designEditPayload.selectedBlocks.length) {
-        // Separate note blocks from rest blocks
-        const noteBlocks = designEditPayload.selectedBlocks.filter(b => {
-          const midi = midiFromPayloadBlock(b);
-          return Number.isFinite(Number(midi));
-        });
-        const restBlocks = designEditPayload.selectedBlocks.filter(b => {
-          const midi = midiFromPayloadBlock(b);
-          return !Number.isFinite(Number(midi));
-        });
-
-        if (noteBlocks.length > 0) {
-          // Sort notes low-to-high by MIDI pitch
-          const sorted = noteBlocks
-            .slice()
-            .sort((a, b) => Number(midiFromPayloadBlock(a)) - Number(midiFromPayloadBlock(b)));
-
-          const seen = new Set();
-          const laneIds = [];
-          sorted.forEach(b => {
-            if (b.laneId && !seen.has(b.laneId)) {
-              seen.add(b.laneId);
-              laneIds.push(b.laneId);
-            }
-          });
-
-          // Append rest-only lanes at the end (we don't know their pitch order)
-          restBlocks.forEach(b => {
-            if (b.laneId && !seen.has(b.laneId)) {
-              seen.add(b.laneId);
-              laneIds.push(b.laneId);
-            }
-          });
-
-          if (laneIds.length) return laneIds;
-        }
-
-        // All rests — fall back to reversed DS order
-        const seen2 = new Set();
-        const laneIds2 = [];
+        const seen = new Set();
+        const laneIds = [];
+        // DS sends selectedBlocks top-to-bottom; reverse gives low-to-high
         [...designEditPayload.selectedBlocks].reverse().forEach(b => {
-          if (b.laneId && !seen2.has(b.laneId)) {
-            seen2.add(b.laneId);
-            laneIds2.push(b.laneId);
+          if (b.laneId && !seen.has(b.laneId)) {
+            seen.add(b.laneId);
+            laneIds.push(b.laneId);
           }
         });
-        if (laneIds2.length) return laneIds2;
+        if (laneIds.length) return laneIds;
       }
 
       // Last resort: project lanes reversed
@@ -2265,6 +2229,40 @@ h1 {
       const rootNumber = pitchClasses[rootName].number;
       const quality = qualities[qualityKey];
       return quality.intervals.map(interval => (rootNumber + interval) % 12);
+    }
+
+    // Best-effort match against Chord Factory's canned quality list, used to
+    // re-derive a quality when the incoming chord doesn't carry one of our
+    // own quality keys (e.g. anything sent over from Design Studio, which
+    // tags every chord with quality "custom"). Not a full harmonic analyzer —
+    // just enough to avoid stale state leaking in from a previously edited
+    // chord. Picks the quality whose interval set shares the most tones with
+    // the actual notes, preferring an exact match when one exists.
+    function guessQualityKeyForRoot(rootName, midis) {
+      if (!pitchClasses[rootName] || !Array.isArray(midis) || midis.length === 0) {
+        return null;
+      }
+
+      const rootNumber = pitchClasses[rootName].number;
+      const pcSet = new Set(midis.map(midi => (((Number(midi) - rootNumber) % 12) + 12) % 12));
+
+      let bestKey = null;
+      let bestScore = -1;
+
+      Object.keys(qualities).forEach(key => {
+        const intervals = qualities[key].intervals;
+        const intervalSet = new Set(intervals);
+        const overlap = intervals.filter(interval => pcSet.has(interval)).length;
+        const isExactMatch = intervalSet.size === pcSet.size && overlap === intervalSet.size;
+        const score = isExactMatch ? 100 : overlap;
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestKey = key;
+        }
+      });
+
+      return bestKey;
     }
 
     function getChordMemberName(rootName, qualityKey, midi) {
@@ -3600,9 +3598,6 @@ h1 {
           ? "Play the new/edited chord that will be sent back"
           : "Play the selected chord";
       }
-
-      playerButton.href =
-        buildPlayerUrl();
     }
 
     async function ensureAudio() {
@@ -3956,6 +3951,32 @@ h1 {
 
       const chord = buildCurrentChordObject();
       const previous = progression[index] || {};
+
+      const updatedStack = getCurrentSelectionStackAssignments().map(item => {
+        const priorBlocks = Array.isArray(previous.blocks) ? previous.blocks : [];
+        const priorAssignments = Array.isArray(previous.voiceAssignments) ? previous.voiceAssignments : [];
+        const prior =
+          priorBlocks.find(block => block.laneId === item.laneId) ||
+          priorAssignments.find(block => block.laneId === item.laneId) ||
+          null;
+
+        const laneId = item.laneId || (prior && prior.laneId) || "lead";
+        const displayName = item.displayName || midiToDisplayName(Number(item.midi));
+
+        return {
+          id: prior ? prior.id || prior.blockId || prior.sourceId || null : null,
+          blockId: prior ? prior.blockId || prior.id || prior.sourceId || null : null,
+          sourceId: prior ? prior.sourceId || prior.blockId || prior.id || null : null,
+          laneId,
+          laneName: getLaneLabel(laneId),
+          role: laneId,
+          midi: Number(item.midi),
+          name: displayName,
+          note: displayName,
+          voice: (prior && prior.voice) || previous.voice || chord.voice || selectedVoice || null
+        };
+      }).filter(block => Number.isFinite(block.midi));
+
       progression[index] = {
         ...previous,
         ...chord,
@@ -3964,26 +3985,12 @@ h1 {
         sourceId: previous.sourceId || previous.id || "edited-progression-chord",
         locationLabel: previous.locationLabel || "Chord " + (index + 1),
         detail: "Edited in Chord Factory.",
-        blocks: getCurrentSelectionStackAssignments().map(item => {
-          const priorBlocks = Array.isArray(previous.blocks) ? previous.blocks : [];
-          const priorAssignments = Array.isArray(previous.voiceAssignments) ? previous.voiceAssignments : [];
-          const prior =
-            priorBlocks.find(block => block.laneId === item.laneId) ||
-            priorAssignments.find(block => block.laneId === item.laneId) ||
-            null;
-
-          return {
-            id: prior ? prior.id || prior.blockId || prior.sourceId || null : null,
-            blockId: prior ? prior.blockId || prior.id || prior.sourceId || null : null,
-            sourceId: prior ? prior.sourceId || prior.blockId || prior.id || null : null,
-            laneId: item.laneId || (prior && prior.laneId) || "lead",
-            laneName: getLaneLabel(item.laneId || (prior && prior.laneId) || "lead"),
-            midi: Number(item.midi),
-            name: item.displayName || midiToDisplayName(Number(item.midi)),
-            note: item.displayName || midiToDisplayName(Number(item.midi)),
-            voice: (prior && prior.voice) || previous.voice || chord.voice || selectedVoice || null
-          };
-        }).filter(block => Number.isFinite(block.midi))
+        // Rebuild voiceAssignments from the same fresh stack as blocks — the
+        // renderer on Progression Builder checks voiceAssignments before
+        // blocks, so leaving the old (stale) voiceAssignments in place here
+        // would silently hide this edit behind the previous voicing.
+        blocks: updatedStack,
+        voiceAssignments: updatedStack
       };
 
       writeJsonStorage("orumiProgression", progression);
@@ -4166,66 +4173,6 @@ h1 {
     function openDesignStudio() {
       window.location.href =
         "design-studio.html";
-    }
-
-    function buildPlayerUrl() {
-
-      const notes =
-        getCurrentNotes();
-
-      const highlight =
-        notes
-          .map(note => note.displayName)
-          .join(",");
-
-      return (
-        "player.html" +
-        "?system=" +
-        encodeURIComponent(
-          selectedSystemKey
-        ) +
-        "&root=" +
-        encodeURIComponent(
-          selectedKeyRoot
-        ) +
-        "&family=" +
-        encodeURIComponent(
-          selectedFamily
-        ) +
-        "&scaleMode=" +
-        encodeURIComponent(
-          selectedMode
-        ) +
-        "&octaves=" +
-        encodeURIComponent(
-          selectedOctavesForPlayer
-        ) +
-        "&voice=" +
-        encodeURIComponent(
-          selectedVoice
-        ) +
-        "&set=full" +
-        "&chordRoot=" +
-        encodeURIComponent(
-          selectedRoot
-        ) +
-        "&chordQuality=" +
-        encodeURIComponent(
-          selectedQuality
-        ) +
-        "&chordVoicing=" +
-        encodeURIComponent(
-          selectedVoicing
-        ) +
-        "&chordOctave=" +
-        encodeURIComponent(
-          selectedOctave
-        ) +
-        "&highlight=" +
-        encodeURIComponent(
-          highlight
-        )
-      );
     }
 
 

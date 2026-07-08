@@ -85,11 +85,17 @@
 
     .transport-row {
       display: flex;
-      gap: 10px;
+      gap: 8px;
       margin-bottom: 10px;
       flex-wrap: wrap;
       justify-content: center;
       align-items: center;
+      background: rgba(255,255,255,0.055);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px;
+      padding: 10px;
+      max-width: min(94vw, 980px);
+      box-sizing: border-box;
     }
 
     .transport-button {
@@ -108,6 +114,40 @@
       font-family: inherit;
       box-shadow: 0 5px 14px rgba(0,0,0,0.22);
       padding: 6px 10px;
+    }
+
+    .transport-button.compact {
+      min-width: 44px;
+      height: 40px;
+      grid-template-rows: 1fr;
+      padding: 4px 8px;
+      align-self: center;
+    }
+
+    .transport-button.compact .transport-icon {
+      font-size: 17px;
+    }
+
+    .transport-button.compact.transport-text {
+      min-width: 52px;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .transport-row.transport-row-secondary {
+      background: none;
+      border: none;
+      padding: 0;
+      margin-top: -2px;
+      gap: 8px;
+    }
+
+    .transport-row.transport-row-secondary .transport-button {
+      opacity: 0.78;
+    }
+
+    .transport-row.transport-row-secondary .transport-button:hover:not(:disabled) {
+      opacity: 1;
     }
 
     .transport-button:hover:not(:disabled),
@@ -185,34 +225,6 @@
 
     #startAudioButton:disabled {
       opacity: 0.82;
-    }
-
-    #playChordButton {
-      display: none;
-      font-size: 18px;
-      padding: 12px 20px;
-      margin: 6px 0;
-      border: none;
-      border-radius: 12px;
-      background: var(--button-bg, white);
-      color: var(--button-text, black);
-      cursor: pointer;
-      font-weight: 700;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.28);
-    }
-
-    #clearChordButton {
-      display: none;
-      font-size: 15px;
-      padding: 10px 16px;
-      margin: 0 0 6px;
-      border: none;
-      border-radius: 12px;
-      background: rgba(255,255,255,0.16);
-      color: var(--text-color, white);
-      cursor: pointer;
-      font-weight: 700;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.2);
     }
 
     #status {
@@ -332,14 +344,36 @@
       filter: brightness(1.65);
     }
 
-    .square.highlighted {
-      outline: 4px solid rgba(255,255,255,1);
-      outline-offset: -4px;
-      box-shadow:
-        0 0 36px rgba(255,255,255,0.95),
-        0 0 18px rgba(255,230,150,0.85),
-        0 6px 14px rgba(0,0,0,0.35);
-      filter: brightness(1.45);
+    .rest-row {
+      display: flex;
+      justify-content: center;
+    }
+
+    .rest-bar {
+      border: none;
+      border-radius: 16px;
+      width: 100%;
+      height: 46px;
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #1c1c1c;
+      background: repeating-linear-gradient(
+        135deg,
+        rgba(0,0,0,0.05),
+        rgba(0,0,0,0.05) 6px,
+        rgba(0,0,0,0.02) 6px,
+        rgba(0,0,0,0.02) 12px
+      );
+      background-color: #f4f2ee;
+      cursor: pointer;
+      box-shadow: 0 6px 14px rgba(0,0,0,0.35);
+    }
+
+    .rest-bar.active {
+      transform: scale(0.98);
+      filter: brightness(0.94);
     }
 
 
@@ -552,6 +586,7 @@
       box-sizing: border-box;
       padding: 0 7px;
       white-space: nowrap;
+      cursor: pointer;
     }
 
     .phrase-block.compact-block {
@@ -593,6 +628,33 @@
       pointer-events: none;
     }
 
+    .phrase-location-marker {
+      position: absolute;
+      top: 12px;
+      bottom: 14px;
+      width: 2px;
+      background: rgba(120,225,235,0.9);
+      box-shadow: 0 0 10px rgba(120,225,235,0.8);
+      z-index: 75;
+      display: none;
+      pointer-events: none;
+    }
+
+    .phrase-location-marker::before {
+      content: "";
+      position: absolute;
+      top: -6px;
+      left: -4px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: rgba(120,225,235,0.95);
+    }
+
+    .phrase-ruler {
+      cursor: pointer;
+    }
+
     .phrase-empty {
       color: var(--muted-text, #ccc);
       font-size: 13px;
@@ -605,27 +667,8 @@
 
 
     body.design-edit-mode .transport-row,
-    body.design-edit-mode #playChordButton,
-    body.design-edit-mode #clearChordButton,
-    body.playline-mode #playChordButton,
-    body.playline-mode #clearChordButton {
-      display: none !important;
-    }
-
-    body.design-edit-mode #playPhraseButton,
-    body.design-edit-mode #stopPhraseButton {
-      display: inline-flex !important;
-    }
-
     body.playline-mode .transport-row {
       order: 6;
-      display: flex;
-      background: rgba(255,255,255,0.055);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 18px;
-      padding: 10px;
-      max-width: min(94vw, 980px);
-      box-sizing: border-box;
     }
 
     body.design-edit-mode #designPhrasePanel {
@@ -642,11 +685,6 @@
 
     body.playline-mode #grid {
       order: 5;
-    }
-
-    body.design-edit-mode #capturePhraseButton,
-    body.playline-mode #capturePhraseButton {
-      display: none !important;
     }
 
     .phrase-action-button.toggle-on {
@@ -1139,15 +1177,62 @@
 
   <button id="startAudioButton">Begin Sound</button>
 
-  <div class="transport-row">
+  <div class="transport-row" aria-label="Playback controls">
     <button
       id="recordButton"
       class="transport-button record-transport"
-      title="Record"
+      title="Record -- add played notes to the Play Line in real time"
       aria-label="Record"
     >
       <span class="transport-icon">●</span>
       <span class="transport-label">Record</span>
+    </button>
+
+    <button
+      id="jumpPhraseStartButton"
+      class="transport-button compact"
+      title="Jump to Start"
+      aria-label="Jump to Start"
+    >
+      <span class="transport-icon">⏮</span>
+    </button>
+
+    <button
+      id="backPhraseMeasureButton"
+      class="transport-button compact"
+      title="Back 1 Measure"
+      aria-label="Back 1 Measure"
+    >
+      <span class="transport-icon">⏪</span>
+    </button>
+
+    <button
+      id="playPhraseButton"
+      class="transport-button play-transport"
+      title="Play"
+      aria-label="Play"
+    >
+      <span class="transport-icon">▶</span>
+      <span class="transport-label">Play</span>
+    </button>
+
+    <button
+      id="playPhraseFromLocationButton"
+      class="transport-button compact transport-text"
+      title="Play from Selected Location"
+      aria-label="Play from Selected Location"
+    >
+      <span class="transport-icon">▶L</span>
+    </button>
+
+    <button
+      id="pausePhraseButton"
+      class="transport-button compact"
+      title="Pause"
+      aria-label="Pause"
+      disabled
+    >
+      <span class="transport-icon">⏸</span>
     </button>
 
     <button
@@ -1162,23 +1247,21 @@
     </button>
 
     <button
-      id="clearRecordingButton"
-      class="transport-button"
-      title="Clear"
-      aria-label="Clear"
+      id="forwardPhraseMeasureButton"
+      class="transport-button compact"
+      title="Forward 1 Measure"
+      aria-label="Forward 1 Measure"
     >
-      <span class="transport-icon">⌫</span>
-      <span class="transport-label">Clear</span>
+      <span class="transport-icon">⏩</span>
     </button>
 
     <button
-      id="playRecordingButton"
-      class="transport-button play-transport"
-      title="Play Take"
-      aria-label="Play Take"
+      id="jumpPhraseEndButton"
+      class="transport-button compact"
+      title="Jump to End"
+      aria-label="Jump to End"
     >
-      <span class="transport-icon">▶</span>
-      <span class="transport-label">Play</span>
+      <span class="transport-icon">⏭</span>
     </button>
 
     <a
@@ -1192,8 +1275,16 @@
 </a>
   </div>
 
-  <button id="playChordButton">Play Highlighted Chord</button>
-  <button id="clearChordButton">Clear Chord</button>
+  <div class="transport-row transport-row-secondary" aria-label="Additional playback actions">
+    <button
+      id="clearRecordingButton"
+      class="transport-button compact"
+      title="Clear"
+      aria-label="Clear"
+    >
+      <span class="transport-icon">⌫</span>
+    </button>
+  </div>
 
   <div id="status">Press Begin Sound first</div>
 
@@ -1231,14 +1322,6 @@
     Add Played Notes: On
   </button>
 
-  <button id="insertRestButton" class="phrase-action-button" type="button">
-    ＋ Rest
-  </button>
-
-  <button id="tightenPhraseLineButton" class="phrase-action-button" type="button">
-    ⌁ Absorb Rests
-  </button>
-
   <button id="clearPhraseLineButton" class="phrase-action-button" type="button">
     ✕ Clear Line
   </button>
@@ -1249,14 +1332,6 @@
 
   <button id="playlineToggleButton" class="phrase-action-button playline-toggle" type="button" hidden>
     ▾ Show Play Line
-  </button>
-
-  <button id="playPhraseButton" class="phrase-action-button primary" type="button" hidden>
-    ▶ Play Line
-  </button>
-
-  <button id="stopPhraseButton" class="phrase-action-button" type="button" hidden>
-    ■ Stop
   </button>
 
   <button id="addTakeToPlayLineButton" class="phrase-action-button primary" type="button" hidden>
@@ -1281,6 +1356,7 @@
       <div id="phraseTimeline" class="phrase-timeline">
         <div id="phraseRuler" class="phrase-ruler"></div>
         <div id="phrasePlayhead" class="phrase-playhead"></div>
+        <div id="phraseLocationMarker" class="phrase-location-marker"></div>
         <div class="phrase-lane-row">
           <div id="phraseLaneLabel" class="phrase-lane-label">
             Lane
@@ -1292,7 +1368,7 @@
     </div>
 
 <div class="phrase-editor-note">
-  Record a take and Orumi will open the Play Line automatically. Use Absorb Rests to lengthen notes into the rests that follow them. Then add harmony, or return the edited line to Studio.
+  Press Record to open the Play Line and add notes to it as you play them -- no rest gets created for the pause between notes, only for an explicit + Rest. Then add harmony, or return the edited line to Studio.
 </div>
 
     <div class="ds-chooser" id="dsChooser">
@@ -1347,13 +1423,17 @@
     let recordingPlaybackNotes = [];
 
     const backButton = document.getElementById("backButton");
-    const playChordButton = document.getElementById("playChordButton");
-    const clearChordButton = document.getElementById("clearChordButton");
     const startAudioButton = document.getElementById("startAudioButton");
     const recordButton = document.getElementById("recordButton");
     const stopRecordingButton = document.getElementById("stopRecordingButton");
     const clearRecordingButton = document.getElementById("clearRecordingButton");
     const playRecordingButton = document.getElementById("playRecordingButton");
+    const jumpPhraseStartButton = document.getElementById("jumpPhraseStartButton");
+    const backPhraseMeasureButton = document.getElementById("backPhraseMeasureButton");
+    const playPhraseFromLocationButton = document.getElementById("playPhraseFromLocationButton");
+    const pausePhraseButton = document.getElementById("pausePhraseButton");
+    const forwardPhraseMeasureButton = document.getElementById("forwardPhraseMeasureButton");
+    const jumpPhraseEndButton = document.getElementById("jumpPhraseEndButton");
     const recordingStudioLink = document.getElementById("recordingStudioLink");
     const statusText = document.getElementById("status");
 
@@ -1383,6 +1463,7 @@
     const phraseLaneSubtitle = document.getElementById("phraseLaneSubtitle");
     const phraseLaneTrack = document.getElementById("phraseLaneTrack");
     const phrasePlayhead = document.getElementById("phrasePlayhead");
+    const phraseLocationMarker = document.getElementById("phraseLocationMarker");
     const playPhraseButton = document.getElementById("playPhraseButton");
     const stopPhraseButton = document.getElementById("stopPhraseButton");
     const addTakeToPlayLineButton = document.getElementById("addTakeToPlayLineButton");
@@ -1393,8 +1474,6 @@
     const applyPhraseButton = document.getElementById("applyPhraseButton");
     const returnToDesignButton = document.getElementById("returnToDesignButton");
     const capturePhraseButton = document.getElementById("capturePhraseButton");
-    const insertRestButton = document.getElementById("insertRestButton");
-    const tightenPhraseLineButton = document.getElementById("tightenPhraseLineButton");
     const clearPhraseLineButton = document.getElementById("clearPhraseLineButton");
     const resetPhraseLineButton = document.getElementById("resetPhraseLineButton");
     const phraseTrash = document.getElementById("phraseTrash");
@@ -1426,12 +1505,24 @@
     let phraseRedoStack = [];
     const PHRASE_MAX_HISTORY = 50;
 
-    let phraseAddPlayedNotes = true;
+    let phraseAddPlayedNotes = false;
     let phraseAutoCaptureSession = null;
     let phraseAutoCaptureIdleTimer = null;
     let isPhrasePlaybackActive = false;
     let phrasePlaybackRunId = 0;
     let phraseInsertIndex = null;
+    let phrasePlaybackState = "stopped"; // "stopped" | "playing" | "paused"
+    let phrasePausedBeat = 0;
+    let phrasePlaybackStartBeat = 0;
+    let phraseSelectedLocationBeat = null;
+
+    // The Play Line is intentionally monophonic -- one voice at a time, not
+    // a polyphonic (piano-style) line. Multi-touch can still play more than
+    // one note's audio at once, but only the pointer that reserves this slot
+    // is allowed to write into the phrase; any other simultaneous touch is
+    // audible but never captured. Reserved on pointerdown when a capture
+    // starts, released in stopHeldNote.
+    let activeCapturePointerId = null;
 
 
     const activeNotes = new Map();
@@ -1568,14 +1659,24 @@
 
       const blocks = rawBlocks
         .map((block, index) => {
-          const midi =
-            Number.isFinite(Number(block.midi))
+          const isRest =
+            block.isRest === true ||
+            block.type === "rest" ||
+            block.name === "Rest" ||
+            (
+              !Number.isFinite(Number(block.midi)) &&
+              !Number.isFinite(Number(block.noteMidi))
+            );
+
+          const midi = isRest
+            ? null
+            : Number.isFinite(Number(block.midi))
               ? Number(block.midi)
               : Number.isFinite(Number(block.noteMidi))
                 ? Number(block.noteMidi)
                 : null;
 
-          if (!Number.isFinite(midi)) {
+          if (!isRest && !Number.isFinite(midi)) {
             return null;
           }
 
@@ -1598,16 +1699,21 @@
             id: block.id || block.blockId || ("phrase_block_" + index),
             laneId: block.laneId || block.lane || payload.laneId || payload.selectedLaneId || "lane",
             midi,
-            name: block.name || block.note || block.displayName || midiToDisplayName(midi),
+            name: isRest ? "Rest" : (block.name || block.note || block.displayName || midiToDisplayName(midi)),
+            type: isRest ? "rest" : "note",
+            isRest,
             startBeat,
             durationBeats,
-            velocity: Math.max(1, Math.min(127, asFiniteNumber(block.velocity, 82))),
-            voice: block.voice === undefined ? null : block.voice,
+            velocity: isRest ? 0 : Math.max(1, Math.min(127, asFiniteNumber(block.velocity, 82))),
+            voice: isRest ? null : (block.voice === undefined ? null : block.voice),
             source: block.source || "design-studio"
           };
         })
         .filter(Boolean)
-        .sort((a, b) => a.startBeat - b.startBeat || a.midi - b.midi);
+        .sort((a, b) =>
+          a.startBeat - b.startBeat ||
+          (Number.isFinite(a.midi) ? a.midi : 0) - (Number.isFinite(b.midi) ? b.midi : 0)
+        );
 
       if (blocks.length === 0) {
         return null;
@@ -1861,6 +1967,7 @@
 
     function resetAutoPhraseCaptureSession() {
       phraseAutoCaptureSession = null;
+      activeCapturePointerId = null;
 
       if (phraseAutoCaptureIdleTimer) {
         clearTimeout(phraseAutoCaptureIdleTimer);
@@ -2291,6 +2398,15 @@
       resetAutoPhraseCaptureSession();
       updatePhraseCaptureButton();
 
+      if (recordButton) {
+        recordButton.classList.toggle("recording", phraseAddPlayedNotes);
+        recordButton.disabled = phraseAddPlayedNotes;
+      }
+
+      if (stopRecordingButton) {
+        stopRecordingButton.disabled = !phraseAddPlayedNotes && !isPhrasePlaybackActive && !isRecordingPlaybackActive;
+      }
+
       statusText.textContent = phraseAddPlayedNotes
         ? "Add Played Notes is on. Play the sound square to add notes to the Play Line."
         : "Add Played Notes is off. Sound squares will only audition.";
@@ -2387,7 +2503,8 @@
         midi: Number(data.midi),
         name: data.name || data.displayName || midiToDisplayName(Number(data.midi)),
         voice: data.voice || null,
-        durationBeats: Math.max(0.25, Number(data.durationBeats || 1))
+        durationBeats: Math.max(0.25, Number(data.durationBeats || 1)),
+        isRest: Boolean(data.isRest)
       };
     }
 
@@ -2431,6 +2548,35 @@
       }
     }
 
+    async function previewPhraseBlockNote(midi, voice) {
+      if (!Number.isFinite(Number(midi))) return;
+      if (!requireAudioReady()) return;
+
+      await ensureAudio();
+
+      const { voice: fallbackVoice } = getSettingsFromUrl();
+      const eventVoice =
+        voice && ORUMI_CATALOG.voices[voice]
+          ? voice
+          : designPhrasePayload?.voice && ORUMI_CATALOG.voices[designPhrasePayload.voice]
+            ? designPhrasePayload.voice
+            : fallbackVoice;
+
+      const now = audioContext.currentTime;
+      const voiceNode = buildContainedVoice(eventVoice, midiToFrequency(Number(midi)), now);
+      const playedNote = {
+        ...voiceNode,
+        voice: eventVoice,
+        gain: voiceNode.gain,
+        oscillators: voiceNode.oscillators || [],
+        noiseSources: voiceNode.noiseSources || []
+      };
+
+      setTimeout(() => {
+        releaseVoiceGracefully(playedNote, 0.16);
+      }, 260);
+    }
+
     function handlePhraseDragEnd(event) {
       if (!phraseDragState || phraseDragState.pointerId !== event.pointerId) return;
 
@@ -2441,6 +2587,21 @@
 
       if (!drag.active) {
         hidePhraseTrash();
+
+        // No real drag happened -- treat this as a plain click and preview
+        // the note, matching the click-to-play convention everywhere else
+        // in Orumi (Design Studio, Chord Factory, Progression Builder).
+        if (drag.source === "play-line" && !drag.isRest) {
+          const blockEl = phraseLaneTrack.querySelector(
+            '[data-block-id="' + CSS.escape(drag.blockId) + '"]'
+          );
+          if (blockEl) {
+            blockEl.classList.add("playing");
+            setTimeout(() => blockEl.classList.remove("playing"), 260);
+          }
+          previewPhraseBlockNote(drag.midi, drag.voice);
+        }
+
         return;
       }
 
@@ -2470,7 +2631,9 @@
         } else {
           savePhraseHistory();
           insertPhraseBlockAtIndex(
-            createPhraseBlockFromMidi(drag.midi, 0, drag.durationBeats, drag.name, drag.voice),
+            drag.isRest
+              ? createPhraseRestBlock(0, drag.durationBeats)
+              : createPhraseBlockFromMidi(drag.midi, 0, drag.durationBeats, drag.name, drag.voice),
             insertIndex
           );
           advancePhraseInsertIndex(insertIndex);
@@ -2580,14 +2743,18 @@
   originalDesignPhraseBlocks = [];
   phraseHistoryStack = [];
   phraseRedoStack = [];
+  phrasePlaybackState = "stopped";
+  phrasePausedBeat = 0;
+  clearPhraseSelectedLocation();
 
   isRecording = false;
   if (recordButton) recordButton.classList.remove("recording");
   if (recordButton) recordButton.disabled = false;
   if (stopRecordingButton) stopRecordingButton.disabled = true;
+  if (capturePhraseButton) capturePhraseButton.hidden = true;
 
   isPhraseCaptureMode = false;
-  phraseAddPlayedNotes = true;
+  phraseAddPlayedNotes = false;
   phraseInsertIndex = 0;
   resetAutoPhraseCaptureSession();
   updatePhraseCaptureButton();
@@ -2609,7 +2776,7 @@
 
   designPhraseTitle.textContent = "Play Line";
   designPhraseMeta.textContent =
-    "Record a melody to open the Play Line · " +
+    "Press Record to open the Play Line · " +
     (ORUMI_CATALOG.voices[getActivePhraseVoice()]?.label || getActivePhraseVoice());
 
   phraseLaneLabel.firstChild.nodeValue = "Play Line";
@@ -2624,9 +2791,10 @@
   }
 
   statusText.textContent =
-    "Press Begin Sound, then record a melody. The Play Line will open when there is something to shape.";
+    "Press Begin Sound, then press Record. The Play Line opens and adds each note as you play it.";
 
   renderDesignPhraseTimeline();
+  updateTransportActionButtons();
 }
 
 function openPlayLinePanel() {
@@ -2649,6 +2817,11 @@ function openPlayLinePanel() {
 
   if (resetPhraseLineButton) {
     resetPhraseLineButton.style.display = "none";
+  }
+
+  if (capturePhraseButton) {
+    capturePhraseButton.hidden = false;
+    updatePhraseCaptureButton();
   }
 
   renderDesignPhraseTimeline();
@@ -2984,15 +3157,24 @@ function openPlayLinePanel() {
       designPhrasePayload = payload;
       designPhraseBlocks = payload.blocks.map(block => ({
         ...block,
-        voice: block.voice || payload.voice || getActivePhraseVoice() || null
+        voice: block.isRest || block.type === "rest"
+          ? null
+          : (block.voice || payload.voice || getActivePhraseVoice() || null)
       }));
       originalDesignPhraseBlocks = designPhraseBlocks.map(block => ({ ...block }));
       phraseHistoryStack = [];
       phraseRedoStack = [];
+      phrasePlaybackState = "stopped";
+      phrasePausedBeat = 0;
+      clearPhraseSelectedLocation();
       isPhraseCaptureMode = false;
-      phraseAddPlayedNotes = true;
+      phraseAddPlayedNotes = false;
       phraseInsertIndex = 0;
       resetAutoPhraseCaptureSession();
+      if (capturePhraseButton) capturePhraseButton.hidden = false;
+      if (recordButton) recordButton.classList.remove("recording");
+      if (recordButton) recordButton.disabled = false;
+      if (stopRecordingButton) stopRecordingButton.disabled = true;
       updatePhraseCaptureButton();
       updatePhraseUndoRedoButtons();
 
@@ -3052,6 +3234,7 @@ if (returnToDesignButton) {
         "Phrase received from Design. Play notes to append them; use ＋ Rest for silence.";
 
       renderDesignPhraseTimeline();
+      updateTransportActionButtons();
     }
 
 
@@ -3076,6 +3259,7 @@ if (returnToDesignButton) {
         phraseLaneTrack.innerHTML =
           '<div class="phrase-empty">Play Line is empty. Play notes to append them, drag notes here, or insert an explicit Rest.</div>';
         renderPhraseInsertMarker();
+        renderPhraseLocationMarker();
         return;
       }
 
@@ -3147,7 +3331,7 @@ if (returnToDesignButton) {
           (isRest ? "Rest" : (block.name || midiToDisplayName(block.midi))) +
           " · sequence beat " +
           (block.relativeStartBeat + 1).toFixed(2).replace(/0+$/, "").replace(/\.$/, "") +
-          " · drag right edge to resize · double-click to remove";
+          " · click to play · drag right edge to resize · double-click to remove";
 
         element.addEventListener("dblclick", event => {
           event.preventDefault();
@@ -3172,6 +3356,7 @@ if (returnToDesignButton) {
       });
 
       renderPhraseInsertMarker();
+      renderPhraseLocationMarker();
     }
 
     function beginPhraseResize(event, blockId) {
@@ -3251,7 +3436,209 @@ if (returnToDesignButton) {
       }
     }
 
-    async function playDesignPhrase() {
+    // --- Selected location (parity with Design Studio's ruler-click + ▶L) ---
+
+    function hasPhraseSelectedLocation() {
+      return Number.isFinite(phraseSelectedLocationBeat);
+    }
+
+    function getPhraseSelectedLocationBeat() {
+      return Math.max(0, Number.isFinite(phraseSelectedLocationBeat) ? phraseSelectedLocationBeat : 0);
+    }
+
+    function getPhraseSelectedLocationLabel() {
+      if (getPhraseSelectedLocationBeat() < 0.0001) {
+        return "the beginning";
+      }
+      return beatToSimpleMeasureLabel(getPhraseSelectedLocationBeat(), designPhrasePayload?.context?.timeSignature);
+    }
+
+    function renderPhraseLocationMarker() {
+      if (!phraseLocationMarker) return;
+
+      if (!hasPhraseSelectedLocation()) {
+        phraseLocationMarker.style.display = "none";
+        return;
+      }
+
+      phraseLocationMarker.style.display = "block";
+      phraseLocationMarker.style.left = getPhrasePlayheadLeft(getPhraseSelectedLocationBeat()) + "px";
+    }
+
+    function clearPhraseSelectedLocation(message) {
+      phraseSelectedLocationBeat = null;
+      renderPhraseLocationMarker();
+      if (message) statusText.textContent = message;
+    }
+
+    function setPhraseSelectedLocationBeat(beat, messagePrefix = "Selected location") {
+      const nextBeat = Math.max(0, Number(beat) || 0);
+
+      if (hasPhraseSelectedLocation() && Math.abs(getPhraseSelectedLocationBeat() - nextBeat) < 0.0001) {
+        clearPhraseSelectedLocation("Selected location returned to beginning.");
+        return;
+      }
+
+      phraseSelectedLocationBeat = nextBeat;
+      renderPhraseLocationMarker();
+      statusText.textContent = messagePrefix + ": " + getPhraseSelectedLocationLabel() + ".";
+    }
+
+    function phraseBeatFromRulerEvent(event) {
+      const rect = phraseRuler.getBoundingClientRect();
+      const x = Math.max(0, event.clientX - rect.left);
+      return Math.max(0, Math.round((x / PHRASE_BEAT_WIDTH) * 4) / 4);
+    }
+
+    // --- Measure navigation + timeline scrolling (parity with Design Studio) ---
+
+    function getPhraseBeatsPerMeasure() {
+      const timeSignature = designPhrasePayload?.context?.timeSignature || { numerator: 4, denominator: 4 };
+      const numerator = Number(timeSignature.numerator) || 4;
+      const denominator = Number(timeSignature.denominator) || 4;
+      return Math.max(0.25, (numerator * 4) / denominator);
+    }
+
+    function getCurrentPhrasePlaybackBeat() {
+      if (phrasePlaybackState === "playing" && audioContext) {
+        const baseTempo = Number(designPhrasePayload?.context?.tempo || 120);
+        const beatSeconds = 60 / Math.max(20, baseTempo);
+        return phrasePlaybackStartBeat + (audioContext.currentTime - phrasePlaybackStartTime) / beatSeconds;
+      }
+
+      if (phrasePlaybackState === "paused") {
+        return phrasePausedBeat;
+      }
+
+      return hasPhraseSelectedLocation() ? getPhraseSelectedLocationBeat() : 0;
+    }
+
+    async function jumpPhrasePlaybackByMeasures(direction) {
+      if (!designPhrasePayload) return;
+
+      const wasPlaying = phrasePlaybackState === "playing";
+      const currentBeat = getCurrentPhrasePlaybackBeat();
+      const targetBeat = Math.max(0, currentBeat + direction * getPhraseBeatsPerMeasure());
+
+      if (wasPlaying) {
+        await playDesignPhrase(targetBeat);
+        return;
+      }
+
+      phrasePausedBeat = targetBeat;
+      phrasePlaybackState = "paused";
+
+      if (phrasePlayhead) {
+        phrasePlayhead.style.display = "block";
+        phrasePlayhead.style.left = getPhrasePlayheadLeft(targetBeat) + "px";
+      }
+
+      scrollPhraseTimelineWithPlayhead(targetBeat, true);
+      updatePhraseTransportButtons();
+
+      statusText.textContent =
+        (direction < 0 ? "Moved back" : "Moved forward") +
+        " to " +
+        beatToSimpleMeasureLabel(targetBeat, designPhrasePayload?.context?.timeSignature) +
+        ". Press Play to continue from here.";
+    }
+
+    function jumpPhraseTimelineToStart() {
+      const shell = phraseTimeline ? phraseTimeline.parentElement : null;
+      if (!shell) return;
+      shell.scrollLeft = 0;
+      statusText.textContent = "Jumped to start.";
+    }
+
+    function jumpPhraseTimelineToEnd() {
+      const shell = phraseTimeline ? phraseTimeline.parentElement : null;
+      if (!shell) return;
+      const endBeat = getPhraseDurationBeats();
+      shell.scrollLeft = Math.max(0, getPhrasePlayheadLeft(endBeat) - shell.clientWidth + 180);
+      statusText.textContent = "Jumped to end.";
+    }
+
+    async function playPhraseFromSelectedLocation() {
+      if (!designPhrasePayload || !designPhraseBlocks.length) {
+        statusText.textContent = "No Play Line to play.";
+        return;
+      }
+
+      if (!hasPhraseSelectedLocation()) {
+        statusText.textContent = "Click the ruler to set a location, then try Play from Location again.";
+        return;
+      }
+
+      await playDesignPhrase(getPhraseSelectedLocationBeat());
+    }
+
+    function pauseDesignPhrasePlayback() {
+      if (phrasePlaybackState !== "playing") {
+        statusText.textContent = "Nothing is playing.";
+        return;
+      }
+
+      const pausedBeat = Math.max(0, getCurrentPhrasePlaybackBeat());
+
+      phrasePlaybackRunId += 1;
+      isPhrasePlaybackActive = false;
+
+      phrasePlaybackTimers.forEach(timer => clearTimeout(timer));
+      phrasePlaybackTimers = [];
+
+      if (phrasePlayheadFrame) {
+        cancelAnimationFrame(phrasePlayheadFrame);
+        phrasePlayheadFrame = null;
+      }
+
+      phrasePlaybackNotes.forEach(note => ORUMI_VOICES.stopVoice(note, audioContext, 0.05));
+      phrasePlaybackNotes = [];
+
+      phraseLaneTrack.querySelectorAll(".phrase-block.playing").forEach(el => el.classList.remove("playing"));
+
+      phrasePlaybackState = "paused";
+      phrasePausedBeat = pausedBeat;
+
+      if (phrasePlayhead) {
+        phrasePlayhead.style.display = "block";
+        phrasePlayhead.style.left = getPhrasePlayheadLeft(pausedBeat) + "px";
+      }
+
+      updatePhraseTransportButtons();
+
+      statusText.textContent =
+        "Paused at " + beatToSimpleMeasureLabel(pausedBeat, designPhrasePayload?.context?.timeSignature) + ".";
+    }
+
+    function updatePhraseTransportButtons() {
+      const hasPhrase = Array.isArray(designPhraseBlocks) && designPhraseBlocks.length > 0;
+
+      if (pausePhraseButton) {
+        pausePhraseButton.disabled = phrasePlaybackState !== "playing";
+      }
+
+      if (playPhraseFromLocationButton) {
+        playPhraseFromLocationButton.disabled = !hasPhrase || !hasPhraseSelectedLocation();
+      }
+
+      if (backPhraseMeasureButton) {
+        backPhraseMeasureButton.disabled = !hasPhrase;
+      }
+
+      if (forwardPhraseMeasureButton) {
+        forwardPhraseMeasureButton.disabled = !hasPhrase;
+      }
+    }
+
+    async function handlePlayOrResumeClick() {
+      if (phrasePlaybackState === "paused") {
+        await playDesignPhrase(phrasePausedBeat);
+      } else {
+        await playDesignPhrase(0);
+      }
+    }
+
+    async function playDesignPhrase(startBeat = 0) {
       if (!designPhrasePayload || !designPhraseBlocks.length) {
         statusText.textContent = "No Play Line to play.";
         return;
@@ -3276,8 +3663,11 @@ if (returnToDesignButton) {
       const baseTempo = Number(designPhrasePayload.context?.tempo || 120);
       const beatSeconds = 60 / Math.max(20, baseTempo);
       const { voice } = getSettingsFromUrl();
+      const safeStartBeat = Math.max(0, Number(startBeat) || 0);
 
       isPhrasePlaybackActive = true;
+      phrasePlaybackState = "playing";
+      phrasePlaybackStartBeat = safeStartBeat;
       phrasePlaybackRunId += 1;
       const runId = phrasePlaybackRunId;
 
@@ -3287,12 +3677,14 @@ if (returnToDesignButton) {
         playPhraseButton.textContent = "▶ Playing...";
       }
 
+      updatePhraseTransportButtons();
+
       phrasePlaybackStartTime = audioContext.currentTime;
       phrasePlayhead.style.display = "block";
-      phrasePlayhead.style.left = getPhrasePlayheadLeft(0) + "px";
-      scrollPhraseTimelineWithPlayhead(0, true);
+      phrasePlayhead.style.left = getPhrasePlayheadLeft(safeStartBeat) + "px";
+      scrollPhraseTimelineWithPlayhead(safeStartBeat, true);
 
-      const phraseDurationSeconds = getPhraseDurationBeats() * beatSeconds;
+      const phraseDurationSeconds = Math.max(0, getPhraseDurationBeats() - safeStartBeat) * beatSeconds;
 
       designPhraseBlocks.forEach(block => {
         const isRest = block.type === "rest" || block.midi === null || block.midi === undefined;
@@ -3300,7 +3692,11 @@ if (returnToDesignButton) {
           return;
         }
 
-        const startMs = Math.max(0, block.relativeStartBeat * beatSeconds * 1000);
+        if (block.relativeStartBeat + block.durationBeats <= safeStartBeat) {
+          return;
+        }
+
+        const startMs = Math.max(0, (block.relativeStartBeat - safeStartBeat) * beatSeconds * 1000);
         const durationMs = Math.max(80, block.durationBeats * beatSeconds * 1000);
 
         const timer = setTimeout(() => {
@@ -3364,7 +3760,7 @@ if (returnToDesignButton) {
         if (!audioContext || !phrasePlayhead) return;
 
         const elapsed = audioContext.currentTime - phrasePlaybackStartTime;
-        const beat = elapsed / beatSeconds;
+        const beat = safeStartBeat + elapsed / beatSeconds;
         phrasePlayhead.style.left = getPhrasePlayheadLeft(beat) + "px";
         scrollPhraseTimelineWithPlayhead(beat);
 
@@ -3377,18 +3773,25 @@ if (returnToDesignButton) {
       }
 
       phrasePlayheadFrame = requestAnimationFrame(animatePlayhead);
-      statusText.textContent = "Playing Play Line...";
+      statusText.textContent =
+        safeStartBeat > 0.0001
+          ? "Playing from " + beatToSimpleMeasureLabel(safeStartBeat, designPhrasePayload?.context?.timeSignature) + "..."
+          : "Playing Play Line...";
     }
 
     function stopDesignPhrasePlayback(updateStatus = true) {
       phrasePlaybackRunId += 1;
       isPhrasePlaybackActive = false;
+      phrasePlaybackState = "stopped";
+      phrasePausedBeat = 0;
 
       if (playPhraseButton) {
         playPhraseButton.disabled = false;
         playPhraseButton.classList.remove("playing-now");
-        playPhraseButton.textContent = "▶ Play Line";
+        playPhraseButton.textContent = "▶ Play";
       }
+
+      updatePhraseTransportButtons();
 
       phrasePlaybackTimers.forEach(timer => clearTimeout(timer));
       phrasePlaybackTimers = [];
@@ -3655,30 +4058,6 @@ if (returnToDesignButton) {
       };
     }
 
-    function getHighlightedNotes() {
-      const params = getUrlParams();
-
-      return params.get("highlight")
-        ? params.get("highlight")
-            .split(",")
-            .map(note => note.trim())
-            .filter(Boolean)
-        : [];
-    }
-
-    function setHighlightedNotes(notes) {
-      const params = getUrlParams();
-
-      if (notes.length > 0) {
-        params.set("highlight", notes.join(","));
-      } else {
-        params.delete("highlight");
-      }
-
-      history.replaceState({}, "", "?" + params.toString());
-      refreshNavLinks();
-    }
-
     function midiToPc(midi) {
       return numberToPitchClass[midi % 12];
     }
@@ -3928,7 +4307,7 @@ if (returnToDesignButton) {
       const droneStarted =
         await startDroneIfAvailable();
 
-      updateHighlightDisplay();
+      refreshIdleStatusText();
 
       if (droneStarted) {
         const { system } = getSettingsFromUrl();
@@ -4007,7 +4386,6 @@ if (returnToDesignButton) {
       const rootNumber = pitchClasses[root].number;
       const nativeFormula = mode.formula;
       const finalInterval = nativeFormula[nativeFormula.length - 1];
-      const highlightedNotes = getHighlightedNotes();
 
       grid.innerHTML = "";
 
@@ -4050,22 +4428,7 @@ if (returnToDesignButton) {
           button.textContent = pitch.display + noteOctave;
 
           if (designPhrasePayload) {
-            button.draggable = true;
             button.title = "Play this note, or drag it into the Play Line.";
-            button.addEventListener("dragstart", event => {
-              event.dataTransfer.setData("application/x-orumi-note", JSON.stringify({
-                midi: parseInt(button.dataset.midi, 10),
-                name: button.dataset.displayName,
-                displayName: button.dataset.displayName,
-                voice: getActivePhraseVoice(),
-                durationBeats: 1
-              }));
-              event.dataTransfer.effectAllowed = "copy";
-            });
-          }
-
-          if (highlightedNotes.includes(button.dataset.displayName)) {
-            button.classList.add("highlighted");
           }
 
           attachSquareEvents(button);
@@ -4078,6 +4441,17 @@ if (returnToDesignButton) {
         buttonsForRow.forEach(button => row.appendChild(button));
         grid.appendChild(row);
       });
+
+      const restRow = document.createElement("div");
+      restRow.classList.add("rest-row");
+
+      const restButton = document.createElement("button");
+      restButton.classList.add("rest-bar");
+      restButton.textContent = "Rest";
+      restButton.title = "Play a Rest, or drag it into the Play Line.";
+      attachRestSquareEvents(restButton);
+      restRow.appendChild(restButton);
+      grid.appendChild(restRow);
 
       pageTitle.textContent = isCustomSquareMode()
         ? (getSettingsFromUrl().customName || "Custom Sound Square")
@@ -4097,21 +4471,11 @@ if (returnToDesignButton) {
         " · " +
         ORUMI_CATALOG.voices[voice].label;
 
-      updateHighlightDisplay();
+      refreshIdleStatusText();
       refreshNavLinks();
     }
 
-    function updateHighlightDisplay() {
-      const highlighted = getHighlightedNotes();
-
-      playChordButton.style.display =
-        highlighted.length > 0 ? "inline-block" : "none";
-
-      if (clearChordButton) {
-        clearChordButton.style.display =
-          highlighted.length > 0 ? "inline-block" : "none";
-      }
-
+    function refreshIdleStatusText() {
       if (!audioReady) {
         statusText.textContent = "Press Begin Sound first";
         return;
@@ -4123,14 +4487,11 @@ if (returnToDesignButton) {
           : "";
 
       const recordingText =
-        isRecording
+        phraseAddPlayedNotes
           ? " · Recording"
           : "";
 
-      statusText.textContent =
-        highlighted.length > 0
-          ? "Selected: " + highlighted.join(" · ") + droneText + recordingText
-          : "Tap a square to play" + droneText + recordingText;
+      statusText.textContent = "Tap a square to play" + droneText + recordingText;
     }
 
     function clearRecordingPlaybackTimers() {
@@ -4216,17 +4577,87 @@ function updateTransportActionButtons() {
   const hasMaterial = hasPlayableTransportMaterial();
 
   if (clearRecordingButton) {
-    clearRecordingButton.disabled = !hasMaterial && !isRecording;
+    clearRecordingButton.disabled = !hasMaterial && !phraseAddPlayedNotes;
   }
 
   if (playRecordingButton) {
     playRecordingButton.disabled =
       !hasMaterial ||
-      isRecording ||
+      phraseAddPlayedNotes ||
       isRecordingPlaybackActive ||
       isPhrasePlaybackActive;
   }
+
+  if (playPhraseButton) {
+    playPhraseButton.disabled = phraseAddPlayedNotes || !designPhraseBlocks.length;
+  }
+
+  if (jumpPhraseStartButton) {
+    jumpPhraseStartButton.disabled = false;
+  }
+
+  if (jumpPhraseEndButton) {
+    jumpPhraseEndButton.disabled = false;
+  }
+
+  updatePhraseTransportButtons();
+
+  if (phraseAddPlayedNotes) {
+    if (backPhraseMeasureButton) backPhraseMeasureButton.disabled = true;
+    if (forwardPhraseMeasureButton) forwardPhraseMeasureButton.disabled = true;
+    if (playPhraseFromLocationButton) playPhraseFromLocationButton.disabled = true;
+  }
 }
+
+    // Record now arms live capture: every note played gets appended straight
+    // to the Play Line via the same mechanism already used when editing a
+    // Design Studio line (beginAutoCapturedPhraseNote), which places each
+    // note right after the previous one with no regard for the real-time
+    // pause between taps. That avoids the old pipeline's core problem --
+    // every hesitation between notes became its own Rest block. A real
+    // Rest is still only ever created by explicitly pressing + Rest.
+    function startLiveCapture() {
+      if (!requireAudioReady()) {
+        return;
+      }
+
+      stopCurrentRecordingPlayback(false);
+      stopDesignPhrasePlayback(false);
+
+      if (!designPhrasePayload) {
+        initializeDefaultPlayerLineMode();
+      }
+
+      if (designPhrasePanel && designPhrasePanel.hidden) {
+        openPlayLinePanel();
+      }
+
+      phraseAddPlayedNotes = true;
+
+      recordButton.classList.add("recording");
+      recordButton.disabled = true;
+      stopRecordingButton.disabled = false;
+
+      updatePhraseCaptureButton();
+      updateTransportActionButtons();
+
+      statusText.textContent = "Recording live -- play notes (or press + Rest) to build the Play Line.";
+    }
+
+    function stopLiveCapture() {
+      stopAllNotes();
+
+      phraseAddPlayedNotes = false;
+
+      recordButton.classList.remove("recording");
+      recordButton.disabled = false;
+      stopRecordingButton.disabled = !isPhrasePlaybackActive && !isRecordingPlaybackActive;
+
+      updatePhraseCaptureButton();
+      updateTransportActionButtons();
+
+      statusText.textContent = "Stopped adding played notes. Play Line is ready to shape, or press Record to keep adding.";
+    }
 
     function startRecording() {
   if (!requireAudioReady()) {
@@ -4301,6 +4732,18 @@ function clearCurrentRecording() {
     JSON.stringify(recordedEvents)
   );
 
+  // Clear every persisted Play Line / Design Studio handoff key too.
+  // Otherwise the next time Player loads -- even navigating to an unrelated
+  // system or scale -- the safety net in shouldOpenDesignPhraseMode() finds
+  // the still-present payload in localStorage and silently reloads the
+  // "cleared" Play Line right back.
+  clearDesignPhrasePayloadStorage();
+  localStorage.removeItem("orumiPlayerLineForDesign");
+  localStorage.removeItem("orumiPendingPlayerLine");
+  localStorage.removeItem("orumiPlayerReplacementPayload");
+  localStorage.removeItem("orumiPendingPlayerReplacementPayload");
+  localStorage.removeItem("orumiPlayerEditedPhrase");
+
   isRecording = false;
   recordingStartTime = null;
 
@@ -4309,13 +4752,10 @@ function clearCurrentRecording() {
 
   stopRecordingButton.disabled = true;
 
-  if (designPhrasePanel && isDefaultPlayerLineMode()) {
-    designPhrasePanel.hidden = true;
-    document.body.classList.remove("playline-mode");
-  }
-
-  renderDesignPhraseTimeline();
-  updateTransportActionButtons();
+  // Clear is a full reset -- always return to the plain default state,
+  // regardless of which mode (default sketch, Play Line, or Design Studio
+  // edit) it was pressed from.
+  initializeDefaultPlayerLineMode();
 
   statusText.textContent = "Current take and Play Line cleared.";
 }
@@ -4496,128 +4936,6 @@ if (!isRecording) {
       );
     }
 
-    function toggleHighlight(button) {
-      const note = button.dataset.displayName;
-      let highlighted = getHighlightedNotes();
-
-      if (highlighted.includes(note)) {
-        highlighted = highlighted.filter(value => value !== note);
-        button.classList.remove("highlighted");
-      } else {
-        highlighted.push(note);
-        button.classList.add("highlighted");
-      }
-
-      setHighlightedNotes(highlighted);
-      updateHighlightDisplay();
-    }
-
-    function clearHighlightedChord() {
-      document.querySelectorAll(".square.highlighted").forEach(button => {
-        button.classList.remove("highlighted");
-      });
-
-      setHighlightedNotes([]);
-      recentNotes = [];
-      updateHighlightDisplay();
-    }
-
-    if (clearChordButton) {
-      clearChordButton.addEventListener("click", clearHighlightedChord);
-    }
-
-    async function playHighlightedChord() {
-      if (!requireAudioReady()) {
-        return;
-      }
-
-      await ensureAudio();
-
-      const { voice, systemKey, root, family, mode, setView } =
-        getSettingsFromUrl();
-
-      const highlightedButtons =
-        Array.from(document.querySelectorAll(".square.highlighted"));
-
-      if (highlightedButtons.length === 0) {
-        return;
-      }
-
-      const now = audioContext.currentTime;
-      const playedNotes = [];
-
-      highlightedButtons.forEach(button => {
-        const freq = parseFloat(button.dataset.note);
-
-        const voiceNode =
-          buildContainedVoice(voice, freq, now);
-
-        playedNotes.push({
-          ...voiceNode,
-          voice,
-          gain: voiceNode.gain,
-          oscillators: voiceNode.oscillators || [],
-          noiseSources: voiceNode.noiseSources || []
-        });
-
-        button.classList.add("active");
-
-        setTimeout(() => {
-          button.classList.remove("active");
-        }, 180);
-      });
-
-      setTimeout(() => {
-        playedNotes.forEach(note => {
-          releaseVoiceGracefully(note, 0.25);
-        });
-      }, 1800);
-
-      if (isRecording && ensureRecordingClock(now)) {
-        recordedEvents.push({
-          type: "chord",
-          name: nameChordFromButtons(highlightedButtons),
-          start: Math.max(0, now - recordingStartTime),
-          duration: 1.8,
-          notes: highlightedButtons.map(button => ({
-            midi: parseInt(button.dataset.midi, 10),
-            name: button.dataset.displayName
-          })),
-          voice,
-          system: systemKey,
-          root,
-          family: family.label,
-          mode: mode.label,
-          setView
-        });
-
-        saveCurrentRecording();
-      }
-
-      statusText.textContent =
-        nameChordFromButtons(highlightedButtons) +
-        " · " +
-        highlightedButtons
-          .map(button => button.dataset.displayName)
-          .join(" · ") +
-        (droneActive ? " · Drone active" : "") +
-        (isRecording ? " · Recording" : "");
-    }
-
-    playChordButton.addEventListener("click", playHighlightedChord);
-
-    function nameChordFromButtons(buttons) {
-      const notes = buttons
-        .map(button => ({
-          pc: button.dataset.pc,
-          midi: parseInt(button.dataset.midi, 10),
-          displayName: button.dataset.displayName
-        }))
-        .sort((a, b) => a.midi - b.midi);
-
-      return nameChord(notes);
-    }
-
     function trackRecentNote(button) {
       const nowMs = Date.now();
 
@@ -4742,23 +5060,6 @@ if (!isRecording) {
         "charango"
       ];
 
-      button.draggable = true;
-      button.addEventListener("dragstart", event => {
-        if (!designPhrasePayload || !Number.isFinite(Number(button.dataset.midi))) return;
-
-        const payload = {
-          midi: parseInt(button.dataset.midi, 10),
-          name: button.dataset.displayName,
-          displayName: button.dataset.displayName,
-          voice: getActivePhraseVoice(),
-          durationBeats: 1
-        };
-
-        event.dataTransfer.setData("application/x-orumi-note", JSON.stringify(payload));
-        event.dataTransfer.setData("text/plain", JSON.stringify(payload));
-        event.dataTransfer.effectAllowed = "copy";
-      });
-
       button.addEventListener("pointerdown", async event => {
         if (designPhrasePayload && event.isPrimary && !isPhrasePlaybackActive) {
           beginPhraseDrag(event, {
@@ -4771,11 +5072,6 @@ if (!isRecording) {
         }
 
         event.preventDefault();
-
-        if (event.shiftKey) {
-          toggleHighlight(button);
-          return;
-        }
 
         if (!requireAudioReady()) {
           return;
@@ -4815,7 +5111,14 @@ if (!isRecording) {
           phrasePreviewBlockId: null
         };
 
-        if (designPhrasePayload && !isDefaultPlayerLineMode() && phraseAddPlayedNotes && !isPhrasePlaybackActive) {
+        if (
+          designPhrasePayload &&
+          phraseAddPlayedNotes &&
+          !isPhrasePlaybackActive &&
+          (activeCapturePointerId === null || activeCapturePointerId === event.pointerId)
+        ) {
+          activeCapturePointerId = event.pointerId;
+
           const initialDurationBeats = sustainedVoices.includes(voice)
             ? 0.25
             : Math.max(0.25, secondsToPhraseBeats(Math.min(voiceNode.autoStopSeconds || 0.9, 1.2)));
@@ -4842,7 +5145,7 @@ const autoStopSeconds = Number(voiceNode.autoStopSeconds);
 
           // Schedule audio cleanup after voice decay, but don't use decay time
           // as the recorded note duration — that comes from stopHeldNote instead.
-          if (designPhrasePayload && !isDefaultPlayerLineMode() && noteRecord.phrasePreviewBlockId) {
+          if (designPhrasePayload && noteRecord.phrasePreviewBlockId) {
             setTimeout(() => {
               if (phraseDragState && phraseDragState.previewBlockId === noteRecord.phrasePreviewBlockId) {
                 return;
@@ -4885,10 +5188,59 @@ const autoStopSeconds = Number(voiceNode.autoStopSeconds);
 
         stopHeldNote(event.pointerId);
       });
+    }
 
-      button.addEventListener("dblclick", event => {
+    // The Rest bar has no pitch and nothing to preview-play, but it needs the
+    // same drag-to-place and tap-to-add-while-capturing behavior every note
+    // square has. Kept as its own function rather than threading a rest
+    // branch through attachSquareEvents, which is all audio-voice bookkeeping
+    // that doesn't apply here.
+    function attachRestSquareEvents(button) {
+      button.addEventListener("pointerdown", event => {
+        if (designPhrasePayload && event.isPrimary && !isPhrasePlaybackActive) {
+          beginPhraseDrag(event, {
+            source: "grid",
+            midi: 60,
+            name: "Rest",
+            voice: null,
+            durationBeats: 1,
+            isRest: true
+          });
+        }
+
         event.preventDefault();
-        toggleHighlight(button);
+
+        button.classList.add("active");
+        setTimeout(() => button.classList.remove("active"), 180);
+
+        if (!designPhrasePayload || isPhrasePlaybackActive) {
+          return;
+        }
+
+        // While Record (Add Played Notes) is on, tapping Rest adds it
+        // immediately, exactly like a played note would. If this pointerdown
+        // turns into a real drag instead, handlePhraseDragMove cancels this
+        // preview insert (same as it does for notes) so it isn't duplicated
+        // by the drop landing. The Play Line is monophonic, so this is
+        // skipped if a different pointer is already the active capture (e.g.
+        // a note is being held elsewhere) -- Rest can still be heard/dragged,
+        // it just won't also write into the sequence.
+        if (
+          phraseAddPlayedNotes &&
+          (activeCapturePointerId === null || activeCapturePointerId === event.pointerId)
+        ) {
+          savePhraseHistory();
+          const insertIndex = getActivePhraseInsertIndex();
+          const restBlock = createPhraseRestBlock(0, 1);
+          insertPhraseBlockAtIndex(restBlock, insertIndex);
+          advancePhraseInsertIndex(insertIndex);
+          renderDesignPhraseTimeline();
+          statusText.textContent = "Added a Rest to the Play Line.";
+
+          if (phraseDragState && phraseDragState.pointerId === event.pointerId) {
+            phraseDragState.previewBlockId = restBlock.blockId;
+          }
+        }
       });
     }
 
@@ -5077,6 +5429,10 @@ const autoStopSeconds = Number(voiceNode.autoStopSeconds);
 
       note.button.classList.remove("active");
       activeNotes.delete(pointerId);
+
+      if (activeCapturePointerId === pointerId) {
+        activeCapturePointerId = null;
+      }
     }
 
     function stopAllNotes() {
@@ -5087,7 +5443,47 @@ const autoStopSeconds = Number(voiceNode.autoStopSeconds);
 
 
     if (playPhraseButton) {
-      playPhraseButton.addEventListener("click", playDesignPhrase);
+      playPhraseButton.addEventListener("click", handlePlayOrResumeClick);
+    }
+
+    if (pausePhraseButton) {
+      pausePhraseButton.addEventListener("click", () => {
+        pauseDesignPhrasePlayback();
+        flashButtonSuccess(pausePhraseButton);
+      });
+    }
+
+    if (playPhraseFromLocationButton) {
+      playPhraseFromLocationButton.addEventListener("click", () => {
+        playPhraseFromSelectedLocation();
+        flashButtonSuccess(playPhraseFromLocationButton);
+      });
+    }
+
+    if (backPhraseMeasureButton) {
+      backPhraseMeasureButton.addEventListener("click", () => {
+        jumpPhrasePlaybackByMeasures(-1);
+      });
+    }
+
+    if (forwardPhraseMeasureButton) {
+      forwardPhraseMeasureButton.addEventListener("click", () => {
+        jumpPhrasePlaybackByMeasures(1);
+      });
+    }
+
+    if (jumpPhraseStartButton) {
+      jumpPhraseStartButton.addEventListener("click", jumpPhraseTimelineToStart);
+    }
+
+    if (jumpPhraseEndButton) {
+      jumpPhraseEndButton.addEventListener("click", jumpPhraseTimelineToEnd);
+    }
+
+    if (phraseRuler) {
+      phraseRuler.addEventListener("click", event => {
+        setPhraseSelectedLocationBeat(phraseBeatFromRulerEvent(event));
+      });
     }
 
     if (stopPhraseButton) {
@@ -5144,14 +5540,6 @@ const autoStopSeconds = Number(voiceNode.autoStopSeconds);
       capturePhraseButton.addEventListener("click", togglePhraseCapture);
     }
 
-    if (insertRestButton) {
-      insertRestButton.addEventListener("click", () => addRestToPhraseLine(1));
-    }
-
-    if (tightenPhraseLineButton) {
-      tightenPhraseLineButton.addEventListener("click", tightenPhraseLine);
-    }
-
     if (clearPhraseLineButton) {
       clearPhraseLineButton.addEventListener("click", clearPhraseLine);
     }
@@ -5166,7 +5554,7 @@ const autoStopSeconds = Number(voiceNode.autoStopSeconds);
 
     setupPhraseDropTarget();
 
-    recordButton.addEventListener("click", startRecording);
+    recordButton.addEventListener("click", startLiveCapture);
     stopRecordingButton.addEventListener("click", () => {
   if (isPhrasePlaybackActive) {
     stopDesignPhrasePlayback(true);
@@ -5176,8 +5564,8 @@ const autoStopSeconds = Number(voiceNode.autoStopSeconds);
     stopCurrentRecordingPlayback(true);
   }
 
-  if (isRecording) {
-    stopRecording();
+  if (phraseAddPlayedNotes) {
+    stopLiveCapture();
   }
 });
     clearRecordingButton.addEventListener("click", () => {
@@ -5189,22 +5577,6 @@ const autoStopSeconds = Number(voiceNode.autoStopSeconds);
 
   clearCurrentRecording();
 });
-    playRecordingButton.addEventListener("click", () => {
-  if (!hasPlayableTransportMaterial()) {
-    statusText.textContent = "Record a melody before using Play.";
-    updateTransportActionButtons();
-    return;
-  }
-
-  if (designPhraseBlocks && designPhraseBlocks.length > 0) {
-    playDesignPhrase();
-    updateTransportActionButtons();
-    return;
-  }
-
-  playCurrentRecording();
-});
-
 document.addEventListener("pointerup", event => {
   stopHeldNote(event.pointerId);
 });

@@ -761,6 +761,44 @@
       z-index: 30;
     }
 
+.overlap-cycle-badge {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(255,60,60,0.9);
+      color: white;
+      font-size: 11px;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 50;
+      pointer-events: auto;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+      user-select: none;
+      line-height: 1;
+    }
+
+    .overlap-cycle-badge:hover {
+      background: rgba(255,100,100,1);
+      transform: scale(1.15);
+    }
+
+    .orumi-block.overlap-hidden {
+      opacity: 0.25;
+      z-index: 1 !important;
+    }
+
+    .orumi-block.overlap-front {
+      z-index: 45 !important;
+      outline: 3px solid rgba(255,60,60,0.95) !important;
+      outline-offset: 2px;
+    }
+
     .orumi-block.overlap-error {
       outline: 3px solid rgba(255,60,60,0.95) !important;
       outline-offset: 2px;
@@ -3578,10 +3616,12 @@ for (let beat = 0; beat <= maxBeat; beat++) {
     }
 
     let showingOverlaps = false;
+    let overlapGroups = []; // each entry: { ids: [...blockIds], frontIndex: 0 }
 
     function findAndHighlightOverlaps() {
       if (showingOverlaps) {
         showingOverlaps = false;
+        overlapGroups = [];
         render();
         flashStatus("Overlap highlight cleared.");
         const btn = document.getElementById("findOverlapsButton");
@@ -3589,7 +3629,9 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         return;
       }
 
-      const overlapBlockIds = new Set();
+      // Build overlap groups per lane
+      overlapGroups = [];
+      let totalOverlapping = 0;
 
       project.lanes.forEach(lane => {
         const laneBlocks = project.blocks
@@ -3599,33 +3641,75 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         for (let i = 0; i < laneBlocks.length; i++) {
           const a = laneBlocks[i];
           const aEnd = Number(a.startBeat) + Number(a.durationBeats);
+          const group = [a.id];
+
           for (let j = i + 1; j < laneBlocks.length; j++) {
             const b = laneBlocks[j];
-            const bStart = Number(b.startBeat);
-            if (bStart >= aEnd - 0.001) break;
-            overlapBlockIds.add(a.id);
-            overlapBlockIds.add(b.id);
+            if (Number(b.startBeat) >= aEnd - 0.001) break;
+            group.push(b.id);
+            i = j; // advance outer so we don't re-process
+          }
+
+          if (group.length > 1) {
+            overlapGroups.push({ ids: group, frontIndex: 0 });
+            totalOverlapping += group.length;
           }
         }
       });
 
-      if (overlapBlockIds.size === 0) {
+      if (overlapGroups.length === 0) {
         flashStatus("No overlapping notes found.");
         return;
       }
 
       showingOverlaps = true;
       render();
-
-      overlapBlockIds.forEach(id => {
-        const el = document.querySelector("[data-block-id='" + id + "']");
-        if (el) el.classList.add("overlap-error");
-      });
+      applyOverlapDisplay();
 
       const btn = document.getElementById("findOverlapsButton");
       if (btn) { btn.textContent = "🔍 Clear Overlap Highlights"; btn.classList.add("clipboard-active"); }
 
-      flashStatus("Found " + overlapBlockIds.size + " overlapping block" + (overlapBlockIds.size === 1 ? "" : "s") + " (highlighted in red). Click again to clear.");
+      flashStatus("Found " + overlapGroups.length + " overlap group" + (overlapGroups.length === 1 ? "" : "s") + ". Click ◎ on any block to cycle through the stack.");
+    }
+
+    function applyOverlapDisplay() {
+      if (!showingOverlaps) return;
+
+      overlapGroups.forEach((group, groupIdx) => {
+        group.ids.forEach((id, posIdx) => {
+          const el = document.querySelector("[data-block-id='" + id + "']");
+          if (!el) return;
+
+          const isFront = posIdx === group.frontIndex;
+
+          el.classList.remove("overlap-error", "overlap-hidden", "overlap-front");
+          if (isFront) {
+            el.classList.add("overlap-front");
+          } else {
+            el.classList.add("overlap-hidden");
+            el.classList.add("overlap-error");
+          }
+
+          // Add cycle badge if not already there
+          if (!el.querySelector(".overlap-cycle-badge")) {
+            const badge = document.createElement("div");
+            badge.className = "overlap-cycle-badge";
+            badge.textContent = "◎";
+            badge.title = "Click to see next overlapping block (" + group.ids.length + " stacked here)";
+            badge.addEventListener("click", e => {
+              e.stopPropagation();
+              group.frontIndex = (group.frontIndex + 1) % group.ids.length;
+              const nextId = group.ids[group.frontIndex];
+              applyOverlapDisplay();
+              selectBlock(nextId, null, false);
+              render();
+              applyOverlapDisplay();
+              flashStatus("Showing block " + (group.frontIndex + 1) + " of " + group.ids.length + " at this position. Select and delete to remove, or click ◎ again to cycle.");
+            });
+            el.appendChild(badge);
+          }
+        });
+      });
     }
 
     function generateRestFill(laneId) {
@@ -4264,19 +4348,35 @@ for (let beat = 0; beat <= maxBeat; beat++) {
     }
 
     function getHorizontalPhraseSelection() {
-      const selectedBlocks = getNoteBlocksFromSelection();
+      const noteBlocks = getNoteBlocksFromSelection();
 
-      if (selectedBlocks.length < 1) {
+      if (noteBlocks.length < 1) {
         return null;
       }
 
-      const laneIds = new Set(selectedBlocks.map(block => block.laneId));
+      const laneIds = new Set(noteBlocks.map(block => block.laneId));
 
       if (laneIds.size !== 1) {
         return null;
       }
 
-      return selectedBlocks;
+      // Pull in any rests (real or auto-generated) that fall between the
+      // selected notes on this lane, so a phrase sent to Player doesn't
+      // silently lose them -- the same fix already applied to chord stacks.
+      const laneId = noteBlocks[0].laneId;
+      const minStart = Math.min(...noteBlocks.map(block => Number(block.startBeat || 0)));
+      const maxEnd = Math.max(...noteBlocks.map(block => Number(block.startBeat || 0) + Number(block.durationBeats || MIN_DURATION)));
+
+      const fullLaneSpan = project.blocks
+        .filter(block =>
+          block.laneId === laneId &&
+          Number(block.startBeat || 0) >= minStart - 0.0001 &&
+          Number(block.startBeat || 0) < maxEnd - 0.0001
+        )
+        .slice()
+        .sort((a, b) => Number(a.startBeat || 0) - Number(b.startBeat || 0));
+
+      return fullLaneSpan.length ? fullLaneSpan : noteBlocks;
     }
 
     function getChordStackGroupsFromSelection(blocks = null) {
@@ -4313,7 +4413,6 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
       candidateBeats.forEach(beat => {
         const stackBlocks = getBlocksAtChordBeat(selectedBlocks, beat)
-          .filter(block => block.type === "note" && Number.isFinite(block.midi))
           .slice()
           .sort((a, b) => {
             const laneA = project.lanes.findIndex(lane => lane.id === a.laneId);
@@ -4323,9 +4422,13 @@ for (let beat = 0; beat <= maxBeat; beat++) {
             return Number(a.midi || 0) - Number(b.midi || 0);
           });
 
-        const laneIds = new Set(stackBlocks.map(block => block.laneId));
+        // Keep rests (real or auto-generated) in the stack so silent voices
+        // still appear when this group is sent to Progression Builder; a
+        // group only needs at least one sounding note to count as a chord.
+        const noteStackBlocks = stackBlocks.filter(block => block.type === "note" && Number.isFinite(block.midi));
+        const laneIds = new Set(noteStackBlocks.map(block => block.laneId));
 
-        if (stackBlocks.length < 1 || laneIds.size < 1) {
+        if (noteStackBlocks.length < 1 || laneIds.size < 1) {
           return;
         }
 
@@ -4373,9 +4476,9 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       const seenSigs = new Set();
 
       for (let beat = Math.floor(minBeat / bpm) * bpm; beat < maxBeat; beat += bpm) {
-        const stackBlocks = getBlocksAtChordBeat(selectedBlocks, beat + 0.01)
-          .filter(b => b.type === "note" && Number.isFinite(b.midi));
-        if (stackBlocks.length === 0) continue;
+        const stackBlocks = getBlocksAtChordBeat(selectedBlocks, beat + 0.01);
+        const hasNote = stackBlocks.some(b => b.type === "note" && Number.isFinite(b.midi));
+        if (!hasNote) continue;
         const sig = stackBlocks.map(b => b.id).sort().join(",");
         if (seenSigs.has(sig)) continue;
         seenSigs.add(sig);
@@ -4489,19 +4592,25 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         durationBeats: Math.max(MIN_DURATION, snapBeat(maxEnd - minStart)),
         locationLabel: "M" + location.measure + " beat " + formatBeatValue(location.beatWithinMeasure),
         originalBlockIds: selectedBlocks.map(block => block.id),
-        blocks: selectedBlocks.map(block => ({
-          id: block.id,
-          blockId: block.id,
-          laneId: block.laneId,
-          midi: block.midi,
-          name: block.name || midiToDisplayName(block.midi),
-          startBeat: Number(block.startBeat || 0),
-          relativeStartBeat: Number(block.startBeat || 0) - minStart,
-          durationBeats: Number(block.durationBeats || MIN_DURATION),
-          velocity: Number(block.velocity || 82),
-          voice: block.voice || (lane ? lane.voice : null) || null,
-          system: block.system || project.context.system
-        })),
+        blocks: selectedBlocks.map(block => {
+          const isRest = block.type === "rest" || !Number.isFinite(Number(block.midi));
+          const displayName = isRest ? "Rest" : (block.name || midiToDisplayName(block.midi));
+          return {
+            id: block.id,
+            blockId: block.id,
+            laneId: block.laneId,
+            midi: isRest ? null : Number(block.midi),
+            name: displayName,
+            type: isRest ? "rest" : "note",
+            isRest,
+            startBeat: Number(block.startBeat || 0),
+            relativeStartBeat: Number(block.startBeat || 0) - minStart,
+            durationBeats: Number(block.durationBeats || MIN_DURATION),
+            velocity: isRest ? 0 : Number(block.velocity || 82),
+            voice: isRest ? null : (block.voice || (lane ? lane.voice : null) || null),
+            system: block.system || project.context.system
+          };
+        }),
         context: {
           tempo: Number(project.tempo || 120),
           timeSignature: JSON.parse(JSON.stringify(project.context.timeSignature || DEFAULT_TIME_SIGNATURE)),
@@ -4555,10 +4664,10 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       }
 
       const laneBlocks = project.blocks
-        .filter(b => b.laneId === lane.id && b.type !== "rest")
+        .filter(b => b.laneId === lane.id)
         .sort((a, b) => Number(a.startBeat || 0) - Number(b.startBeat || 0));
 
-      if (laneBlocks.length === 0) {
+      if (laneBlocks.filter(b => b.type !== "rest").length === 0) {
         window.alert("The selected lane has no notes to send to Player.");
         return;
       }
@@ -4719,10 +4828,13 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       });
 
       // Fill in missing lanes from the full project at this beat
+      // Include notes first, then fall back to any rest (real or generated)
       const coveredLanes = new Set(active.map(b => b.laneId));
       project.lanes.forEach(lane => {
         if (coveredLanes.has(lane.id)) return;
-        const covering = project.blocks.find(b =>
+
+        // Prefer a real note block
+        const noteBlock = project.blocks.find(b =>
           b.laneId === lane.id &&
           b.type === "note" &&
           !b.generated &&
@@ -4730,7 +4842,40 @@ for (let beat = 0; beat <= maxBeat; beat++) {
           Number(b.startBeat) <= beat + tolerance &&
           Number(b.startBeat) + Number(b.durationBeats) > beat + tolerance
         );
-        if (covering) active.push(covering);
+        if (noteBlock) { active.push(noteBlock); return; }
+
+        // Fall back to a real rest block
+        const restBlock = project.blocks.find(b =>
+          b.laneId === lane.id &&
+          b.type === "rest" &&
+          !b.generated &&
+          Number(b.startBeat) <= beat + tolerance &&
+          Number(b.startBeat) + Number(b.durationBeats) > beat + tolerance
+        );
+        if (restBlock) { active.push(restBlock); return; }
+
+        // Fall back to a generated rest
+        const genRest = project.blocks.find(b =>
+          b.laneId === lane.id &&
+          b.generated &&
+          Number(b.startBeat) <= beat + tolerance &&
+          Number(b.startBeat) + Number(b.durationBeats) > beat + tolerance
+        );
+        if (genRest) { active.push(genRest); return; }
+
+        // No block at all — add a placeholder so the lane still appears
+        active.push({
+          id: "rest-placeholder-" + lane.id,
+          type: "rest",
+          laneId: lane.id,
+          startBeat: beat,
+          durationBeats: MIN_DURATION,
+          midi: null,
+          velocity: 0,
+          name: "Rest",
+          generated: true,
+          isPlaceholder: true
+        });
       });
 
       return active;
@@ -4781,7 +4926,10 @@ for (let beat = 0; beat <= maxBeat; beat++) {
           });
         const analysis = analyzeSelectedHarmony(stackBlocks);
         const location = beatToMeasureInfo(beat);
-        const notes = stackBlocks.map(block => block.name || midiToDisplayName(block.midi));
+        const notes = stackBlocks.map(block => {
+          const isRest = block.type === "rest" || !Number.isFinite(Number(block.midi));
+          return isRest ? "Rest" : (block.name || midiToDisplayName(block.midi));
+        });
         const rootMatch = String(analysis.chordLabel || "").match(/^([A-G](?:b)?)/);
 
         return {
@@ -4799,12 +4947,14 @@ for (let beat = 0; beat <= maxBeat; beat++) {
           voice: stackBlocks.find(block => getLaneVoiceForBlock(block)) ? getLaneVoiceForBlock(stackBlocks.find(block => getLaneVoiceForBlock(block))) : project.context.voice,
           voiceAssignments: stackBlocks.map(block => {
             const lane = project.lanes.find(item => item.id === block.laneId);
+            const isRest = block.type === "rest" || !Number.isFinite(Number(block.midi));
             return {
               laneId: block.laneId,
               laneName: lane ? lane.name : block.laneId,
               voice: getLaneVoiceForBlock(block),
-              midi: Number(block.midi),
-              name: block.name || midiToDisplayName(block.midi)
+              midi: isRest ? null : Number(block.midi),
+              name: isRest ? "Rest" : (block.name || midiToDisplayName(block.midi)),
+              isRest
             };
           }),
           notes,
@@ -4816,18 +4966,22 @@ for (let beat = 0; beat <= maxBeat; beat++) {
           pitchClasses: analysis.pitchClassLabel,
           blocks: stackBlocks.map(block => {
             const lane = project.lanes.find(item => item.id === block.laneId);
+            const isRest = block.type === "rest" || !Number.isFinite(Number(block.midi));
+            const displayName = isRest ? "Rest" : (block.name || midiToDisplayName(block.midi));
             return {
               id: block.id,
               blockId: block.id,
               laneId: block.laneId,
               laneName: lane ? lane.name : block.laneId,
-              midi: Number(block.midi),
-              name: block.name || midiToDisplayName(block.midi),
-              note: block.name || midiToDisplayName(block.midi),
+              midi: isRest ? null : Number(block.midi),
+              name: displayName,
+              note: displayName,
+              type: isRest ? "rest" : "note",
+              isRest,
               startBeat: Number(block.startBeat || 0),
               relativeStartBeat: Number(block.startBeat || 0) - beat,
               durationBeats: Number(block.durationBeats || MIN_DURATION),
-              velocity: Number(block.velocity || 82),
+              velocity: isRest ? 0 : Number(block.velocity || 82),
               voice: getLaneVoiceForBlock(block),
               system: block.system || project.context.system
             };
@@ -4955,16 +5109,11 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       const location = beatToMeasureInfo(chordAnchorBeat);
       const returnFile = window.location.pathname.split("/").pop() || "design-studio.html";
 
-      // Sort blocks by barbershop role order: Tenor → Lead → Baritone → Bass
-      const roleOrder = ["tenor", "lead", "baritone", "bari", "bass"];
+      // Sort blocks by lane position in project.lanes (top lane = index 0 = first in payload)
       selectedBlocks.sort((a, b) => {
-        const laneA = project.lanes.find(l => l.id === a.laneId);
-        const laneB = project.lanes.find(l => l.id === b.laneId);
-        const roleA = ((laneA && laneA.role) || "").toLowerCase();
-        const roleB = ((laneB && laneB.role) || "").toLowerCase();
-        const idxA = roleOrder.findIndex(r => roleA.includes(r));
-        const idxB = roleOrder.findIndex(r => roleB.includes(r));
-        return (idxA === -1 ? 99 : idxA) - (idxB === -1 ? 99 : idxB);
+        const idxA = project.lanes.findIndex(l => l.id === a.laneId);
+        const idxB = project.lanes.findIndex(l => l.id === b.laneId);
+        return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
       });
 
       const chordFactoryPayload = {
@@ -5045,7 +5194,9 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         endBeat: maxEnd,
         durationBeats: Math.max(MIN_DURATION, snapBeat(maxEnd - minStart)),
         locationLabel: "M" + location.measure + " beat " + formatBeatValue(location.beatWithinMeasure),
-        laneIds: selectedBlocks.map(block => block.laneId)
+        laneIds: selectedBlocks.map(block => block.laneId),
+        laneCount: project.lanes.length,
+        laneOrder: project.lanes.map((l, i) => ({ id: l.id, name: l.name, role: l.role || "", index: i }))
       };
 
       // Store current scroll position so we can return to it
@@ -10949,7 +11100,7 @@ function applyPendingPlayerLineImport() {
 
       if (laneId && Number.isFinite(startBeat)) {
         const byLaneAndTime = project.blocks.find(block =>
-          block.type === "note" &&
+          (block.type === "note" || block.type === "rest") &&
           block.laneId === laneId &&
           Math.abs(Number(block.startBeat || 0) - startBeat) < 0.08
         );
@@ -10986,11 +11137,46 @@ function applyPendingPlayerLineImport() {
         items.forEach(item => {
           const target = findDesignBlockForReviewedItem(item, chord);
 
-          if (!target || target.type !== "note") {
+          if (!target || (target.type !== "note" && target.type !== "rest")) {
             return;
           }
 
-          if (Number.isFinite(item.midi) && Number(target.midi) !== Number(item.midi)) {
+          const itemIsRest =
+            item.isRest === true ||
+            item.type === "rest" ||
+            item.name === "Rest" ||
+            !Number.isFinite(Number(item.midi));
+
+          if (itemIsRest) {
+            // Progression now marks this voice as resting here; convert a
+            // sounding note back to a rest instead of leaving it untouched.
+            if (target.type !== "rest") {
+              target.type = "rest";
+              target.midi = null;
+              target.name = "Rest";
+              target.velocity = 0;
+              changedCount += 1;
+            }
+          } else if (target.type === "rest") {
+            // Progression turned this resting voice into a real note;
+            // convert the rest block into a note instead of skipping it.
+            // If this was an auto-generated filler rest, clear the
+            // "generated" flag too — otherwise the next render's
+            // syncGeneratedRests() would delete it as a stale filler and
+            // silently re-plug the gap with a fresh synthetic Rest.
+            target.type = "note";
+            target.midi = Number(item.midi);
+            target.name = item.name || midiToDisplayName(Number(item.midi));
+            if (target.generated) {
+              target.generated = false;
+              target.source = "progression-edit";
+              target.sourceId = null;
+            }
+            if (!Number.isFinite(Number(target.velocity)) || Number(target.velocity) <= 0) {
+              target.velocity = 82;
+            }
+            changedCount += 1;
+          } else if (Number(target.midi) !== Number(item.midi)) {
             target.midi = Number(item.midi);
             target.name = item.name || midiToDisplayName(Number(item.midi));
             changedCount += 1;
@@ -11002,7 +11188,7 @@ function applyPendingPlayerLineImport() {
             labeledCount += 1;
           }
 
-          if (item.voice !== undefined) {
+          if (!itemIsRest && item.voice !== undefined) {
             target.voice = item.voice;
           }
 
