@@ -2275,12 +2275,20 @@ h1 {
         if (laneIds.length) return laneIds;
       }
 
-      // Last resort: project lanes reversed
-      const projectInfo = getDesignProjectForEdit();
-      const lanes = projectInfo.project && Array.isArray(projectInfo.project.lanes)
-        ? projectInfo.project.lanes : [];
-      const laneIds = lanes.map(l => l && l.id).filter(Boolean);
-      if (laneIds.length) return [...laneIds].reverse();
+      // Last resort: project lanes reversed -- but only when we're actually
+      // editing a chord tied to that project. A fresh/standalone build (no
+      // designEditPayload, no progressionEditContext) has no business
+      // inheriting lane structure from whatever Design Studio project
+      // happens to still be sitting in localStorage from earlier work --
+      // that project's lane ids may not even be the plain "bass"/
+      // "baritone"/"lead"/"tenor" strings the rest of this file assumes.
+      if (designEditPayload || progressionEditContext) {
+        const projectInfo = getDesignProjectForEdit();
+        const lanes = projectInfo.project && Array.isArray(projectInfo.project.lanes)
+          ? projectInfo.project.lanes : [];
+        const laneIds = lanes.map(l => l && l.id).filter(Boolean);
+        if (laneIds.length) return [...laneIds].reverse();
+      }
 
       return DEFAULT_VOICE_LANES_LOW_TO_HIGH.slice();
     }
@@ -2825,8 +2833,147 @@ h1 {
       });
     }
 
+    // Typical male barbershop vocal ranges (source: Barbershop Harmony
+    // Society). Used to pick which octave of a voice's assigned pitch class
+    // it should actually sit in. Applied only here in the final wrapper,
+    // never inside getCurrentSelectionStackAssignmentsRaw itself, since
+    // syncSelectedNotesWithStackDoubling reads directly from that raw
+    // function and feeds it back into selectedNoteMidis -- putting a
+    // transformation in there risks it compounding on re-render, since
+    // there's no way to tell "already adjusted" from "not yet."
+    // Custom (non-TLBB) lanes from Add Voice have no defined range and are
+    // left untouched.
+    const VOICE_VOCAL_RANGES = {
+      tenor: { min: 55, max: 74, center: 69 },    // G3-D5, center A4
+      lead: { min: 48, max: 69, center: 65 },     // C3-A4, center F4
+      baritone: { min: 31, max: 62, center: 60 }, // G2-D4, center C4
+      bass: { min: 28, max: 60, center: 44 }      // E2-C4, center G2/A2
+    };
+
+    // Voices are placed low-to-high, each one aware of whichever voice was
+    // just placed below it (Bass has no neighbor -- it anchors the chain).
+    // "Comfortable gap" is the semitone distance below which a neighbor
+    // relationship costs nothing extra; beyond that, a soft penalty kicks
+    // in (see GAP_PENALTY_WEIGHT) rather than a hard cutoff, so the choice
+    // can trade off gracefully against how centered a voice is in its own
+    // range instead of snapping to a totally different octave.
+    const VOICE_CHAIN_ORDER = ["bass", "baritone", "lead", "tenor"];
+    const NEIGHBOR_GAP_LIMITS = {
+      baritone: 16, // up to a 10th above Bass
+      lead: 16,     // up to a 10th above Baritone (v1's confirmed-correct
+                     // spacing is a 15-semitone Bari-Lead gap, so 12 -- an
+                     // octave -- was too tight and would've disturbed a
+                     // result that was already right)
+      tenor: 9      // up to a 6th above Lead
+    };
+
+    // How much one semitone of gap-excess costs, in the same units as
+    // distance-from-own-center. Verified against both v1 (Root) and v3
+    // (Fifth) for C Major: at weight 15, v1 stays exactly as originally
+    // confirmed (C3/E3/G4/C5) while v3's Bass-Baritone gap actually closes
+    // (G2/C3/E4/C5) instead of the penalty being too small to matter.
+    const GAP_PENALTY_WEIGHT = 15;
+
+    function midiForPitchClassInVoiceRange(pc, range, neighborMidi, gapLimit) {
+      const inRangeCandidates = [];
+      let bestOverall = null;
+      let bestOverallDist = Infinity;
+
+      for (let octave = -1; octave <= 9; octave++) {
+        const candidate = 12 * (octave + 1) + pc;
+        const distToCenter = Math.abs(candidate - range.center);
+
+        if (candidate >= range.min && candidate <= range.max) {
+          inRangeCandidates.push({ midi: candidate, distToCenter });
+        }
+
+        if (distToCenter < bestOverallDist) {
+          bestOverallDist = distToCenter;
+          bestOverall = candidate;
+        }
+      }
+
+      if (!inRangeCandidates.length) {
+        // No candidate at all falls within this voice's defined range --
+        // fall back to whichever octave is closest to its center anyway.
+        return bestOverall;
+      }
+
+      if (neighborMidi === null || !Number.isFinite(Number(neighborMidi)) || !Number.isFinite(gapLimit)) {
+        // No neighbor to weigh against (Bass, or a custom lane) -- pure
+        // closest-to-own-center, same as the original independent version.
+        inRangeCandidates.sort((a, b) => a.distToCenter - b.distToCenter);
+        return inRangeCandidates[0].midi;
+      }
+
+      inRangeCandidates.forEach(candidate => {
+        const gap = Math.abs(candidate.midi - neighborMidi);
+        const gapExcess = Math.max(0, gap - gapLimit);
+        candidate.score = candidate.distToCenter + GAP_PENALTY_WEIGHT * gapExcess;
+      });
+
+      inRangeCandidates.sort((a, b) => a.score - b.score);
+      return inRangeCandidates[0].midi;
+    }
+
+    function normalizeVoiceRoleForRange(laneId) {
+      const text = String(laneId || "").toLowerCase();
+      if (text.includes("tenor")) return "tenor";
+      if (text.includes("lead") || text.includes("melody")) return "lead";
+      if (text.includes("bari")) return "baritone";
+      if (text.includes("bass")) return "bass";
+
+      // Fall back to the resolved display label -- this can still find a
+      // match via a project's own lane .name even when the raw laneId is a
+      // custom/non-standard id.
+      const label = String(getLaneLabel(laneId) || "").toLowerCase();
+      if (label.includes("tenor")) return "tenor";
+      if (label.includes("lead") || label.includes("melody")) return "lead";
+      if (label.includes("bari")) return "baritone";
+      if (label.includes("bass")) return "bass";
+
+      return null;
+    }
+
+    function applyDefaultVoiceSpread(assignments) {
+      const byRole = new Map();
+      assignments.forEach(item => {
+        const role = normalizeVoiceRoleForRange(item.laneId);
+        if (role) byRole.set(role, item);
+      });
+
+      const placedMidiByRole = {};
+
+      VOICE_CHAIN_ORDER.forEach((role, index) => {
+        const item = byRole.get(role);
+        if (!item || !Number.isFinite(Number(item.midi))) return;
+
+        const range = VOICE_VOCAL_RANGES[role];
+        const pc = ((Number(item.midi) % 12) + 12) % 12;
+
+        const previousRole = index > 0 ? VOICE_CHAIN_ORDER[index - 1] : null;
+        const neighborMidi = previousRole && Number.isFinite(placedMidiByRole[previousRole])
+          ? placedMidiByRole[previousRole]
+          : null;
+        const gapLimit = NEIGHBOR_GAP_LIMITS[role];
+
+        placedMidiByRole[role] = midiForPitchClassInVoiceRange(pc, range, neighborMidi, gapLimit);
+      });
+
+      return assignments.map(item => {
+        const role = normalizeVoiceRoleForRange(item.laneId);
+        const midi = role ? placedMidiByRole[role] : undefined;
+
+        if (!Number.isFinite(midi)) {
+          return item;
+        }
+
+        return { ...item, midi, displayName: midiToDisplayName(midi) };
+      });
+    }
+
     function getCurrentSelectionStackAssignments() {
-      return applyVoiceOverrides(getCurrentSelectionStackAssignmentsRaw());
+      return applyVoiceOverrides(applyDefaultVoiceSpread(getCurrentSelectionStackAssignmentsRaw()));
     }
 
     function getCurrentSelectionStackAssignmentsRaw() {
@@ -2932,6 +3079,7 @@ h1 {
 
       voicePins[laneId] = { midi: Number(source.midi), displayName: source.displayName };
       delete voiceOctaveOverrides[laneId]; // pin supersedes a plain octave override
+      chordEditStarted = true;
       buildAll();
       factoryStatus.textContent = getLaneLabel(laneId) + " pinned at " + source.displayName + ".";
     }
@@ -2946,6 +3094,7 @@ h1 {
       }
 
       voiceOctaveOverrides[laneId] = octaveNumber;
+      chordEditStarted = true;
       buildAll();
       factoryStatus.textContent = getLaneLabel(laneId) + " set to Octave " + octaveNumber + ".";
     }
@@ -3406,7 +3555,7 @@ h1 {
       });
 
       const currentNotes =
-        getCurrentNotes();
+        getCurrentNotesWithOverrides();
 
       if (currentNotes.length === 0) {
         factoryStatus.textContent =
@@ -3664,6 +3813,30 @@ h1 {
           frequency:
             midiToFrequency(midi)
         }));
+    }
+
+    // Same shape as getCurrentNotes, but reflects per-voice octave overrides
+    // and pins -- use this anywhere a chord is actually being exported
+    // (sent to Design Studio, Progression, etc). getCurrentNotes itself
+    // deliberately stays on the raw/stable note set (see
+    // syncSelectedNotesWithStackDoubling) so the positional lane-assignment
+    // logic doesn't get fed a moving target and silently reassign voices;
+    // that stability isn't needed once you're building the final export.
+    function getCurrentNotesWithOverrides() {
+      const stack = getCurrentSelectionStackAssignments()
+        .filter(item => Number.isFinite(Number(item.midi)));
+
+      if (!stack.length) {
+        return getCurrentNotes();
+      }
+
+      return stack
+        .map(item => ({
+          midi: Number(item.midi),
+          displayName: item.displayName || midiToDisplayName(Number(item.midi)),
+          frequency: midiToFrequency(Number(item.midi))
+        }))
+        .sort((a, b) => a.midi - b.midi);
     }
 
     function hasPendingNewChordSelection() {
@@ -3951,7 +4124,7 @@ h1 {
       syncSelectedNotesWithStackDoubling();
 
       const notes =
-        getCurrentNotes();
+        getCurrentNotesWithOverrides();
 
       chordName.textContent =
         selectedRoot +
@@ -4214,7 +4387,7 @@ h1 {
       }
 
       const notes =
-        getCurrentNotes();
+        getCurrentNotesWithOverrides();
 
       await playMidiChord(
         notes.map(note => note.midi),
@@ -4231,7 +4404,7 @@ h1 {
 
     function buildCurrentChordObject() {
       const notes =
-        getCurrentNotes();
+        getCurrentNotesWithOverrides();
 
       return {
         name:
