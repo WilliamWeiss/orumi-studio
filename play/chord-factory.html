@@ -575,6 +575,24 @@
       border-color: rgba(155,235,215,0.22);
     }
 
+    .stack-card.stack-card-empty {
+      background: rgba(255,255,255,0.03);
+      border-style: dashed;
+      opacity: 0.6;
+    }
+
+    .voice-count-controls {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 10px;
+    }
+
+    .voice-count-controls .action-button {
+      font-size: 12px;
+      padding: 6px 10px;
+    }
+
     .stack-title {
       color: #fff7ea;
       font-size: 13px;
@@ -706,6 +724,56 @@
     .current-stack .stack-note-block.light-text::after {
       color: rgba(0,0,0,0.50);
       text-shadow: none;
+    }
+
+    .new-stack .stack-row {
+      grid-template-columns: 24px 86px minmax(60px, 1fr) 62px;
+    }
+
+    .stack-pin-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+
+    .stack-pin-toggle input {
+      width: 15px;
+      height: 15px;
+      cursor: pointer;
+      accent-color: rgb(34,211,238);
+    }
+
+    .stack-note-block.pinned {
+      box-shadow:
+        0 0 0 2px rgb(34,211,238),
+        0 6px 14px rgba(0,0,0,0.35);
+    }
+
+    .stack-note-block.pin-color-tone {
+      box-shadow:
+        0 0 0 2px rgb(34,211,238),
+        0 0 14px rgba(245,180,60,0.75),
+        0 6px 14px rgba(0,0,0,0.35);
+      outline: 2px dashed rgba(245,180,60,0.9);
+      outline-offset: 2px;
+    }
+
+    .stack-octave-select {
+      background: rgba(255,255,255,0.10);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 8px;
+      color: #f5f0e8;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 5px 3px;
+      cursor: pointer;
+    }
+
+    .stack-octave-select:disabled {
+      opacity: 0.35;
+      cursor: default;
     }
 
     .new-stack .stack-note-block {
@@ -1025,15 +1093,19 @@ h1 {
           </div>
 
           <div class="stack-comparison" id="stackComparisonPanel" hidden>
-            <div class="stack-card current-stack">
-              <div class="stack-title">Current</div>
-              <div class="stack-subtitle">locked reference</div>
+            <div class="stack-card current-stack" id="currentStackCard">
+              <div class="stack-title" id="currentStackTitle">Current</div>
+              <div class="stack-subtitle" id="currentStackSubtitle">locked reference</div>
               <div id="currentStackRows"></div>
             </div>
             <div class="stack-card new-stack">
               <div class="stack-title">New</div>
               <div class="stack-subtitle">choose or edit to create</div>
               <div id="newStackRows"></div>
+              <div class="voice-count-controls">
+                <button type="button" id="removeVoiceButton" class="action-button secondary-button" title="Remove the last voice (minimum 3)">− Remove Voice</button>
+                <button type="button" id="addVoiceButton" class="action-button secondary-button" title="Add another voice">+ Add Voice</button>
+              </div>
             </div>
             <div class="stack-comparison-note" id="stackComparisonNote">
               Yellow outline marks notes that will change. Drag a note chip or note-picker block onto New to replace that voice.
@@ -1209,6 +1281,11 @@ h1 {
     const currentStackRows = document.getElementById("currentStackRows");
     const newStackRows = document.getElementById("newStackRows");
     const stackComparisonNote = document.getElementById("stackComparisonNote");
+    const currentStackCard = document.getElementById("currentStackCard");
+    const currentStackTitle = document.getElementById("currentStackTitle");
+    const currentStackSubtitle = document.getElementById("currentStackSubtitle");
+    const addVoiceButton = document.getElementById("addVoiceButton");
+    const removeVoiceButton = document.getElementById("removeVoiceButton");
     const voiceSuggestionPanel = document.getElementById("voiceSuggestionPanel");
     const voiceSuggestionIntro = document.getElementById("voiceSuggestionIntro");
     const voiceSuggestionGroups = document.getElementById("voiceSuggestionGroups");
@@ -1317,6 +1394,15 @@ h1 {
 
     let selectedNoteMidis = [];
     let selectedVoiceAwareSuggestion = null;
+
+    // Per-voice overrides, keyed by laneId. These persist across Root,
+    // Quality, Voicing, and Suggestion changes -- they're only cleared by
+    // Clear or by loading a genuinely different chord to edit. Applied as a
+    // final pass over whatever the normal computation produces, so they
+    // work regardless of which internal path (formula, doubling, frozen
+    // manual suggestion, payload) produced the base assignment.
+    let voiceOctaveOverrides = {}; // { [laneId]: octaveNumber }
+    let voicePins = {}; // { [laneId]: { midi, displayName } }
     let chordEditStarted = false;
     let selectedPerspectiveLaneId = null;
     let designEditPayload = null;
@@ -1550,6 +1636,22 @@ h1 {
           Array.isArray(payload.selectedBlocks) &&
           payload.selectedBlocks.length > 0
         ) {
+          const urlSource = String(params.get("source") || "").toLowerCase();
+          const urlMatches = urlSource === "design-studio";
+
+          const createdAtMs = Date.parse(payload.createdAt || "");
+          const isRecent = Number.isFinite(createdAtMs) && (Date.now() - createdAtMs) < 2 * 60 * 1000;
+
+          if (!urlMatches && !isRecent) {
+            // Stale handoff from an earlier session that was never completed
+            // (e.g. navigated away without Applying back to Design instead
+            // of finishing the edit). Don't silently resurrect it just
+            // because it's still sitting in storage -- clear it so it can't
+            // keep tripping this same check on future, unrelated visits.
+            localStorage.removeItem(key);
+            continue;
+          }
+
           payload.storageKey = key;
           return payload;
         }
@@ -1652,6 +1754,8 @@ h1 {
       }
 
       progressionEditContext = context;
+      userLaneOrder = null; // reset so lane order is freshly re-derived, not a stale value from an earlier session
+      clearVoiceOverrides();
       DESIGN_EDIT_PAYLOAD_KEYS.forEach(key => localStorage.removeItem(key));
       localStorage.removeItem("orumiDesignStudioProjectForChordFactory");
       const isProgressionChordEdit = context.mode === "editProgressionChord";
@@ -1775,6 +1879,21 @@ h1 {
             voice: progressionVoice || selectedVoice
           }));
 
+      // Don't trust whatever order voiceAssignments happened to arrive in --
+      // sort by recognized voice role instead (tenor-to-bass, i.e. the
+      // top-to-bottom convention getDesignVoiceLanesLowToHigh's fallback
+      // expects). This is what was inverting on the trip from Progression:
+      // that array's incidental order doesn't necessarily match Design
+      // Studio's top-to-bottom convention, which the lane-derivation logic
+      // downstream assumes. Custom (non-TLBB) lanes keep their relative
+      // order via the stable sort, since they have no inherent high/low.
+      const roleRankLowToHigh = ["bass", "baritone", "lead", "tenor"];
+      assignmentBlocks.sort((a, b) => {
+        const rankA = roleRankLowToHigh.indexOf(String(a.laneId || "").toLowerCase());
+        const rankB = roleRankLowToHigh.indexOf(String(b.laneId || "").toLowerCase());
+        return rankB - rankA; // descending: tenor first ... bass ... unrecognized last
+      });
+
       designEditPayload = {
         source: "progression-builder",
         selectedBlocks: assignmentBlocks,
@@ -1792,6 +1911,14 @@ h1 {
       };
 
       selectedPerspectiveLaneId = designEditPayload.anchorLaneId || null;
+
+      // Seed each voice's octave from what the incoming chord actually had --
+      // same reasoning as the Design Studio path above.
+      getPayloadStackAssignments().forEach(item => {
+        if (Number.isFinite(Number(item.midi))) {
+          voiceOctaveOverrides[item.laneId] = Math.floor(Number(item.midi) / 12) - 1;
+        }
+      });
 
       addDesignButton.textContent = "⤴ Send Back to Progression";
       addDesignButton.title = "Replace the chord you opened from Progression and return there";
@@ -1916,7 +2043,19 @@ h1 {
 
       designEditPayload = payload;
       userLaneOrder = null; // reset so auto-detection runs fresh
+      clearVoiceOverrides();
       selectedPerspectiveLaneId = payload.anchorLaneId || null;
+
+      // Seed each voice's octave from what the incoming chord actually had,
+      // not a formulaic default -- this is what keeps register sane when
+      // the New stack later recomputes for a different Root/Quality/
+      // Suggestion. The user's own octave changes (via the new per-voice
+      // controls) still take priority from that point on.
+      getPayloadStackAssignments().forEach(item => {
+        if (Number.isFinite(Number(item.midi))) {
+          voiceOctaveOverrides[item.laneId] = Math.floor(Number(item.midi) / 12) - 1;
+        }
+      });
 
       const context = payload.context || {};
 
@@ -1981,6 +2120,13 @@ h1 {
       addDesignButton.classList.add("design-button-main");
       addDesignButton.disabled = false;
       ensureInactiveContextButton("⤴ Send Back to Progression", "This chord came from Design, so Progression return is unavailable.");
+
+      // +Add Chord pushes the current chord onto an unrelated progression and
+      // navigates away -- not a coherent action while editing a chord that
+      // came from Design Studio (and not routed through Progression).
+      if (addProgressionButton) {
+        addProgressionButton.style.display = "none";
+      }
 
       if (incomingDesignContext) {
         incomingDesignContext.style.display = "block";
@@ -2083,7 +2229,15 @@ h1 {
         bass: "Bass"
       };
 
-      return fallback[laneId] || laneId || "Voice";
+      if (fallback[laneId]) return fallback[laneId];
+
+      // Generic extra voices (beyond the standard 4) are identified purely by
+      // position, not name -- Design Studio assigns the real name once this
+      // lane actually lands there.
+      const genericMatch = /^lane(\d+)$/.exec(String(laneId || ""));
+      if (genericMatch) return "Lane " + genericMatch[1];
+
+      return laneId || "Voice";
     }
 
     function getDesignVoiceLanesLowToHigh() {
@@ -2598,7 +2752,77 @@ h1 {
         .filter(Boolean);
     }
 
+    function syncSelectedNotesWithStackDoubling() {
+      // The stack fills extra voice slots by doubling a note (e.g. a triad
+      // has 3 unique tones but 4 voices, so the root gets doubled an octave
+      // up). That doubled note previously only existed inside the stack
+      // display -- selectedNoteMidis (which drives the Notes line, the note
+      // chips, and Pick-by-Note highlighting) never learned about it, so
+      // they'd disagree with what the stack actually shows. Sync them.
+      //
+      // Deliberately uses the RAW (pre-override) stack, not the final
+      // override-applied one: the formula/doubling lane assignment is
+      // purely positional (sorts all notes by pitch, hands them to lanes
+      // low-to-high) with no memory of which note belongs to which voice.
+      // If an overridden voice's transposed pitch fed back into
+      // selectedNoteMidis, the next render would re-sort by pitch and could
+      // hand that note to a different lane entirely -- silently breaking
+      // the very override that just got set. Overrides/pins stay a
+      // display-layer adjustment applied on top, not baked into the
+      // underlying note pool.
+      const stack = getCurrentSelectionStackAssignmentsRaw();
+      if (!stack.length) return;
+
+      const stackMidis = [...new Set(
+        stack.map(item => Number(item.midi)).filter(midi => Number.isFinite(midi))
+      )].sort((a, b) => a - b);
+
+      if (stackMidis.length > selectedNoteMidis.length) {
+        selectedNoteMidis = stackMidis;
+      }
+    }
+
+    function pinFitsCurrentQuality(midi) {
+      if (!Number.isFinite(Number(midi))) return true;
+      const pc = ((Number(midi) % 12) + 12) % 12;
+      return chordPitchClasses(selectedRoot, selectedQuality).includes(pc);
+    }
+
+    function applyVoiceOverrides(assignments) {
+      return assignments.map(item => {
+        const pin = voicePins[item.laneId];
+
+        if (pin && Number.isFinite(Number(pin.midi))) {
+          return {
+            ...item,
+            midi: Number(pin.midi),
+            displayName: pin.displayName || midiToDisplayName(Number(pin.midi)),
+            pinned: true,
+            pinFits: pinFitsCurrentQuality(pin.midi)
+          };
+        }
+
+        const octaveOverride = voiceOctaveOverrides[item.laneId];
+
+        if (Number.isFinite(Number(item.midi)) && Number.isFinite(Number(octaveOverride))) {
+          const pc = ((Number(item.midi) % 12) + 12) % 12;
+          const newMidi = 12 * (Number(octaveOverride) + 1) + pc;
+          return {
+            ...item,
+            midi: newMidi,
+            displayName: midiToDisplayName(newMidi)
+          };
+        }
+
+        return item;
+      });
+    }
+
     function getCurrentSelectionStackAssignments() {
+      return applyVoiceOverrides(getCurrentSelectionStackAssignmentsRaw());
+    }
+
+    function getCurrentSelectionStackAssignmentsRaw() {
       const currentNotes = getCurrentNotes();
 
       if (designEditPayload && !hasPendingNewChordSelection()) {
@@ -2643,6 +2867,14 @@ h1 {
         }
       }
 
+      // Symmetric case: more notes than lanes (e.g. Remove Voice used after
+      // selectedNoteMidis was synced up to include a doubled note). Trim
+      // from the top -- doubling always adds there, so this undoes it in
+      // reverse rather than leaving lane-id assignment with nowhere to go.
+      if (notesLowToHigh.length > targetLaneCount) {
+        notesLowToHigh = notesLowToHigh.slice(0, targetLaneCount);
+      }
+
       // Use all lanes, not just the ones with original notes
       const allLanes = lowToHigh.slice(0, Math.max(notesLowToHigh.length, lanesToUse.length));
 
@@ -2667,6 +2899,46 @@ h1 {
       return [...ordered, ...extras];
     }
 
+    function toggleVoicePin(laneId) {
+      if (voicePins[laneId]) {
+        delete voicePins[laneId];
+        buildAll();
+        factoryStatus.textContent = getLaneLabel(laneId) + " unpinned -- it will move again with Root/Quality/Voicing/Suggestion changes.";
+        return;
+      }
+
+      const current = getCurrentSelectionStackAssignments().find(item => item.laneId === laneId);
+
+      if (!current || !Number.isFinite(Number(current.midi))) {
+        factoryStatus.textContent = "Nothing to pin yet for " + getLaneLabel(laneId) + ".";
+        return;
+      }
+
+      voicePins[laneId] = { midi: Number(current.midi), displayName: current.displayName };
+      delete voiceOctaveOverrides[laneId]; // pin supersedes a plain octave override
+      buildAll();
+      factoryStatus.textContent = getLaneLabel(laneId) + " pinned at " + current.displayName + ".";
+    }
+
+    function setVoiceOctaveOverride(laneId, octave) {
+      const octaveNumber = Number(octave);
+      if (!laneId || !Number.isFinite(octaveNumber)) return;
+
+      if (voicePins[laneId]) {
+        factoryStatus.textContent = getLaneLabel(laneId) + " is pinned -- unpin it to change its octave.";
+        return;
+      }
+
+      voiceOctaveOverrides[laneId] = octaveNumber;
+      buildAll();
+      factoryStatus.textContent = getLaneLabel(laneId) + " set to Octave " + octaveNumber + ".";
+    }
+
+    function clearVoiceOverrides() {
+      voiceOctaveOverrides = {};
+      voicePins = {};
+    }
+
     function readDraggedMidi(event) {
       const raw =
         event.dataTransfer.getData("application/x-orumi-midi") ||
@@ -2689,6 +2961,16 @@ h1 {
 
     function replaceNewStackLaneMidi(laneId, midi) {
       if (!laneId || !Number.isFinite(Number(midi))) {
+        return;
+      }
+
+      if (voicePins[laneId]) {
+        // A pin always wins over whatever the formula/suggestion produces,
+        // so update the pin itself -- otherwise this drag would silently
+        // have no visible effect.
+        voicePins[laneId] = { midi: Number(midi), displayName: midiToDisplayName(Number(midi)) };
+        buildAll();
+        factoryStatus.textContent = getLaneLabel(laneId) + " pinned note updated to " + midiToDisplayName(Number(midi)) + ".";
         return;
       }
 
@@ -2762,6 +3044,60 @@ h1 {
       buildNoteGrid();
     }
 
+    const MIN_VOICE_COUNT = 3;
+
+    function ensureUserLaneOrderSeeded() {
+      // Seed from whatever the current effective lane list already is (the
+      // standard 4, or a real incoming chord's actual lane structure) before
+      // adding/removing, so both fresh and edit-existing-chord modes grow or
+      // shrink from the right starting point.
+      if (!userLaneOrder || !userLaneOrder.length) {
+        userLaneOrder = getDesignVoiceLanesLowToHigh();
+      }
+    }
+
+    function addVoiceLane() {
+      ensureUserLaneOrderSeeded();
+
+      let suffix = userLaneOrder.length + 1;
+      let newLaneId = "lane" + suffix;
+      while (userLaneOrder.includes(newLaneId)) {
+        suffix += 1;
+        newLaneId = "lane" + suffix;
+      }
+
+      // Added at the high end -- position (not name) is what determines
+      // where this lands when the chord eventually reaches Design Studio.
+      userLaneOrder = [...userLaneOrder, newLaneId];
+      chordEditStarted = true;
+      buildAll();
+      factoryStatus.textContent =
+        "Added " + getLaneLabel(newLaneId) + ". Its position here sets where it lands in Design Studio.";
+    }
+
+    function removeVoiceLane() {
+      ensureUserLaneOrderSeeded();
+
+      if (userLaneOrder.length <= MIN_VOICE_COUNT) {
+        factoryStatus.textContent = "A chord needs at least " + MIN_VOICE_COUNT + " voices.";
+        return;
+      }
+
+      const removedLaneId = userLaneOrder[userLaneOrder.length - 1];
+      userLaneOrder = userLaneOrder.slice(0, -1);
+      chordEditStarted = true;
+      buildAll();
+      factoryStatus.textContent = "Removed " + getLaneLabel(removedLaneId) + ".";
+    }
+
+    function updateVoiceCountButtons() {
+      const laneCount = getDesignVoiceLanesLowToHigh().length;
+
+      if (removeVoiceButton) {
+        removeVoiceButton.disabled = laneCount <= MIN_VOICE_COUNT;
+      }
+    }
+
     function renderStackRows(container, laneOrder, assignments, comparisonMap = null, stackType = "current") {
       if (!container) return;
       container.innerHTML = "";
@@ -2797,6 +3133,28 @@ h1 {
           reorderCell.appendChild(downBtn);
         }
 
+        const assignment = byLane.get(laneId);
+        const isPinned = isNewStack && !!(assignment && assignment.pinned);
+
+        if (isNewStack) {
+          const pinLabel = document.createElement("label");
+          pinLabel.className = "stack-pin-toggle";
+          pinLabel.title = isPinned
+            ? "Pinned -- this note stays fixed when Root/Quality/Voicing/Suggestion changes. Click to unpin."
+            : "Pin this voice's note so it stays fixed when Root/Quality/Voicing/Suggestion changes.";
+
+          const pinCheckbox = document.createElement("input");
+          pinCheckbox.type = "checkbox";
+          pinCheckbox.checked = isPinned;
+          pinCheckbox.addEventListener("change", e => {
+            e.stopPropagation();
+            toggleVoicePin(laneId);
+          });
+
+          pinLabel.appendChild(pinCheckbox);
+          reorderCell.appendChild(pinLabel);
+        }
+
         row.appendChild(reorderCell);
 
         const label = document.createElement("div");
@@ -2804,7 +3162,6 @@ h1 {
         label.textContent = getLaneLabel(laneId);
 
         const block = document.createElement("div");
-        const assignment = byLane.get(laneId);
 
         if (assignment && Number.isFinite(Number(assignment.midi))) {
           const pc = pcToName(Number(assignment.midi) % 12);
@@ -2817,9 +3174,19 @@ h1 {
           if (comparisonMap && comparisonMap.get(laneId) !== Number(assignment.midi)) {
             block.classList.add("changed");
           }
+          if (isPinned) {
+            block.classList.add("pinned");
+            if (assignment.pinFits === false) {
+              block.classList.add("pin-color-tone");
+            }
+          }
           block.textContent = assignment.displayName || midiToDisplayName(Number(assignment.midi));
           block.classList.add("playable-note");
-          block.title = "Click to play " + block.textContent + (isNewStack ? ". Drag a note here to replace this voice." : ". Current stack is locked.");
+          block.title =
+            (isPinned
+              ? "Pinned" + (assignment.pinFits === false ? " -- not a standard tone of the current quality" : "") + ". "
+              : "") +
+            "Click to play " + block.textContent + (isNewStack ? ". Drag a note here to replace this voice." : ". Current stack is locked.");
           block.addEventListener("click", event => {
             event.stopPropagation();
             playSingleMidiNote(Number(assignment.midi), isNewStack ? selectedVoice : getCurrentPayloadVoice(), block);
@@ -2864,6 +3231,36 @@ h1 {
 
         row.appendChild(label);
         row.appendChild(block);
+
+        if (isNewStack) {
+          const octaveSelect = document.createElement("select");
+          octaveSelect.className = "stack-octave-select";
+          octaveSelect.disabled = isPinned;
+          octaveSelect.title = isPinned
+            ? "Octave is fixed while this voice is pinned"
+            : "Set this voice's octave independently";
+
+          const currentOctave = assignment && Number.isFinite(Number(assignment.midi))
+            ? Math.floor(Number(assignment.midi) / 12) - 1
+            : null;
+
+          for (let oct = 1; oct <= 6; oct += 1) {
+            const option = document.createElement("option");
+            option.value = String(oct);
+            option.textContent = "Oct " + oct;
+            if (currentOctave === oct) option.selected = true;
+            octaveSelect.appendChild(option);
+          }
+
+          octaveSelect.addEventListener("change", e => {
+            e.stopPropagation();
+            setVoiceOctaveOverride(laneId, octaveSelect.value);
+          });
+          octaveSelect.addEventListener("click", e => e.stopPropagation());
+
+          row.appendChild(octaveSelect);
+        }
+
         container.appendChild(row);
       });
     }
@@ -2871,12 +3268,7 @@ h1 {
     function renderStackComparison() {
       if (!stackComparisonPanel || !currentStackRows || !newStackRows) return;
 
-      if (!designEditPayload) {
-        stackComparisonPanel.hidden = true;
-        return;
-      }
-
-      const currentStack = getPayloadStackAssignments();
+      const currentStack = designEditPayload ? getPayloadStackAssignments() : [];
       const newStack = getCurrentSelectionStackAssignments();
 
       if (!currentStack.length && !newStack.length) {
@@ -2888,11 +3280,28 @@ h1 {
       const currentMap = new Map(currentStack.map(item => [item.laneId, Number(item.midi)]));
       const newMap = new Map(newStack.map(item => [item.laneId, Number(item.midi)]));
 
-      renderStackRows(currentStackRows, laneOrder, currentStack, null, "current");
+      if (currentStack.length) {
+        if (currentStackCard) currentStackCard.classList.remove("stack-card-empty");
+        if (currentStackTitle) currentStackTitle.textContent = "Current";
+        if (currentStackSubtitle) currentStackSubtitle.textContent = "locked reference";
+        renderStackRows(currentStackRows, laneOrder, currentStack, null, "current");
+      } else {
+        // No incoming chord to compare against -- this is a chord being
+        // built from scratch, not an edit of something that already exists.
+        if (currentStackCard) currentStackCard.classList.add("stack-card-empty");
+        if (currentStackTitle) currentStackTitle.textContent = "New chord";
+        if (currentStackSubtitle) currentStackSubtitle.textContent = "no original to compare";
+        currentStackRows.innerHTML = "";
+      }
+
       renderStackRows(newStackRows, laneOrder, newStack, currentMap, "new");
+      updateVoiceCountButtons();
 
       if (stackComparisonNote) {
-        if (designEditPayload && !hasPendingNewChordSelection()) {
+        if (!currentStack.length) {
+          stackComparisonNote.textContent =
+            "Drag a note chip or note-picker block onto New to replace a voice, or use Add/Remove Voice to change the stack size.";
+        } else if (designEditPayload && !hasPendingNewChordSelection()) {
           stackComparisonNote.textContent =
             "No new chord selected yet. Choose a suggestion, customize characteristics, or drop a note into New.";
         } else {
@@ -3518,6 +3927,8 @@ h1 {
 
     function updateResult() {
 
+      syncSelectedNotesWithStackDoubling();
+
       const notes =
         getCurrentNotes();
 
@@ -3590,6 +4001,13 @@ h1 {
         playCurrentChordButton.title = designEditPayload
           ? "Play the original/current chord being reviewed"
           : "Open from Design to compare against a current chord";
+      }
+
+      if (copyCurrentToNewButton) {
+        copyCurrentToNewButton.disabled = !designEditPayload;
+        copyCurrentToNewButton.title = designEditPayload
+          ? "Copy current chord into New stack so you can tweak individual notes"
+          : "Open from Design or Progression to have a current chord to copy";
       }
 
       if (playChordButton) {
@@ -4326,6 +4744,7 @@ h1 {
         chordEditStarted = true;
         selectedVoiceAwareSuggestion = null;
         selectedNoteMidis = [];
+        clearVoiceOverrides();
 
         buildAll();
       });
@@ -4366,28 +4785,25 @@ h1 {
       });
     }
 
+    if (addVoiceButton) {
+      addVoiceButton.addEventListener("click", addVoiceLane);
+    }
+
+    if (removeVoiceButton) {
+      removeVoiceButton.addEventListener("click", removeVoiceLane);
+    }
+
 
 
     function buildAll() {
+
+      syncSelectedNotesWithStackDoubling();
 
       buildRootGrid();
       buildQualityGrid();
       buildVoicingGrid();
       buildOctaveGrid();
       buildOctaveCheckboxRow();
-
-      // Sync selectedNoteMidis to include auto-doubled notes from stack assignments
-      if (chordEditStarted) {
-        const stackAssignments = getCurrentSelectionStackAssignments();
-        if (stackAssignments.length > 0) {
-          const allMidis = stackAssignments
-            .map(a => Number(a.midi))
-            .filter(m => Number.isFinite(m));
-          if (allMidis.length > 0) {
-            selectedNoteMidis = [...new Set(allMidis)].sort((a, b) => a - b);
-          }
-        }
-      }
 
       buildNoteGrid();
       updateResult();

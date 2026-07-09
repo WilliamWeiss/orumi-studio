@@ -821,7 +821,7 @@
       position: fixed;
       top: 130px;
       left: 50%;
-      transform: translateX(-50%);
+      transform: translateX(calc(-100% - 6px));
       background: rgba(34,211,238,0.92);
       color: #0f1115;
       font-size: 13px;
@@ -837,6 +837,16 @@
 
     .focus-exit-pill:hover {
       background: rgba(34,211,238,1);
+    }
+
+    .focus-send-pill {
+      transform: translateX(6px);
+      background: rgba(255,255,255,0.94);
+      box-shadow: 0 4px 18px rgba(255,255,255,0.3);
+    }
+
+    .focus-send-pill:hover {
+      background: rgba(255,255,255,1);
     }
 
     .orumi-block.generated-rest {
@@ -1720,6 +1730,7 @@
         <button class="control-button secondary" id="editSelectionInPlayerButton">▶ Edit Selection in Player</button>
         <button class="control-button secondary" id="suggestHarmonyButton">✧ Suggest Harmony</button>
         <button class="control-button secondary" id="reviewSelectionInProgressionButton">≡ Review Chords in Progression</button>
+        <button class="control-button secondary" id="sendFocusRangeToProgressionButton" disabled title="Set a Focus Range (View menu) first">≡ Send Focus Range to Progression</button>
         <button class="control-button secondary" id="pasteSelectionButton">⧆ Paste at End</button>
         <button class="control-button secondary" id="pasteAtMeasureButton">📍 Paste at Selected Location</button>
         <button class="control-button secondary" id="insertPasteAtLocationButton">⤓ Insert Paste at Selected Location</button>
@@ -2046,6 +2057,7 @@
     const editSelectionInPlayerButton = document.getElementById("editSelectionInPlayerButton");
     const suggestHarmonyButton = document.getElementById("suggestHarmonyButton");
     const reviewSelectionInProgressionButton = document.getElementById("reviewSelectionInProgressionButton");
+    const sendFocusRangeToProgressionButton = document.getElementById("sendFocusRangeToProgressionButton");
     const pasteSelectionButton = document.getElementById("pasteSelectionButton");
     const pasteAtMeasureButton = document.getElementById("pasteAtMeasureButton");
     const insertPasteAtLocationButton = document.getElementById("insertPasteAtLocationButton");
@@ -5068,6 +5080,67 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       window.setTimeout(() => {
         window.location.href = "progression-builder.html?mode=reviewProgression&source=design-studio";
       }, 220);
+    }
+
+    function beginSendFocusRangeToProgression() {
+      if (!focusRange) {
+        flashStatus("Set a Focus Range first, then send it to Progression.");
+        window.alert("Use Focus Range (View menu) to pick a beat range across all lanes, then choose Send Focus Range to Progression.");
+        return;
+      }
+
+      // Focus Range already spans every lane by definition, so this reuses
+      // buildProgressionReviewPayload exactly like the manual-selection path
+      // -- it independently re-derives each lane's content (including rests)
+      // per beat via getChordStackGroupsFromSelection / getBlocksAtChordBeat,
+      // the same machinery already fixed for multi-lane stacks.
+      const rangeBlocks = project.blocks.filter(block =>
+        block.type === "note" &&
+        Number.isFinite(block.midi) &&
+        Number(block.startBeat) < focusRange.endBeat &&
+        Number(block.startBeat) + Number(block.durationBeats) > focusRange.startBeat
+      );
+
+      if (rangeBlocks.length === 0) {
+        flashStatus("No notes found in the focused range.");
+        window.alert("The focused beat range (" + focusRange.startLabel + "–" + focusRange.endLabel + ") doesn't contain any notes to send.");
+        return;
+      }
+
+      const payload = buildProgressionReviewPayload(rangeBlocks);
+
+      if (!payload || !payload.chords || payload.chords.length === 0) {
+        flashStatus("No chord stacks found in the focused range.");
+        return;
+      }
+
+      localStorage.setItem("orumiDesignProgressionReviewPayload", JSON.stringify(payload));
+      localStorage.setItem("orumiProgressionReviewPayload", JSON.stringify(payload));
+      localStorage.setItem("orumiPendingProgressionReviewPayload", JSON.stringify(payload));
+      localStorage.setItem("orumiDesignStudioProjectForProgression", JSON.stringify({
+        currentProjectId,
+        project: JSON.parse(JSON.stringify(project))
+      }));
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+
+      flashStatus(
+        "Opening Progression Builder to review " +
+        payload.chordCount +
+        " chord" + (payload.chordCount === 1 ? "" : "s") +
+        " from beats " + focusRange.startLabel + "–" + focusRange.endLabel + "…"
+      );
+
+      window.setTimeout(() => {
+        window.location.href = "progression-builder.html?mode=reviewProgression&source=design-studio";
+      }, 220);
+    }
+
+    function updateSendFocusRangeButton() {
+      if (!sendFocusRangeToProgressionButton) return;
+      sendFocusRangeToProgressionButton.disabled = !focusRange;
+      sendFocusRangeToProgressionButton.title = focusRange
+        ? "Send beats " + focusRange.startLabel + "–" + focusRange.endLabel + " (all lanes) to Progression"
+        : "Set a Focus Range (View menu) first";
     }
 
     function beginReplaceSelectedChord() {
@@ -10235,6 +10308,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
       const btn = document.getElementById("focusRangeButton");
       if (btn) { btn.textContent = "🔎 Exit Focus"; btn.classList.add("clipboard-active"); }
+      updateSendFocusRangeButton();
     }
 
     function exitFocusRange() {
@@ -10244,6 +10318,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       flashStatus("Focus mode exited.");
       const btn = document.getElementById("focusRangeButton");
       if (btn) { btn.textContent = "🔎 Focus Range"; btn.classList.remove("clipboard-active"); }
+      updateSendFocusRangeButton();
     }
 
     function applyFocusOverlay() {
@@ -10302,12 +10377,24 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         pill.addEventListener("click", exitFocusRange);
         document.body.appendChild(pill);
       }
+
+      if (!document.getElementById("focusSendToProgressionPill")) {
+        const sendPill = document.createElement("button");
+        sendPill.className = "focus-exit-pill focus-send-pill";
+        sendPill.id = "focusSendToProgressionPill";
+        sendPill.textContent = "≡ Send to Progression";
+        sendPill.title = "Send beats " + focusRange.startLabel + "–" + focusRange.endLabel + " (all lanes) to Progression Builder";
+        sendPill.addEventListener("click", beginSendFocusRangeToProgression);
+        document.body.appendChild(sendPill);
+      }
     }
 
     function removeFocusOverlay() {
       document.querySelectorAll(".focus-range-overlay").forEach(el => el.remove());
       const pill = document.getElementById("focusExitPill");
       if (pill) pill.remove();
+      const sendPill = document.getElementById("focusSendToProgressionPill");
+      if (sendPill) sendPill.remove();
     }
 
 
@@ -11284,6 +11371,9 @@ function applyPendingPlayerLineImport() {
     }
     if (reviewSelectionInProgressionButton) {
       reviewSelectionInProgressionButton.addEventListener("click", beginReviewSelectionInProgression);
+      if (sendFocusRangeToProgressionButton) {
+        sendFocusRangeToProgressionButton.addEventListener("click", beginSendFocusRangeToProgression);
+      }
     }
     pasteSelectionButton.addEventListener("click", pasteClipboardAtEnd);
     pasteAtMeasureButton.addEventListener("click", pasteClipboardAtSelectedLocation);

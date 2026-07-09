@@ -344,6 +344,17 @@
       filter: brightness(1.65);
     }
 
+    .square.drag-armed,
+    .rest-bar.drag-armed,
+    .phrase-block.drag-armed {
+      background: rgb(34,211,238) !important;
+      box-shadow:
+        0 0 18px rgba(34,211,238,0.85),
+        0 6px 14px rgba(0,0,0,0.35);
+      color: #072a30;
+      filter: none !important;
+    }
+
     .rest-row {
       display: flex;
       justify-content: center;
@@ -2504,7 +2515,8 @@
         name: data.name || data.displayName || midiToDisplayName(Number(data.midi)),
         voice: data.voice || null,
         durationBeats: Math.max(0.25, Number(data.durationBeats || 1)),
-        isRest: Boolean(data.isRest)
+        isRest: Boolean(data.isRest),
+        originalInsertIndex: phraseInsertIndex
       };
     }
 
@@ -2544,7 +2556,25 @@
       movePhraseDragGhost(event.clientX, event.clientY);
 
       if (phraseTrash) {
-        phraseTrash.classList.toggle("glow", isPointInsideElement(event.clientX, event.clientY, phraseTrash));
+        const overTrash = isPointInsideElement(event.clientX, event.clientY, phraseTrash);
+        phraseTrash.classList.toggle("glow", overTrash);
+
+        // Live-preview where this would land in the sequence. Skip while
+        // hovering the trash (play-line source only) since that's a delete
+        // target, not an insert position.
+        if (!(phraseDragState.source === "play-line" && overTrash)) {
+          const previewIndex = getSequenceInsertIndexFromClientX(event.clientX);
+          if (previewIndex !== phraseInsertIndex) {
+            phraseInsertIndex = previewIndex;
+            renderPhraseInsertMarker();
+          }
+        }
+      } else {
+        const previewIndex = getSequenceInsertIndexFromClientX(event.clientX);
+        if (previewIndex !== phraseInsertIndex) {
+          phraseInsertIndex = previewIndex;
+          renderPhraseInsertMarker();
+        }
       }
     }
 
@@ -2609,6 +2639,8 @@
 
       if (drag.source === "play-line" && isPointInsideElement(event.clientX, event.clientY, phraseTrash)) {
         removePhraseBlock(drag.blockId);
+        phraseInsertIndex = drag.originalInsertIndex;
+        renderPhraseInsertMarker();
         hidePhraseTrash();
         return;
       }
@@ -2640,8 +2672,13 @@
           renderDesignPhraseTimeline();
           statusText.textContent = "Inserted " + drag.name + " in the Play Line.";
         }
-      } else if (drag.source === "play-line") {
-        statusText.textContent = "Drag a Play Line item to the trash to delete it, or back into the Play Line to move it.";
+      } else {
+        phraseInsertIndex = drag.originalInsertIndex;
+        renderPhraseInsertMarker();
+
+        if (drag.source === "play-line") {
+          statusText.textContent = "Drag a Play Line item to the trash to delete it, or back into the Play Line to move it.";
+        }
       }
 
       hidePhraseTrash();
@@ -3350,6 +3387,16 @@ if (returnToDesignButton) {
             durationBeats: block.durationBeats || 1,
             isRest
           });
+
+          element.classList.add("drag-armed");
+        });
+
+        element.addEventListener("pointerup", () => {
+          element.classList.remove("drag-armed");
+        });
+
+        element.addEventListener("pointercancel", () => {
+          element.classList.remove("drag-armed");
         });
 
         phraseLaneTrack.appendChild(element);
@@ -4589,7 +4636,7 @@ function updateTransportActionButtons() {
   }
 
   if (playPhraseButton) {
-    playPhraseButton.disabled = phraseAddPlayedNotes || !designPhraseBlocks.length;
+    playPhraseButton.disabled = !designPhraseBlocks.length;
   }
 
   if (jumpPhraseStartButton) {
@@ -4601,12 +4648,6 @@ function updateTransportActionButtons() {
   }
 
   updatePhraseTransportButtons();
-
-  if (phraseAddPlayedNotes) {
-    if (backPhraseMeasureButton) backPhraseMeasureButton.disabled = true;
-    if (forwardPhraseMeasureButton) forwardPhraseMeasureButton.disabled = true;
-    if (playPhraseFromLocationButton) playPhraseFromLocationButton.disabled = true;
-  }
 }
 
     // Record now arms live capture: every note played gets appended straight
@@ -5037,6 +5078,18 @@ if (!isRecording) {
       return "1";
     }
 
+    // Used only for the audio you hear WHILE a note is being captured into
+    // the Play Line -- not for playback. Some voices give misleading audio
+    // feedback about note length (Soft Keys' fast decay makes a held note
+    // sound over before you release it; a drone/sustain voice never signals
+    // it's fading), which biases how long someone actually holds the key,
+    // independent of the real press-to-release timing the app captures. A
+    // clean, always-sustained reference tone removes that bias. The real
+    // page voice is still what gets stored on the block and heard on
+    // playback -- only the "how long did I mean to hold this" feedback
+    // changes. Swap this if "pure" isn't the right reference tone in practice.
+    const RECORDING_REFERENCE_VOICE = "pure";
+
     function attachSquareEvents(button) {
       const sustainedVoices = [
         "pure",
@@ -5069,6 +5122,8 @@ if (!isRecording) {
             voice: getActivePhraseVoice(),
             durationBeats: 1
           });
+
+          button.classList.add("drag-armed");
         }
 
         event.preventDefault();
@@ -5080,10 +5135,21 @@ if (!isRecording) {
         await ensureAudio();
 
         const settings = getSettingsFromUrl();
-        const voice =
+        const targetVoice =
           designPhrasePayload
             ? getActivePhraseVoice()
             : settings.voice;
+
+        const willCapture =
+          designPhrasePayload &&
+          phraseAddPlayedNotes &&
+          !isPhrasePlaybackActive &&
+          (activeCapturePointerId === null || activeCapturePointerId === event.pointerId);
+
+        // Substitute the reference tone only for the audio you actually
+        // hear while this press is being captured -- targetVoice is still
+        // what gets stored on the block and played back later.
+        const audioVoice = willCapture ? RECORDING_REFERENCE_VOICE : targetVoice;
 
         const freq = parseFloat(button.dataset.note);
         const now = audioContext.currentTime;
@@ -5092,14 +5158,14 @@ if (!isRecording) {
 
         const voiceNode =
           buildContainedVoice(
-            voice,
+            audioVoice,
             freq,
             now
           );
 
         const noteRecord = {
           ...voiceNode,
-          voice,
+          voice: audioVoice,
           button,
           startedAt: now,
           gain: voiceNode.gain,
@@ -5111,20 +5177,11 @@ if (!isRecording) {
           phrasePreviewBlockId: null
         };
 
-        if (
-          designPhrasePayload &&
-          phraseAddPlayedNotes &&
-          !isPhrasePlaybackActive &&
-          (activeCapturePointerId === null || activeCapturePointerId === event.pointerId)
-        ) {
+        if (willCapture) {
           activeCapturePointerId = event.pointerId;
 
-          const initialDurationBeats = sustainedVoices.includes(voice)
-            ? 0.25
-            : Math.max(0.25, secondsToPhraseBeats(Math.min(voiceNode.autoStopSeconds || 0.9, 1.2)));
-
           noteRecord.phrasePreviewBlockId =
-            beginAutoCapturedPhraseNote(button, now, voice, initialDurationBeats);
+            beginAutoCapturedPhraseNote(button, now, targetVoice, 0.25);
 
           if (phraseDragState && phraseDragState.pointerId === event.pointerId) {
             phraseDragState.previewBlockId = noteRecord.phrasePreviewBlockId;
@@ -5133,7 +5190,7 @@ if (!isRecording) {
 
 const autoStopSeconds = Number(voiceNode.autoStopSeconds);
         const hasAutoStop = Number.isFinite(autoStopSeconds) && autoStopSeconds > 0;
-        const shouldHoldUntilPointerRelease = sustainedVoices.includes(voice) || !hasAutoStop;
+        const shouldHoldUntilPointerRelease = willCapture || sustainedVoices.includes(audioVoice) || !hasAutoStop;
 
         if (shouldHoldUntilPointerRelease) {
           activeNotes.set(event.pointerId, noteRecord);
@@ -5161,7 +5218,7 @@ const autoStopSeconds = Number(voiceNode.autoStopSeconds);
           }
           setTimeout(() => {
             releaseVoiceGracefully(noteRecord, 0.18);
-          }, Math.max(0.05, autoDuration) * 1000);
+          }, Math.max(0.05, autoStopSeconds) * 1000);
 
           trackRecentNote(button);
 
@@ -5206,6 +5263,8 @@ const autoStopSeconds = Number(voiceNode.autoStopSeconds);
             durationBeats: 1,
             isRest: true
           });
+
+          button.classList.add("drag-armed");
         }
 
         event.preventDefault();
@@ -5241,6 +5300,14 @@ const autoStopSeconds = Number(voiceNode.autoStopSeconds);
             phraseDragState.previewBlockId = restBlock.blockId;
           }
         }
+      });
+
+      button.addEventListener("pointerup", () => {
+        button.classList.remove("drag-armed");
+      });
+
+      button.addEventListener("pointercancel", () => {
+        button.classList.remove("drag-armed");
       });
     }
 
@@ -5428,6 +5495,7 @@ const autoStopSeconds = Number(voiceNode.autoStopSeconds);
       trackRecentNote(note.button);
 
       note.button.classList.remove("active");
+      note.button.classList.remove("drag-armed");
       activeNotes.delete(pointerId);
 
       if (activeCapturePointerId === pointerId) {
