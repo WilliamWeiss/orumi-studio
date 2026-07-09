@@ -1403,6 +1403,12 @@ h1 {
     // manual suggestion, payload) produced the base assignment.
     let voiceOctaveOverrides = {}; // { [laneId]: octaveNumber }
     let voicePins = {}; // { [laneId]: { midi, displayName } }
+
+    // Lanes whose New-stack note was explicitly dragged in since the last
+    // wholesale recompute (Root/Quality/Voicing/Suggestion/Copy-to-New all
+    // clear this). Lets pin distinguish "lock what I just deliberately
+    // placed here" from "protect the original" -- see toggleVoicePin.
+    let manuallyPlacedLanes = {};
     let chordEditStarted = false;
     let selectedPerspectiveLaneId = null;
     let designEditPayload = null;
@@ -2574,6 +2580,7 @@ h1 {
       selectedOctave = Math.max(2, Math.min(5, Math.floor(Math.min(...suggestion.notes.map(note => note.midi)) / 12) - 1));
       selectedNoteMidis = suggestion.notes.map(note => note.midi).sort((a, b) => a - b);
       selectedVoiceAwareSuggestion = JSON.parse(JSON.stringify(suggestion));
+      manuallyPlacedLanes = {};
       chordEditStarted = true;
       buildAll();
       factoryStatus.textContent =
@@ -2907,17 +2914,26 @@ h1 {
         return;
       }
 
-      const current = getCurrentSelectionStackAssignments().find(item => item.laneId === laneId);
+      // If you just deliberately dragged a note onto this voice, pin should
+      // lock that in -- that's a clear, explicit action and overriding it
+      // back to Current would silently undo what you just did. Otherwise,
+      // anchor to Current/locked-reference (the actual chord being
+      // edited): New can already reflect an in-progress Root/Quality/
+      // Suggestion exploration by the time you check the box, which isn't
+      // the note you meant to protect.
+      const newValue = getCurrentSelectionStackAssignments().find(item => item.laneId === laneId);
+      const currentRef = getPayloadStackAssignments().find(item => item.laneId === laneId);
+      const source = manuallyPlacedLanes[laneId] ? (newValue || currentRef) : (currentRef || newValue);
 
-      if (!current || !Number.isFinite(Number(current.midi))) {
+      if (!source || !Number.isFinite(Number(source.midi))) {
         factoryStatus.textContent = "Nothing to pin yet for " + getLaneLabel(laneId) + ".";
         return;
       }
 
-      voicePins[laneId] = { midi: Number(current.midi), displayName: current.displayName };
+      voicePins[laneId] = { midi: Number(source.midi), displayName: source.displayName };
       delete voiceOctaveOverrides[laneId]; // pin supersedes a plain octave override
       buildAll();
-      factoryStatus.textContent = getLaneLabel(laneId) + " pinned at " + current.displayName + ".";
+      factoryStatus.textContent = getLaneLabel(laneId) + " pinned at " + source.displayName + ".";
     }
 
     function setVoiceOctaveOverride(laneId, octave) {
@@ -2937,6 +2953,7 @@ h1 {
     function clearVoiceOverrides() {
       voiceOctaveOverrides = {};
       voicePins = {};
+      manuallyPlacedLanes = {};
     }
 
     function readDraggedMidi(event) {
@@ -2969,10 +2986,13 @@ h1 {
         // so update the pin itself -- otherwise this drag would silently
         // have no visible effect.
         voicePins[laneId] = { midi: Number(midi), displayName: midiToDisplayName(Number(midi)) };
+        manuallyPlacedLanes[laneId] = true;
         buildAll();
         factoryStatus.textContent = getLaneLabel(laneId) + " pinned note updated to " + midiToDisplayName(Number(midi)) + ".";
         return;
       }
+
+      manuallyPlacedLanes[laneId] = true;
 
       const assignments = getCurrentSelectionStackAssignments()
         .map(item => ({
@@ -3600,6 +3620,7 @@ h1 {
 
     function resetSelectedNotesToFactory(markEdited = true) {
       selectedVoiceAwareSuggestion = null;
+      manuallyPlacedLanes = {};
       if (markEdited) {
         chordEditStarted = true;
       }
@@ -4759,6 +4780,7 @@ h1 {
         }
 
         // Build a voice-aware suggestion from the current stack
+        manuallyPlacedLanes = {};
         selectedVoiceAwareSuggestion = {
           root: selectedRoot,
           quality: selectedQuality,
