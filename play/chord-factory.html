@@ -558,6 +558,15 @@
       text-align: left;
     }
 
+    .stack-comparison.stack-comparison-solo {
+      grid-template-columns: minmax(0, 1fr);
+      width: min(100%, 460px);
+    }
+
+    .stack-comparison.stack-comparison-solo #currentStackCard {
+      display: none;
+    }
+
     .stack-comparison[hidden] {
       display: none;
     }
@@ -2875,45 +2884,62 @@ h1 {
     const GAP_PENALTY_WEIGHT = 15;
 
     function midiForPitchClassInVoiceRange(pc, range, neighborMidi, gapLimit) {
-      const inRangeCandidates = [];
-      let bestOverall = null;
-      let bestOverallDist = Infinity;
+      const allCandidates = [];
 
       for (let octave = -1; octave <= 9; octave++) {
         const candidate = 12 * (octave + 1) + pc;
         const distToCenter = Math.abs(candidate - range.center);
-
-        if (candidate >= range.min && candidate <= range.max) {
-          inRangeCandidates.push({ midi: candidate, distToCenter });
-        }
-
-        if (distToCenter < bestOverallDist) {
-          bestOverallDist = distToCenter;
-          bestOverall = candidate;
-        }
-      }
-
-      if (!inRangeCandidates.length) {
-        // No candidate at all falls within this voice's defined range --
-        // fall back to whichever octave is closest to its center anyway.
-        return bestOverall;
+        const inRange = candidate >= range.min && candidate <= range.max;
+        allCandidates.push({ midi: candidate, distToCenter, inRange });
       }
 
       if (neighborMidi === null || !Number.isFinite(Number(neighborMidi)) || !Number.isFinite(gapLimit)) {
         // No neighbor to weigh against (Bass, or a custom lane) -- pure
         // closest-to-own-center, same as the original independent version.
-        inRangeCandidates.sort((a, b) => a.distToCenter - b.distToCenter);
-        return inRangeCandidates[0].midi;
+        const inRangeOnly = allCandidates.filter(c => c.inRange);
+        const pool = inRangeOnly.length ? inRangeOnly : allCandidates;
+        pool.sort((a, b) => a.distToCenter - b.distToCenter);
+        return pool[0].midi;
       }
 
-      inRangeCandidates.forEach(candidate => {
+      allCandidates.forEach(candidate => {
         const gap = Math.abs(candidate.midi - neighborMidi);
         const gapExcess = Math.max(0, gap - gapLimit);
         candidate.score = candidate.distToCenter + GAP_PENALTY_WEIGHT * gapExcess;
+        candidate.crosses = candidate.midi <= neighborMidi;
       });
 
-      inRangeCandidates.sort((a, b) => a.score - b.score);
-      return inRangeCandidates[0].midi;
+      // Voices are built low-to-high through the chain -- a candidate that
+      // would land at or below the neighbor already placed underneath it
+      // is a real voice-crossing, not just an awkward gap. Distance/gap
+      // scoring alone has no concept of direction (a close-but-wrong-side
+      // candidate can numerically outscore a correctly-ordered one), so
+      // crossing is avoided outright wherever possible, in tiers:
+      //   1. In range AND non-crossing -- the normal, best case.
+      //   2. Non-crossing even if slightly outside the defined range --
+      //      preferred over ever accepting a crossing. A fixed range
+      //      ceiling will always sit at the edge for *some* pitch class;
+      //      chasing that boundary case by case is a losing game, so a
+      //      voice landing a semitone or two past its "typical" range is
+      //      better than two voices swapping order entirely.
+      //   3. In range but crossing -- last resort.
+      const inRangeNonCrossing = allCandidates.filter(c => c.inRange && !c.crosses);
+      if (inRangeNonCrossing.length) {
+        inRangeNonCrossing.sort((a, b) => a.score - b.score);
+        return inRangeNonCrossing[0].midi;
+      }
+
+      const anyNonCrossing = allCandidates.filter(c => !c.crosses);
+      if (anyNonCrossing.length) {
+        anyNonCrossing.sort((a, b) => a.score - b.score);
+        return anyNonCrossing[0].midi;
+      }
+
+      const inRangeAny = allCandidates.filter(c => c.inRange);
+      const pool = inRangeAny.length ? inRangeAny : allCandidates;
+
+      pool.sort((a, b) => a.score - b.score);
+      return pool[0].midi;
     }
 
     function normalizeVoiceRoleForRange(laneId) {
@@ -2936,6 +2962,19 @@ h1 {
     }
 
     function applyDefaultVoiceSpread(assignments) {
+      // A picked Suggestion (or a manual drag-drop snapshot -- both use
+      // selectedVoiceAwareSuggestion) has its own purpose-built spacing,
+      // often anchored to one exact, specific pitch -- e.g. harmonizing
+      // around a real melody note. That anchor must never move. Applying
+      // this generic range-fit on top would silently relocate it (verified:
+      // an anchor sitting far from its own range's comfortable center gets
+      // pulled toward that center, corrupting the very thing the anchor is
+      // supposed to preserve). Only the plain formula/doubling path -- with
+      // no active suggestion or manual snapshot -- gets range-fit treatment.
+      if (selectedVoiceAwareSuggestion) {
+        return assignments;
+      }
+
       const byRole = new Map();
       assignments.forEach(item => {
         const role = normalizeVoiceRoleForRange(item.laneId);
@@ -3444,6 +3483,11 @@ h1 {
         stackComparisonPanel.hidden = true;
         return;
       }
+
+      // Nothing is being inherited from Design Studio or Progression at all
+      // -- no reason to keep an empty "no original to compare" panel taking
+      // up half the layout. Let New take the space instead.
+      stackComparisonPanel.classList.toggle("stack-comparison-solo", !designEditPayload);
 
       const laneOrder = getComparisonLaneOrder(currentStack, newStack);
       const currentMap = new Map(currentStack.map(item => [item.laneId, Number(item.midi)]));

@@ -1345,10 +1345,6 @@
     ▾ Show Play Line
   </button>
 
-  <button id="addTakeToPlayLineButton" class="phrase-action-button primary" type="button" hidden>
-    ⤓ Add Take to Play Line
-  </button>
-
   <button id="saveMelodyButton" class="phrase-action-button" type="button" hidden>
     💾 Save Melody
   </button>
@@ -1438,7 +1434,6 @@
     const recordButton = document.getElementById("recordButton");
     const stopRecordingButton = document.getElementById("stopRecordingButton");
     const clearRecordingButton = document.getElementById("clearRecordingButton");
-    const playRecordingButton = document.getElementById("playRecordingButton");
     const jumpPhraseStartButton = document.getElementById("jumpPhraseStartButton");
     const backPhraseMeasureButton = document.getElementById("backPhraseMeasureButton");
     const playPhraseFromLocationButton = document.getElementById("playPhraseFromLocationButton");
@@ -1477,7 +1472,6 @@
     const phraseLocationMarker = document.getElementById("phraseLocationMarker");
     const playPhraseButton = document.getElementById("playPhraseButton");
     const stopPhraseButton = document.getElementById("stopPhraseButton");
-    const addTakeToPlayLineButton = document.getElementById("addTakeToPlayLineButton");
     const saveMelodyButton = document.getElementById("saveMelodyButton");
     const loadMelodyButton = document.getElementById("loadMelodyButton");
     const undoPhraseButton = document.getElementById("undoPhraseButton");
@@ -2288,79 +2282,6 @@
   }
 }
 
-    function addCurrentTakeToPlayLine() {
-      if (!designPhrasePayload) return;
-
-      const sourceEvents = trimRecordedEventsToFirstNote(
-        Array.isArray(recordedEvents) && recordedEvents.length
-          ? recordedEvents
-          : safeJsonParse(localStorage.getItem("orumiCurrentRecording")) || []
-      );
-
-      if (!Array.isArray(sourceEvents) || sourceEvents.length === 0) {
-        statusText.textContent = "No recorded take to add. Record a take first.";
-        return;
-      }
-
-      const tempo = Math.max(20, Number(designPhrasePayload?.context?.tempo || 120));
-      const beatSeconds = 60 / tempo;
-      const restThresholdBeats = 0.25;
-
-      const normalizedEvents = sourceEvents
-        .filter(event => event && Array.isArray(event.notes) && event.notes.length > 0)
-        .map(event => ({
-          ...event,
-          startBeat: quantizeBeat(Number(event.start || 0) / beatSeconds),
-          durationBeats: Math.max(0.25, quantizeBeat(Number(event.duration || 0.25) / beatSeconds))
-        }))
-        .sort((a, b) => a.startBeat - b.startBeat);
-
-      if (!normalizedEvents.length) {
-        statusText.textContent = "The recorded take did not contain playable notes.";
-        return;
-      }
-
-      savePhraseHistory();
-
-      const nextBlocks = [];
-      let cursor = 0;
-
-      normalizedEvents.forEach(event => {
-        const gap = event.startBeat - cursor;
-
-        if (gap >= restThresholdBeats) {
-          nextBlocks.push(createPhraseRestBlock(0, quantizeBeat(gap)));
-          cursor += quantizeBeat(gap);
-        }
-
-        const firstNote = event.notes[0];
-        const midi = Number(firstNote.midi);
-
-        if (!Number.isFinite(midi)) {
-          return;
-        }
-
-        const noteBlock = createPhraseBlockFromMidi(
-          midi,
-          0,
-          Math.max(0.25, event.durationBeats),
-          firstNote.name || midiToDisplayName(midi),
-          event.voice || getActivePhraseVoice()
-        );
-
-        nextBlocks.push(noteBlock);
-        cursor += Math.max(0.25, event.durationBeats);
-      });
-
-      designPhraseBlocks = nextBlocks;
-      phraseInsertIndex = designPhraseBlocks.length;
-      reflowPhraseSequence();
-      renderDesignPhraseTimeline();
-      updatePhraseUndoRedoButtons();
-
-      statusText.textContent =
-       "Take added to Play Line with explicit rests. Edit it, absorb rests if needed, then add harmony.";
-    }
 
     function removePhraseBlock(blockId) {
       const before = designPhraseBlocks.length;
@@ -3239,10 +3160,6 @@ if (returnToDesignButton) {
 
       if (resetPhraseLineButton) {
         resetPhraseLineButton.style.display = "";
-      }
-
-      if (addTakeToPlayLineButton) {
-        addTakeToPlayLineButton.style.display = "none";
       }
 
       const context = payload.context || {};
@@ -4627,14 +4544,6 @@ function updateTransportActionButtons() {
     clearRecordingButton.disabled = !hasMaterial && !phraseAddPlayedNotes;
   }
 
-  if (playRecordingButton) {
-    playRecordingButton.disabled =
-      !hasMaterial ||
-      phraseAddPlayedNotes ||
-      isRecordingPlaybackActive ||
-      isPhrasePlaybackActive;
-  }
-
   if (playPhraseButton) {
     playPhraseButton.disabled = !designPhraseBlocks.length;
   }
@@ -4700,66 +4609,6 @@ function updateTransportActionButtons() {
       statusText.textContent = "Stopped adding played notes. Play Line is ready to shape, or press Record to keep adding.";
     }
 
-    function startRecording() {
-  if (!requireAudioReady()) {
-    return;
-  }
-
-  stopCurrentRecordingPlayback(false);
-  stopDesignPhrasePlayback(false);
-
-  recordedEvents = [];
-  localStorage.setItem(
-    "orumiCurrentRecording",
-    JSON.stringify(recordedEvents)
-  );
-
-  recordingStartTime = null;
-  isRecording = true;
-
-  recordButton.classList.add("recording");
-  recordButton.disabled = true;
-
-  stopRecordingButton.disabled = false;
-  updateTransportActionButtons();
-
-  statusText.textContent =
-    "Recording armed. Timing starts on the first note, so no leading rest is created.";
-}
-
-function stopRecording() {
-  if (!isRecording) {
-    return;
-  }
-
-  stopAllNotes();
-  isRecording = false;
-
-  recordButton.classList.remove("recording");
-  recordButton.disabled = false;
-
-  stopRecordingButton.disabled = !isRecordingPlaybackActive && !isPhrasePlaybackActive;
-
-  recordedEvents = trimRecordedEventsToFirstNote(recordedEvents);
-  saveCurrentRecording();
-
-  if (!recordedEvents.length) {
-    updateTransportActionButtons();
-    statusText.textContent = "Recording stopped. No notes were captured.";
-    return;
-  }
-
-  addCurrentTakeToPlayLine();
-  openPlayLinePanel();
-  updateTransportActionButtons();
-
-  statusText.textContent =
-    recordedEvents.length +
-    " event" +
-    (recordedEvents.length === 1 ? "" : "s") +
-    " recorded and added to the Play Line.";
-}
-
 function clearCurrentRecording() {
   stopCurrentRecordingPlayback(false);
   stopDesignPhrasePlayback(false);
@@ -4810,119 +4659,6 @@ function saveCurrentRecording() {
         "orumiCurrentRecording",
         JSON.stringify(eventsToSave)
       );
-    }
-
-    async function playCurrentRecording() {
-      if (!requireAudioReady()) {
-        return;
-      }
-
-      await ensureAudio();
-
-      const raw = localStorage.getItem("orumiCurrentRecording");
-
-      if (!raw) {
-        statusText.textContent = "No recorded take to play.";
-        return;
-      }
-
-      let events;
-
-      try {
-        events = JSON.parse(raw);
-      } catch (error) {
-        statusText.textContent = "Recorded take could not be read.";
-        return;
-      }
-
-      if (!Array.isArray(events) || events.length === 0) {
-        statusText.textContent = "Recorded take is empty.";
-        return;
-      }
-
-      const { voice } = getSettingsFromUrl();
-
-      stopCurrentRecordingPlayback(false);
-      events = trimRecordedEventsToFirstNote(events);
-      isRecordingPlaybackActive = true;
-      stopRecordingButton.disabled = false;
-      updateTransportActionButtons();
-      statusText.textContent = "Playing recorded take...";
-
-      let latestEndMs = 0;
-
-      events.forEach(event => {
-        const startMs = Math.max(0, Number(event.start || 0)) * 1000;
-        const durationMs = Math.max(180, Number(event.duration || 0.8) * 1000);
-
-        latestEndMs = Math.max(latestEndMs, startMs + durationMs);
-
-        const startTimer = setTimeout(() => {
-          if (!isRecordingPlaybackActive || !event.notes || event.notes.length === 0) {
-            return;
-          }
-
-          const now = audioContext.currentTime;
-          const playedNotes = [];
-
-          event.notes.forEach(note => {
-            const midi = Number(note.midi);
-
-            if (!Number.isFinite(midi)) {
-              return;
-            }
-
-            const eventVoice =
-              event.voice && ORUMI_CATALOG.voices[event.voice]
-                ? event.voice
-                : voice;
-
-            const voiceNode =
-              buildContainedVoice(
-                eventVoice,
-                midiToFrequency(midi),
-                now
-              );
-
-            const playedNote = {
-              ...voiceNode,
-              voice: eventVoice,
-              gain: voiceNode.gain,
-              oscillators: voiceNode.oscillators || [],
-              noiseSources: voiceNode.noiseSources || []
-            };
-
-            playedNotes.push(playedNote);
-            recordingPlaybackNotes.push(playedNote);
-          });
-
-          const stopTimer = setTimeout(() => {
-            playedNotes.forEach(note => {
-              ORUMI_VOICES.stopVoice(note, audioContext, 0.2);
-              recordingPlaybackNotes = recordingPlaybackNotes.filter(item => item !== note);
-            });
-          }, durationMs);
-
-          recordingPlaybackTimers.push(stopTimer);
-        }, startMs);
-
-        recordingPlaybackTimers.push(startTimer);
-      });
-
-      const doneTimer = setTimeout(() => {
-        isRecordingPlaybackActive = false;
-        recordingPlaybackNotes = [];
-        clearRecordingPlaybackTimers();
-        stopRecordingButton.disabled = !isRecording;
-
-        updateTransportActionButtons();
-
-if (!isRecording) {
-  statusText.textContent = "Playback complete.";
-}
-      }, latestEndMs + 250);
-
-      recordingPlaybackTimers.push(doneTimer);
     }
 
     function recordSingleNote(button, startedAt, endedAt, voice) {
@@ -5558,13 +5294,6 @@ const autoStopSeconds = Number(voiceNode.autoStopSeconds);
       stopPhraseButton.addEventListener("click", () => {
         stopDesignPhrasePlayback(true);
         flashButtonSuccess(stopPhraseButton);
-      });
-    }
-
-    if (addTakeToPlayLineButton) {
-      addTakeToPlayLineButton.addEventListener("click", () => {
-        addCurrentTakeToPlayLine();
-        flashButtonSuccess(addTakeToPlayLineButton);
       });
     }
 
