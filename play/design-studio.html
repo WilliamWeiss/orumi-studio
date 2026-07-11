@@ -3578,12 +3578,6 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       return snapBeat(x / BEAT_WIDTH);
     }
 
-    function beatFromTrackEvent(event, track) {
-      const rect = track.getBoundingClientRect();
-      const x = Math.max(0, event.clientX - rect.left);
-      return snapBeat(x / BEAT_WIDTH);
-    }
-
     function promptForSelectedLocation() {
       const currentMeasure = String(getSelectedInsertMeasure());
       const measureAnswer = window.prompt("Set selected location — measure number:", currentMeasure);
@@ -4294,14 +4288,6 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
           return Number(a.midi || 0) - Number(b.midi || 0);
         });
-    }
-
-    function blocksOverlapAtBeat(blocks, beat) {
-      return blocks.every(block => {
-        const start = Number(block.startBeat || 0);
-        const end = start + Number(block.durationBeats || MIN_DURATION);
-        return start <= beat + 0.0001 && end > beat + 0.0001;
-      });
     }
 
     function getVerticalChordSelection() {
@@ -7803,43 +7789,6 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       status.textContent = "Lane added.";
     }
 
-    function addRestToLead() {
-      const lead = project.lanes.find(lane => lane.id === "lead") || project.lanes[0];
-      if (!lead) return;
-
-      saveHistory();
-
-      const block = {
-        id: createId("rest"),
-        type: "rest",
-        laneId: lead.id,
-        startBeat: nextLaneEnd(lead.id),
-        durationBeats: 1,
-        velocity: 0,
-        name: "Rest",
-        voice: null,
-        system: project.context.system,
-        source: "manual",
-        sourceId: null
-      };
-
-      project.blocks.push(block);
-      selectedBlockId = block.id;
-      selectedLaneId = lead.id;
-
-      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
-      render();
-      status.textContent = "Rest added.";
-    }
-
-    function nextLaneEnd(laneId) {
-      const blocks = project.blocks.filter(block => block.laneId === laneId);
-
-      if (blocks.length === 0) return 0;
-
-      return Math.max(...blocks.map(block => block.startBeat + block.durationBeats));
-    }
-
     function insertMeasuresAtSelectedPoint() {
       if (!hasSelectedLocation()) {
         status.textContent = "Set a selected location before inserting measures.";
@@ -9295,22 +9244,6 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         return text;
       }
 
-      function readVarLengthAt(endPos) {
-        let value = 0;
-        let byte;
-
-        do {
-          if (pos >= endPos) {
-            throw new Error("Unexpected end of variable length value.");
-          }
-
-          byte = readUint8();
-          value = (value << 7) | (byte & 0x7f);
-        } while (byte & 0x80);
-
-        return value;
-      }
-
       const headerId = readAsciiAt(4);
       if (headerId !== "MThd") {
         throw new Error("Not a standard MIDI file.");
@@ -9721,12 +9654,6 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         });
       }
     }
-
-    function laneIdForChordIndex(index, fallbackLaneId) {
-      ensureLaneForChordIndex(index);
-      return project.lanes[index]?.id || fallbackLaneId;
-    }
-
 
     function duplicateSelectedLane() {
       const laneIndex = project.lanes.findIndex(item => item.id === selectedLaneId);

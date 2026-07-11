@@ -151,6 +151,72 @@
       flex-direction: column;
       align-items: center;
       gap: 12px;
+      position: relative;
+    }
+
+    .key-change-banner {
+      width: 100%;
+      background: rgba(255,209,102,0.92);
+      color: #2a1e00;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      text-align: center;
+      padding: 5px 6px;
+      border-radius: 10px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.28);
+    }
+
+    .modulation-picker {
+      width: 100%;
+      background: rgba(0,0,0,0.35);
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 14px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      order: 99;
+    }
+
+    .modulation-picker-title {
+      font-size: 11px;
+      color: #cfc7b8;
+      text-align: center;
+      font-weight: 700;
+    }
+
+    .modulation-root-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+    }
+
+    .modulation-root-button {
+      color: #1c1712;
+      font-weight: 800;
+      font-size: 11px;
+      padding: 6px 2px;
+    }
+
+    .modulation-root-button.selected-root {
+      outline: 3px solid #fff;
+      outline-offset: -3px;
+    }
+
+    .modulation-mode-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    .modulation-mode-row button {
+      flex: 1;
+    }
+
+    .modulation-confirm-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
 
     .chord-number {
@@ -240,8 +306,7 @@
       grid-column: span 2;
     }
 
-    button,
-    .action-link {
+    button {
       font-family: inherit;
     }
 
@@ -603,11 +668,6 @@
 
 
 
-    .harmony-card-actions {
-      display: grid;
-      gap: 8px;
-    }
-
     .harmony-edit-button {
       background: rgba(155,235,215,0.92);
       color: #102522;
@@ -753,6 +813,18 @@
     .small-button:active {
       transform: scale(0.97);
       filter: brightness(1.12);
+    }
+
+    .action-button.button-success,
+    .small-button.button-success,
+    .suggestion-button.button-success {
+      animation: buttonSuccess 0.6s ease forwards;
+    }
+
+    @keyframes buttonSuccess {
+      0%   { box-shadow: 0 0 0px rgba(34,211,238,0);   border-color: rgba(34,211,238,0); }
+      25%  { box-shadow: 0 0 18px rgba(34,211,238,0.8); border-color: rgba(34,211,238,0.9); color: #a5f3fc; }
+      100% { box-shadow: 0 0 0px rgba(34,211,238,0);   border-color: inherit; color: inherit; }
     }
 
 
@@ -964,7 +1036,8 @@
 
         <a
           class="action-button secondary"
-          href="chord-factory.html"
+          href="chord-factory.html?source=progression-builder&mode=addProgressionChord"
+          id="addAChordLink"
         >
           Add a Chord
         </a>
@@ -2857,6 +2930,57 @@
       );
     }
 
+    // Walks backward from `index` to find the most recent chord (including
+    // itself) carrying a .modulation marker -- the key center declared as
+    // active starting at that chord. Falls back to the progression's
+    // existing home-key convention (the first chord's keyRoot/mode) when no
+    // modulation has been set yet. This is the single source of truth every
+    // future key-relative feature (chord tagging, suggestions) should read
+    // from, rather than each one solving "what key are we in" separately.
+    function getActiveKeyAt(progression, index) {
+      for (let i = Math.min(index, progression.length - 1); i >= 0; i--) {
+        if (progression[i] && progression[i].modulation) {
+          return {
+            root: progression[i].modulation.root,
+            mode: progression[i].modulation.mode,
+            modulatedAtIndex: i
+          };
+        }
+      }
+
+      const first = progression[0] || {};
+      // The existing "mode" field elsewhere in Orumi can hold a full modal
+      // name (ionian, dorian, aeolian...), not just "major"/"minor". This
+      // feature only needs the coarser major/minor distinction, so treat
+      // known minor-family names as minor and default to major otherwise.
+      const firstModeText = String(first.mode || "").toLowerCase();
+      const firstIsMinor = firstModeText === "minor" || firstModeText === "aeolian";
+
+      return {
+        root: first.keyRoot || "C",
+        mode: firstIsMinor ? "minor" : "major",
+        modulatedAtIndex: -1
+      };
+    }
+
+    function setModulation(index, root, mode) {
+      const progression = getProgression();
+      if (!progression[index]) return;
+
+      progression[index].modulation = { root, mode };
+      saveProgression(progression);
+      renderProgression();
+    }
+
+    function clearModulation(index) {
+      const progression = getProgression();
+      if (!progression[index]) return;
+
+      delete progression[index].modulation;
+      saveProgression(progression);
+      renderProgression();
+    }
+
     function parseNoteName(noteName) {
       const match =
         String(noteName).match(/^([A-G][b]?)(-?\d+)$/);
@@ -3308,6 +3432,125 @@
       return block;
     }
 
+    function toggleModulationPicker(index) {
+      const alreadyOpen = document.getElementById("modulationPicker-" + index);
+
+      // Only one picker open at a time, and clicking the same chord's
+      // button again should just close it.
+      document.querySelectorAll(".modulation-picker").forEach(el => el.remove());
+      if (alreadyOpen) return;
+
+      const progression = getProgression();
+      const chord = progression[index];
+      if (!chord) return;
+
+      const current = chord.modulation || null;
+      let selectedRoot = current ? current.root : null;
+      let selectedMode = current ? current.mode : "major";
+
+      const picker = document.createElement("div");
+      picker.className = "modulation-picker";
+      picker.id = "modulationPicker-" + index;
+
+      const title = document.createElement("div");
+      title.className = "modulation-picker-title";
+      title.textContent = "New key center starting at this chord:";
+      picker.appendChild(title);
+
+      const rootGrid = document.createElement("div");
+      rootGrid.className = "modulation-root-grid";
+
+      Object.keys(pitchClasses).forEach(pc => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "small-button modulation-root-button " + (pitchClasses[pc].className || "");
+        btn.textContent = pc;
+        if (pc === selectedRoot) btn.classList.add("selected-root");
+
+        btn.addEventListener("click", () => {
+          selectedRoot = pc;
+          rootGrid.querySelectorAll("button").forEach(b => b.classList.remove("selected-root"));
+          btn.classList.add("selected-root");
+        });
+
+        rootGrid.appendChild(btn);
+      });
+
+      picker.appendChild(rootGrid);
+
+      const modeRow = document.createElement("div");
+      modeRow.className = "modulation-mode-row";
+
+      const majorBtn = document.createElement("button");
+      majorBtn.type = "button";
+      majorBtn.className = "small-button" + (selectedMode === "major" ? " primary" : "");
+      majorBtn.textContent = "Major";
+
+      const minorBtn = document.createElement("button");
+      minorBtn.type = "button";
+      minorBtn.className = "small-button" + (selectedMode === "minor" ? " primary" : "");
+      minorBtn.textContent = "Minor";
+
+      majorBtn.addEventListener("click", () => {
+        selectedMode = "major";
+        majorBtn.classList.add("primary");
+        minorBtn.classList.remove("primary");
+      });
+
+      minorBtn.addEventListener("click", () => {
+        selectedMode = "minor";
+        minorBtn.classList.add("primary");
+        majorBtn.classList.remove("primary");
+      });
+
+      modeRow.appendChild(majorBtn);
+      modeRow.appendChild(minorBtn);
+      picker.appendChild(modeRow);
+
+      const confirmRow = document.createElement("div");
+      confirmRow.className = "modulation-confirm-row";
+
+      const confirmBtn = document.createElement("button");
+      confirmBtn.type = "button";
+      confirmBtn.className = "small-button primary wide";
+      confirmBtn.textContent = "Set Key Change Here";
+
+      confirmBtn.addEventListener("click", () => {
+        if (!selectedRoot) {
+          confirmBtn.textContent = "Pick a root first";
+          return;
+        }
+        setModulation(index, selectedRoot, selectedMode);
+      });
+
+      confirmRow.appendChild(confirmBtn);
+
+      if (current) {
+        const clearBtn = document.createElement("button");
+        clearBtn.type = "button";
+        clearBtn.className = "small-button danger wide";
+        clearBtn.textContent = "Clear Key Change";
+        clearBtn.addEventListener("click", () => {
+          clearModulation(index);
+        });
+        confirmRow.appendChild(clearBtn);
+      }
+
+      const cancelBtn = document.createElement("button");
+      cancelBtn.type = "button";
+      cancelBtn.className = "small-button wide";
+      cancelBtn.textContent = "Cancel";
+      cancelBtn.addEventListener("click", () => {
+        picker.remove();
+      });
+
+      confirmRow.appendChild(cancelBtn);
+      picker.appendChild(confirmRow);
+
+      const card = document.querySelector('.chord-card[data-chord-index="' + index + '"]');
+      if (card) card.appendChild(picker);
+    }
+
     function createChordCard(chord, index, total) {
       const card =
         document.createElement("article");
@@ -3452,13 +3695,35 @@
         removeChord(index);
       });
 
+      const modulateButton =
+        document.createElement("button");
+
+      modulateButton.classList.add("small-button", "wide");
+      modulateButton.textContent = chord.modulation ? "Key Change ✓" : "Modulate";
+      modulateButton.title = "Declare a new key center starting at this chord";
+
+      modulateButton.addEventListener("click", () => {
+        toggleModulationPicker(index);
+      });
+
       actions.appendChild(playButton);
       actions.appendChild(editLink);
       actions.appendChild(moveLeft);
       actions.appendChild(moveRight);
+      actions.appendChild(modulateButton);
       actions.appendChild(removeButton);
 
       card.appendChild(chordNumber);
+
+      if (chord.modulation) {
+        const banner = document.createElement("div");
+        banner.classList.add("key-change-banner");
+        banner.textContent =
+          "🔑 New key: " + chord.modulation.root +
+          (chord.modulation.mode === "minor" ? " Minor" : " Major");
+        card.appendChild(banner);
+      }
+
       card.appendChild(chordName);
       card.appendChild(chordMeta);
       card.appendChild(stack);
@@ -3931,6 +4196,38 @@
       "click",
       toggleDrone
     );
+
+    document.addEventListener("pointerdown", event => {
+      const button = event.target.closest(".action-button, .small-button, .suggestion-button");
+
+      if (!button || button.disabled) {
+        return;
+      }
+
+      button.classList.remove("button-success");
+
+      window.requestAnimationFrame(() => {
+        button.classList.add("button-success");
+
+        window.setTimeout(() => {
+          button.classList.remove("button-success");
+        }, 620);
+      });
+    });
+
+    const addAChordLink = document.getElementById("addAChordLink");
+    if (addAChordLink) {
+      const prepareAddChordContext = () => {
+        prepareChordFactoryProgressionContext({
+          source: "progression-builder",
+          mode: "addProgressionChord",
+          returnUrl: "progression-builder.html"
+        });
+      };
+      addAChordLink.addEventListener("pointerdown", prepareAddChordContext);
+      addAChordLink.addEventListener("touchstart", prepareAddChordContext, { passive: true });
+      addAChordLink.addEventListener("click", prepareAddChordContext);
+    }
 
 
     if (applyHarmonyButton) {

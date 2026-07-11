@@ -514,6 +514,16 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.32);
     }
 
+    .action-button.button-success {
+      animation: buttonSuccess 0.6s ease forwards;
+    }
+
+    @keyframes buttonSuccess {
+      0%   { box-shadow: 0 0 0px rgba(34,211,238,0);   border-color: rgba(34,211,238,0); }
+      25%  { box-shadow: 0 0 18px rgba(34,211,238,0.8); border-color: rgba(34,211,238,0.9); color: #a5f3fc; }
+      100% { box-shadow: 0 2px 8px rgba(0,0,0,0.32);   border-color: inherit; color: inherit; }
+    }
+
     .secondary-button {
       background: rgba(255,255,255,0.16);
       color: #fff7ea;
@@ -1188,7 +1198,9 @@ h1 {
             <option value="5">Octave 5</option>
             <option value="6">Octave 6</option>
           </select>
+        </div>
 
+        <div class="console-card current-chord-card" id="progressionActionPanel">
           <div class="mini-characteristic-label">Progression</div>
           <button
             class="action-button secondary-button"
@@ -1321,12 +1333,6 @@ h1 {
 
     const addDesignButton =
       document.getElementById("addDesignButton");
-
-    const openProgressionButton =
-      document.getElementById("openProgressionButton");
-
-    const openDesignButton =
-      document.getElementById("openDesignButton");
 
     let selectedSystemKey =
       params.get("system") || "western";
@@ -1713,11 +1719,20 @@ h1 {
       // Progression chord as an ordinary standalone chord with no return control.
       const cameFromProgression = urlSource === "progression-builder";
 
+      const isAddProgressionChordUrl = [
+        "add-progression-chord",
+        "addprogressionchord"
+      ].includes(urlMode);
+
       if (context.mode === "editHarmonyChoice" && (isHarmonyUrl || cameFromProgression)) {
         return context;
       }
 
       if (context.mode === "editProgressionChord" && (isProgressionChordUrl || cameFromProgression)) {
+        return context;
+      }
+
+      if (context.mode === "addProgressionChord" && (isAddProgressionChordUrl || cameFromProgression)) {
         return context;
       }
 
@@ -4442,10 +4457,6 @@ h1 {
       );
     }
 
-    async function playChord() {
-      await playNewChord();
-    }
-
     function buildCurrentChordObject() {
       const notes =
         getCurrentNotesWithOverrides();
@@ -4516,78 +4527,6 @@ h1 {
         voicingSummary: assignments.map(item => item.laneName + " " + item.name).join(" · "),
         voiceAssignments: assignments,
         tones: []
-      };
-    }
-
-    function buildHarmonyPlanFromProgressionContext(updatedChoices) {
-      const context = progressionEditContext || {};
-      const payload = context.harmonyPayload || {};
-      const notes = Array.isArray(payload.notes) ? payload.notes : [];
-
-      const anchors = notes.map(note => {
-        const noteKey = note.id || note.blockId;
-        const choice = updatedChoices[noteKey];
-
-        if (!choice) {
-          return {
-            melodyBlockId: note.blockId,
-            noteId: note.id,
-            melodyNote: note.name,
-            midi: note.midi,
-            startBeat: note.startBeat,
-            durationBeats: note.durationBeats,
-            skipped: false,
-            unassigned: true
-          };
-        }
-
-        if (choice.skipped) {
-          return {
-            melodyBlockId: note.blockId,
-            noteId: note.id,
-            melodyNote: note.name,
-            midi: note.midi,
-            startBeat: note.startBeat,
-            durationBeats: note.durationBeats,
-            skipped: true
-          };
-        }
-
-        return {
-          melodyBlockId: note.blockId,
-          noteId: note.id,
-          melodyNote: note.name,
-          midi: note.midi,
-          startBeat: note.startBeat,
-          durationBeats: note.durationBeats,
-          skipped: false,
-          chordSymbol: choice.chordSymbol,
-          root: choice.root,
-          quality: choice.quality,
-          noteFunction: choice.noteFunction || "edited chord",
-          targetVoiceRole: choice.targetVoiceRole,
-          targetVoiceLabel: choice.targetVoiceLabel,
-          keepCurrentVoice: !!choice.keepCurrentVoice,
-          description: choice.description,
-          voicingSummary: choice.voicingSummary || "",
-          voiceAssignments: Array.isArray(choice.voiceAssignments) ? choice.voiceAssignments : [],
-          tones: choice.tones || []
-        };
-      });
-
-      return {
-        mode: "applySuggestedHarmony",
-        source: "progression-builder",
-        createdAt: new Date().toISOString(),
-        projectId: payload.projectId,
-        projectTitle: payload.projectTitle,
-        melodyLaneId: payload.laneId,
-        melodyLaneName: payload.laneName,
-        context: payload.context || {},
-        melodyNotes: notes,
-        anchors,
-        harmonizedAnchors: anchors.filter(anchor => anchor.chordSymbol),
-        skippedAnchors: anchors.filter(anchor => anchor.skipped)
       };
     }
 
@@ -4676,6 +4615,27 @@ h1 {
         return;
       }
 
+      if (progressionEditContext.mode === "addProgressionChord") {
+        const chord = buildCurrentChordObject();
+
+        const progression = JSON.parse(
+          localStorage.getItem("orumiProgression") || "[]"
+        );
+
+        progression.push(chord);
+
+        localStorage.setItem(
+          "orumiProgression",
+          JSON.stringify(progression)
+        );
+
+        localStorage.removeItem("orumiProgressionChordFactoryContext");
+
+        window.location.href =
+          progressionEditContext.returnUrl || "progression-builder.html";
+        return;
+      }
+
       const noteKey = getProgressionNoteKey();
       if (!noteKey) {
         factoryStatus.textContent = "Could not identify the Progression note to update.";
@@ -4702,40 +4662,6 @@ h1 {
       window.location.href =
         progressionEditContext.returnUrl ||
         "progression-builder.html?mode=suggestHarmony&source=design-studio";
-    }
-
-    function sendProgressionEditedChordDirectlyToDesign() {
-      if (!progressionEditContext) {
-        addCurrentChordToDesignStudioAsNew();
-        return;
-      }
-
-      if (designEditPayload && !hasPendingNewChordSelection()) {
-        factoryStatus.textContent = "No new chord selected yet. Choose or customize a New chord before sending it onward.";
-        return;
-      }
-
-      if (progressionEditContext.mode === "editProgressionChord") {
-        factoryStatus.textContent = "Send this chord back to Progression first, then send the reviewed progression to Design.";
-        return;
-      }
-
-      const noteKey = getProgressionNoteKey();
-      const updatedChoices = {
-        ...(progressionEditContext.harmonyChoices || {})
-      };
-      updatedChoices[noteKey] = buildProgressionChoiceFromCurrentChord();
-
-      const plan = buildHarmonyPlanFromProgressionContext(updatedChoices);
-
-      writeJsonStorage("orumiSuggestedHarmonyPlan", plan);
-      writeJsonStorage("orumiPendingHarmonyPlanForDesign", plan);
-      writeJsonStorage("orumiProgressionHarmonyPlan", plan);
-
-      localStorage.removeItem("orumiProgressionChordFactoryContext");
-
-      window.location.href =
-        "design-studio.html?mode=applySuggestedHarmony&source=progression-builder";
     }
 
     function ensureInactiveContextButton(label, title) {
@@ -4821,17 +4747,6 @@ h1 {
       addCurrentChordToDesignStudioAsNew();
     }
 
-    function openProgressionBuilder() {
-      window.location.href =
-        "progression-builder.html";
-    }
-
-    function openDesignStudio() {
-      window.location.href =
-        "design-studio.html";
-    }
-
-
     function chooseDefaultToolMode() {
       return "characteristics";
     }
@@ -4903,14 +4818,18 @@ h1 {
         return;
       }
 
-      button.classList.remove("button-pressed");
+      button.classList.remove("button-pressed", "button-success");
 
       window.requestAnimationFrame(() => {
-        button.classList.add("button-pressed");
+        button.classList.add("button-pressed", "button-success");
 
         window.setTimeout(() => {
           button.classList.remove("button-pressed");
         }, 160);
+
+        window.setTimeout(() => {
+          button.classList.remove("button-success");
+        }, 620);
       });
     });
 
@@ -4957,20 +4876,6 @@ h1 {
         "click",
         addCurrentChordToDesignStudio
       );
-
-    if (openProgressionButton) {
-      openProgressionButton.addEventListener(
-        "click",
-        openProgressionBuilder
-      );
-    }
-
-    if (openDesignButton) {
-      openDesignButton.addEventListener(
-        "click",
-        openDesignStudio
-      );
-    }
 
     clearButton
       .addEventListener(
@@ -5067,6 +4972,24 @@ h1 {
         if (!applyProgressionEditPayload()) {
           loadSelectedNotesFromUrlOrFactory();
         }
+      }
+    }
+
+    // "Add a Chord" from Progression sets progressionEditContext but --
+    // since this isn't editing an existing chord -- never sets
+    // designEditPayload, so neither the editProgressionChord labeling
+    // branch nor the fresh-design-edit labeling branch ever runs. Without
+    // this, the main action button falsely defaults to "Add to Design"
+    // even though addCurrentChordToDesignStudio() actually routes this
+    // exact case straight to Progression, not Design Studio at all. Fix
+    // the label to say what the button really does, and hide the sidebar
+    // "+Add Chord" button since it calls the identical function here --
+    // two buttons doing the same thing is its own confusion.
+    if (progressionEditContext && !designEditPayload) {
+      addDesignButton.textContent = "⤴ Add to Progression";
+      addDesignButton.title = "Add this chord to your progression";
+      if (addProgressionButton) {
+        addProgressionButton.style.display = "none";
       }
     }
 
