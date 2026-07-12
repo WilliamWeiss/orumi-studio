@@ -3028,6 +3028,14 @@
   subtitle: "Play toolkits for emotional motion",
   level: "Creation",
   built: true
+},
+{
+  id: "ringing-chord",
+  number: 10,
+  title: "The Ringing Chord",
+  subtitle: "Why locked tuning makes a chord glow",
+  level: "Chord Creation",
+  built: true
 }
     ];
 
@@ -3291,6 +3299,8 @@ function renderCurrentLesson() {
   renderChordBirthLesson();
 } else if (lesson.id === "compose-feeling") {
   renderComposeFeelingLesson();
+} else if (lesson.id === "ringing-chord") {
+  renderRingingChordLesson();
 } else {
   renderPlaceholderLesson(lesson);
 }
@@ -7370,6 +7380,302 @@ function handleComposeReflectionChoice(button) {
     <p style="margin: 6px 0 0; color: var(--orumi-muted);">${responses[choice]}</p>
   `;
 
+  responseBox.classList.add("visible");
+}
+
+function renderRingingChordLesson() {
+  mainPanel.innerHTML = `
+    <section class="hero">
+      <div class="eyebrow">Lesson 10 · Chord Creation</div>
+      <h2>The Ringing Chord</h2>
+      <p class="hero-question">Why does a well-tuned barbershop chord sound bigger than four voices?</p>
+    </section>
+
+    <section class="context-card">
+      <div class="eyebrow">The same idea, one level up</div>
+      <h3>A single note hides a chord. A chord can hide another voice.</h3>
+
+      <p>
+        Remember the hidden tones inside one note, back in Lesson 1? A group of voices
+        can do the same thing to each other. When four singers tune their notes into
+        exact small-integer ratios instead of a piano's slightly-rounded intervals,
+        their overtones start lining up so precisely that a genuinely new tone can
+        seem to appear. Barbershop singers call this the expanded sound, the fifth
+        voice, or simply the ring. It is a real acoustic effect, not just an
+        expression.
+      </p>
+
+      <p>
+        A piano is tuned in <strong>equal temperament</strong>: every interval is
+        rounded very slightly so the same twelve keys can play reasonably in tune in
+        every key. A cappella voices are not stuck with that compromise. In the
+        moment, a quartet can tune each chord to its own exact ratios instead —
+        this is called <strong>just intonation</strong>.
+      </p>
+
+      <p>
+        The barbershop seventh is the cornerstone chord of the style: root, major
+        third, fifth, and lowered seventh — as in F, A, C, and E-flat. Locked into
+        just intonation, these four notes are not an arbitrary stack. They are
+        harmonics 4, 5, 6, and 7 of one shared, unsung fundamental — adjacent
+        members of a single overtone series, the same family of relationships
+        Lesson 1 revealed inside one note.
+      </p>
+
+      <p>
+        In Lesson 8, the fourth voice made a chord "fuller... more likely to ring."
+        Now we can hear exactly why.
+      </p>
+    </section>
+
+    <section class="lesson-stage">
+      <article class="sound-card">
+        <div>
+          <div class="sound-copy">
+            <h3>Two tunings, one chord</h3>
+            <p>
+              Same four notes — F7, the barbershop seventh — played two ways.
+              Listen for which one feels smoother, and which one seems to add a
+              low tone nobody is singing.
+            </p>
+          </div>
+
+          <div class="voice-stack">
+            <div class="voice-row">
+              <div class="voice-label">Tenor</div>
+              <div class="voice-slot"><span class="voice-role">E♭ · seventh</span></div>
+            </div>
+            <div class="voice-row">
+              <div class="voice-label">Lead</div>
+              <div class="voice-slot"><span class="voice-role">C · fifth</span></div>
+            </div>
+            <div class="voice-row">
+              <div class="voice-label">Baritone</div>
+              <div class="voice-slot"><span class="voice-role">A · third</span></div>
+            </div>
+            <div class="voice-row">
+              <div class="voice-label">Bass</div>
+              <div class="voice-slot"><span class="voice-role">F · root</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="controls">
+            <button class="btn" id="playEqualTuningBtn">Play — piano tuning</button>
+            <button class="btn primary" id="playJustTuningBtn">Play — locked tuning</button>
+          </div>
+
+          <label class="switch-row">
+            <input type="checkbox" id="phantomToneToggle" checked />
+            <span>Add the soft phantom tone real singers describe hearing</span>
+          </label>
+
+          <div class="ring-meter">
+            <div class="ring-meter-label">
+              <span>Ring meter</span>
+              <span id="ringingChordMeterLabel">Ready</span>
+            </div>
+            <div class="ring-meter-track">
+              <div class="ring-meter-fill" id="ringingChordMeterFill" style="width: 12%;"></div>
+            </div>
+          </div>
+
+          <div class="current-tone" id="ringingChordTone">
+            <h4>Ready</h4>
+            <p>Press either button to hear F7 tuned two different ways.</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="visual-card">
+        <div>
+          <h3>One overtone series, four voices</h3>
+          <p>
+            In just intonation, F, A, C, and E♭ are not four separate choices —
+            they are harmonics 4 through 7 of one shared, unsung fundamental. The
+            highlighted bars are exactly the notes your quartet is singing.
+          </p>
+        </div>
+
+        <div class="graph-wrap" aria-label="Harmonic series with the barbershop seventh highlighted">
+          ${[1,2,3,4,5,6,7,8].map((harmonic) => {
+            const info = {
+              1: { label: "Fundamental", note: "F, 2 octaves down", cls: "" },
+              2: { label: "2nd", note: "F", cls: "" },
+              3: { label: "3rd", note: "C", cls: "" },
+              4: { label: "4th · Root", note: "F", cls: "note-f" },
+              5: { label: "5th · Third", note: "A", cls: "note-a" },
+              6: { label: "6th · Fifth", note: "C", cls: "note-c" },
+              7: { label: "7th · Seventh", note: "E♭", cls: "note-eb" },
+              8: { label: "8th", note: "F", cls: "" }
+            }[harmonic];
+            const height = 10 + harmonic * 9;
+            return `
+              <div class="bar-column">
+                <div class="bar ${info.cls}" style="height: ${height}px; ${info.cls ? '' : 'opacity: 0.28;'}"></div>
+                <div class="bar-label">${info.label}<br />${info.note}</div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+
+        <div class="current-tone">
+          <h4>Not a coincidence</h4>
+          <p>
+            The barbershop seventh is built from four consecutive harmonics of a
+            single note. That shared ancestry is exactly what lets the chord lock
+            into itself and ring.
+          </p>
+        </div>
+      </article>
+    </section>
+
+    <section class="reflection-card visible">
+      <h3>What did the locked tuning do?</h3>
+      <p>Think about the difference between the two versions you just heard.</p>
+
+      <div class="choice-grid">
+        <button class="choice-btn" data-ringing-reflection="smoother">
+          <strong>It sounded smoother</strong>
+          <span>Less roughness between the voices.</span>
+        </button>
+
+        <button class="choice-btn" data-ringing-reflection="lower">
+          <strong>I heard an extra low tone</strong>
+          <span>A voice that nobody was singing.</span>
+        </button>
+
+        <button class="choice-btn" data-ringing-reflection="science">
+          <strong>It's just tuning, not magic</strong>
+          <span>Exact ratios instead of rounded ones.</span>
+        </button>
+
+        <button class="choice-btn" data-ringing-reflection="all">
+          <strong>All of this at once</strong>
+          <span>Smoother, bigger, and explainable.</span>
+        </button>
+      </div>
+
+      <div class="response-box" id="ringingChordResponseBox"></div>
+
+      <div class="next-panel">
+        <p>
+          The barbershop seventh does not just sit still, ringing in place. It wants
+          to move — usually down a fifth, into another barbershop seventh, in a
+          chain. That chain is where we go next.
+        </p>
+        <button class="btn primary" id="completeRingingChordLessonBtn">Complete lesson</button>
+      </div>
+    </section>
+  `;
+
+  document.getElementById("playEqualTuningBtn").addEventListener("click", () => playTuningComparison("equal"));
+  document.getElementById("playJustTuningBtn").addEventListener("click", () => playTuningComparison("just"));
+
+  document.querySelectorAll("[data-ringing-reflection]").forEach((button) => {
+    button.addEventListener("click", () => handleRingingChordReflectionChoice(button));
+  });
+
+  document.getElementById("completeRingingChordLessonBtn").addEventListener("click", completeCurrentLesson);
+}
+
+// F3 root, matching the frequency already used for "F" elsewhere in this file.
+const RINGING_CHORD_ROOT_FREQ = 174.61;
+
+const ringingChordTunings = {
+  equal: {
+    label: "Piano tuning (equal temperament)",
+    body: "Every interval here is rounded slightly, the same compromise a piano makes so all twelve keys can play in every key. Listen for a faint roughness, especially in the seventh.",
+    ringWidth: 34,
+    ringLabel: "Rounded",
+    frequencies: {
+      root: RINGING_CHORD_ROOT_FREQ,
+      third: RINGING_CHORD_ROOT_FREQ * Math.pow(2, 4 / 12),
+      fifth: RINGING_CHORD_ROOT_FREQ * Math.pow(2, 7 / 12),
+      seventh: RINGING_CHORD_ROOT_FREQ * Math.pow(2, 10 / 12)
+    }
+  },
+  just: {
+    label: "Locked tuning (just intonation)",
+    body: "Third, fifth, and seventh are retuned to exact ratios above the root -- 5/4, 3/2, and 7/4. These are harmonics 4, 5, 6, and 7 of one shared fundamental, which is why the chord can lock into itself.",
+    ringWidth: 96,
+    ringLabel: "Locked, ringing",
+    frequencies: {
+      root: RINGING_CHORD_ROOT_FREQ,
+      third: RINGING_CHORD_ROOT_FREQ * 5 / 4,
+      fifth: RINGING_CHORD_ROOT_FREQ * 3 / 2,
+      seventh: RINGING_CHORD_ROOT_FREQ * 7 / 4
+    }
+  }
+};
+
+function playTuningComparison(tuning) {
+  const setup = ringingChordTunings[tuning];
+  if (!setup) return;
+
+  const ctx = getAudioContext();
+  if (ctx.state === "suspended") {
+    ctx.resume();
+  }
+
+  const now = ctx.currentTime;
+  const duration = 3.2;
+  const masterGain = ctx.createGain();
+  masterGain.gain.setValueAtTime(0.85, now);
+  masterGain.connect(ctx.destination);
+
+  ["root", "third", "fifth", "seventh"].forEach((part) => {
+    const voice = createSustainableVoice(ctx, setup.frequencies[part], now, duration, 0.15);
+    voice.connect(masterGain);
+  });
+
+  // The "phantom tone" is an honest illustration, not a claim of literal
+  // acoustic measurement: real barbershop singers and researchers describe
+  // perceiving an extra low pitch -- roughly two octaves below the root --
+  // when a chord like this locks into just intonation. That perception
+  // happens in the ear/brain (a "missing fundamental" effect), not as a
+  // separate soundwave in the air. This soft, quiet tone is here to give
+  // your ear something concrete to notice, matching what that perception
+  // would sound like if you could hear it directly.
+  const phantomToggle = document.getElementById("phantomToneToggle");
+  if (tuning === "just" && phantomToggle && phantomToggle.checked) {
+    const phantomVoice = createSustainableVoice(ctx, RINGING_CHORD_ROOT_FREQ / 4, now + 0.35, duration - 0.3, 0.05);
+    phantomVoice.connect(masterGain);
+  }
+
+  const meterFill = document.getElementById("ringingChordMeterFill");
+  const meterLabel = document.getElementById("ringingChordMeterLabel");
+  if (meterFill) meterFill.style.width = setup.ringWidth + "%";
+  if (meterLabel) meterLabel.textContent = setup.ringLabel;
+
+  const toneBox = document.getElementById("ringingChordTone");
+  if (toneBox) {
+    toneBox.innerHTML = `<h4>${setup.label}</h4><p>${setup.body}</p>`;
+  }
+}
+
+function handleRingingChordReflectionChoice(button) {
+  document.querySelectorAll("[data-ringing-reflection]").forEach((btn) => {
+    btn.classList.remove("selected");
+  });
+  button.classList.add("selected");
+
+  const choice = button.dataset.ringingReflection;
+  const responseBox = document.getElementById("ringingChordResponseBox");
+  if (!responseBox) return;
+
+  const responses = {
+    smoother: "Yes. Exact ratios mean far less beating between the voices than a piano's rounded intervals allow.",
+    lower: "Yes -- and that's a documented effect. Real quartets and researchers both describe a phantom low tone when a barbershop seventh locks into tune.",
+    science: "Exactly right. There's nothing mystical here: it's the difference between an approximated interval and an exact one.",
+    all: "All true at once: locked tuning is smoother, it can seem to add a voice, and every bit of it is explainable acoustics."
+  };
+
+  responseBox.innerHTML = `
+    <strong>Good noticing.</strong>
+    <p style="margin: 6px 0 0; color: var(--orumi-muted);">${responses[choice]}</p>
+  `;
   responseBox.classList.add("visible");
 }
 
