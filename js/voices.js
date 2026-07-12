@@ -20,10 +20,14 @@ const ORUMI_VOICES = {
     andean: "orumiOcarina",
     ocarina: "orumiOcarina",
     celtic: "orumiWhistle",
+    whistle: "orumiWhistle",
     blues: "orumiGuitar",
     guitar: "orumiGuitar",
     maqam: "orumiReed",
+    reed: "orumiReed",
     indian: "orumiTambura",
+    tambura: "orumiTambura",
+
 
     // New explicit library names.
     orumiKeys: "orumiKeys",
@@ -115,7 +119,7 @@ const ORUMI_VOICES = {
     }
   },
 
-  buildVoice(audioContext, voice, freq, now) {
+  buildVoice(audioContext, voice, freq, now, destinationNode) {
     const canonicalVoice = this.getCanonicalVoice(voice);
     const mainGain = audioContext.createGain();
     const filter = audioContext.createBiquadFilter();
@@ -485,7 +489,7 @@ const ORUMI_VOICES = {
 
     filter.connect(mainGain);
     mainGain.connect(outputGain);
-    outputGain.connect(audioContext.destination);
+    outputGain.connect(destinationNode || audioContext.destination);
 
     if (!this.sustainedVoices.has(canonicalVoice)) {
       oscillators.forEach(({ osc }) => {

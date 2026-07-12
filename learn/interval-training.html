@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <title>Orumi Interval Training</title>
+  <script src="../js/voices.js"></script>
 
   <style>
     :root {
@@ -2167,6 +2168,66 @@
   font-weight: 750;
 }
 
+.chain-stack-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.chain-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  min-width: 78px;
+}
+
+.chain-stack-block {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 4px;
+  font-weight: 900;
+  font-size: 0.82rem;
+  text-align: center;
+  cursor: pointer;
+  color: #17130a;
+  transition: transform 120ms ease, filter 120ms ease;
+}
+
+.chain-stack-block:hover {
+  transform: scale(1.05);
+  filter: brightness(1.12);
+}
+
+.chain-stack-name {
+  text-align: center;
+  font-weight: 900;
+  font-size: 0.95rem;
+  margin-top: 4px;
+}
+
+.chain-stack-tag {
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  padding: 3px 6px;
+  margin-top: 4px;
+}
+
+.chain-stack.earned {
+  animation: chainStackPulse 1s ease;
+}
+
+@keyframes chainStackPulse {
+  0%   { transform: scale(1); filter: brightness(1); }
+  25%  { transform: scale(1.06); filter: brightness(1.3); }
+  100% { transform: scale(1); filter: brightness(1); }
+}
+
 .ring-meter {
   margin-top: 18px;
   padding: 14px;
@@ -2185,9 +2246,11 @@
 }
 
 .ring-meter-track {
-  height: 12px;
+  height: 18px;
   border-radius: 999px;
-  background: rgba(255,255,255,0.09);
+  background: #0a0a0a;
+  border: 2px solid rgba(255,255,255,0.55);
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.6);
   overflow: hidden;
 }
 
@@ -2195,10 +2258,11 @@
   height: 100%;
   width: 40%;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--note-c, #ff6b6b), var(--note-g, #4d96ff), var(--note-bb, #ff8fab));
+  background: linear-gradient(90deg, var(--note-c, #ff6b6b), var(--note-g, #4d96ff), var(--note-b, #ff8fab));
   box-shadow: 0 0 20px rgba(214,183,106,0.35);
   transition: width 220ms ease;
 }
+
 
 .chord-badge-row {
   display: flex;
@@ -2223,6 +2287,25 @@
   border-color: rgba(255,255,255,0.68);
   box-shadow: 0 0 22px rgba(155,235,215,0.26);
 }
+
+.chord-classification-tag {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 8px 11px;
+  border-radius: 999px;
+}
+
+.chord-classification-tag.stage-solid      { background: rgba(155,235,215,0.85); color: #0d2b24; }
+.chord-classification-tag.stage-activated  { background: rgba(255,159,67,0.85);  color: #3a1c00; }
+.chord-classification-tag.stage-resolved   { background: rgba(120,200,120,0.85); color: #0f2b0f; }
+.chord-classification-tag.stage-shadowed   { background: rgba(147,112,219,0.85); color: #1c1030; }
+.chord-classification-tag.stage-returned   { background: rgba(100,180,255,0.85); color: #071e33; }
+.chord-classification-tag.stage-kindred    { background: rgba(216,160,223,0.85); color: #2c0f30; }
+.chord-classification-tag.stage-tinted     { background: rgba(200,150,80,0.85);  color: #2e1c00; }
+.chord-classification-tag.stage-modulate   { background: rgba(255,209,102,0.85); color: #2a1e00; }
 
 .chord-role-list {
   margin-top: 18px;
@@ -2609,6 +2692,16 @@
       transform: none;
     }
 
+    button.button-success {
+      animation: buttonSuccess 0.6s ease forwards;
+    }
+
+    @keyframes buttonSuccess {
+      0%   { box-shadow: 0 0 0px rgba(34,211,238,0);   border-color: rgba(34,211,238,0); }
+      25%  { box-shadow: 0 0 18px rgba(34,211,238,0.8); border-color: rgba(34,211,238,0.9); color: #a5f3fc; }
+      100% { box-shadow: 0 0 0px rgba(34,211,238,0);   border-color: inherit; color: inherit; }
+    }
+
     .switch-row {
       display: flex;
       align-items: center;
@@ -2715,6 +2808,26 @@
 
     .bar.visible {
      background: var(--note-color, var(--orumi-gold));
+    }
+
+    .bar.chord-tone-pulse {
+      animation: chordTonePulse 0.9s ease;
+    }
+
+    @keyframes chordTonePulse {
+      0%   { filter: brightness(1); box-shadow: none; }
+      30%  { filter: brightness(1.6); box-shadow: 0 0 22px var(--note-color, #fff); }
+      100% { filter: brightness(1); box-shadow: none; }
+    }
+
+    .bar.phantom-pulse {
+      animation: phantomPulse 1.6s ease;
+    }
+
+    @keyframes phantomPulse {
+      0%   { opacity: 0.5; background: rgba(255,255,255,0.09); box-shadow: none; }
+      35%  { opacity: 1; background: var(--note-f, #6bcb77); box-shadow: 0 0 26px var(--note-f, #6bcb77); }
+      100% { opacity: 0.5; background: rgba(255,255,255,0.09); box-shadow: none; }
     }
 
     .bar.active {
@@ -3036,6 +3149,14 @@
   subtitle: "Why locked tuning makes a chord glow",
   level: "Chord Creation",
   built: true
+},
+{
+  id: "seventh-chain",
+  number: 11,
+  title: "The Chain",
+  subtitle: "Sevenths that don't want to stop",
+  level: "Chord Creation",
+  built: true
 }
     ];
 
@@ -3166,60 +3287,31 @@
 
     function createSustainableVoice(ctx, frequency, startTime, duration, gainValue) {
   const output = ctx.createGain();
-  const filter = ctx.createBiquadFilter();
 
-  filter.type = "lowpass";
-  filter.frequency.setValueAtTime(2400, startTime);
-  filter.Q.setValueAtTime(0.75, startTime);
+  // orumiVocalAh's own internal envelope already shapes attack/sustain with
+  // its own peak (~0.18). This extra gain stage rescales that to whatever
+  // relative volume this specific call site wants (e.g. a quiet phantom
+  // tone alongside louder chord tones), without fighting its envelope.
+  output.gain.setValueAtTime(gainValue / 0.18, startTime);
 
-  output.gain.setValueAtTime(0.0001, startTime);
-  output.gain.exponentialRampToValueAtTime(gainValue, startTime + 0.18);
-  output.gain.setValueAtTime(gainValue, startTime + Math.max(0.2, duration - 0.9));
-  output.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+  const note = ORUMI_VOICES.buildVoice(ctx, "orumiVocalAh", frequency, startTime, output);
 
-  const vibrato = ctx.createOscillator();
-  const vibratoGain = ctx.createGain();
+  // orumiVocalAh is a sustained voice (no auto-stop), so it needs an
+  // explicit stopVoice call at the right moment. startTime may be
+  // scheduled into the future relative to right now (e.g. a later chord in
+  // a sequence), so the real-world delay has to account for that gap, not
+  // just the requested duration.
+  const releaseSeconds = 0.5;
+  const delayUntilStart = Math.max(0, startTime - ctx.currentTime);
+  const stopDelayMs = (delayUntilStart + Math.max(0.1, duration - releaseSeconds)) * 1000;
 
-  vibrato.type = "sine";
-  vibrato.frequency.setValueAtTime(4.8, startTime);
-  vibratoGain.gain.setValueAtTime(frequency * 0.0025, startTime);
-
-  const sine = ctx.createOscillator();
-  const triangle = ctx.createOscillator();
-
-  const sineGain = ctx.createGain();
-  const triangleGain = ctx.createGain();
-
-  sine.type = "sine";
-  triangle.type = "triangle";
-
-  sine.frequency.setValueAtTime(frequency, startTime);
-  triangle.frequency.setValueAtTime(frequency, startTime);
-
-  sineGain.gain.setValueAtTime(0.82, startTime);
-  triangleGain.gain.setValueAtTime(0.18, startTime);
-
-  vibrato.connect(vibratoGain);
-  vibratoGain.connect(sine.frequency);
-  vibratoGain.connect(triangle.frequency);
-
-  sine.connect(sineGain);
-  triangle.connect(triangleGain);
-
-  sineGain.connect(filter);
-  triangleGain.connect(filter);
-  filter.connect(output);
-
-  sine.start(startTime);
-  triangle.start(startTime);
-  vibrato.start(startTime);
-
-  sine.stop(startTime + duration + 0.1);
-  triangle.stop(startTime + duration + 0.1);
-  vibrato.stop(startTime + duration + 0.1);
+  window.setTimeout(() => {
+    ORUMI_VOICES.stopVoice(note, ctx, releaseSeconds);
+  }, stopDelayMs);
 
   return output;
 }
+
 
 function playRootWithSoftOvertones() {
   const ctx = getAudioContext();
@@ -3301,6 +3393,8 @@ function renderCurrentLesson() {
   renderComposeFeelingLesson();
 } else if (lesson.id === "ringing-chord") {
   renderRingingChordLesson();
+} else if (lesson.id === "seventh-chain") {
+  renderSeventhChainLesson();
 } else {
   renderPlaceholderLesson(lesson);
 }
@@ -7513,12 +7607,18 @@ function renderRingingChordLesson() {
             const height = 10 + harmonic * 9;
             return `
               <div class="bar-column">
-                <div class="bar ${info.cls}" style="height: ${height}px; ${info.cls ? '' : 'opacity: 0.28;'}"></div>
+                <div class="bar ${info.cls} ${info.cls ? "visible" : ""}" id="ringHarmonicBar-${harmonic}" style="height: ${height}px; ${info.cls ? '' : 'opacity: 0.5;'}"></div>
                 <div class="bar-label">${info.label}<br />${info.note}</div>
               </div>
             `;
           }).join("")}
         </div>
+
+        <p style="margin: 10px 2px 0; font-size: 13px; color: var(--orumi-muted);">
+          The dimmed bars (fundamental, 2nd, 3rd, 8th) are real members of the same
+          harmonic series, but nobody is singing them -- they're shown only for
+          context. The four colored bars are the actual barbershop seventh.
+        </p>
 
         <div class="current-tone">
           <h4>Not a coincidence</h4>
@@ -7610,6 +7710,15 @@ const ringingChordTunings = {
   }
 };
 
+function pulseHarmonicBar(harmonic, pulseClass) {
+  const bar = document.getElementById("ringHarmonicBar-" + harmonic);
+  if (!bar) return;
+
+  bar.classList.remove(pulseClass);
+  void bar.offsetWidth; // force reflow so the animation restarts even if re-triggered quickly
+  bar.classList.add(pulseClass);
+}
+
 function playTuningComparison(tuning) {
   const setup = ringingChordTunings[tuning];
   if (!setup) return;
@@ -7630,6 +7739,9 @@ function playTuningComparison(tuning) {
     voice.connect(masterGain);
   });
 
+  // Pulse the four bars actually sounding right now, in sync with playback.
+  [4, 5, 6, 7].forEach((harmonic) => pulseHarmonicBar(harmonic, "chord-tone-pulse"));
+
   // The "phantom tone" is an honest illustration, not a claim of literal
   // acoustic measurement: real barbershop singers and researchers describe
   // perceiving an extra low pitch -- roughly two octaves below the root --
@@ -7642,6 +7754,12 @@ function playTuningComparison(tuning) {
   if (tuning === "just" && phantomToggle && phantomToggle.checked) {
     const phantomVoice = createSustainableVoice(ctx, RINGING_CHORD_ROOT_FREQ / 4, now + 0.35, duration - 0.3, 0.05);
     phantomVoice.connect(masterGain);
+
+    // Light up the dimmed Fundamental bar at the exact moment the phantom
+    // tone sounds -- the whole point is that this is a real member of the
+    // harmonic series nobody is singing, so it should visibly "appear"
+    // rather than just always glow like the four sung notes.
+    window.setTimeout(() => pulseHarmonicBar(1, "phantom-pulse"), 350);
   }
 
   const meterFill = document.getElementById("ringingChordMeterFill");
@@ -7670,6 +7788,316 @@ function handleRingingChordReflectionChoice(button) {
     lower: "Yes -- and that's a documented effect. Real quartets and researchers both describe a phantom low tone when a barbershop seventh locks into tune.",
     science: "Exactly right. There's nothing mystical here: it's the difference between an approximated interval and an exact one.",
     all: "All true at once: locked tuning is smoother, it can seem to add a voice, and every bit of it is explainable acoustics."
+  };
+
+  responseBox.innerHTML = `
+    <strong>Good noticing.</strong>
+    <p style="margin: 6px 0 0; color: var(--orumi-muted);">${responses[choice]}</p>
+  `;
+  responseBox.classList.add("visible");
+}
+
+function renderSeventhChainLesson() {
+  mainPanel.innerHTML = `
+    <section class="hero">
+      <div class="eyebrow">Lesson 11 · Chord Creation</div>
+      <h2>The Chain</h2>
+      <p class="hero-question">What happens when a barbershop seventh doesn't want to stop?</p>
+    </section>
+
+    <section class="context-card">
+      <div class="eyebrow">One resolution, feeding the next</div>
+      <h3>A seventh's pull doesn't have to end at home.</h3>
+
+      <p>
+        In Lesson 10, F7 resolved down a fifth to Bb, and that was the end of the
+        story. But a dominant-quality seventh chord can just as easily resolve
+        into <em>another</em> dominant seventh instead of a plain tonic -- and that
+        new chord has the exact same pull, wanting to resolve down a fifth again.
+        Chain enough of these together, root motion falling by a fifth each time,
+        and you get a genuine barbershop signature: a run of ringing sevenths that
+        keeps building tension across several chords before it finally lets go.
+      </p>
+
+      <p>
+        This isn't a hypothetical pattern. It's the exact harmonic backbone of
+        real barbershop arrangements -- the same descending-fifths chain shows up
+        again and again once you know to listen for it. The chain below is a real
+        one, root motion pulled directly from an actual barbershop chart.
+      </p>
+    </section>
+
+    <section class="lesson-stage">
+      <article class="sound-card">
+        <div>
+          <div class="sound-copy">
+            <h3>Build the chain, one link at a time</h3>
+            <p>
+              Start at home. Each time you extend the chain, a new dominant
+              seventh gets added before everything else -- a fifth above the
+              current first chord -- pushing the resolution further away and
+              raising the tension.
+            </p>
+          </div>
+
+          <div class="controls">
+            <button class="btn" id="extendChainBtn">Extend the chain</button>
+            <button class="btn primary" id="playChainBtn">Play chain</button>
+            <button class="btn ghost" id="resetChainBtn">Reset</button>
+          </div>
+        </div>
+
+        <div>
+          <div class="chain-stack-row" id="chainStackRow"></div>
+
+          <div class="current-tone" id="chainTone">
+            <h4>Home: Bb</h4>
+            <p>Press "Extend the chain" to add tension before the resolution.</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="visual-card">
+        <div>
+          <h3>Same vocabulary, new job</h3>
+          <p>
+            Look at the tag under each stack above. Every link before the last
+            is doing the same thing Compose by Feeling called
+            <strong>Activated</strong> -- a dominant seventh creating a clear
+            pull. The final link is <strong>Resolved</strong> -- the pull
+            actually gets answered. This is the identical tagging Progression
+            Builder applies live to your own progressions.
+          </p>
+        </div>
+
+        <div class="current-tone">
+          <h4>Not a coincidence, either</h4>
+          <p>
+            A long chain like this is exactly the kind of pattern Progression
+            Builder's suggestion engine will eventually recognize on its own --
+            "barbershop idiomatic" motion, tagged and offered as a real option
+            while you build a progression.
+          </p>
+        </div>
+      </article>
+    </section>
+
+    <section class="reflection-card visible">
+      <h3>What did the chain do to the tension?</h3>
+      <p>Think about how the chain felt as you extended it further.</p>
+
+      <div class="choice-grid">
+        <button class="choice-btn" data-chain-reflection="building">
+          <strong>Tension kept building</strong>
+          <span>Each new link raised the stakes.</span>
+        </button>
+
+        <button class="choice-btn" data-chain-reflection="same-motion">
+          <strong>It's the same move, repeated</strong>
+          <span>Every link resolves down a fifth, just like the last.</span>
+        </button>
+
+        <button class="choice-btn" data-chain-reflection="vocabulary">
+          <strong>Activated, Activated... Resolved</strong>
+          <span>Same words as Compose by Feeling.</span>
+        </button>
+
+        <button class="choice-btn" data-chain-reflection="all">
+          <strong>All of this at once</strong>
+          <span>Building tension, repeated motion, shared vocabulary.</span>
+        </button>
+      </div>
+
+      <div class="response-box" id="chainResponseBox"></div>
+
+      <div class="next-panel">
+        <p>
+          We've been building this curriculum one Western chord relationship at a
+          time. Once Progression Builder's suggestion engine is further along,
+          we'll turn to Western scale types as their own lesson -- and from
+          there, out to how entirely different musical traditions answer these
+          same questions in their own way.
+        </p>
+        <button class="btn primary" id="completeSeventhChainLessonBtn">Complete lesson</button>
+      </div>
+    </section>
+  `;
+
+  document.getElementById("extendChainBtn").addEventListener("click", extendChain);
+  document.getElementById("playChainBtn").addEventListener("click", playChain);
+  document.getElementById("resetChainBtn").addEventListener("click", resetChain);
+
+  document.querySelectorAll("[data-chain-reflection]").forEach((button) => {
+    button.addEventListener("click", () => handleChainReflectionChoice(button));
+  });
+
+  document.getElementById("completeSeventhChainLessonBtn").addEventListener("click", completeCurrentLesson);
+
+  resetChain();
+}
+
+// The real chain, root motion pulled from an actual barbershop chart:
+// D7 -> G7 -> C7 -> F7 -> Bb. Listed here in extension order (the order
+// links get added, working backward from home) rather than play order.
+const SEVENTH_CHAIN_LINKS = [
+  { name: "Bb", tag: "Resolved", notes: [
+    { note: "G",  freq: 392.00, cls: "note-g" },
+    { note: "F",  freq: 349.23, cls: "note-f" },
+    { note: "D",  freq: 293.66, cls: "note-d" },
+    { note: "Bb", freq: 233.08, cls: "note-bb" }
+  ]},
+  { name: "F7", tag: "Activated", notes: [
+    { note: "Eb", freq: 311.13, cls: "note-eb" },
+    { note: "C",  freq: 261.63, cls: "note-c" },
+    { note: "A",  freq: 220.00, cls: "note-a" },
+    { note: "F",  freq: 174.61, cls: "note-f" }
+  ]},
+  { name: "C7", tag: "Activated", notes: [
+    { note: "Bb", freq: 466.16, cls: "note-bb" },
+    { note: "G",  freq: 392.00, cls: "note-g" },
+    { note: "E",  freq: 329.63, cls: "note-e" },
+    { note: "C",  freq: 261.63, cls: "note-c" }
+  ]},
+  { name: "G7", tag: "Activated", notes: [
+    { note: "F",  freq: 349.23, cls: "note-f" },
+    { note: "D",  freq: 293.66, cls: "note-d" },
+    { note: "B",  freq: 246.94, cls: "note-b" },
+    { note: "G",  freq: 196.00, cls: "note-g" }
+  ]},
+  { name: "D7", tag: "Activated", notes: [
+    { note: "C",  freq: 523.25, cls: "note-c" },
+    { note: "A",  freq: 440.00, cls: "note-a" },
+    { note: "F#", freq: 369.99, cls: "note-gb" },
+    { note: "D",  freq: 293.66, cls: "note-d" }
+  ]}
+];
+
+let chainExtensionCount = 0;
+
+function currentChainInPlayOrder() {
+  // chainExtensionCount links have been added (indices 1..count), plus the
+  // tonic at index 0. Play order is oldest-added-first, tonic last.
+  const links = SEVENTH_CHAIN_LINKS.slice(0, chainExtensionCount + 1);
+  return links.slice(1).reverse().concat(links[0]);
+}
+
+function renderChainState() {
+  const chain = currentChainInPlayOrder();
+
+  const stackRow = document.getElementById("chainStackRow");
+  if (!stackRow) return;
+
+  stackRow.innerHTML = chain.map((link, chordIndex) => `
+    <div class="chain-stack" id="chainStack-${chordIndex}">
+      ${link.notes.map((n, noteIndex) => `
+        <button
+          type="button"
+          class="chain-stack-block ${n.cls}"
+          data-chord-index="${chordIndex}"
+          data-note-index="${noteIndex}"
+          title="Play ${n.note}"
+        >${n.note}</button>
+      `).join("")}
+      <div class="chain-stack-name">${link.name}</div>
+      <div class="chain-stack-tag chord-classification-tag stage-${link.tag.toLowerCase()}">${link.tag}</div>
+    </div>
+  `).join("");
+
+  stackRow.querySelectorAll(".chain-stack-block").forEach((block) => {
+    block.addEventListener("click", () => {
+      const chordIndex = Number(block.dataset.chordIndex);
+      const noteIndex = Number(block.dataset.noteIndex);
+      const note = currentChainInPlayOrder()[chordIndex].notes[noteIndex];
+      playSingleChainNote(note.freq);
+    });
+  });
+
+  const extendBtn = document.getElementById("extendChainBtn");
+  if (extendBtn) {
+    extendBtn.disabled = chainExtensionCount >= SEVENTH_CHAIN_LINKS.length - 1;
+    extendBtn.textContent = extendBtn.disabled ? "Full chain reached" : "Extend the chain";
+  }
+
+  const toneBox = document.getElementById("chainTone");
+  if (toneBox) {
+    if (chainExtensionCount === 0) {
+      toneBox.innerHTML = `<h4>Home: Bb</h4><p>Press "Extend the chain" to add tension before the resolution. Click any note block to hear it on its own.</p>`;
+    } else {
+      const names = chain.map(l => l.name).join(" → ");
+      toneBox.innerHTML = `<h4>${chainExtensionCount + 1} chords, one resolution</h4><p>${names}</p>`;
+    }
+  }
+}
+
+function extendChain() {
+  if (chainExtensionCount < SEVENTH_CHAIN_LINKS.length - 1) {
+    chainExtensionCount += 1;
+  }
+  renderChainState();
+}
+
+function resetChain() {
+  chainExtensionCount = 0;
+  renderChainState();
+}
+
+function playSingleChainNote(freq) {
+  const ctx = getAudioContext();
+  if (ctx.state === "suspended") {
+    ctx.resume();
+  }
+  const voice = createSustainableVoice(ctx, freq, ctx.currentTime, 1.1, 0.16);
+  voice.connect(ctx.destination);
+}
+
+function playChain() {
+  const chain = currentChainInPlayOrder();
+  const ctx = getAudioContext();
+  if (ctx.state === "suspended") {
+    ctx.resume();
+  }
+
+  const chordDuration = 1.05;
+  const gap = 1.15;
+  const now = ctx.currentTime;
+
+  const masterGain = ctx.createGain();
+  masterGain.gain.setValueAtTime(0.8, now);
+  masterGain.connect(ctx.destination);
+
+  chain.forEach((link, i) => {
+    const startTime = now + i * gap;
+    link.notes.forEach((n) => {
+      const voice = createSustainableVoice(ctx, n.freq, startTime, chordDuration, 0.15);
+      voice.connect(masterGain);
+    });
+
+    window.setTimeout(() => {
+      const stack = document.getElementById("chainStack-" + i);
+      if (stack) {
+        stack.classList.remove("earned");
+        void stack.offsetWidth;
+        stack.classList.add("earned");
+      }
+    }, i * gap * 1000);
+  });
+}
+
+function handleChainReflectionChoice(button) {
+  document.querySelectorAll("[data-chain-reflection]").forEach((btn) => {
+    btn.classList.remove("selected");
+  });
+  button.classList.add("selected");
+
+  const choice = button.dataset.chainReflection;
+  const responseBox = document.getElementById("chainResponseBox");
+  if (!responseBox) return;
+
+  const responses = {
+    building: "Yes -- each new link is a fresh, unresolved pull stacked on top of the last one, which is exactly why a long chain feels like it's climbing.",
+    "same-motion": "Right. It's the identical descending-fifth resolution, over and over -- the chain is just that one relationship, repeated.",
+    vocabulary: "Exactly the point: this chain is Activated repeated, then Resolved once -- the same words, doing the same job, just across more chords.",
+    all: "All true together: the tension compounds, the underlying move never changes, and it's the same vocabulary the whole curriculum has been building toward."
   };
 
   responseBox.innerHTML = `
@@ -8022,6 +8450,24 @@ function handleRingingChordReflectionChoice(button) {
     function wait(ms) {
       return new Promise((resolve) => setTimeout(resolve, ms));
     }
+
+    document.addEventListener("pointerdown", event => {
+      const button = event.target.closest("button");
+
+      if (!button || button.disabled) {
+        return;
+      }
+
+      button.classList.remove("button-success");
+
+      window.requestAnimationFrame(() => {
+        button.classList.add("button-success");
+
+        window.setTimeout(() => {
+          button.classList.remove("button-success");
+        }, 620);
+      });
+    });
 
     init();
   </script>
