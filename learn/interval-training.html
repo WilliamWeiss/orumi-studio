@@ -689,6 +689,31 @@
   filter: drop-shadow(0 0 8px rgba(255,107,107,0.62));
 }
 
+.wave-track {
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.wave-track-c3 {
+  animation-name: waveScrollC3;
+  animation-duration: 2.4s;
+}
+
+.wave-track-c4 {
+  animation-name: waveScrollC4;
+  animation-duration: 1.2s;
+}
+
+@keyframes waveScrollC3 {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-400px); }
+}
+
+@keyframes waveScrollC4 {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-400px); }
+}
+
 .alignment-guides {
   display: none;
   margin-top: 14px;
@@ -1711,9 +1736,9 @@
 .seventh-chord-display {
   margin-top: 18px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: center;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
 }
 
 .seventh-mini-block {
@@ -1728,6 +1753,24 @@
     var(--note-color);
   box-shadow: 0 0 24px var(--note-glow);
   font-weight: 900;
+  cursor: pointer;
+  border: none;
+  transition: transform 120ms ease, filter 120ms ease;
+}
+
+.seventh-mini-block:hover {
+  transform: scale(1.06);
+  filter: brightness(1.15);
+}
+
+.seventh-mini-block.lit {
+  animation: seventhMiniLight 0.7s ease;
+}
+
+@keyframes seventhMiniLight {
+  0%   { filter: brightness(1); box-shadow: 0 0 24px var(--note-glow); }
+  30%  { filter: brightness(1.55); box-shadow: 0 0 40px var(--note-glow); }
+  100% { filter: brightness(1); box-shadow: 0 0 24px var(--note-glow); }
 }
 
 .seventh-color-key {
@@ -1955,8 +1998,22 @@
   margin-top: 22px;
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 16px;
   align-items: center;
+}
+
+.resolution-chord-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.resolution-chord-group-label {
+  text-align: center;
+  font-weight: 900;
+  font-size: 0.95rem;
+  margin-top: 2px;
 }
 
 .resolution-mini-block {
@@ -1971,6 +2028,14 @@
     var(--note-color);
   box-shadow: 0 0 24px var(--note-glow);
   font-weight: 900;
+  cursor: pointer;
+  border: none;
+  transition: transform 120ms ease, filter 120ms ease;
+}
+
+.resolution-mini-block:hover {
+  transform: scale(1.06);
+  filter: brightness(1.15);
 }
 
 .resolution-badge-row {
@@ -2075,6 +2140,8 @@
   display: block;
   margin-top: 4px;
   font-size: 0.64rem;
+  line-height: 1.25;
+  min-height: 2.5em;
   color: rgba(255,255,255,0.78);
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -2192,6 +2259,7 @@
   text-align: center;
   cursor: pointer;
   color: #17130a;
+  background: var(--note-color, var(--orumi-gold));
   transition: transform 120ms ease, filter 120ms ease;
 }
 
@@ -2407,6 +2475,53 @@
     0 0 30px rgba(214,183,106,0.24);
   font-size: 2.1rem;
   font-weight: 950;
+}
+
+.mystery-chord-block.revealed {
+  width: auto;
+  min-width: 132px;
+  height: auto;
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.mystery-chord-name {
+  font-size: 1.3rem;
+  font-weight: 950;
+}
+
+.chord-guess-cell,
+.progression-card-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mini-note-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.mini-note-block {
+  border: none;
+  border-radius: 6px;
+  padding: 4px 2px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-align: center;
+  color: #17130a;
+  background: var(--note-color, var(--orumi-gold));
+  cursor: pointer;
+  transition: transform 120ms ease, filter 120ms ease;
+}
+
+.mini-note-block:hover {
+  transform: scale(1.08);
+  filter: brightness(1.15);
 }
 
 .mystery-chord-block.playing {
@@ -3652,13 +3767,13 @@ function renderCurrentLesson() {
         </p>
 
         <div class="octave-block-row">
-          <div class="octave-note-block">
+          <div class="octave-note-block" id="octaveBlockC3" style="cursor: pointer;">
             <div>C3<small>Full length</small></div>
           </div>
 
           <div class="octave-arrow">→</div>
 
-          <div class="octave-note-block">
+          <div class="octave-note-block" id="octaveBlockC4" style="cursor: pointer;">
             <div>C4<small>Half length</small></div>
           </div>
         </div>
@@ -3668,7 +3783,10 @@ function renderCurrentLesson() {
             <div class="wave-label">C3</div>
             <div class="wave-panel">
               <svg viewBox="0 0 400 60" preserveAspectRatio="none">
-                <path d="M0 30 C 50 4, 150 4, 200 30 C 250 56, 350 56, 400 30"></path>
+                <g class="wave-track wave-track-c3">
+                  <path d="M0 30 C 50 4, 150 4, 200 30 C 250 56, 350 56, 400 30"></path>
+                  <path d="M400 30 C 450 4, 550 4, 600 30 C 650 56, 750 56, 800 30"></path>
+                </g>
               </svg>
             </div>
           </div>
@@ -3677,7 +3795,10 @@ function renderCurrentLesson() {
             <div class="wave-label">C4</div>
             <div class="wave-panel">
               <svg viewBox="0 0 400 60" preserveAspectRatio="none">
-                <path d="M0 30 C 25 4, 75 4, 100 30 C 125 56, 175 56, 200 30 C 225 4, 275 4, 300 30 C 325 56, 375 56, 400 30"></path>
+                <g class="wave-track wave-track-c4">
+                  <path d="M0 30 C 25 4, 75 4, 100 30 C 125 56, 175 56, 200 30 C 225 4, 275 4, 300 30 C 325 56, 375 56, 400 30"></path>
+                  <path d="M400 30 C 425 4, 475 4, 500 30 C 525 56, 575 56, 600 30 C 625 4, 675 4, 700 30 C 725 56, 775 56, 800 30"></path>
+                </g>
               </svg>
             </div>
           </div>
@@ -3746,6 +3867,8 @@ function renderCurrentLesson() {
   document.getElementById("playFullStringBtn").addEventListener("click", () => playOctaveTone("full"));
   document.getElementById("playHalfStringBtn").addEventListener("click", () => playOctaveTone("half"));
   document.getElementById("playBothOctavesBtn").addEventListener("click", () => playOctaveTone("both"));
+  document.getElementById("octaveBlockC3").addEventListener("click", () => playOctaveTone("full"));
+  document.getElementById("octaveBlockC4").addEventListener("click", () => playOctaveTone("half"));
 
   document.getElementById("stringLengthSlider").addEventListener("input", handleStringLengthChange);
 
@@ -3816,27 +3939,26 @@ function playSimpleTone(ctx, frequency, startTime, duration, gainValue) {
   const scheduleTone = () => {
     const safeStartTime = Math.max(ctx.currentTime + 0.03, startTime || 0);
 
-    const oscillator = ctx.createOscillator();
-    const gain = ctx.createGain();
-    const filter = ctx.createBiquadFilter();
+    const output = ctx.createGain();
+    // orumiVocalAh's own internal envelope already shapes attack/sustain
+    // with its own peak (~0.18). This rescales that to whatever relative
+    // volume this specific call site expects.
+    output.gain.setValueAtTime(gainValue / 0.18, safeStartTime);
+    output.connect(ctx.destination);
 
-    oscillator.type = "triangle";
-    oscillator.frequency.setValueAtTime(frequency, safeStartTime);
+    const note = ORUMI_VOICES.buildVoice(ctx, "orumiVocalAh", frequency, safeStartTime, output);
 
-    filter.type = "lowpass";
-    filter.frequency.setValueAtTime(1800, safeStartTime);
+    // orumiVocalAh is a sustained voice (no auto-stop), so it needs an
+    // explicit stopVoice call at the right moment, accounting for the gap
+    // between right now and safeStartTime (which may be scheduled into the
+    // future for a multi-note sequence).
+    const releaseSeconds = 0.4;
+    const delayUntilStart = Math.max(0, safeStartTime - ctx.currentTime);
+    const stopDelayMs = (delayUntilStart + Math.max(0.08, duration - releaseSeconds)) * 1000;
 
-    gain.gain.setValueAtTime(0.0001, safeStartTime);
-    gain.gain.exponentialRampToValueAtTime(gainValue, safeStartTime + 0.04);
-    gain.gain.setValueAtTime(gainValue, safeStartTime + Math.max(0.08, duration - 0.18));
-    gain.gain.exponentialRampToValueAtTime(0.0001, safeStartTime + duration);
-
-    oscillator.connect(filter);
-    filter.connect(gain);
-    gain.connect(ctx.destination);
-
-    oscillator.start(safeStartTime);
-    oscillator.stop(safeStartTime + duration + 0.1);
+    window.setTimeout(() => {
+      ORUMI_VOICES.stopVoice(note, ctx, releaseSeconds);
+    }, stopDelayMs);
   };
 
   if (ctx.state === "running") {
@@ -4460,6 +4582,23 @@ function handleFifthReflectionChoice(button) {
   `;
 
   document.getElementById("playFourthPerspectiveBtn").addEventListener("click", playFourthPerspective);
+
+  document.getElementById("fourthFirstBlock").addEventListener("click", () => {
+    const ctx = getAudioContext();
+    if (ctx.state === "suspended") ctx.resume();
+    const freq = fourthPerspectiveInverted ? 196.00 : 130.81;
+    const v = createSustainableVoice(ctx, freq, ctx.currentTime, 1.2, 0.18);
+    v.connect(ctx.destination);
+  });
+
+  document.getElementById("fourthSecondBlock").addEventListener("click", () => {
+    const ctx = getAudioContext();
+    if (ctx.state === "suspended") ctx.resume();
+    const freq = fourthPerspectiveInverted ? 261.63 : 196.00;
+    const v = createSustainableVoice(ctx, freq, ctx.currentTime, 1.2, 0.18);
+    v.connect(ctx.destination);
+  });
+
   document.getElementById("turnFourthAroundBtn").addEventListener("click", turnFourthPerspectiveAround);
   document.getElementById("fourthLengthSlider").addEventListener("input", handleFourthLengthChange);
   document.getElementById("playFourthTuningBtn").addEventListener("click", playCurrentFourthTuningNote);
@@ -4498,19 +4637,19 @@ function playFourthPerspective() {
   const now = ctx.currentTime;
 
   if (fourthPerspectiveInverted) {
-    playSimpleTone(ctx, 196.00, now, 0.9, 0.2);
-    playSimpleTone(ctx, 261.63, now + 0.72, 1.2, 0.2);
-    pulseFourthBlock("fourthFirstBlock", 900);
-    setTimeout(() => pulseFourthBlock("fourthSecondBlock", 1200), 720);
+    playSimpleTone(ctx, 196.00, now, 1.5, 0.2);
+    playSimpleTone(ctx, 261.63, now + 1.2, 1.8, 0.2);
+    pulseFourthBlock("fourthFirstBlock", 1500);
+    setTimeout(() => pulseFourthBlock("fourthSecondBlock", 1800), 1200);
     setFourthCurrentTone(
       "G → C · Perfect fourth",
       "The same two notes have turned around. From G, the path back to C is a fourth."
     );
   } else {
-    playSimpleTone(ctx, 130.81, now, 0.9, 0.2);
-    playSimpleTone(ctx, 196.00, now + 0.72, 1.2, 0.2);
-    pulseFourthBlock("fourthFirstBlock", 900);
-    setTimeout(() => pulseFourthBlock("fourthSecondBlock", 1200), 720);
+    playSimpleTone(ctx, 130.81, now, 1.5, 0.2);
+    playSimpleTone(ctx, 196.00, now + 1.2, 1.8, 0.2);
+    pulseFourthBlock("fourthFirstBlock", 1500);
+    setTimeout(() => pulseFourthBlock("fourthSecondBlock", 1800), 1200);
     setFourthCurrentTone(
       "C → G · Perfect fifth",
       "From C, G feels like the first strong other: the perfect fifth."
@@ -5295,13 +5434,7 @@ function renderSeventhLesson() {
           The seventh gives it longing and direction.
         </p>
 
-        <div class="seventh-chord-display">
-          <span class="seventh-mini-block note-c">C</span>
-          <span class="seventh-mini-block note-e">E</span>
-          <span class="seventh-mini-block note-g">G</span>
-          <span class="seventh-mini-block note-b" id="seventhChordBBlock">B</span>
-          <span class="seventh-mini-block note-bb" id="seventhChordBbBlock">Bb</span>
-        </div>
+        <div class="seventh-chord-display" id="seventhChordDisplay"></div>
 
         <div class="seventh-chord-grid">
           <button class="seventh-chord-btn" data-seventh-chord="major">
@@ -5385,6 +5518,8 @@ function renderSeventhLesson() {
   document.querySelectorAll("[data-seventh-chord]").forEach((button) => {
     button.addEventListener("click", () => handleSeventhChordChoice(button));
   });
+
+  renderSeventhChordDisplay("major");
 
   document.querySelectorAll("[data-seventh-reflection]").forEach((button) => {
     button.addEventListener("click", () => handleSeventhReflectionChoice(button));
@@ -5632,6 +5767,63 @@ function handleSeventhChordChoice(button) {
   playSeventhChord(chord);
 }
 
+const seventhChordNotes = {
+  major: [
+    { note: "G", freq: 196.00, cls: "note-g" },
+    { note: "E", freq: 163.51, cls: "note-e" },
+    { note: "C", freq: 130.81, cls: "note-c" }
+  ],
+  maj7: [
+    { note: "B", freq: 246.94, cls: "note-b" },
+    { note: "G", freq: 196.00, cls: "note-g" },
+    { note: "E", freq: 163.51, cls: "note-e" },
+    { note: "C", freq: 130.81, cls: "note-c" }
+  ],
+  dom7: [
+    { note: "Bb", freq: 233.08, cls: "note-bb" },
+    { note: "G", freq: 196.00, cls: "note-g" },
+    { note: "E", freq: 163.51, cls: "note-e" },
+    { note: "C", freq: 130.81, cls: "note-c" }
+  ]
+};
+
+function renderSeventhChordDisplay(chord) {
+  const container = document.getElementById("seventhChordDisplay");
+  if (!container) return;
+
+  const notes = seventhChordNotes[chord] || seventhChordNotes.major;
+
+  container.innerHTML = notes.map((n, i) => `
+    <span
+      class="seventh-mini-block ${n.cls}"
+      id="seventhChordNote-${i}"
+      data-seventh-note-freq="${n.freq}"
+      title="Play ${n.note}"
+    >${n.note}</span>
+  `).join("");
+
+  container.querySelectorAll("[data-seventh-note-freq]").forEach((el) => {
+    el.addEventListener("click", () => {
+      const ctx = getAudioContext();
+      if (ctx.state === "suspended") ctx.resume();
+      const freq = Number(el.dataset.seventhNoteFreq);
+      const v = createSustainableVoice(ctx, freq, ctx.currentTime, 1.0, 0.16);
+      v.connect(ctx.destination);
+    });
+  });
+}
+
+function pulseSeventhChordDisplay(chord) {
+  const notes = seventhChordNotes[chord] || seventhChordNotes.major;
+  notes.forEach((n, i) => {
+    const el = document.getElementById(`seventhChordNote-${i}`);
+    if (!el) return;
+    el.classList.remove("lit");
+    void el.offsetWidth;
+    el.classList.add("lit");
+  });
+}
+
 function playSeventhChord(chord) {
   const ctx = getAudioContext();
 
@@ -5645,6 +5837,9 @@ function playSeventhChord(chord) {
   playSimpleTone(ctx, 130.81, now, duration, 0.12);
   playSimpleTone(ctx, 163.51, now, duration, 0.11);
   playSimpleTone(ctx, 196.00, now, duration, 0.11);
+
+  renderSeventhChordDisplay(chord);
+  pulseSeventhChordDisplay(chord);
 
   if (chord === "maj7") {
     playSimpleTone(ctx, 246.94, now, duration, 0.1);
@@ -5853,14 +6048,22 @@ function renderResolutionLesson() {
         </p>
 
         <div class="resolution-chord-display">
-          <span class="resolution-mini-block note-c">C</span>
-          <span class="resolution-mini-block note-e">E</span>
-          <span class="resolution-mini-block note-g">G</span>
-          <span class="resolution-mini-block note-bb">Bb</span>
+          <div class="resolution-chord-group">
+            <span class="resolution-mini-block note-bb" data-resolution-note-freq="466.16">Bb</span>
+            <span class="resolution-mini-block note-g" data-resolution-note-freq="392.00">G</span>
+            <span class="resolution-mini-block note-e" data-resolution-note-freq="329.63">E</span>
+            <span class="resolution-mini-block note-c" data-resolution-note-freq="261.63">C</span>
+            <div class="resolution-chord-group-label">C7</div>
+          </div>
+
           <span class="resolution-arrow">→</span>
-          <span class="resolution-mini-block note-f">F</span>
-          <span class="resolution-mini-block note-a">A</span>
-          <span class="resolution-mini-block note-c">C</span>
+
+          <div class="resolution-chord-group">
+            <span class="resolution-mini-block note-c" data-resolution-note-freq="523.25">C</span>
+            <span class="resolution-mini-block note-a" data-resolution-note-freq="440.00">A</span>
+            <span class="resolution-mini-block note-f" data-resolution-note-freq="349.23">F</span>
+            <div class="resolution-chord-group-label">F</div>
+          </div>
         </div>
 
         <div class="resolution-chord-grid">
@@ -5954,6 +6157,32 @@ function renderResolutionLesson() {
 
   document.getElementById("playResolutionPathBtn").addEventListener("click", playCurrentResolutionPath);
   document.getElementById("nextResolutionPathBtn").addEventListener("click", nextResolutionPath);
+
+  document.getElementById("resolutionFromBlock").addEventListener("click", () => {
+    const path = resolutionPaths[resolutionPathIndex];
+    const ctx = getAudioContext();
+    if (ctx.state === "suspended") ctx.resume();
+    const v = createSustainableVoice(ctx, path.from.frequency, ctx.currentTime, 1.0, 0.18);
+    v.connect(ctx.destination);
+  });
+
+  document.getElementById("resolutionToBlock").addEventListener("click", () => {
+    const path = resolutionPaths[resolutionPathIndex];
+    const ctx = getAudioContext();
+    if (ctx.state === "suspended") ctx.resume();
+    const v = createSustainableVoice(ctx, path.to.frequency, ctx.currentTime, 1.0, 0.18);
+    v.connect(ctx.destination);
+  });
+
+  document.querySelectorAll("[data-resolution-note-freq]").forEach((el) => {
+    el.addEventListener("click", () => {
+      const ctx = getAudioContext();
+      if (ctx.state === "suspended") ctx.resume();
+      const freq = Number(el.dataset.resolutionNoteFreq);
+      const v = createSustainableVoice(ctx, freq, ctx.currentTime, 1.0, 0.16);
+      v.connect(ctx.destination);
+    });
+  });
 
   document.querySelectorAll("[data-resolution-path]").forEach((button) => {
     button.addEventListener("click", () => handleResolutionPathChoice(button));
@@ -6641,11 +6870,25 @@ function renderVoiceSlot(slotId, voice) {
   if (!slot) return;
 
   slot.innerHTML = `
-    <span class="chord-voice-block ${voice.className}">
+    <span class="chord-voice-block ${voice.className}" data-voice-frequency="${voice.frequency}" title="Play ${voice.note}">
       <div>${voice.note}<small>${voice.role.split("/")[0].trim()}</small></div>
     </span>
     <span class="voice-role">${voice.role}</span>
   `;
+
+  const block = slot.querySelector(".chord-voice-block");
+  if (block) {
+    block.style.cursor = "pointer";
+    block.addEventListener("click", () => {
+      const ctx = getAudioContext();
+      if (ctx.state === "suspended") ctx.resume();
+      const freq = Number(block.dataset.voiceFrequency);
+      const v = createSustainableVoice(ctx, freq, ctx.currentTime, 1.0, 0.16);
+      v.connect(ctx.destination);
+      block.classList.add("playing");
+      setTimeout(() => block.classList.remove("playing"), 300);
+    });
+  }
 }
 
 function playBirthChord(intention) {
@@ -7013,6 +7256,43 @@ let currentMysteryHintIndex = 0;
 let selectedProgressionCard = null;
 let progressionMap = {};
 
+function noteColorClass(noteName) {
+  return "note-" + noteName.toLowerCase();
+}
+
+function buildMiniNoteStackHTML(chordKey) {
+  const chord = composeChords[chordKey];
+  if (!chord) return "";
+
+  return `
+    <div class="mini-note-stack">
+      ${chord.notes.map((n, i) => `
+        <span
+          class="mini-note-block ${noteColorClass(n.note)}"
+          data-mini-note-chord="${chordKey}"
+          data-mini-note-index="${i}"
+          title="Play ${n.note}"
+        >${n.note}</span>
+      `).join("")}
+    </div>
+  `;
+}
+
+function wireMiniNoteStackClicks(container) {
+  container.querySelectorAll("[data-mini-note-chord]").forEach((el) => {
+    el.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const chordKey = el.dataset.miniNoteChord;
+      const noteIndex = Number(el.dataset.miniNoteIndex);
+      const note = composeChords[chordKey].notes[noteIndex];
+      const ctx = getAudioContext();
+      if (ctx.state === "suspended") ctx.resume();
+      const voice = createSustainableVoice(ctx, note.frequency, ctx.currentTime, 1.0, 0.16);
+      voice.connect(ctx.destination);
+    });
+  });
+}
+
 const composeChords = {
   c: {
     name: "C",
@@ -7145,6 +7425,8 @@ function setupComposeFeelingEvents() {
   document.getElementById("hintMysteryChordBtn").addEventListener("click", showMysteryChordHint);
   document.getElementById("nextMysteryChordBtn").addEventListener("click", nextMysteryChord);
 
+  wireMiniNoteStackClicks(mainPanel);
+
   document.querySelectorAll("[data-chord-guess]").forEach((button) => {
     button.addEventListener("click", () => handleChordGuess(button));
   });
@@ -7178,6 +7460,7 @@ function renderMysteryChordState() {
 
   const mysteryBlock = document.getElementById("mysteryChordBlock");
   if (mysteryBlock) {
+    mysteryBlock.classList.remove("revealed");
     mysteryBlock.textContent = "?";
   }
 
@@ -7233,7 +7516,12 @@ function handleChordGuess(button) {
 
     const mysteryBlock = document.getElementById("mysteryChordBlock");
     if (mysteryBlock) {
-      mysteryBlock.textContent = chord.name;
+      mysteryBlock.classList.add("revealed");
+      mysteryBlock.innerHTML = `
+        ${buildMiniNoteStackHTML(chordKey)}
+        <div class="mystery-chord-name">${chord.name}</div>
+      `;
+      wireMiniNoteStackClicks(mysteryBlock);
     }
 
     setMysteryChordTone(
