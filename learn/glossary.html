@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Orumi — Learning Glossary</title>
+<style>
+  :root {
+    --orumi-bg: #0f1115;
+    --orumi-panel-2: #202431;
+    --orumi-text: #f5f2e9;
+    --orumi-muted: #b9b3a4;
+    --orumi-soft: #8f8878;
+    --orumi-gold: #d6b76a;
+    --orumi-gold-soft: rgba(214, 183, 106, 0.18);
+    --orumi-red: #d85c5c;
+    --orumi-blue: #5a8dee;
+    --orumi-purple: #9b7de3;
+    --orumi-border: rgba(255, 255, 255, 0.11);
+    --orumi-shadow: rgba(0, 0, 0, 0.35);
+    --radius-large: 22px;
+    --radius-medium: 16px;
+
+    --section-verse: var(--orumi-blue);
+    --section-chorus: var(--orumi-red);
+    --section-tag: var(--orumi-purple);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    background:
+      radial-gradient(circle at top left, rgba(214, 183, 106, 0.14), transparent 34%),
+      radial-gradient(circle at bottom right, rgba(90, 141, 238, 0.11), transparent 32%),
+      var(--orumi-bg);
+    color: var(--orumi-text);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.5;
+  }
+  a { color: inherit; text-decoration: none; }
+
+  .top-button {
+    position: fixed; top: 18px; width: 46px; height: 46px; border-radius: 50%;
+    text-decoration: none; display: grid; place-items: center; font-size: 24px;
+    color: #222; background: rgba(255,255,255,0.86); box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+    z-index: 1000; transition: 0.12s; border: none; cursor: pointer; font-family: inherit;
+  }
+  .top-button:hover, .top-button:active { transform: scale(0.94); filter: brightness(1.08); }
+  .back-button { left: 18px; }
+  .logo-button { left: 72px; padding: 0; overflow: hidden; }
+  .logo-button img { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+  .page-shell { width: min(880px, 100%); margin: 0 auto; padding: 22px; padding-top: 90px; padding-bottom: 80px; }
+
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px; color: var(--orumi-gold);
+    font-size: 0.83rem; letter-spacing: 0.13em; text-transform: uppercase; font-weight: 800;
+  }
+  .eyebrow::before {
+    content: ""; width: 9px; height: 9px; border-radius: 999px;
+    background: var(--orumi-gold); box-shadow: 0 0 16px rgba(214, 183, 106, 0.75);
+  }
+  h1 { margin: 14px 0 8px; font-size: clamp(1.8rem, 4vw, 2.6rem); letter-spacing: -0.03em; }
+  .lede { color: var(--orumi-muted); font-size: 1rem; margin: 0 0 36px; max-width: 640px; }
+
+  .category-label {
+    font-size: 0.8rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--orumi-soft); margin: 36px 0 14px; font-weight: 700;
+  }
+  .category-label:first-of-type { margin-top: 0; }
+
+  .term-entry {
+    display: grid; grid-template-columns: 130px 1fr; gap: 20px;
+    padding: 16px 0; border-bottom: 1px solid var(--orumi-border);
+  }
+  .term-entry:last-child { border-bottom: none; }
+  .term-name { font-weight: 700; font-size: 1rem; }
+  .term-name .dot {
+    display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 8px;
+  }
+  .term-def { color: var(--orumi-muted); font-size: 0.94rem; }
+  .term-source { display: block; margin-top: 6px; font-size: 0.78rem; color: var(--orumi-soft); }
+  .term-source a { color: var(--orumi-gold); }
+
+  @media (max-width: 560px) {
+    .term-entry { grid-template-columns: 1fr; gap: 4px; }
+  }
+</style>
+</head>
+<body>
+  <button class="top-button back-button" id="backButton" title="Go Back">←</button>
+  <a class="top-button logo-button" href="../index.html" title="Orumi Home">
+    <img src="../assets/orumi-icon.png" alt="Orumi" />
+  </a>
+
+  <div class="page-shell">
+    <span class="eyebrow">Orumi Learn</span>
+    <h1>Glossary</h1>
+    <p class="lede">Every term introduced across the Learning Path, in one place. New terms are added here as new lessons introduce them.</p>
+
+    <div class="category-label">Structure &amp; Arrangement</div>
+
+    <div class="term-entry">
+      <div class="term-name"><span class="dot" style="background:var(--section-verse)"></span>Verse</div>
+      <div class="term-def">
+        Sets the scene. In older songs, this is the part that arrives first and tells a little story before the tune everyone actually remembers shows up. In other arrangements, "Verse" or "Bridge" can instead appear in the middle of a piece, functioning as a Transition away from and back to the main tune.
+        <span class="term-source">Introduced in <a href="structure-training.html">Structure — Lesson 1</a></span>
+      </div>
+    </div>
+
+    <div class="term-entry">
+      <div class="term-name"><span class="dot" style="background:var(--section-chorus)"></span>Chorus</div>
+      <div class="term-def">
+        The hook. The melody people can hum without ever having sung the song — it tends to come back more than once, sometimes with small changes each time.
+        <span class="term-source">Introduced in <a href="structure-training.html">Structure — Lesson 1</a></span>
+      </div>
+    </div>
+
+    <div class="term-entry">
+      <div class="term-name"><span class="dot" style="background:var(--section-tag)"></span>Tag</div>
+      <div class="term-def">
+        A few bars at the very end that repeat something already sung — often the last line, sometimes a phrase borrowed from earlier — before the final chord is allowed to fully land. Barbershoppers sing these on their own, apart from the song they came from.
+        <span class="term-source">Introduced in <a href="structure-training.html">Structure — Lesson 1</a></span>
+      </div>
+    </div>
+
+    <div class="category-label">Coming soon</div>
+    <p style="color:var(--orumi-soft); font-size:0.9rem;">Intro, Expansion, Return, Feign, and the seven chord-transition classifiers (Solid, Activated, Resolved, Shadowed, Returned, Kindred, Tinted) will join this list as their lessons are built.</p>
+  </div>
+
+  <script>
+    document.getElementById('backButton').addEventListener('click', () => {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.location.href = 'index.html';
+      }
+    });
+  </script>
+</body>
+</html>

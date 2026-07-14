@@ -46,6 +46,33 @@
       box-sizing: border-box;
     }
 
+    /* floating back-arrow, matching the pattern used in Progression Builder */
+    .top-button {
+      position: fixed;
+      top: 18px;
+      left: 18px;
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      text-decoration: none;
+      display: grid;
+      place-items: center;
+      font-size: 24px;
+      color: #222;
+      background: rgba(255, 255, 255, 0.86);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+      z-index: 1000;
+      transition: 0.12s;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .top-button:hover,
+    .top-button:active {
+      transform: scale(0.94);
+      filter: brightness(1.08);
+    }
+
     body {
       margin: 0;
       min-height: 100vh;
@@ -3136,6 +3163,8 @@
 </head>
 
 <body>
+  <button class="top-button" id="learnBackButton" title="Back to Learning Path">←</button>
+
   <div class="page-shell">
     <header class="topbar">
       <a class="brand" href="../index.html" aria-label="Return to Orumi home">
@@ -8755,6 +8784,14 @@ function handleChainReflectionChoice(button) {
           button.classList.remove("button-success");
         }, 620);
       });
+    });
+
+    document.getElementById("learnBackButton").addEventListener("click", () => {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.location.href = "index.html";
+      }
     });
 
     init();

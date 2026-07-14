@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Orumi — The Shape of a Song</title>
+<script src="../js/voices.js"></script>
+
+<style>
+  /* ---------- copied verbatim from interval-training.html for shell consistency ---------- */
+  :root {
+    --orumi-bg: #0f1115;
+    --orumi-panel: #171a21;
+    --orumi-panel-2: #202431;
+    --orumi-text: #f5f2e9;
+    --orumi-muted: #b9b3a4;
+    --orumi-soft: #8f8878;
+    --orumi-gold: #d6b76a;
+    --orumi-gold-soft: rgba(214, 183, 106, 0.18);
+    --orumi-red: #d85c5c;
+    --orumi-blue: #5a8dee;
+    --orumi-yellow: #e7c85f;
+    --orumi-green: #67b26f;
+    --orumi-purple: #9b7de3;
+    --orumi-border: rgba(255, 255, 255, 0.11);
+    --orumi-shadow: rgba(0, 0, 0, 0.35);
+    --radius-large: 22px;
+    --radius-medium: 16px;
+    --radius-small: 10px;
+
+    /* Structure-lesson section colors — reusing existing tokens, no new hues */
+    --section-verse: var(--orumi-blue);
+    --section-chorus: var(--orumi-red);
+    --section-tag: var(--orumi-purple);
+  }
+
+  * { box-sizing: border-box; }
+
+  /* floating back-arrow, matching the pattern used in Progression Builder */
+  .top-button {
+    position: fixed; top: 18px; left: 18px; width: 46px; height: 46px; border-radius: 50%;
+    text-decoration: none; display: grid; place-items: center; font-size: 24px;
+    color: #222; background: rgba(255,255,255,0.86); box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+    z-index: 1000; transition: 0.12s; border: none; cursor: pointer; font-family: inherit;
+  }
+  .top-button:hover, .top-button:active { transform: scale(0.94); filter: brightness(1.08); }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at top left, rgba(214, 183, 106, 0.14), transparent 34%),
+      radial-gradient(circle at bottom right, rgba(90, 141, 238, 0.11), transparent 32%),
+      var(--orumi-bg);
+    color: var(--orumi-text);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.5;
+  }
+
+  a { color: inherit; text-decoration: none; }
+  button { font-family: inherit; }
+
+  .page-shell { width: min(1440px, 100%); margin: 0 auto; padding: 22px; }
+
+  .topbar {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 18px; margin-bottom: 22px;
+  }
+  .brand { display: flex; align-items: center; gap: 16px; }
+  .brand-logo { width: 64px; height: 64px; object-fit: contain; display: block; }
+  .brand-text h1 { margin: 0; font-size: clamp(1.25rem, 2.2vw, 2rem); letter-spacing: 0.03em; }
+  .brand-text p { margin: 2px 0 0; color: var(--orumi-muted); font-size: 0.95rem; }
+  .top-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+
+  .layout { display: grid; grid-template-columns: 310px 1fr; gap: 22px; align-items: start; }
+  @media (max-width: 880px) { .layout { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.018));
+    border: 1px solid var(--orumi-border);
+    border-radius: var(--radius-large);
+    box-shadow: 0 18px 46px var(--orumi-shadow);
+    overflow: hidden;
+  }
+
+  .sidebar { position: sticky; top: 18px; }
+  .sidebar-header { padding: 20px 20px 14px; border-bottom: 1px solid var(--orumi-border); }
+  .sidebar-header h2 {
+    margin: 0; font-size: 1rem; color: var(--orumi-gold);
+    letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .sidebar-header p { margin: 8px 0 0; color: var(--orumi-muted); font-size: 0.9rem; }
+
+  .lesson-list { padding: 10px; }
+  .lesson-btn {
+    width: 100%; display: grid; grid-template-columns: 32px 1fr auto; gap: 12px; align-items: center;
+    border: 1px solid transparent; border-radius: 14px; padding: 12px;
+    color: var(--orumi-text); background: transparent; cursor: pointer; text-align: left;
+    transition: 160ms ease;
+  }
+  .lesson-btn:hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.08); }
+  .lesson-btn.active { background: var(--orumi-gold-soft); border-color: rgba(214,183,106,0.45); }
+  .lesson-number {
+    display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px;
+    background: rgba(255,255,255,0.08); color: var(--orumi-gold); font-weight: 700; font-size: 0.86rem;
+  }
+  .lesson-title { font-weight: 700; font-size: 0.94rem; }
+  .lesson-subtitle { margin-top: 2px; color: var(--orumi-muted); font-size: 0.78rem; }
+  .lesson-status { color: var(--orumi-soft); font-size: 0.78rem; }
+
+  .progress-box { padding: 14px 20px 20px; border-top: 1px solid var(--orumi-border); }
+  .progress-label { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--orumi-muted); margin-bottom: 8px; }
+  .progress-track { height: 10px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden; }
+  .progress-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--orumi-gold), var(--orumi-green));
+    border-radius: 999px; transition: width 220ms ease;
+  }
+
+  .main-panel { min-height: 720px; }
+
+  .hero {
+    padding: clamp(22px, 4vw, 38px);
+    border-bottom: 1px solid var(--orumi-border);
+    background: linear-gradient(135deg, rgba(214, 183, 106, 0.09), transparent 42%), rgba(255,255,255,0.012);
+  }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    color: var(--orumi-gold); font-size: 0.83rem; letter-spacing: 0.13em;
+    text-transform: uppercase; font-weight: 800;
+  }
+  .eyebrow::before {
+    content: ""; width: 9px; height: 9px; border-radius: 999px;
+    background: var(--orumi-gold); box-shadow: 0 0 16px rgba(214, 183, 106, 0.75);
+  }
+  .hero h2 { margin: 14px 0 8px; font-size: clamp(1.8rem, 4vw, 2.8rem); line-height: 1.05; letter-spacing: -0.03em; }
+  .hero-question { margin: 0; color: var(--orumi-muted); font-size: clamp(1.05rem, 2vw, 1.2rem); max-width: 760px; }
+
+  .context-card {
+    margin: clamp(20px, 3vw, 34px) clamp(20px, 3vw, 34px) 0;
+    padding: clamp(20px, 3vw, 30px);
+    border-radius: var(--radius-large);
+    border: 1px solid rgba(214, 183, 106, 0.24);
+    background: linear-gradient(135deg, rgba(214, 183, 106, 0.09), transparent 46%), rgba(255,255,255,0.035);
+    box-shadow: 0 14px 34px rgba(0,0,0,0.22);
+  }
+  .context-card h3 { margin: 10px 0 12px; font-size: clamp(1.2rem, 2vw, 1.5rem); letter-spacing: -0.02em; }
+  .context-card p { margin: 0 0 12px; color: var(--orumi-muted); max-width: 920px; }
+  .context-card p:last-child { margin-bottom: 0; }
+  .context-card p strong { color: var(--orumi-text); }
+
+  .btn {
+    border: 1px solid rgba(255,255,255,0.14); border-radius: 999px; padding: 10px 15px;
+    background: rgba(255,255,255,0.06); color: var(--orumi-text); cursor: pointer;
+    font-weight: 750; transition: 150ms ease;
+  }
+  .btn:hover { background: rgba(255,255,255,0.1); transform: translateY(-1px); }
+  .btn.primary {
+    background: linear-gradient(135deg, rgba(214,183,106,0.95), rgba(231,200,95,0.78));
+    color: #17130a; border-color: rgba(214,183,106,0.8);
+  }
+  .btn.ghost { background: transparent; }
+  .btn:disabled { opacity: 0.42; cursor: not-allowed; transform: none; }
+
+  button.button-success { animation: buttonSuccess 0.6s ease forwards; }
+  @keyframes buttonSuccess {
+    0%   { box-shadow: 0 0 0px rgba(34,211,238,0);   border-color: rgba(34,211,238,0); }
+    25%  { box-shadow: 0 0 18px rgba(34,211,238,0.8); border-color: rgba(34,211,238,0.9); color: #a5f3fc; }
+    100% { box-shadow: 0 0 0px rgba(34,211,238,0);   border-color: inherit; color: inherit; }
+  }
+
+  /* ---------- new for this lesson: flip cards, measure strip, quiz ---------- */
+  .lesson-stage { padding: clamp(20px, 3vw, 34px); }
+
+  .card-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 6px 0 8px; }
+  @media (max-width: 640px) { .card-row { grid-template-columns: 1fr; } }
+  .flip-card { perspective: 1000px; height: 150px; cursor: pointer; }
+  .flip-inner {
+    position: relative; width: 100%; height: 100%;
+    transform-style: preserve-3d; transition: transform 0.5s cubic-bezier(.4,.2,.2,1);
+  }
+  .flip-card.flipped .flip-inner { transform: rotateY(180deg); }
+  .flip-face {
+    position: absolute; inset: 0; backface-visibility: hidden;
+    border-radius: var(--radius-medium); border: 1px solid var(--orumi-border);
+    display: flex; align-items: center; justify-content: center; text-align: center; padding: 16px;
+  }
+  .flip-front { background: rgba(255,255,255,0.045); flex-direction: column; gap: 6px; }
+  .flip-front .peek-hint { font-size: 0.72rem; color: var(--orumi-soft); }
+  .flip-front .term-name { font-size: 1.2rem; font-weight: 700; }
+  .flip-back {
+    transform: rotateY(180deg); color: #12141a; font-size: 0.85rem; line-height: 1.45;
+    align-items: flex-start; text-align: left;
+  }
+  .flip-back strong { display: block; margin-bottom: 4px; font-size: 0.95rem; }
+  .term-verse .term-name { color: var(--section-verse); }
+  .term-chorus .term-name { color: var(--section-chorus); }
+  .term-tag .term-name { color: var(--section-tag); }
+  .flip-back.bg-verse { background: var(--section-verse); }
+  .flip-back.bg-chorus { background: var(--section-chorus); }
+  .flip-back.bg-tag { background: var(--section-tag); }
+
+  .attribution {
+    background: var(--orumi-panel-2); border: 1px solid var(--orumi-border);
+    border-radius: var(--radius-medium); padding: 16px 20px; margin: 22px 0; font-size: 0.9rem; color: var(--orumi-muted);
+  }
+  .attribution strong { color: var(--orumi-text); }
+
+  .strip-wrap { overflow-x: auto; margin: 20px 0 6px; }
+  .strip { display: flex; height: 56px; border-radius: 10px; overflow: hidden; min-width: 520px; }
+  .strip-seg { display: flex; flex-direction: column; align-items: center; justify-content: center; color: #12141a; font-size: 0.7rem; font-weight: 700; }
+  .strip-seg span.range { font-weight: 500; opacity: 0.75; }
+  .seg-verse { background: var(--section-verse); flex: 33; }
+  .seg-chorus { background: var(--section-chorus); flex: 32; }
+  .seg-tag { background: var(--section-tag); flex: 4; }
+  .strip-caption { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--orumi-soft); margin-bottom: 24px; }
+
+  .quiz-card {
+    background: rgba(255,255,255,0.03); border: 1px solid var(--orumi-border);
+    border-radius: var(--radius-medium); padding: 26px 26px 22px; margin-top: 18px;
+  }
+  .quiz-progress { font-size: 0.78rem; color: var(--orumi-gold); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 14px; }
+  .quiz-snippet { font-size: 1.1rem; font-style: italic; color: var(--orumi-text); margin-bottom: 6px; }
+  .quiz-loc { font-size: 0.8rem; color: var(--orumi-soft); margin-bottom: 18px; }
+
+  .quiz-controls-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+  .score-link { font-size: 0.85rem; }
+  .quiz-buttons { display: flex; gap: 10px; margin: 8px 0 6px; flex-wrap: wrap; }
+  .quiz-buttons .btn.correct { background: var(--orumi-green); border-color: var(--orumi-green); color: #12141a; }
+  .quiz-buttons .btn.wrong { background: var(--orumi-red); border-color: var(--orumi-red); color: #12141a; }
+  .quiz-buttons .btn.dim { opacity: 0.4; }
+
+  .reveal-wrap { perspective: 900px; margin-top: 16px; }
+  .reveal-inner {
+    transform-style: preserve-3d; transform: rotateX(90deg); transform-origin: top;
+    transition: transform 0.45s ease; max-height: 0; overflow: hidden;
+  }
+  .reveal-inner.show { transform: rotateX(0deg); max-height: 300px; }
+  .reveal-card { border-radius: var(--radius-medium); padding: 16px 18px; font-size: 0.9rem; color: #12141a; line-height: 1.5; }
+  .reveal-card strong { display: block; margin-bottom: 4px; font-size: 1rem; }
+  .reveal-card.bg-verse { background: var(--section-verse); }
+  .reveal-card.bg-chorus { background: var(--section-chorus); }
+  .reveal-card.bg-tag { background: var(--section-tag); }
+
+  .quiz-nav { display: flex; justify-content: flex-end; margin-top: 16px; }
+  .quiz-done { text-align: center; padding: 10px 0 4px; }
+  .quiz-done .score { font-size: 2rem; font-weight: 800; color: var(--orumi-gold); margin-bottom: 6px; }
+
+  .secondary-note {
+    display: flex; gap: 16px; align-items: flex-start;
+    background: var(--orumi-panel-2); border-radius: var(--radius-medium);
+    padding: 16px 20px; margin: 22px 0 4px; font-size: 0.88rem; color: var(--orumi-muted);
+  }
+  .secondary-note .strip-mini { display: flex; height: 18px; width: 160px; border-radius: 5px; overflow: hidden; flex-shrink: 0; margin-top: 3px; }
+  .secondary-note .strip-mini div { flex: 1; }
+</style>
+</head>
+<body>
+<button class="top-button" id="learnBackButton" title="Back to Learning Path">←</button>
+
+<div class="page-shell">
+
+  <header class="topbar">
+    <a class="brand" href="../index.html" aria-label="Return to Orumi home">
+      <img class="brand-logo" src="../assets/orumi-icon.png" alt="Orumi" />
+      <div class="brand-text">
+        <h1>Orumi</h1>
+        <p>Structure &amp; Arrangement · Sound as shape</p>
+      </div>
+    </a>
+    <div class="top-actions">
+      <button class="btn ghost" id="resetProgressBtn">Reset progress</button>
+      <button class="btn" id="saveProgressBtn">Save progress</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="panel sidebar" aria-label="Learning sessions">
+      <div class="sidebar-header">
+        <h2>Structure</h2>
+        <p>How a piece is shaped, section by section.</p>
+      </div>
+      <div class="lesson-list">
+        <button class="lesson-btn active">
+          <span class="lesson-number">1</span>
+          <span>
+            <span class="lesson-title" style="display:block;">The Shape of a Song</span>
+            <span class="lesson-subtitle">Verse, Chorus, and Tag</span>
+          </span>
+          <span class="lesson-status">In progress</span>
+        </button>
+      </div>
+      <div class="progress-box">
+        <div class="progress-label"><span>Progress</span><span id="progressText">0%</span></div>
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      </div>
+    </aside>
+
+    <section class="panel main-panel">
+      <div class="hero">
+        <span class="eyebrow">Lesson 1 · Structure</span>
+        <h2>The Shape of a Song</h2>
+        <p class="hero-question">Before a chord is right or wrong, it's early or late.</p>
+      </div>
+
+      <div class="lesson-stage">
+        <p>Every barbershop chart you've ever sung has a shape, whether or not anyone ever pointed it out. A song opens somewhere, settles into its main idea, and — if the arranger is any good — leaves you with one last moment stretched out a little longer than you expect.</p>
+        <p style="color:var(--orumi-muted);">That shape isn't decoration. A chord that sounds thrilling in the last four bars would sound show-offy in bar two, and a chord that sounds warm at the start would sound timid right before the finish. Knowing where you are in a piece is half of knowing what belongs there.</p>
+
+        <div class="context-card">
+          <h3>Three cards, three secrets</h3>
+          <p>Tap a card to see what's underneath. Come back to these any time.</p>
+
+          <div class="card-row">
+            <div class="flip-card term-verse" id="cardVerse">
+              <div class="flip-inner">
+                <div class="flip-face flip-front">
+                  <span class="term-name">Verse</span>
+                  <span class="peek-hint">tap to reveal</span>
+                </div>
+                <div class="flip-face flip-back bg-verse">
+                  <strong>Verse</strong>
+                  Sets the scene. In the older songs we're using here, this is the part that arrives first and tells a little story before the tune everyone actually remembers shows up.
+                </div>
+              </div>
+            </div>
+
+            <div class="flip-card term-chorus" id="cardChorus">
+              <div class="flip-inner">
+                <div class="flip-face flip-front">
+                  <span class="term-name">Chorus</span>
+                  <span class="peek-hint">tap to reveal</span>
+                </div>
+                <div class="flip-face flip-back bg-chorus">
+                  <strong>Chorus</strong>
+                  The hook. This is the melody people can hum without ever having sung the song — it tends to come back more than once, sometimes with small changes each time.
+                </div>
+              </div>
+            </div>
+
+            <div class="flip-card term-tag" id="cardTag">
+              <div class="flip-inner">
+                <div class="flip-face flip-front">
+                  <span class="term-name">Tag</span>
+                  <span class="peek-hint">tap to reveal</span>
+                </div>
+                <div class="flip-face flip-back bg-tag">
+                  <strong>Tag</strong>
+                  A few bars at the very end that repeat something already sung — often the last line, sometimes a phrase borrowed from earlier — before the final chord is allowed to fully land. Barbershoppers sing these on their own, apart from the song they came from.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="context-card">
+          <h3>Case study: In the Good Old Summer Time</h3>
+          <div class="attribution">
+            <strong>In the Good Old Summer Time</strong> (1902) — words by Ren Shields, music by George Evans.<br>
+            Arrangement generously made available by the <strong>Barbershop Harmony Society</strong> — our thanks to them for the use of this music in Orumi's Learn section.
+          </div>
+
+          <p>This chart lays its own shape out plainly, right on the page: a Verse, a Chorus, and a Tag, each one labeled by the arranger. Here's the real proportions —</p>
+
+          <div class="strip-wrap">
+            <div class="strip">
+              <div class="strip-seg seg-verse">Verse<span class="range">mm. 1–33</span></div>
+              <div class="strip-seg seg-chorus">Chorus<span class="range">mm. 34–65</span></div>
+              <div class="strip-seg seg-tag">Tag<span class="range">66–69</span></div>
+            </div>
+          </div>
+          <div class="strip-caption"><span>m. 1</span><span>m. 70</span></div>
+
+          <h3>Match the moment</h3>
+          <p>Five real moments from the piece, out of order. Play the chord, read the line, and decide: Verse, Chorus, or Tag? Answer first — the card underneath will tell you why.</p>
+
+          <div class="quiz-card" id="quizCard"><!-- filled by script --></div>
+        </div>
+
+        <div class="secondary-note">
+          <div class="strip-mini">
+            <div style="background:var(--section-verse)"></div>
+            <div style="background:var(--section-chorus)"></div>
+            <div style="background:var(--section-tag);flex:0.5"></div>
+          </div>
+          <p><strong>Second opinion:</strong> "Whispering" (1920, words by John Schonberger &amp; Richard Coburn) — also a Barbershop Harmony Society arrangement, thanks again to them — uses the same three-part shape: Verse (mm. 1–16), Chorus (mm. 17–48), Tag (mm. 49–56). Its chart labels every section correctly. Most charts do label their own structure somewhere on the page — worth checking next time you open one.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+document.getElementById("learnBackButton").addEventListener("click", () => {
+  if (window.history.length > 1) {
+    window.history.back();
+  } else {
+    window.location.href = "index.html";
+  }
+});
+
+/* ---------- global tactile press feedback, copied from interval-training.html ---------- */
+document.addEventListener("pointerdown", event => {
+  const button = event.target.closest("button");
+  if (!button || button.disabled) return;
+  button.classList.remove("button-success");
+  window.requestAnimationFrame(() => {
+    button.classList.add("button-success");
+    window.setTimeout(() => button.classList.remove("button-success"), 620);
+  });
+});
+
+/* ---------- flip cards ---------- */
+["cardVerse","cardChorus","cardTag"].forEach(id => {
+  document.getElementById(id).addEventListener("click", function(){
+    this.classList.toggle("flipped");
+  });
+});
+
+/* ---------- audio: real downbeat chords, played through ORUMI_VOICES ---------- */
+let audioCtx = null;
+function getCtx(){
+  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+function playChord(freqs, voice = "orumiVocalAh", duration = 1.6){
+  const ctx = getCtx();
+  const now = ctx.currentTime;
+  const notes = freqs.map(f => ORUMI_VOICES.buildVoice(ctx, voice, f, now));
+  window.setTimeout(() => {
+    notes.forEach(note => ORUMI_VOICES.stopVoice(note, ctx, 0.25));
+  }, duration * 1000);
+}
+
+/* ---------- quiz data: real lyrics, measures, and downbeat chords from the score ---------- */
+const QUESTIONS = [
+  {
+    text: "There's a time in each year that we always hold dear, good old summer time.",
+    loc: "measures 1–8",
+    page: "../assets/summer-time-page-1.png",
+    pageLabel: "Score — page 1",
+    freqs: [130.81, 174.61, 220.0, 311.13],
+    answer: "Verse",
+    explain: "This opens the whole piece — nothing has been heard yet for it to repeat. That's the Verse: it narrates before the hook arrives."
+  },
+  {
+    text: "When your day's work is over then you are in clover and life is one beautiful rhyme.",
+    loc: "measures 17–24",
+    page: "../assets/summer-time-page-2.png",
+    pageLabel: "Score — page 2",
+    freqs: [174.61, 220.0, 261.63, 311.13],
+    answer: "Verse",
+    explain: "Still telling us something new the lyric hasn't said yet, rather than repeating a line already heard — the Verse still doing its scene-setting work."
+  },
+  {
+    text: "In the good old summer time, in the good old summer time,",
+    loc: "measures 34–41",
+    page: "../assets/summer-time-page-2.png",
+    pageLabel: "Score — page 2",
+    freqs: [130.81, 174.61, 220.0, 311.13],
+    answer: "Chorus",
+    explain: "Say the title out loud — that's exactly what's being sung here. The most repeated, most recognizable material in the piece is the Chorus."
+  },
+  {
+    text: "You hold her hand and she holds yours and that's a very good sign",
+    loc: "measures 50–55",
+    page: "../assets/summer-time-page-3.png",
+    pageLabel: "Score — page 3",
+    freqs: [174.61, 220.0, 261.63, 311.13],
+    answer: "Chorus",
+    explain: "New lyric content, but tucked inside the larger repeating Chorus block (mm. 34–65) — not a separate section on its own."
+  },
+  {
+    text: "In the good old summer time.",
+    loc: "measures 66–69",
+    page: "../assets/summer-time-page-4.png",
+    pageLabel: "Score — page 4",
+    freqs: [116.54, 233.08, 293.66, 349.23],
+    answer: "Tag",
+    explain: "The very last thing sung — just four measures, repeating the title one final time before the last chord resolves. Short, final, built to be held: that's a Tag."
+  }
+];
+
+let order = [...QUESTIONS.keys()].sort(() => Math.random() - 0.5);
+let idx = 0, score = 0, answered = false;
+const card = document.getElementById('quizCard');
+const colorClass = { Verse: "verse", Chorus: "chorus", Tag: "tag" };
+
+function renderQuiz(){
+  if(idx >= order.length){
+    card.innerHTML = `
+      <div class="quiz-done">
+        <div class="quiz-progress">Complete</div>
+        <div class="score">${score} / ${order.length}</div>
+        <p style="color:var(--orumi-muted);">${score === order.length ? "Every one — you're reading the shape, not just the label." : "Take another pass. Play each chord again and trust your ear before you click."}</p>
+        <div class="quiz-nav" style="justify-content:center;">
+          <button class="btn primary" onclick="restartQuiz()">Try again</button>
+        </div>
+      </div>`;
+    updateProgress(true);
+    return;
+  }
+
+  const q = QUESTIONS[order[idx]];
+  answered = false;
+
+  card.innerHTML = `
+    <div class="quiz-progress">Moment ${idx + 1} of ${order.length}</div>
+    <div class="quiz-snippet">"${q.text}"</div>
+    <div class="quiz-loc">${q.loc}</div>
+    <div class="quiz-controls-row">
+      <button class="btn ghost" id="playBtn">▶ Play the chord</button>
+      <a class="btn ghost score-link" href="${q.page}" target="_blank" rel="noopener">📄 ${q.pageLabel}</a>
+    </div>
+    <div class="quiz-buttons" id="btnRow">
+      <button class="btn" data-choice="Verse">Verse</button>
+      <button class="btn" data-choice="Chorus">Chorus</button>
+      <button class="btn" data-choice="Tag">Tag</button>
+    </div>
+    <div class="reveal-wrap"><div class="reveal-inner" id="revealInner">
+      <div class="reveal-card" id="revealCard"></div>
+    </div></div>
+    <div class="quiz-nav">
+      <button class="btn primary" id="nextBtn" style="opacity:0;pointer-events:none;">${idx === order.length - 1 ? 'See results' : 'Next moment'}</button>
+    </div>
+  `;
+
+  document.getElementById('playBtn').onclick = () => playChord(q.freqs);
+
+  document.querySelectorAll('#btnRow .btn').forEach(btn => {
+    btn.onclick = () => {
+      if(answered) return;
+      answered = true;
+      const choice = btn.dataset.choice;
+      const correct = choice === q.answer;
+      if(correct) score++;
+
+      document.querySelectorAll('#btnRow .btn').forEach(b => {
+        if(b.dataset.choice === q.answer) b.classList.add('correct');
+        else if(b === btn) b.classList.add('wrong');
+        else b.classList.add('dim');
+      });
+
+      const revealCard = document.getElementById('revealCard');
+      revealCard.className = `reveal-card bg-${colorClass[q.answer].toLowerCase()}`;
+      revealCard.innerHTML = `<strong>${correct ? "Right — it's " + q.answer : "Not quite — it's " + q.answer}</strong>${q.explain}`;
+      document.getElementById('revealInner').classList.add('show');
+
+      const nextBtn = document.getElementById('nextBtn');
+      nextBtn.style.opacity = 1;
+      nextBtn.style.pointerEvents = 'auto';
+    };
+  });
+
+  document.getElementById('nextBtn').onclick = () => { idx++; renderQuiz(); };
+}
+
+function restartQuiz(){
+  order = [...QUESTIONS.keys()].sort(() => Math.random() - 0.5);
+  idx = 0; score = 0;
+  renderQuiz();
+}
+
+function updateProgress(done){
+  const percent = done ? 100 : 0;
+  document.getElementById('progressFill').style.width = `${percent}%`;
+  document.getElementById('progressText').textContent = `${percent}%`;
+}
+
+renderQuiz();
+</script>
+</body>
+</html>
