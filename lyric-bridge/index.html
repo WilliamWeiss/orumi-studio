@@ -24,12 +24,68 @@
 
     body {
       margin: 0;
-      font-family: Arial, Helvetica, sans-serif;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: var(--bg);
       color: var(--text);
     }
 
     a { color: inherit; text-decoration: none; }
+
+    /* ── Floating nav buttons — matches Player / Selection Control ──── */
+    .top-button {
+      position: fixed;
+      top: 18px;
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      text-decoration: none;
+      display: grid;
+      place-items: center;
+      font-size: 24px;
+      color: #222;
+      background: rgba(255,255,255,0.86);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+      z-index: 1000;
+      transition: 0.12s;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .top-button:hover,
+    .top-button:active {
+      transform: scale(0.94);
+      filter: brightness(1.08);
+    }
+
+    button.button-success { animation: buttonSuccess 0.6s ease forwards; }
+    @keyframes buttonSuccess {
+      0%   { box-shadow: 0 0 0px rgba(34,211,238,0);   border-color: rgba(34,211,238,0); }
+      25%  { box-shadow: 0 0 18px rgba(34,211,238,0.8); border-color: rgba(34,211,238,0.9); color: #a5f3fc; }
+      100% { box-shadow: 0 0 0px rgba(34,211,238,0);   border-color: inherit; color: inherit; }
+    }
+    .back-button { left: 88px; }
+    .logo-button {
+      left: 18px;
+      width: 58px;
+      height: 58px;
+      background: transparent;
+      box-shadow: none;
+      border-radius: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    .logo-button:hover,
+    .logo-button:active {
+      background: transparent;
+      box-shadow: none;
+      filter: brightness(1.12);
+    }
+    .logo-button img {
+      width: 58px;
+      height: 58px;
+      object-fit: contain;
+      display: block;
+    }
 
     /* ── Site header (matches Orumi nav) ───────────────────────────── */
     .site-header {
@@ -356,20 +412,13 @@
 </head>
 <body>
 
-  <header class="site-header">
-    <a class="logo" href="/" aria-label="Return to Orumi home">
-  <img src="/assets/orumi-icon.png" alt="" aria-hidden="true" />
-  <span>Orumi</span>
-</a>
-    <nav>
-      <a href="/studio/">Studio</a>
-      <a href="/intervals/">Intervals</a>
-      <a href="/language/">Language</a>
-      <a href="/play/">Play</a>
-    </nav>
-  </header>
+  <a class="top-button logo-button" href="/" title="Orumi Home" aria-label="Orumi Home">
+    <img src="/assets/orumi-icon.png" alt="Orumi" />
+  </a>
 
-  <div class="page-hero">
+  <button class="top-button back-button" id="backButton" title="Go Back">←</button>
+
+  <div class="page-hero" style="padding-top: clamp(72px, 10vw, 96px);">
     <p class="eyebrow">Orumi Tools</p>
     <h1>Lyric Bridge</h1>
     <p class="lede">
@@ -490,7 +539,7 @@
       <div id="customRulesReport" style="display:none; margin-top:8px; font-size:0.85rem; opacity:0.8; white-space:pre; border-left:2px solid #4caf50; padding-left:10px;"></div>
 
       <div class="buttons">
-        <button id="transformBtn" disabled class="primary">Transform lyrics</button></button>
+        <button id="transformBtn" disabled class="primary">Transform lyrics</button>
         <button id="downloadBtn" disabled>Download for singers</button>
         <button id="downloadAceBtn" disabled>Download for ACE Studio</button>
         <button id="copyPlainBtn" disabled>Copy output lyric string</button>
@@ -542,6 +591,24 @@
 
   <script>
     const NBSP = "\u00A0";
+
+    document.getElementById("backButton").addEventListener("click", () => {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.location.href = "/";
+      }
+    });
+
+    document.addEventListener("pointerdown", event => {
+      const button = event.target.closest("button");
+      if (!button || button.disabled) return;
+      button.classList.remove("button-success");
+      window.requestAnimationFrame(() => {
+        button.classList.add("button-success");
+        window.setTimeout(() => button.classList.remove("button-success"), 620);
+      });
+    });
 
     const jszipScript = document.createElement("script");
     jszipScript.src = "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js";

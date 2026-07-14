@@ -8,10 +8,18 @@
   <script src="js/orumi-catalog.js"></script>
 
   <style>
+    :root {
+      --orumi-bg: #111111;
+      --orumi-text: #f5f0e8;
+      --orumi-muted: #b9b3a4;
+      --orumi-soft: #8f8878;
+      --orumi-gold: #d6b76a;
+    }
+
     body {
-      font-family: Arial, sans-serif;
-      background: #111;
-      color: #f5f0e8;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--orumi-bg);
+      color: var(--orumi-text);
       margin: 0;
       min-height: 100vh;
       padding: 24px 18px 80px;
@@ -26,7 +34,7 @@
     }
 
     .subtitle {
-      color: #bdb4a6;
+      color: var(--orumi-muted);
       text-align: center;
       max-width: 760px;
       margin: 0 auto 18px;
@@ -93,10 +101,42 @@
       filter: brightness(1.08);
     }
 
-    .back-button { left: 18px; }
+    button.button-success { animation: buttonSuccess 0.6s ease forwards; }
+    @keyframes buttonSuccess {
+      0%   { box-shadow: 0 0 0px rgba(34,211,238,0);   border-color: rgba(34,211,238,0); }
+      25%  { box-shadow: 0 0 18px rgba(34,211,238,0.8); border-color: rgba(34,211,238,0.9); color: #a5f3fc; }
+      100% { box-shadow: 0 0 0px rgba(34,211,238,0);   border-color: inherit; color: inherit; }
+    }
+
+    .back-button { left: 88px; }
     .home-button { right: 18px; }
     .player-button { right: 76px; }
     .design-button { right: 134px; }
+
+    .logo-button {
+      left: 18px;
+      width: 58px;
+      height: 58px;
+      background: transparent;
+      box-shadow: none;
+      border-radius: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .logo-button:hover,
+    .logo-button:active {
+      background: transparent;
+      box-shadow: none;
+      filter: brightness(1.12);
+    }
+
+    .logo-button img {
+      width: 58px;
+      height: 58px;
+      object-fit: contain;
+      display: block;
+    }
 
     .control-panel {
       width: min(96vw, 920px);
@@ -117,7 +157,7 @@
       font-size: 15px;
       font-weight: 800;
       margin-bottom: 10px;
-      color: #ddd;
+      color: var(--orumi-muted);
     }
 
     .grid {
@@ -182,7 +222,7 @@
 
     .summary {
       text-align: center;
-      color: #d8d0c4;
+      color: var(--orumi-muted);
       font-size: 15px;
       line-height: 1.45;
       padding: 12px;
@@ -255,6 +295,15 @@
 </head>
 
 <body>
+
+  <a
+    class="top-button logo-button"
+    href="../index.html"
+    title="Orumi Home"
+    aria-label="Orumi Home"
+  >
+    <img src="../assets/orumi-icon.png" alt="Orumi" />
+  </a>
 
   <button
     class="top-button back-button"
@@ -493,6 +542,16 @@
       } else {
         window.location.href = "index.html";
       }
+    });
+
+    document.addEventListener("pointerdown", event => {
+      const button = event.target.closest("button");
+      if (!button || button.disabled) return;
+      button.classList.remove("button-success");
+      window.requestAnimationFrame(() => {
+        button.classList.add("button-success");
+        window.setTimeout(() => button.classList.remove("button-success"), 620);
+      });
     });
 
     resetButton.addEventListener("click", () => {
