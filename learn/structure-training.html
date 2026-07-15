@@ -172,9 +172,9 @@
   /* ---------- new for this lesson: flip cards, measure strip, quiz ---------- */
   .lesson-stage { padding: clamp(20px, 3vw, 34px); }
 
-  .card-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 6px 0 8px; }
+  .card-row { display: grid; grid-template-columns: repeat(3, minmax(230px, 1fr)); gap: 18px; margin: 6px 0 8px; }
   @media (max-width: 640px) { .card-row { grid-template-columns: 1fr; } }
-  .flip-card { perspective: 1000px; height: 150px; cursor: pointer; }
+  .flip-card { perspective: 1000px; height: 230px; cursor: pointer; }
   .flip-inner {
     position: relative; width: 100%; height: 100%;
     transform-style: preserve-3d; transition: transform 0.5s cubic-bezier(.4,.2,.2,1);
@@ -183,16 +183,22 @@
   .flip-face {
     position: absolute; inset: 0; backface-visibility: hidden;
     border-radius: var(--radius-medium); border: 1px solid var(--orumi-border);
-    display: flex; align-items: center; justify-content: center; text-align: center; padding: 16px;
+    display: flex; align-items: center; justify-content: center; text-align: center; padding: 18px;
   }
   .flip-front { background: rgba(255,255,255,0.045); flex-direction: column; gap: 6px; }
   .flip-front .peek-hint { font-size: 0.72rem; color: var(--orumi-soft); }
   .flip-front .term-name { font-size: 1.2rem; font-weight: 700; }
   .flip-back {
-    transform: rotateY(180deg); color: #12141a; font-size: 0.85rem; line-height: 1.45;
-    align-items: flex-start; text-align: left;
+    transform: rotateY(180deg); color: #12141a; font-size: 0.85rem; line-height: 1.5;
+    align-items: flex-start; text-align: left; overflow-y: auto;
   }
-  .flip-back strong { display: block; margin-bottom: 4px; font-size: 0.95rem; }
+  .flip-back strong {
+    display: block;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    font-size: 1rem;
+    border-bottom: 1px solid rgba(18, 20, 26, 0.18);
+  }
   .term-verse .term-name { color: var(--section-verse); }
   .term-chorus .term-name { color: var(--section-chorus); }
   .term-tag .term-name { color: var(--section-tag); }
@@ -364,12 +370,12 @@
 
           <div class="strip-wrap">
             <div class="strip">
-              <div class="strip-seg seg-verse">Verse<span class="range">mm. 1–33</span></div>
-              <div class="strip-seg seg-chorus">Chorus<span class="range">mm. 34–65</span></div>
-              <div class="strip-seg seg-tag">Tag<span class="range">66–69</span></div>
+              <div class="strip-seg seg-verse">Verse<span class="range">mm. 1–31</span></div>
+              <div class="strip-seg seg-chorus">Chorus<span class="range">mm. 32–63</span></div>
+              <div class="strip-seg seg-tag">Tag<span class="range">64–68</span></div>
             </div>
           </div>
-          <div class="strip-caption"><span>m. 1</span><span>m. 70</span></div>
+          <div class="strip-caption"><span>m. 1</span><span>m. 68</span></div>
 
           <h3>Match the moment</h3>
           <p>Five real moments from the piece, out of order. Play the chord, read the line, and decide: Verse, Chorus, or Tag? Answer first — the card underneath will tell you why.</p>
@@ -454,7 +460,7 @@ const QUESTIONS = [
   },
   {
     text: "In the good old summer time, in the good old summer time,",
-    loc: "measures 34–41",
+    loc: "measures 32–39",
     page: "../assets/summer-time-page-2.png",
     pageLabel: "Score — page 2",
     freqs: [130.81, 174.61, 220.0, 311.13],
@@ -463,16 +469,16 @@ const QUESTIONS = [
   },
   {
     text: "You hold her hand and she holds yours and that's a very good sign",
-    loc: "measures 50–55",
+    loc: "measures 48–55",
     page: "../assets/summer-time-page-3.png",
     pageLabel: "Score — page 3",
     freqs: [174.61, 220.0, 261.63, 311.13],
     answer: "Chorus",
-    explain: "New lyric content, but tucked inside the larger repeating Chorus block (mm. 34–65) — not a separate section on its own."
+    explain: "New lyric content, but tucked inside the larger repeating Chorus block (mm. 32–63) — not a separate section on its own."
   },
   {
     text: "In the good old summer time.",
-    loc: "measures 66–69",
+    loc: "measures 64–68",
     page: "../assets/summer-time-page-4.png",
     pageLabel: "Score — page 4",
     freqs: [116.54, 233.08, 293.66, 349.23],

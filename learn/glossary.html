@@ -46,10 +46,24 @@
   }
   .top-button:hover, .top-button:active { transform: scale(0.94); filter: brightness(1.08); }
   .back-button { left: 18px; }
-  .logo-button { left: 72px; padding: 0; overflow: hidden; }
+  .logo-button {
+    left: 72px;
+    width: 125px;
+    height: 125px;
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+  .logo-button:hover, .logo-button:active {
+    background: transparent;
+    box-shadow: none;
+    filter: brightness(1.12);
+  }
   .logo-button img { width: 100%; height: 100%; object-fit: contain; display: block; }
 
-  .page-shell { width: min(880px, 100%); margin: 0 auto; padding: 22px; padding-top: 90px; padding-bottom: 80px; }
+  .page-shell { width: min(880px, 100%); margin: 0 auto; padding: 22px; padding-top: 155px; padding-bottom: 80px; }
 
   .eyebrow {
     display: inline-flex; align-items: center; gap: 8px; color: var(--orumi-gold);

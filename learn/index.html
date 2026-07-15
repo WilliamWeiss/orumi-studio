@@ -45,10 +45,24 @@
     z-index: 1000; transition: 0.12s; border: none; cursor: pointer; font-family: inherit;
   }
   .top-button:hover, .top-button:active { transform: scale(0.94); filter: brightness(1.08); }
-  .logo-button { left: 18px; padding: 0; overflow: hidden; }
+  .logo-button {
+    left: 18px;
+    width: 125px;
+    height: 125px;
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+  .logo-button:hover, .logo-button:active {
+    background: transparent;
+    box-shadow: none;
+    filter: brightness(1.12);
+  }
   .logo-button img { width: 100%; height: 100%; object-fit: contain; display: block; }
 
-  .page-shell { width: min(1200px, 100%); margin: 0 auto; padding: 22px; padding-top: 90px; }
+  .page-shell { width: min(1200px, 100%); margin: 0 auto; padding: 22px; padding-top: 155px; }
 
   .hub-header { text-align: center; margin-bottom: 40px; }
   .eyebrow {
@@ -128,7 +142,7 @@
       <div class="sequence-card coming-soon">
         <div class="seq-eyebrow">Projects</div>
         <h2>Coming soon</h2>
-        <p>Showcase arrangements — starting with "In the Good Old Summer Time" — built end to end.</p>
+        <p>Showcase arrangements — starting with "Down Our Way" — built end to end.</p>
         <div class="lesson-count">In development</div>
       </div>
     </div>
