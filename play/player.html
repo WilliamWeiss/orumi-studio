@@ -162,7 +162,7 @@
     }
 
     @keyframes buttonSuccess {
-      0%   { box-shadow: 0 0 0px rgba(34,211,238,0),   border-color: transparent; }
+      0%   { box-shadow: 0 0 0px rgba(34,211,238,0); border-color: transparent; }
       25%  { box-shadow: 0 0 18px rgba(34,211,238,0.8); outline: 2px solid rgba(34,211,238,0.9); color: #a5f3fc; }
       100% { box-shadow: 0 5px 14px rgba(0,0,0,0.22);  outline: none; color: inherit; }
     }
@@ -1529,6 +1529,72 @@
     // starts, released in stopHeldNote.
     let activeCapturePointerId = null;
 
+    // Hybrid note/rest timing: a released note's written duration isn't
+    // finalized immediately at pointerup. It's held here until we know what
+    // happens next -- if another note is played, this note's duration is
+    // extended to cover the gap (matching how the ear actually hears it,
+    // continuous rather than clipped short). If Rest is pressed instead, this
+    // note is finalized at its own natural (hold-time) duration and the rest
+    // is inserted after it, since that gap was explicit and intentional.
+    let pendingCapturedNote = null;
+
+    function flushPendingCapturedNote(extendToTime = null, minBeats = 0) {
+      if (!pendingCapturedNote) return;
+      const { blockId, startedAt, naturalDurationSeconds } = pendingCapturedNote;
+      let durationSeconds =
+        extendToTime != null
+          ? Math.max(0.05, extendToTime - startedAt)
+          : naturalDurationSeconds;
+
+      if (minBeats > 0) {
+        const tempo = Math.max(20, Number(designPhrasePayload?.context?.tempo || 120));
+        durationSeconds = Math.max(durationSeconds, (minBeats * 60) / tempo);
+      }
+
+      pendingCapturedNote = null;
+      finalizeAutoCapturedPhraseNote(blockId, durationSeconds);
+    }
+
+    // Forgotten-recording watchdog: if Add Played Notes is on and nobody plays
+    // anything for a while, nudge with a status reminder; after a longer
+    // silence, stop automatically. Resuming afterward appends rather than
+    // wiping (Record only sets flags -- designPhraseBlocks isn't touched), so
+    // an auto-stop never loses anything, it just ends the session.
+    // Deliberately separate from the ~1.5s note-finalize idle timer above,
+    // which serves a different purpose and fires far too quickly for this.
+    const RECORDING_NUDGE_MS = 20000;
+    const RECORDING_AUTO_STOP_MS = 60000;
+    let recordingNudgeTimer = null;
+    let recordingAutoStopTimer = null;
+
+    function clearRecordingWatchdog() {
+      if (recordingNudgeTimer) {
+        clearTimeout(recordingNudgeTimer);
+        recordingNudgeTimer = null;
+      }
+      if (recordingAutoStopTimer) {
+        clearTimeout(recordingAutoStopTimer);
+        recordingAutoStopTimer = null;
+      }
+    }
+
+    function scheduleRecordingWatchdog() {
+      clearRecordingWatchdog();
+
+      recordingNudgeTimer = setTimeout(() => {
+        if (phraseAddPlayedNotes) {
+          statusText.textContent = "Still recording — play a note, press Rest, or press Stop when you're done.";
+        }
+      }, RECORDING_NUDGE_MS);
+
+      recordingAutoStopTimer = setTimeout(() => {
+        if (phraseAddPlayedNotes) {
+          stopLiveCapture();
+          statusText.textContent = "Recording stopped automatically after a period of silence. Press Record to keep adding.";
+        }
+      }, RECORDING_AUTO_STOP_MS);
+    }
+
 
     const activeNotes = new Map();
     let recentNotes = [];
@@ -1971,6 +2037,7 @@
     }
 
     function resetAutoPhraseCaptureSession() {
+      flushPendingCapturedNote(null);
       phraseAutoCaptureSession = null;
       activeCapturePointerId = null;
 
@@ -1986,6 +2053,7 @@
       }
 
       phraseAutoCaptureIdleTimer = setTimeout(() => {
+        flushPendingCapturedNote(null);
         phraseAutoCaptureSession = null;
         phraseAutoCaptureIdleTimer = null;
       }, 1500);
@@ -2003,6 +2071,9 @@
       if (!designPhrasePayload || !phraseAddPlayedNotes || isPhrasePlaybackActive) {
         return null;
       }
+
+      flushPendingCapturedNote(startedAt);
+      scheduleRecordingWatchdog();
 
       savePhraseHistory();
 
@@ -4583,6 +4654,7 @@ function updateTransportActionButtons() {
       }
 
       phraseAddPlayedNotes = true;
+      scheduleRecordingWatchdog();
 
       recordButton.classList.add("recording");
       recordButton.disabled = true;
@@ -4595,7 +4667,9 @@ function updateTransportActionButtons() {
     }
 
     function stopLiveCapture() {
+      clearRecordingWatchdog();
       stopAllNotes();
+      flushPendingCapturedNote(null, 1);
 
       phraseAddPlayedNotes = false;
 
@@ -4882,10 +4956,13 @@ function saveCurrentRecording() {
           !isPhrasePlaybackActive &&
           (activeCapturePointerId === null || activeCapturePointerId === event.pointerId);
 
-        // Substitute the reference tone only for the audio you actually
-        // hear while this press is being captured -- targetVoice is still
-        // what gets stored on the block and played back later.
-        const audioVoice = willCapture ? RECORDING_REFERENCE_VOICE : targetVoice;
+        // Previously substituted a plain reference tone here while capturing,
+        // so an early finger-lift wouldn't matter for the written duration.
+        // Now that a note's duration is filled in from the next press (or the
+        // 1-beat floor at Stop) rather than depending on exact release timing,
+        // that risk is gone -- so just use the real target voice throughout,
+        // matching what plays back and what Design Studio hears.
+        const audioVoice = targetVoice;
 
         const freq = parseFloat(button.dataset.note);
         const now = audioContext.currentTime;
@@ -5024,6 +5101,8 @@ const autoStopSeconds = Number(voiceNode.autoStopSeconds);
           phraseAddPlayedNotes &&
           (activeCapturePointerId === null || activeCapturePointerId === event.pointerId)
         ) {
+          flushPendingCapturedNote(null);
+          scheduleRecordingWatchdog();
           savePhraseHistory();
           const insertIndex = getActivePhraseInsertIndex();
           const restBlock = createPhraseRestBlock(0, 1);
@@ -5214,10 +5293,12 @@ const autoStopSeconds = Number(voiceNode.autoStopSeconds);
         if (activeGridDrag) {
           cancelAutoCapturedPhrasePreview(note.phrasePreviewBlockId);
         } else {
-          finalizeAutoCapturedPhraseNote(
-            note.phrasePreviewBlockId,
-            endedAt - note.startedAt
-          );
+          pendingCapturedNote = {
+            blockId: note.phrasePreviewBlockId,
+            startedAt: note.startedAt,
+            naturalDurationSeconds: endedAt - note.startedAt
+          };
+          scheduleAutoPhraseCaptureIdleReset();
         }
       } else if (!designPhrasePayload || isDefaultPlayerLineMode()) {
         recordSingleNote(

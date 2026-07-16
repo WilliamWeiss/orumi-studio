@@ -449,29 +449,35 @@ function stopPhrase(){
 let masterBus = null;
 function getMasterBus(ctx){
   if (masterBus) return masterBus;
-  const filter = ctx.createBiquadFilter();
-  filter.type = "lowpass";
-  filter.frequency.value = 1500;
-  filter.Q.value = 0.7;
+  // A gentle high safety-net only — real tone-shaping now happens per-note below,
+  // scaled to each note's own pitch, so low voices don't ring brighter than high ones.
   const compressor = ctx.createDynamicsCompressor();
   compressor.threshold.value = -18;
   compressor.knee.value = 24;
   compressor.ratio.value = 4;
   compressor.attack.value = 0.005;
   compressor.release.value = 0.15;
-  filter.connect(compressor);
   compressor.connect(ctx.destination);
-  masterBus = filter;
+  masterBus = compressor;
   return masterBus;
 }
 
-/* One note: one oscillator, one gain, envelope scheduled entirely up front
-   (no setTimeout anywhere in the audio path). Sustain is a flat plateau, so the
-   cutoff value is always just "peak" — no need to compute a mid-ramp position. */
+/* One note: one oscillator, one per-note filter (cutoff scaled to that note's own
+   pitch, same technique as orumiOcarina/orumiWhistle in voices.js), one gain.
+   A fixed-frequency filter is asymmetric across register — it lets many more
+   harmonics through for a low Bari/Bass note than for a high Tenor note at the
+   same cutoff, which is exactly what was clashing in the lower voices. Scaling
+   the cutoff to each note's own frequency keeps the harmonic content even
+   across all four voices. */
 function playLightNote(ctx, freq, startAt, dur, bus, peak = 0.22){
   const osc = ctx.createOscillator();
   osc.type = "triangle";
   osc.frequency.setValueAtTime(freq, startAt);
+
+  const filter = ctx.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.setValueAtTime(freq * 3.2, startAt);
+  filter.Q.value = 0.8;
 
   const gain = ctx.createGain();
   const attack = 0.02;
@@ -481,7 +487,8 @@ function playLightNote(ctx, freq, startAt, dur, bus, peak = 0.22){
   gain.gain.setValueAtTime(peak, startAt + dur);
   gain.gain.exponentialRampToValueAtTime(0.0001, startAt + dur + release);
 
-  osc.connect(gain);
+  osc.connect(filter);
+  filter.connect(gain);
   gain.connect(bus);
   osc.start(startAt);
   osc.stop(startAt + dur + release + 0.03);
@@ -535,11 +542,11 @@ const QUESTIONS = [
       {"dur":1.0,"freqs":[349.23,146.83,233.08,116.54],"lyric":"ways"},
       {"dur":1.0,"freqs":[293.66,196.0,233.08,116.54],"lyric":"hold"},
       {"dur":3.0,"freqs":[293.66,174.61,207.65,116.54],"lyric":"dear,"},
-      {"dur":1.0,"freqs":[311.13,220.0,196.0,146.83],"lyric":"good"},
-      {"dur":2.0,"freqs":[311.13,261.63,196.0,146.83],"lyric":"old"},
-      {"dur":1.0,"freqs":[277.18,220.0,196.0,146.83],"lyric":"sum"},
-      {"dur":2.0,"freqs":[277.18,196.0,233.08,146.83],"lyric":"mer"},
-      {"dur":2.0,"freqs":[164.81,164.81,233.08,116.54],"lyric":"time."}
+      {"dur":1.0,"freqs":[311.13,233.08,196.0,155.56],"lyric":"good"},
+      {"dur":2.0,"freqs":[311.13,261.63,196.0,155.56],"lyric":"old"},
+      {"dur":1.0,"freqs":[277.18,233.08,196.0,155.56],"lyric":"sum"},
+      {"dur":2.0,"freqs":[277.18,196.0,233.08,155.56],"lyric":"mer"},
+      {"dur":2.0,"freqs":[174.61,174.61,233.08,116.54],"lyric":"time."}
     ],
     answer: "Verse",
     explain: "This opens the whole piece — nothing has been heard yet for it to repeat. That's the Verse: it narrates before the hook arrives."
@@ -564,12 +571,12 @@ const QUESTIONS = [
       {"dur":1.0,"freqs":[293.66,174.61,207.65,116.54],"lyric":"clo"},
       {"dur":1.0,"freqs":[349.23,146.83,207.65,116.54],"lyric":"ver"},
       {"dur":1.0,"freqs":[293.66,174.61,207.65,116.54],"lyric":"and"},
-      {"dur":1.5,"freqs":[311.13,196.0,233.08,146.83],"lyric":"life"},
+      {"dur":1.5,"freqs":[311.13,196.0,233.08,155.56],"lyric":"life"},
       {"dur":0.5,"freqs":[311.13,185.0,220.0,130.81],"lyric":"is"},
       {"dur":1.0,"freqs":[311.13,196.0,233.08,116.54],"lyric":"one"},
-      {"dur":1.0,"freqs":[277.18,220.0,196.0,146.83],"lyric":"beau"},
-      {"dur":1.0,"freqs":[277.18,196.0,233.08,146.83],"lyric":"ti"},
-      {"dur":1.0,"freqs":[277.18,220.0,196.0,146.83],"lyric":"ful"},
+      {"dur":1.0,"freqs":[277.18,233.08,196.0,155.56],"lyric":"beau"},
+      {"dur":1.0,"freqs":[277.18,196.0,233.08,155.56],"lyric":"ti"},
+      {"dur":1.0,"freqs":[277.18,233.08,196.0,155.56],"lyric":"ful"},
       {"dur":1.5,"freqs":[293.66,174.61,233.08,116.54],"lyric":"rhyme."}
     ],
     answer: "Verse",
@@ -586,14 +593,14 @@ const QUESTIONS = [
       {"dur":1.0,"freqs":[293.66,174.61,233.08,116.54],"lyric":"good"},
       {"dur":2.0,"freqs":[349.23,146.83,233.08,116.54],"lyric":"old"},
       {"dur":2.0,"freqs":[293.66,174.61,233.08,116.54],"lyric":"sum"},
-      {"dur":1.0,"freqs":[293.66,196.0,174.61,116.54],"lyric":"mer"},
-      {"dur":4.0,"freqs":[349.23,220.0,196.0,116.54],"lyric":"time,"},
-      {"dur":1.0,"freqs":[293.66,220.0,196.0,174.61],"lyric":"in"},
-      {"dur":1.0,"freqs":[293.66,196.0,196.0,174.61],"lyric":"the"},
-      {"dur":1.0,"freqs":[311.13,196.0,207.65,146.83],"lyric":"good"},
-      {"dur":2.0,"freqs":[311.13,220.0,207.65,146.83],"lyric":"old"},
-      {"dur":2.0,"freqs":[277.18,196.0,207.65,146.83],"lyric":"sum"},
-      {"dur":1.0,"freqs":[277.18,174.61,233.08,146.83],"lyric":"mer"},
+      {"dur":1.0,"freqs":[293.66,233.08,174.61,116.54],"lyric":"mer"},
+      {"dur":4.0,"freqs":[349.23,293.66,207.65,116.54],"lyric":"time,"},
+      {"dur":1.0,"freqs":[293.66,261.63,207.65,174.61],"lyric":"in"},
+      {"dur":1.0,"freqs":[293.66,233.08,207.65,174.61],"lyric":"the"},
+      {"dur":1.0,"freqs":[311.13,233.08,196.0,155.56],"lyric":"good"},
+      {"dur":2.0,"freqs":[311.13,261.63,196.0,155.56],"lyric":"old"},
+      {"dur":2.0,"freqs":[277.18,233.08,196.0,155.56],"lyric":"sum"},
+      {"dur":1.0,"freqs":[277.18,196.0,233.08,155.56],"lyric":"mer"},
       {"dur":2.0,"freqs":[293.66,174.61,233.08,116.54],"lyric":"time,"}
     ],
     answer: "Chorus",
@@ -605,7 +612,7 @@ const QUESTIONS = [
     page: "../assets/summer-time-page-3.png",
     pageLabel: "Score — page 3",
     chordSeq: [
-      {"dur":1.0,"freqs":[293.66,220.0,174.61,130.81],"lyric":"You"},
+      {"dur":1.0,"freqs":[311.13,174.61,220.0,130.81],"lyric":"You"},
       {"dur":2.0,"freqs":[349.23,146.83,233.08,116.54],"lyric":"hold"},
       {"dur":1.0,"freqs":[311.13,174.61,220.0,130.81],"lyric":"her"},
       {"dur":2.0,"freqs":[293.66,233.08,174.61,116.54],"lyric":"hand"},
