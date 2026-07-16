@@ -3301,6 +3301,14 @@
   subtitle: "Sevenths that don't want to stop",
   level: "Chord Creation",
   built: true
+},
+{
+  id: "self-similarity",
+  number: 12,
+  title: "The Same Shape, Smaller",
+  subtitle: "What a sequence becomes if you never stop",
+  level: "Composition",
+  built: true
 }
     ];
 
@@ -3539,6 +3547,8 @@ function renderCurrentLesson() {
   renderRingingChordLesson();
 } else if (lesson.id === "seventh-chain") {
   renderSeventhChainLesson();
+} else if (lesson.id === "self-similarity") {
+  renderSelfSimilarityLesson();
 } else {
   renderPlaceholderLesson(lesson);
 }
@@ -8422,6 +8432,444 @@ function handleChainReflectionChoice(button) {
     <p style="margin: 6px 0 0; color: var(--orumi-muted);">${responses[choice]}</p>
   `;
   responseBox.classList.add("visible");
+}
+
+/* ============================================================
+   LESSON 12 — Self-similarity / fractal motivic development
+   ------------------------------------------------------------
+   Seed shape: { step, dur }[]
+     step = diatonic scale steps above the motif's first note
+     dur  = length in beats
+   step 0 maps to MIDI 60 (C4, 261.63 Hz) to match Lesson 1's root.
+
+   ▶ PLACEHOLDER SEED: this is a singable stand-in for the opening of
+     "In the Good Old Summertime" so the lesson runs today. Replace
+     SS_SEED_DEFAULT with the real parsed lead-line motif (convert each
+     MIDI note to a scale step relative to the motif's first note) once
+     verified against the BHS-cleared arrangement.
+
+     NOTE: this is the full 7-syllable seed (In/the/good/old/sum/mer/time)
+     by request, to hear the full effect -- 7 notes means Level 2 has 49
+     notes and Level 3 has 343, so "shrink to fit" at Level 3 genuinely
+     collapses into a blur rather than staying legible. That's
+     deliberate this time, not a bug -- it's the "disturbing" payoff.
+   ============================================================ */
+const SS_MAJOR_INTERVALS = [0, 2, 4, 5, 7, 9, 11];
+const SS_ROOT_FREQ = 261.63; // matches Lesson 1's root C
+
+const SS_SEED_DEFAULT = [
+  { step: 0, dur: 0.5 }, // In
+  { step: 0, dur: 0.5 }, // the
+  { step: 2, dur: 0.5 }, // good
+  { step: 4, dur: 0.5 }, // old
+  { step: 5, dur: 1.0 }, // sum-
+  { step: 4, dur: 0.5 }, // mer
+  { step: 2, dur: 1.0 }  // time
+];
+
+let ssSeed = SS_SEED_DEFAULT.map(n => ({ ...n }));
+let ssRhythmMode = "fixed"; // "fixed" | "shrink"
+let ssLevelSeqs = {};
+let ssActiveTimers = [];
+let ssMasterGain = null;
+let ssLibraryCache = {};
+const SS_PLAYER_MELODY_LIBRARY_KEY = "orumiPlayerMelodyLibrary";
+
+function ssStepToFreq(step) {
+  const oct = Math.floor(step / 7);
+  const deg = ((step % 7) + 7) % 7;
+  const semitone = SS_MAJOR_INTERVALS[deg] + 12 * oct;
+  return SS_ROOT_FREQ * Math.pow(2, semitone / 12);
+}
+
+function ssMidiToNearestStep(midi) {
+  let best = 0, bestDist = Infinity;
+  for (let s = -28; s <= 28; s++) {
+    const deg = ((s % 7) + 7) % 7;
+    const oct = Math.floor(s / 7);
+    const midiForStep = 60 + SS_MAJOR_INTERVALS[deg] + 12 * oct;
+    const dist = Math.abs(midiForStep - midi);
+    if (dist < bestDist) { bestDist = dist; best = s; }
+  }
+  return best;
+}
+
+function ssSubstitute(seq, seed, shrink) {
+  const seedTotal = seed.reduce((s, n) => s + n.dur, 0) || 1;
+  const out = [];
+  for (const note of seq) {
+    for (const s of seed) {
+      out.push({
+        step: note.step + s.step,
+        dur: shrink ? note.dur * (s.dur / seedTotal) : s.dur
+      });
+    }
+  }
+  return out;
+}
+
+function ssBuildLevel(k, seed, shrink) {
+  let seq = seed.map(n => ({ step: n.step, dur: n.dur }));
+  for (let i = 1; i < k; i++) seq = ssSubstitute(seq, seed, shrink);
+  return seq;
+}
+
+function ssContourSVG(seq, svgId) {
+  const W = 600, H = 72, padX = 10, padY = 10;
+  const steps = seq.map(n => n.step);
+  const minS = Math.min(...steps), maxS = Math.max(...steps);
+  const spanS = Math.max(1, maxS - minS);
+  let cum = 0;
+  const starts = [];
+  seq.forEach(n => { starts.push(cum); cum += n.dur; });
+  const total = cum || 1;
+  const xOf = i => padX + (starts[i] / total) * (W - 2 * padX);
+  const yOf = s => padY + (1 - (s - minS) / spanS) * (H - 2 * padY);
+
+  const pts = seq.map((n, i) => xOf(i).toFixed(1) + "," + yOf(n.step).toFixed(1)).join(" ");
+  let dots = "";
+  seq.forEach((n, i) => {
+    dots += `<circle class="ss-dot" data-idx="${i}" cx="${xOf(i).toFixed(1)}" cy="${yOf(n.step).toFixed(1)}" r="${seq.length > 30 ? 2.2 : 3.6}" fill="rgba(245,242,233,0.55)"></circle>`;
+  });
+
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%; height:72px; display:block; background:rgba(0,0,0,0.18); border-radius:var(--radius-medium); border:1px solid rgba(255,255,255,0.08);" id="${svgId}">
+    <polyline points="${pts}" fill="none" stroke="rgba(245,242,233,0.32)" stroke-width="2"></polyline>
+    ${dots}
+  </svg>`;
+}
+
+function ssHighlight(level, idx) {
+  const svg = document.getElementById("ssSvg" + level);
+  if (!svg) return;
+  svg.querySelectorAll(".ss-dot").forEach(d => d.setAttribute("fill", "rgba(245,242,233,0.55)"));
+  const dot = svg.querySelector('.ss-dot[data-idx="' + idx + '"]');
+  if (dot) dot.setAttribute("fill", "var(--orumi-gold)");
+}
+
+function ssClearHighlight(level) {
+  const svg = document.getElementById("ssSvg" + level);
+  if (!svg) return;
+  svg.querySelectorAll(".ss-dot").forEach(d => d.setAttribute("fill", "rgba(245,242,233,0.55)"));
+}
+
+function ssRenderLevels() {
+  const shrink = ssRhythmMode === "shrink";
+  [1, 2, 3].forEach(k => {
+    const seq = ssBuildLevel(k, ssSeed, shrink);
+    ssLevelSeqs[k] = seq;
+    const countEl = document.getElementById("ssCount" + k);
+    if (countEl) countEl.textContent = seq.length + " notes";
+    const wrap = document.getElementById("ssContourWrap" + k);
+    if (wrap) wrap.innerHTML = ssContourSVG(seq, "ssSvg" + k);
+  });
+
+  document.querySelectorAll("#ssRhythmFixedBtn, #ssRhythmShrinkBtn").forEach(b => b.classList.remove("primary"));
+  const activeBtn = document.getElementById(shrink ? "ssRhythmShrinkBtn" : "ssRhythmFixedBtn");
+  if (activeBtn) activeBtn.classList.add("primary");
+}
+
+function ssStopAll() {
+  ssActiveTimers.forEach(id => clearTimeout(id));
+  ssActiveTimers = [];
+  if (ssMasterGain) {
+    try {
+      const ctx = getAudioContext();
+      const now = ctx.currentTime;
+      ssMasterGain.gain.cancelScheduledValues(now);
+      ssMasterGain.gain.setValueAtTime(ssMasterGain.gain.value, now);
+      ssMasterGain.gain.linearRampToValueAtTime(0, now + 0.05);
+    } catch (error) { /* ignore */ }
+  }
+  [1, 2, 3].forEach(k => ssClearHighlight(k));
+}
+
+function ssPlaySequence(seq, level) {
+  ssStopAll();
+  const ctx = getAudioContext();
+  if (ctx.state === "suspended") ctx.resume();
+
+  const bpmEl = document.getElementById("ssBpm");
+  const bpm = Number(bpmEl ? bpmEl.value : 100);
+  const beat = 60 / bpm;
+  const now = ctx.currentTime;
+
+  const masterGain = ctx.createGain();
+  masterGain.gain.setValueAtTime(0.85, now);
+  masterGain.connect(ctx.destination);
+  ssMasterGain = masterGain;
+
+  let t = 0;
+  seq.forEach((n, i) => {
+    const dur = Math.max(0.05, n.dur * beat);
+    const voice = createSustainableVoice(ctx, ssStepToFreq(n.step), now + t, dur, 0.15);
+    voice.connect(masterGain);
+    if (level) {
+      const delayMs = t * 1000;
+      ssActiveTimers.push(setTimeout(() => ssHighlight(level, i), delayMs));
+    }
+    t += dur;
+  });
+
+  if (level) {
+    ssActiveTimers.push(setTimeout(() => ssClearHighlight(level), t * 1000 + 150));
+  }
+}
+
+function ssLoadPlayerLibrary() {
+  try {
+    const raw = localStorage.getItem(SS_PLAYER_MELODY_LIBRARY_KEY);
+    const lib = raw ? JSON.parse(raw) : {};
+    return (lib && typeof lib === "object") ? lib : {};
+  } catch (error) {
+    return {};
+  }
+}
+
+function ssPopulateMelodyDropdown() {
+  ssLibraryCache = ssLoadPlayerLibrary();
+  const select = document.getElementById("ssMySelect");
+  const useBtn = document.getElementById("ssUseMineBtn");
+  if (!select) return;
+
+  const entries = Object.values(ssLibraryCache).sort((a, b) =>
+    String(b.updatedAt || b.createdAt || "").localeCompare(String(a.updatedAt || a.createdAt || "")));
+
+  select.innerHTML = "";
+  if (!entries.length) {
+    const opt = document.createElement("option");
+    opt.textContent = "No saved Player melodies yet";
+    opt.value = "";
+    select.appendChild(opt);
+    select.disabled = true;
+    if (useBtn) useBtn.disabled = true;
+    return;
+  }
+
+  select.disabled = false;
+  const placeholder = document.createElement("option");
+  placeholder.textContent = "Choose a saved melody…";
+  placeholder.value = "";
+  select.appendChild(placeholder);
+  entries.forEach(m => {
+    const opt = document.createElement("option");
+    opt.value = m.id;
+    opt.textContent = m.name || "Untitled melody";
+    select.appendChild(opt);
+  });
+}
+
+function ssMelodyToSeed(melody) {
+  const notes = (melody.blocks || []).filter(b => b.type !== "rest" && b.midi != null);
+  if (notes.length < 2) return null;
+  const steps = notes.map(b => ssMidiToNearestStep(Number(b.midi)));
+  const first = steps[0];
+  return notes.map((b, i) => ({
+    step: steps[i] - first,
+    dur: Math.max(0.25, Number(b.durationBeats || 1))
+  }));
+}
+
+function ssUseSelectedMelody() {
+  const select = document.getElementById("ssMySelect");
+  const m = ssLibraryCache[select.value];
+  const tag = document.getElementById("ssSeedTag");
+  if (!m) return;
+
+  const seed = ssMelodyToSeed(m);
+  if (!seed) {
+    if (tag) tag.textContent = "That melody was too short to use as a seed";
+    return;
+  }
+  ssSeed = seed;
+  if (tag) tag.textContent = "Seed: " + (m.name || "your melody");
+  ssRenderLevels();
+  ssStopAll();
+}
+
+function handleSelfSimReflectionChoice(button) {
+  document.querySelectorAll("[data-selfsim-reflection]").forEach(btn => btn.classList.remove("selected"));
+  button.classList.add("selected");
+
+  const choice = button.dataset.selfsimReflection;
+  const responseBox = document.getElementById("selfSimResponseBox");
+  if (!responseBox) return;
+
+  const responses = {
+    uncanny: "That's the exact moment two layers of self-similarity stop being trackable -- the shape is still there, but your ear can't hold both scales of it at once.",
+    dissolved: "Right -- by Level 3 there's usually no melody left to perceive, just texture built from the same rule.",
+    "one-level": "Exactly the point: real arrangers apply this once, and that choice isn't a limitation -- it's calibrated to what a listener can actually follow.",
+    all: "All true together: uncanny at one level, gone by the next, and now you know why arrangers never push past the first."
+  };
+
+  responseBox.innerHTML = `
+    <strong>Good noticing.</strong>
+    <p style="margin: 6px 0 0; color: var(--orumi-muted);">${responses[choice]}</p>
+  `;
+  responseBox.classList.add("visible");
+}
+
+function renderSelfSimilarityLesson() {
+  mainPanel.innerHTML = `
+    <section class="hero">
+      <div class="eyebrow">Lesson 12 · Composition</div>
+      <h2>The Same Shape, Smaller</h2>
+      <p class="hero-question">What happens if a sequence never stops repeating itself?</p>
+    </section>
+
+    <section class="context-card">
+      <div class="eyebrow">A trick you already know</div>
+      <h3>Every sequence is a shape made of itself</h3>
+      <p>
+        Take a short motif -- two or three notes -- and restate it starting a step higher, then a step higher again. That's a <em>sequence</em>, one of the oldest moves in melody writing, and you've heard it in nearly every arrangement you've sung.
+      </p>
+      <p>
+        Look closely and a sequence is really a shape built out of shrunken copies of itself: the big gesture climbing is the same climbing shape as the little motif inside it. Every good arranger uses this once. Below, hear what happens if you don't stop there.
+      </p>
+    </section>
+
+    <section class="lesson-stage">
+      <article class="sound-card">
+        <div>
+          <div class="sound-copy">
+            <h3>Push the same rule further</h3>
+            <p>Level 1 is the sequence an arranger already writes. Level 2 replaces each note of that sequence with another shrunken copy of the motif. Level 3 does it again.</p>
+          </div>
+          <div class="controls">
+            <button class="btn primary" id="ssPlaySeedBtn">Play the motif</button>
+            <button class="btn" id="ssPlayL1Btn">Play Level 1</button>
+            <button class="btn" id="ssPlayL2Btn">Play Level 2</button>
+            <button class="btn" id="ssPlayL3Btn">Play Level 3</button>
+          </div>
+        </div>
+
+        <div>
+          <div style="margin-top:18px;">
+            <div style="display:flex; justify-content:space-between; color:var(--orumi-muted); font-size:0.82rem; margin-bottom:4px;">
+              <span>Level 1</span><span id="ssCount1"></span>
+            </div>
+            <div id="ssContourWrap1"></div>
+          </div>
+          <div style="margin-top:14px;">
+            <div style="display:flex; justify-content:space-between; color:var(--orumi-muted); font-size:0.82rem; margin-bottom:4px;">
+              <span>Level 2</span><span id="ssCount2"></span>
+            </div>
+            <div id="ssContourWrap2"></div>
+          </div>
+          <div style="margin-top:14px;">
+            <div style="display:flex; justify-content:space-between; color:var(--orumi-muted); font-size:0.82rem; margin-bottom:4px;">
+              <span>Level 3</span><span id="ssCount3"></span>
+            </div>
+            <div id="ssContourWrap3"></div>
+          </div>
+
+          <div class="current-tone">
+            <h4>Rhythm at each level</h4>
+            <div class="controls" style="margin-top:8px;">
+              <button class="btn ghost" id="ssRhythmFixedBtn">Keep steady</button>
+              <button class="btn ghost" id="ssRhythmShrinkBtn">Shrink to fit</button>
+            </div>
+            <p style="margin-top:8px;">Keep steady: every copy keeps the motif's original note lengths, so it gets longer each level. Shrink to fit: each copy squeezes into the note it replaced -- true self-similarity, and it moves fast by Level 3.</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="visual-card">
+        <div>
+          <h3>Why arrangers stop at Level 1</h3>
+          <p>
+            Level 1 sounds intentional because it <em>is</em> the technique arrangers actually use. Level 2 is usually where it turns uncanny -- you can still half-hear the shape, but two layers of self-similarity is more than the ear can track at once. Level 3 tends to dissolve into a blur: built from the same material, but no longer perceptible as a melody.
+          </p>
+        </div>
+        <div class="current-tone">
+          <h4>Not a limitation -- a listening limit</h4>
+          <p>
+            This isn't about running out of ideas. Level 1 is the edge of what a listener can actually follow, and every good arranger has found that edge by instinct, not by counting levels.
+          </p>
+        </div>
+      </article>
+    </section>
+
+    <section class="lesson-stage">
+      <article class="sound-card" style="grid-column: 1 / -1; min-height:auto;">
+        <div>
+          <div class="sound-copy">
+            <h3>Try it on your own melody</h3>
+            <p>Anything you've saved in Player as a melody shows up here. Pick one and hear its own shape pushed the same way.</p>
+          </div>
+          <div class="controls">
+            <select id="ssMySelect" style="background:var(--orumi-panel-2); color:var(--orumi-text); border:1px solid var(--orumi-border); border-radius:var(--radius-small); padding:10px 12px; font-family:inherit; font-size:0.95rem; min-width:220px;">
+              <option>Loading…</option>
+            </select>
+          </div>
+          <div class="controls">
+            <button class="btn primary" id="ssUseMineBtn" disabled>Use this melody as the seed</button>
+            <button class="btn ghost" id="ssResetSeedBtn">Reset to Summertime</button>
+          </div>
+          <p style="margin-top:10px; color:var(--orumi-muted); font-size:0.85rem;" id="ssSeedTag">Seed: In the Good Old Summertime (opening motif)</p>
+        </div>
+      </article>
+    </section>
+
+    <section class="reflection-card visible">
+      <h3>What did Level 2 or 3 do to the shape?</h3>
+      <p>Think about where it stopped sounding like a melody to you.</p>
+
+      <div class="choice-grid">
+        <button class="choice-btn" data-selfsim-reflection="uncanny">
+          <strong>Level 2 turned uncanny</strong>
+          <span>Still recognizable, but harder to track.</span>
+        </button>
+        <button class="choice-btn" data-selfsim-reflection="dissolved">
+          <strong>Level 3 dissolved completely</strong>
+          <span>It stopped reading as a melody at all.</span>
+        </button>
+        <button class="choice-btn" data-selfsim-reflection="one-level">
+          <strong>One level is plenty</strong>
+          <span>Now I hear why arrangers stop there.</span>
+        </button>
+        <button class="choice-btn" data-selfsim-reflection="all">
+          <strong>All of this at once</strong>
+          <span>Uncanny, dissolved, and now I get why.</span>
+        </button>
+      </div>
+
+      <div class="response-box" id="selfSimResponseBox"></div>
+
+      <div class="next-panel">
+        <p>
+          A standalone sandbox for building your own seed motif from scratch is next on the list.
+        </p>
+        <button class="btn primary" id="completeSelfSimilarityLessonBtn">Complete lesson</button>
+      </div>
+    </section>
+  `;
+
+  document.getElementById("ssPlaySeedBtn").addEventListener("click", () => ssPlaySequence(ssBuildLevel(1, ssSeed, false), null));
+  document.getElementById("ssPlayL1Btn").addEventListener("click", () => ssPlaySequence(ssLevelSeqs[1], 1));
+  document.getElementById("ssPlayL2Btn").addEventListener("click", () => ssPlaySequence(ssLevelSeqs[2], 2));
+  document.getElementById("ssPlayL3Btn").addEventListener("click", () => ssPlaySequence(ssLevelSeqs[3], 3));
+
+  document.getElementById("ssRhythmFixedBtn").addEventListener("click", () => { ssRhythmMode = "fixed"; ssRenderLevels(); });
+  document.getElementById("ssRhythmShrinkBtn").addEventListener("click", () => { ssRhythmMode = "shrink"; ssRenderLevels(); });
+
+  document.querySelectorAll("[data-selfsim-reflection]").forEach(btn => {
+    btn.addEventListener("click", () => handleSelfSimReflectionChoice(btn));
+  });
+  document.getElementById("completeSelfSimilarityLessonBtn").addEventListener("click", completeCurrentLesson);
+
+  document.getElementById("ssMySelect").addEventListener("change", () => {
+    document.getElementById("ssUseMineBtn").disabled = !document.getElementById("ssMySelect").value;
+  });
+  document.getElementById("ssUseMineBtn").addEventListener("click", ssUseSelectedMelody);
+  document.getElementById("ssResetSeedBtn").addEventListener("click", () => {
+    ssSeed = SS_SEED_DEFAULT.map(n => ({ ...n }));
+    document.getElementById("ssSeedTag").textContent = "Seed: In the Good Old Summertime (opening motif)";
+    ssRenderLevels();
+    ssStopAll();
+  });
+
+  ssPopulateMelodyDropdown();
+  ssRenderLevels();
 }
 
     function renderPlaceholderLesson(lesson) {

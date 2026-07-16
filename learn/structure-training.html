@@ -191,13 +191,17 @@
   .flip-back {
     transform: rotateY(180deg); color: #12141a; font-size: 0.85rem; line-height: 1.5;
     align-items: flex-start; text-align: left; overflow-y: auto;
+    padding-bottom: 36px;
   }
-  .flip-back strong {
-    display: block;
-    margin-bottom: 12px;
-    padding-bottom: 8px;
-    font-size: 1rem;
-    border-bottom: 1px solid rgba(18, 20, 26, 0.18);
+  .flip-back p { margin: 0; color: #12141a; }
+  .flip-back .back-name {
+    position: absolute;
+    left: 16px; bottom: 12px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    opacity: 0.72;
   }
   .term-verse .term-name { color: var(--section-verse); }
   .term-chorus .term-name { color: var(--section-chorus); }
@@ -218,7 +222,7 @@
   .strip-seg span.range { font-weight: 500; opacity: 0.75; }
   .seg-verse { background: var(--section-verse); flex: 33; }
   .seg-chorus { background: var(--section-chorus); flex: 32; }
-  .seg-tag { background: var(--section-tag); flex: 4; }
+  .seg-tag { background: var(--section-tag); flex: 5; }
   .strip-caption { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--orumi-soft); margin-bottom: 24px; }
 
   .quiz-card {
@@ -325,8 +329,8 @@
                   <span class="peek-hint">tap to reveal</span>
                 </div>
                 <div class="flip-face flip-back bg-verse">
-                  <strong>Verse</strong>
-                  Sets the scene. In the older songs we're using here, this is the part that arrives first and tells a little story before the tune everyone actually remembers shows up.
+                  <p>Sets the scene. In the older songs we're using here, this is the part that arrives first and tells a little story before the tune everyone actually remembers shows up.</p>
+                  <span class="back-name">Verse</span>
                 </div>
               </div>
             </div>
@@ -338,8 +342,8 @@
                   <span class="peek-hint">tap to reveal</span>
                 </div>
                 <div class="flip-face flip-back bg-chorus">
-                  <strong>Chorus</strong>
-                  The hook. This is the melody people can hum without ever having sung the song — it tends to come back more than once, sometimes with small changes each time.
+                  <p>The hook. This is the melody people can hum without ever having sung the song — it tends to come back more than once, sometimes with small changes each time.</p>
+                  <span class="back-name">Chorus</span>
                 </div>
               </div>
             </div>
@@ -351,8 +355,8 @@
                   <span class="peek-hint">tap to reveal</span>
                 </div>
                 <div class="flip-face flip-back bg-tag">
-                  <strong>Tag</strong>
-                  A few bars at the very end that repeat something already sung — often the last line, sometimes a phrase borrowed from earlier — before the final chord is allowed to fully land. Barbershoppers sing these on their own, apart from the song they came from.
+                  <p>A few bars at the very end that repeat something already sung — often the last line, sometimes a phrase borrowed from earlier — before the final chord is allowed to fully land. Barbershoppers sing these on their own, apart from the song they came from.</p>
+                  <span class="back-name">Tag</span>
                 </div>
               </div>
             </div>
@@ -370,12 +374,12 @@
 
           <div class="strip-wrap">
             <div class="strip">
-              <div class="strip-seg seg-verse">Verse<span class="range">mm. 1–31</span></div>
-              <div class="strip-seg seg-chorus">Chorus<span class="range">mm. 32–63</span></div>
-              <div class="strip-seg seg-tag">Tag<span class="range">64–68</span></div>
+              <div class="strip-seg seg-verse">Verse<span class="range">mm. 1–33</span></div>
+              <div class="strip-seg seg-chorus">Chorus<span class="range">mm. 34–65</span></div>
+              <div class="strip-seg seg-tag">Tag<span class="range">66–70</span></div>
             </div>
           </div>
-          <div class="strip-caption"><span>m. 1</span><span>m. 68</span></div>
+          <div class="strip-caption"><span>m. 1</span><span>m. 70</span></div>
 
           <h3>Match the moment</h3>
           <p>Five real moments from the piece, out of order. Play the chord, read the line, and decide: Verse, Chorus, or Tag? Answer first — the card underneath will tell you why.</p>
@@ -389,7 +393,7 @@
             <div style="background:var(--section-chorus)"></div>
             <div style="background:var(--section-tag);flex:0.5"></div>
           </div>
-          <p><strong>Second opinion:</strong> "Whispering" (1920, words by John Schonberger &amp; Richard Coburn) — also a Barbershop Harmony Society arrangement, thanks again to them — uses the same three-part shape: Verse (mm. 1–16), Chorus (mm. 17–48), Tag (mm. 49–56). Its chart labels every section correctly. Most charts do label their own structure somewhere on the page — worth checking next time you open one.</p>
+          <p><strong>Second opinion:</strong> "Whispering" (1920, words by John Schonberger &amp; Richard Coburn) — also a Barbershop Harmony Society arrangement, thanks again to them — uses the same three-part shape: Verse (mm. 1–16), Chorus (mm. 17–44), Tag (mm. 45–56). Its chart labels every section correctly. Most charts do label their own structure somewhere on the page — worth checking next time you open one.</p>
         </div>
       </div>
     </section>
@@ -423,29 +427,120 @@ document.addEventListener("pointerdown", event => {
   });
 });
 
-/* ---------- audio: real downbeat chords, played through ORUMI_VOICES ---------- */
+/* ---------- audio: lightweight per-syllable chord player ----------
+   orumiVocalAh (voices.js) builds 13 audio nodes per single pitch (4 detuned
+   oscillators + a chorus oscillator + all their gains + shared filter/gain/output).
+   A 15-20 syllable phrase across 4 voices was constructing 700-1000+ nodes
+   synchronously in one tight loop the instant "Play" was pressed — plausibly
+   the source of the choppiness, distortion, and dropped notes. This is a
+   deliberately minimal replacement: 1 oscillator + 1 gain per note (2 nodes),
+   through one shared filter + limiter bus, to see if that resolves it. */
 let audioCtx = null;
 function getCtx(){
   if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   return audioCtx;
 }
-function playChord(freqs, voice = "orumiVocalAh", duration = 1.6){
-  const ctx = getCtx();
-  const now = ctx.currentTime;
-  const notes = freqs.map(f => ORUMI_VOICES.buildVoice(ctx, voice, f, now));
-  window.setTimeout(() => {
-    notes.forEach(note => ORUMI_VOICES.stopVoice(note, ctx, 0.25));
-  }, duration * 1000);
+let phraseTimers = [];
+function stopPhrase(){
+  phraseTimers.forEach(id => clearTimeout(id));
+  phraseTimers = [];
 }
 
-/* ---------- quiz data: real lyrics, measures, and downbeat chords from the score ---------- */
+let masterBus = null;
+function getMasterBus(ctx){
+  if (masterBus) return masterBus;
+  const filter = ctx.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.value = 1500;
+  filter.Q.value = 0.7;
+  const compressor = ctx.createDynamicsCompressor();
+  compressor.threshold.value = -18;
+  compressor.knee.value = 24;
+  compressor.ratio.value = 4;
+  compressor.attack.value = 0.005;
+  compressor.release.value = 0.15;
+  filter.connect(compressor);
+  compressor.connect(ctx.destination);
+  masterBus = filter;
+  return masterBus;
+}
+
+/* One note: one oscillator, one gain, envelope scheduled entirely up front
+   (no setTimeout anywhere in the audio path). Sustain is a flat plateau, so the
+   cutoff value is always just "peak" — no need to compute a mid-ramp position. */
+function playLightNote(ctx, freq, startAt, dur, bus, peak = 0.22){
+  const osc = ctx.createOscillator();
+  osc.type = "triangle";
+  osc.frequency.setValueAtTime(freq, startAt);
+
+  const gain = ctx.createGain();
+  const attack = 0.02;
+  const release = 0.09;
+  gain.gain.setValueAtTime(0.0001, startAt);
+  gain.gain.linearRampToValueAtTime(peak, startAt + attack);
+  gain.gain.setValueAtTime(peak, startAt + dur);
+  gain.gain.exponentialRampToValueAtTime(0.0001, startAt + dur + release);
+
+  osc.connect(gain);
+  gain.connect(bus);
+  osc.start(startAt);
+  osc.stop(startAt + dur + release + 0.03);
+}
+
+/* chordSeq: [{ dur, freqs:[tenor,lead,bari,bass], lyric }, ...], dur in beats */
+async function playPhrase(chordSeq, bpm = 115, onChordStart){
+  stopPhrase();
+  const ctx = getCtx();
+  if (ctx.state === "suspended") {
+    await ctx.resume();   // must actually finish before we trust ctx.currentTime
+  }
+  const bus = getMasterBus(ctx);
+  const beat = 60 / bpm;
+  const now = ctx.currentTime;
+  let t = 0;
+  chordSeq.forEach((chord, i) => {
+    const dur = chord.dur * beat;
+    const startAt = now + t;
+    chord.freqs
+      .filter(f => f != null)
+      .forEach(f => playLightNote(ctx, f, startAt, dur, bus));
+    if (onChordStart) {
+      phraseTimers.push(window.setTimeout(() => onChordStart(i), t * 1000));
+    }
+    t += dur;
+  });
+  phraseTimers.push(window.setTimeout(() => { if (onChordStart) onChordStart(-1); }, t * 1000));
+}
+
+
+/* ---------- quiz data: real lyrics, measures, and per-syllable chords, all pulled ----------
+   directly from the BHS MusicXML arrangement (in-the-good-old-summertime.mxl) and verified
+   against the real published PDF pagination. Verse mm.1-33, Chorus mm.34-65, Tag mm.66-70. */
 const QUESTIONS = [
   {
     text: "There's a time in each year that we always hold dear, good old summer time.",
     loc: "measures 1–8",
     page: "../assets/summer-time-page-1.png",
     pageLabel: "Score — page 1",
-    freqs: [130.81, 174.61, 220.0, 311.13],
+    chordSeq: [
+      {"dur":0.5,"freqs":[311.13,174.61,220.0,130.81],"lyric":"There's"},
+      {"dur":0.5,"freqs":[311.13,174.61,220.0,130.81],"lyric":"a"},
+      {"dur":1.0,"freqs":[293.66,174.61,233.08,116.54],"lyric":"time"},
+      {"dur":1.0,"freqs":[349.23,146.83,233.08,116.54],"lyric":"in"},
+      {"dur":1.0,"freqs":[293.66,196.0,233.08,116.54],"lyric":"each"},
+      {"dur":2.0,"freqs":[293.66,174.61,233.08,116.54],"lyric":"year"},
+      {"dur":0.5,"freqs":[311.13,174.61,220.0,130.81],"lyric":"that"},
+      {"dur":0.5,"freqs":[311.13,174.61,220.0,130.81],"lyric":"we"},
+      {"dur":1.0,"freqs":[293.66,174.61,233.08,116.54],"lyric":"al"},
+      {"dur":1.0,"freqs":[349.23,146.83,233.08,116.54],"lyric":"ways"},
+      {"dur":1.0,"freqs":[293.66,196.0,233.08,116.54],"lyric":"hold"},
+      {"dur":3.0,"freqs":[293.66,174.61,207.65,116.54],"lyric":"dear,"},
+      {"dur":1.0,"freqs":[311.13,220.0,196.0,146.83],"lyric":"good"},
+      {"dur":2.0,"freqs":[311.13,261.63,196.0,146.83],"lyric":"old"},
+      {"dur":1.0,"freqs":[277.18,220.0,196.0,146.83],"lyric":"sum"},
+      {"dur":2.0,"freqs":[277.18,196.0,233.08,146.83],"lyric":"mer"},
+      {"dur":2.0,"freqs":[164.81,164.81,233.08,116.54],"lyric":"time."}
+    ],
     answer: "Verse",
     explain: "This opens the whole piece — nothing has been heard yet for it to repeat. That's the Verse: it narrates before the hook arrives."
   },
@@ -454,34 +549,95 @@ const QUESTIONS = [
     loc: "measures 17–24",
     page: "../assets/summer-time-page-2.png",
     pageLabel: "Score — page 2",
-    freqs: [174.61, 220.0, 261.63, 311.13],
+    chordSeq: [
+      {"dur":0.5,"freqs":[311.13,174.61,220.0,130.81],"lyric":"When"},
+      {"dur":0.5,"freqs":[311.13,174.61,220.0,130.81],"lyric":"your"},
+      {"dur":1.0,"freqs":[293.66,174.61,233.08,116.54],"lyric":"day's"},
+      {"dur":1.0,"freqs":[349.23,146.83,233.08,116.54],"lyric":"work"},
+      {"dur":1.0,"freqs":[293.66,196.0,233.08,116.54],"lyric":"is"},
+      {"dur":1.0,"freqs":[293.66,174.61,233.08,116.54],"lyric":"o"},
+      {"dur":1.0,"freqs":[349.23,146.83,233.08,116.54],"lyric":"ver"},
+      {"dur":1.0,"freqs":[311.13,196.0,220.0,130.81],"lyric":"then"},
+      {"dur":1.0,"freqs":[293.66,174.61,233.08,116.54],"lyric":"you"},
+      {"dur":1.0,"freqs":[349.23,146.83,233.08,116.54],"lyric":"are"},
+      {"dur":1.0,"freqs":[293.66,174.61,233.08,116.54],"lyric":"in"},
+      {"dur":1.0,"freqs":[293.66,174.61,207.65,116.54],"lyric":"clo"},
+      {"dur":1.0,"freqs":[349.23,146.83,207.65,116.54],"lyric":"ver"},
+      {"dur":1.0,"freqs":[293.66,174.61,207.65,116.54],"lyric":"and"},
+      {"dur":1.5,"freqs":[311.13,196.0,233.08,146.83],"lyric":"life"},
+      {"dur":0.5,"freqs":[311.13,185.0,220.0,130.81],"lyric":"is"},
+      {"dur":1.0,"freqs":[311.13,196.0,233.08,116.54],"lyric":"one"},
+      {"dur":1.0,"freqs":[277.18,220.0,196.0,146.83],"lyric":"beau"},
+      {"dur":1.0,"freqs":[277.18,196.0,233.08,146.83],"lyric":"ti"},
+      {"dur":1.0,"freqs":[277.18,220.0,196.0,146.83],"lyric":"ful"},
+      {"dur":1.5,"freqs":[293.66,174.61,233.08,116.54],"lyric":"rhyme."}
+    ],
     answer: "Verse",
     explain: "Still telling us something new the lyric hasn't said yet, rather than repeating a line already heard — the Verse still doing its scene-setting work."
   },
   {
     text: "In the good old summer time, in the good old summer time,",
-    loc: "measures 32–39",
-    page: "../assets/summer-time-page-2.png",
-    pageLabel: "Score — page 2",
-    freqs: [130.81, 174.61, 220.0, 311.13],
+    loc: "measures 34–41",
+    page: "../assets/summer-time-page-3.png",
+    pageLabel: "Score — page 3",
+    chordSeq: [
+      {"dur":1.0,"freqs":[311.13,174.61,220.0,130.81],"lyric":"In"},
+      {"dur":1.0,"freqs":[311.13,196.0,220.0,130.81],"lyric":"the"},
+      {"dur":1.0,"freqs":[293.66,174.61,233.08,116.54],"lyric":"good"},
+      {"dur":2.0,"freqs":[349.23,146.83,233.08,116.54],"lyric":"old"},
+      {"dur":2.0,"freqs":[293.66,174.61,233.08,116.54],"lyric":"sum"},
+      {"dur":1.0,"freqs":[293.66,196.0,174.61,116.54],"lyric":"mer"},
+      {"dur":4.0,"freqs":[349.23,220.0,196.0,116.54],"lyric":"time,"},
+      {"dur":1.0,"freqs":[293.66,220.0,196.0,174.61],"lyric":"in"},
+      {"dur":1.0,"freqs":[293.66,196.0,196.0,174.61],"lyric":"the"},
+      {"dur":1.0,"freqs":[311.13,196.0,207.65,146.83],"lyric":"good"},
+      {"dur":2.0,"freqs":[311.13,220.0,207.65,146.83],"lyric":"old"},
+      {"dur":2.0,"freqs":[277.18,196.0,207.65,146.83],"lyric":"sum"},
+      {"dur":1.0,"freqs":[277.18,174.61,233.08,146.83],"lyric":"mer"},
+      {"dur":2.0,"freqs":[293.66,174.61,233.08,116.54],"lyric":"time,"}
+    ],
     answer: "Chorus",
     explain: "Say the title out loud — that's exactly what's being sung here. The most repeated, most recognizable material in the piece is the Chorus."
   },
   {
     text: "You hold her hand and she holds yours and that's a very good sign",
-    loc: "measures 48–55",
+    loc: "measures 50–57",
     page: "../assets/summer-time-page-3.png",
     pageLabel: "Score — page 3",
-    freqs: [174.61, 220.0, 261.63, 311.13],
+    chordSeq: [
+      {"dur":1.0,"freqs":[293.66,220.0,174.61,130.81],"lyric":"You"},
+      {"dur":2.0,"freqs":[349.23,146.83,233.08,116.54],"lyric":"hold"},
+      {"dur":1.0,"freqs":[311.13,174.61,220.0,130.81],"lyric":"her"},
+      {"dur":2.0,"freqs":[293.66,233.08,174.61,116.54],"lyric":"hand"},
+      {"dur":1.0,"freqs":[311.13,261.63,220.0,174.61],"lyric":"and"},
+      {"dur":2.0,"freqs":[349.23,293.66,233.08,116.54],"lyric":"she"},
+      {"dur":1.0,"freqs":[311.13,261.63,220.0,174.61],"lyric":"holds"},
+      {"dur":2.0,"freqs":[293.66,233.08,207.65,174.61],"lyric":"yours"},
+      {"dur":1.0,"freqs":[293.66,233.08,207.65,174.61],"lyric":"and"},
+      {"dur":2.0,"freqs":[311.13,233.08,196.0,155.56],"lyric":"that's"},
+      {"dur":1.0,"freqs":[311.13,261.63,196.0,155.56],"lyric":"a"},
+      {"dur":1.0,"freqs":[277.18,233.08,196.0,155.56],"lyric":"ver"},
+      {"dur":1.0,"freqs":[277.18,196.0,233.08,155.56],"lyric":"y"},
+      {"dur":1.0,"freqs":[277.18,233.08,196.0,155.56],"lyric":"good"},
+      {"dur":2.0,"freqs":[293.66,174.61,233.08,116.54],"lyric":"sign"}
+    ],
     answer: "Chorus",
-    explain: "New lyric content, but tucked inside the larger repeating Chorus block (mm. 32–63) — not a separate section on its own."
+    explain: "New lyric content, but tucked inside the larger repeating Chorus block (mm. 34–65) — not a separate section on its own."
   },
   {
     text: "In the good old summer time.",
-    loc: "measures 64–68",
+    loc: "measures 66–69",
     page: "../assets/summer-time-page-4.png",
     pageLabel: "Score — page 4",
-    freqs: [116.54, 233.08, 293.66, 349.23],
+    chordSeq: [
+      {"dur":1.0,"freqs":[349.23,293.66,233.08,116.54],"lyric":"In"},
+      {"dur":1.0,"freqs":[349.23,293.66,233.08,116.54],"lyric":"the"},
+      {"dur":1.0,"freqs":[392.0,329.63,233.08,130.81],"lyric":"good"},
+      {"dur":2.0,"freqs":[392.0,329.63,233.08,130.81],"lyric":"old"},
+      {"dur":2.0,"freqs":[440.0,311.13,261.63,174.61],"lyric":"sum"},
+      {"dur":1.0,"freqs":[349.23,311.13,220.0,130.81],"lyric":"mer"},
+      {"dur":3.0,"freqs":[466.16,293.66,174.61,116.54],"lyric":"time."}
+    ],
     answer: "Tag",
     explain: "The very last thing sung — just four measures, repeating the title one final time before the last chord resolves. Short, final, built to be held: that's a Tag."
   }
@@ -493,6 +649,7 @@ const card = document.getElementById('quizCard');
 const colorClass = { Verse: "verse", Chorus: "chorus", Tag: "tag" };
 
 function renderQuiz(){
+  stopPhrase();
   if(idx >= order.length){
     card.innerHTML = `
       <div class="quiz-done">
@@ -515,7 +672,7 @@ function renderQuiz(){
     <div class="quiz-snippet">"${q.text}"</div>
     <div class="quiz-loc">${q.loc}</div>
     <div class="quiz-controls-row">
-      <button class="btn ghost" id="playBtn">▶ Play the chord</button>
+      <button class="btn ghost" id="playBtn">▶ Play the phrase</button>
       <a class="btn ghost score-link" href="${q.page}" target="_blank" rel="noopener">📄 ${q.pageLabel}</a>
     </div>
     <div class="quiz-buttons" id="btnRow">
@@ -531,7 +688,18 @@ function renderQuiz(){
     </div>
   `;
 
-  document.getElementById('playBtn').onclick = () => playChord(q.freqs);
+  const playBtn = document.getElementById('playBtn');
+  playBtn.onclick = () => {
+    const totalBeats = q.chordSeq.reduce((s,c) => s + c.dur, 0);
+    const bpm = 115;
+    playPhrase(q.chordSeq, bpm);
+    playBtn.textContent = '♪ Playing…';
+    playBtn.disabled = true;
+    window.setTimeout(() => {
+      playBtn.textContent = '▶ Play the phrase';
+      playBtn.disabled = false;
+    }, (totalBeats * 60 / bpm) * 1000 + 150);
+  };
 
   document.querySelectorAll('#btnRow .btn').forEach(btn => {
     btn.onclick = () => {
