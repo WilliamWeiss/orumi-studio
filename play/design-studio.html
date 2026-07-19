@@ -3058,7 +3058,14 @@
         project.blocks = [];
       }
 
-      project.blocks = project.blocks.map(block => {
+      // Drop any leftover auto-generated filler rests -- these were only
+      // ever meant to be regenerated/discarded every render by
+      // syncGeneratedRests(), never real saved data. That mechanism is gone
+      // now, so any that already exist in a saved project get cleaned up
+      // here instead, on next load.
+      project.blocks = project.blocks
+        .filter(block => !block.generated)
+        .map(block => {
         const isRest = block.type === "rest" || block.midi === null || block.midi === undefined;
         const midi = isRest ? null : (Number.isFinite(Number(block.midi)) ? Number(block.midi) : 60);
 
@@ -3784,64 +3791,15 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       });
     }
 
-    function generateRestFill(laneId) {
-      // Remove existing generated rests for this lane
-      project.blocks = project.blocks.filter(b => !(b.laneId === laneId && b.generated));
-
-      const projectEnd = getProjectLength();
-      if (projectEnd <= 0) return;
-
-      const bpm = getBeatsPerMeasure() || 4;
-
-      // Real blocks on this lane sorted by start
-      const realBlocks = project.blocks
-        .filter(b => b.laneId === laneId && !b.generated)
-        .sort((a, b) => Number(a.startBeat) - Number(b.startBeat));
-
-      // Collect gap regions
-      const gaps = [];
-      let cursor = 0;
-      realBlocks.forEach(block => {
-        const start = Number(block.startBeat);
-        if (start > cursor + 0.01) gaps.push({ start: cursor, end: start });
-        cursor = Math.max(cursor, start + Number(block.durationBeats));
-      });
-      if (cursor < projectEnd - 0.01) gaps.push({ start: cursor, end: projectEnd });
-
-      // Slice each gap into measure-aligned chunks
-      gaps.forEach(gap => {
-        let pos = gap.start;
-        while (pos < gap.end - 0.01) {
-          const chunkEnd = Math.min(pos + 1, gap.end);
-          const dur = snapBeat(chunkEnd - pos);
-          if (dur >= MIN_DURATION) {
-            project.blocks.push({
-              id: createId("rest"),
-              type: "rest",
-              laneId,
-              startBeat: snapBeat(pos),
-              durationBeats: dur,
-              velocity: 0,
-              name: "Rest",
-              voice: null,
-              system: project.context.system,
-              source: "generated",
-              sourceId: null,
-              generated: true
-            });
-          }
-          pos = chunkEnd;
-        }
-      });
-    }
-
-    function syncGeneratedRests() {
-      project.lanes.forEach(lane => generateRestFill(lane.id));
-    }
+    // generateRestFill()/syncGeneratedRests() removed -- they auto-filled
+    // translucent filler rests into every lane gap on every render, which is
+    // what scattered synthetic rests throughout imported MusicXML files.
+    // No longer needed: the two places that used to rely on a generated rest
+    // existing (getBlocksAtChordBeat, beginReplaceSelectedChord) now
+    // synthesize their own placeholder on demand instead.
 
     function render() {
       normalizeProject();
-      syncGeneratedRests();
       document.body.classList.toggle("show-generated-rests", showGeneratedRests);
       if (focusRange) {
         requestAnimationFrame(() => applyFocusOverlay());
@@ -5214,18 +5172,35 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         project.lanes.find(lane => lane.id === perspectiveBlock.laneId) ||
         null;
 
-      // Auto-include generated rests for lanes with no real block at the anchor beat
+      // Include any resting lane at the anchor beat -- a real rest block if
+      // one exists, otherwise a synthetic placeholder so Chord Factory still
+      // sees every voice. Mirrors the same fallback getBlocksAtChordBeat()
+      // already uses; no longer depends on an auto-generated filler rest
+      // physically existing in project.blocks.
       const chordAnchorBeat = getSelectedChordAnchorBeat(selectedBlocks);
       const lanesAlreadyCovered = new Set(selectedBlocks.map(b => b.laneId));
       project.lanes.forEach(lane => {
         if (lanesAlreadyCovered.has(lane.id)) return;
-        const genRest = project.blocks.find(b =>
+
+        const restBlock = project.blocks.find(b =>
           b.laneId === lane.id &&
-          b.generated &&
+          b.type === "rest" &&
           Number(b.startBeat) <= chordAnchorBeat &&
           Number(b.startBeat) + Number(b.durationBeats) > chordAnchorBeat
         );
-        if (genRest) selectedBlocks.push(genRest);
+        if (restBlock) { selectedBlocks.push(restBlock); return; }
+
+        selectedBlocks.push({
+          id: "rest-placeholder-" + lane.id,
+          type: "rest",
+          laneId: lane.id,
+          startBeat: chordAnchorBeat,
+          durationBeats: MIN_DURATION,
+          midi: null,
+          velocity: 0,
+          name: "Rest",
+          isPlaceholder: true
+        });
       });
 
       const analysis = analyzeSelectedHarmony(selectedBlocks);
@@ -11567,19 +11542,30 @@ mxmlImportConfirm.addEventListener("click", () => {
               : measureBeat;
 
             if (!isRest) {
-              // Determine lane from staff + stem
+              // Determine lane primarily from <voice> number (1 = upper
+              // part [tenor/baritone], 2 = lower part [lead/bass]) -- the
+              // actual semantic voice identity MusicXML assigns. Stem
+              // direction is only a rendering choice and occasionally
+              // diverges from it (confirmed: 2 of 600 notes in this piece
+              // disagree, both a voice-1 note engraved with a downward
+              // stem) -- so it's now a fallback, not the primary rule.
               let laneId;
-              if (isTreble) {
+              const hasVoiceTag = el.querySelector(":scope > voice") !== null;
+
+              if (hasVoiceTag) {
+                laneId = isTreble
+                  ? (voice === "2" ? "lead" : "tenor")
+                  : (voice === "2" ? "bass" : "baritone");
+              } else if (isTreble) {
                 laneId = stem === "up" ? "tenor" : "lead";
               } else {
                 laneId = stem === "up" ? "baritone" : "bass";
               }
 
-              // Whole notes (type === "whole") — no stem, split by pitch
-              // if there's already a note at this beat in this staff,
-              // assign upper pitch to upper voice, lower to lower
-              if (type === "whole" || type === "half" && !el.querySelector(":scope > stem")) {
-                // No stem — use chord position
+              // Whole notes with neither a voice nor a stem to go on --
+              // split by pitch, using whichever lane already has a note at
+              // this beat in this staff.
+              if (!hasVoiceTag && (type === "whole" || type === "half" && !el.querySelector(":scope > stem"))) {
                 const existing = lanes[isTreble ? "lead" : "bass"].find(
                   b => Math.abs(b.startBeat - startBeat) < 0.01
                 );
@@ -11605,6 +11591,27 @@ mxmlImportConfirm.addEventListener("click", () => {
                 name: midiToDisplayName(midi),
                 lyric,
                 voice
+              });
+            } else {
+              // Explicit notated rests were previously discarded here --
+              // silently correct as long as the old auto-generated filler
+              // rests papered over the resulting gap, but a real bug now
+              // that mechanism is gone. Rests have no stem to split
+              // tenor/lead or baritone/bass, so fall back to MusicXML's
+              // standard two-voice convention: voice 1 = the upper/stem-up
+              // voice, voice 2 = the lower/stem-down voice.
+              const laneId = isTreble
+                ? (voice === "2" ? "lead" : "tenor")
+                : (voice === "2" ? "bass" : "baritone");
+
+              lanes[laneId].push({
+                startBeat,
+                durationBeats,
+                midi: null,
+                name: "Rest",
+                lyric: null,
+                voice,
+                isRest: true
               });
             }
 
@@ -11695,17 +11702,17 @@ mxmlImportConfirm.addEventListener("click", () => {
       laneIds.forEach(laneId => {
         (data.lanes[laneId] || []).forEach(note => {
           newProject.blocks.push({
-            id: createId("block"),
-            type: "note",
+            id: createId(note.isRest ? "rest" : "block"),
+            type: note.isRest ? "rest" : "note",
             laneId,
-            midi: note.midi,
-            name: note.name,
+            midi: note.isRest ? null : note.midi,
+            name: note.isRest ? "Rest" : note.name,
             startBeat: note.startBeat,
             durationBeats: Math.max(0.25, note.durationBeats),
-            velocity: 86,
-            voice: newProject.lanes.find(l => l.id === laneId)?.voice || null,
+            velocity: note.isRest ? 0 : 86,
+            voice: note.isRest ? null : (newProject.lanes.find(l => l.id === laneId)?.voice || null),
             system: newProject.context.system,
-            lyric: note.lyric || null,
+            lyric: note.isRest ? null : (note.lyric || null),
             source: "musicxml-import"
           });
         });
@@ -11746,17 +11753,17 @@ mxmlImportConfirm.addEventListener("click", () => {
           const laneHasBlocks = project.blocks.some(b => b.laneId === laneId);
           if (!laneHasBlocks) {
             project.blocks.push({
-              id: createId("block"),
-              type: "note",
+              id: createId(note.isRest ? "rest" : "block"),
+              type: note.isRest ? "rest" : "note",
               laneId,
-              midi: note.midi,
-              name: note.name,
+              midi: note.isRest ? null : note.midi,
+              name: note.isRest ? "Rest" : note.name,
               startBeat: note.startBeat,
               durationBeats: Math.max(0.25, note.durationBeats),
-              velocity: 86,
-              voice: project.lanes.find(l => l.id === laneId)?.voice || null,
+              velocity: note.isRest ? 0 : 86,
+              voice: note.isRest ? null : (project.lanes.find(l => l.id === laneId)?.voice || null),
               system: project.context.system,
-              lyric: note.lyric || null,
+              lyric: note.isRest ? null : (note.lyric || null),
               source: "musicxml-import"
             });
           }
