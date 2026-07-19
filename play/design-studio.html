@@ -2166,7 +2166,8 @@
           { id: "baritone", name: "Baritone", role: "inner harmony", voice: "orumiVocalAh" },
           { id: "bass", name: "Bass", role: "foundation", voice: "orumiBassVoice" }
         ],
-        blocks: []
+        blocks: [],
+        structuralMarkers: []
       };
     }
 
@@ -3082,6 +3083,71 @@
           generated: block.generated || false
         };
       });
+
+      if (!Array.isArray(project.structuralMarkers)) {
+        project.structuralMarkers = [];
+      }
+
+      const validSectionTypes = new Set(
+        (ORUMI_CATALOG.structure && ORUMI_CATALOG.structure.sectionTypes) || []
+      );
+      const validFunctions = new Set(
+        (ORUMI_CATALOG.structure && ORUMI_CATALOG.structure.transitionFunctions) || []
+      );
+
+      project.structuralMarkers = project.structuralMarkers
+        .filter(marker => marker && validSectionTypes.has(marker.sectionType))
+        .map(marker => {
+          const normalized = {
+            id: marker.id || createId("structure"),
+            beat: Number.isFinite(Number(marker.beat)) ? Number(marker.beat) : 0,
+            sectionType: marker.sectionType
+          };
+
+          if (marker.transitionFunction && validFunctions.has(marker.transitionFunction)) {
+            normalized.transitionFunction = marker.transitionFunction;
+          }
+
+          if (normalized.sectionType === "tag") {
+            if (Number.isFinite(Number(marker.iteration))) {
+              normalized.iteration = Number(marker.iteration);
+            }
+            if (Number.isFinite(Number(marker.of))) {
+              normalized.of = Number(marker.of);
+            }
+          }
+
+          if (
+            marker.feign &&
+            typeof marker.feign === "object" &&
+            ORUMI_CATALOG.structure.feign.validTargets.includes(marker.feign.target)
+          ) {
+            normalized.feign = { target: marker.feign.target };
+          }
+
+          return normalized;
+        })
+        .sort((a, b) => a.beat - b.beat);
+    }
+
+    // Single source of truth for "what structural section is active at this
+    // beat" -- mirrors getActiveKeyAt()'s pattern in Progression Builder.
+    // Returns the most recent structuralMarker at or before the given beat,
+    // or null if no markers exist yet.
+    // Thin wrappers around the pure ORUMI_CATALOG.structure functions -- DS
+    // supplies its own project.structuralMarkers; the catalog holds the
+    // actual logic so other tools can call the exact same functions once
+    // they have a structuralMarkers array of their own.
+    function getActiveStructureAt(beat) {
+      return ORUMI_CATALOG.structure.getActiveMarkerAt(project.structuralMarkers, beat);
+    }
+
+    function getPreviousStructuralMarker(markerId) {
+      return ORUMI_CATALOG.structure.getPreviousMarker(project.structuralMarkers, markerId);
+    }
+
+    function getExpectedFunctionAt(beat) {
+      return ORUMI_CATALOG.structure.getExpectedFunctionAt(project.structuralMarkers, beat);
     }
 
     function projectHasDesignContent() {

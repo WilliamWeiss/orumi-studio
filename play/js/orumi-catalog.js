@@ -503,6 +503,97 @@ const ORUMI_CATALOG = {
     "Gb", "G", "Ab", "A", "Bb", "B"
   ],
 
+  // Barbershop song-structure vocabulary. Shared across Design Studio
+  // (structural authority -- project.structuralMarkers / getActiveStructureAt)
+  // and Progression Builder Phase C (getExpectedFunctionAt).
+  structure: {
+    sectionTypes: [
+      "intro", "statement", "expansion", "transition",
+      "return", "tag", "coda"
+    ],
+
+    transitionFunctions: [
+      "bloom", "escalate", "settle", "homecoming", "suspend"
+    ],
+
+    // Keyed by "fromSectionType->toSectionType". Governs which
+    // transitionFunction values are valid on a marker of "to" type when it
+    // follows a marker of "from" type, and which one is the default.
+    // "tag->tag" is not a new boundary type -- it's a repeat/lap on the Tag
+    // marker itself (iteration N -> N+1); each lap can carry its own function.
+    boundaries: {
+      "intro->statement":      { valid: ["bloom"],                          default: "bloom" },
+      "statement->expansion":  { valid: ["bloom", "escalate"],              default: "bloom" },
+      "expansion->transition": { valid: ["escalate", "suspend"],            default: "escalate" },
+      "transition->return":    { valid: ["settle", "homecoming"],          default: "homecoming" },
+      "return->tag":           { valid: ["escalate", "homecoming", "settle"], default: "escalate" },
+      "tag->tag":              { valid: ["escalate", "suspend"],            default: "escalate" },
+      "tag->coda":             { valid: ["settle"],                         default: "settle" }
+    },
+
+    // Feign is a decoration, not a competing section/function type -- it
+    // rides alongside sectionType/transitionFunction on the marker it
+    // decorates. Never defaulted; always a deliberate, hand-placed override.
+    // Scope is intentionally narrow: terminal-adjacent boundaries only
+    // (Return->Tag, or an early Tag iteration pretending to be final).
+    feign: {
+      validTargets: ["coda", "tag"]
+    },
+
+    // Pure query functions -- take a structuralMarkers array as an argument
+    // rather than reaching into a global project, so any tool (Design
+    // Studio, Progression Builder, or future tools) can call the exact same
+    // logic once it has a structuralMarkers array of its own.
+
+    getActiveMarkerAt(markers, beat) {
+      if (!Array.isArray(markers) || markers.length === 0) return null;
+
+      let active = null;
+
+      for (const marker of markers) {
+        if (marker.beat <= beat) {
+          active = marker;
+        } else {
+          break;
+        }
+      }
+
+      return active || markers[0];
+    },
+
+    getPreviousMarker(markers, markerId) {
+      if (!Array.isArray(markers)) return null;
+
+      const index = markers.findIndex(m => m.id === markerId);
+      if (index <= 0) return null;
+
+      return markers[index - 1];
+    },
+
+    // Returns { boundary, valid, default, actual, feign } describing the
+    // boundary crossed to reach the active marker at this beat, or null if
+    // there's no marker yet, or no boundary before the first marker.
+    getExpectedFunctionAt(markers, beat) {
+      const active = this.getActiveMarkerAt(markers, beat);
+      if (!active) return null;
+
+      const previous = this.getPreviousMarker(markers, active.id);
+      if (!previous) return null;
+
+      const boundaryKey = previous.sectionType + "->" + active.sectionType;
+      const boundary = this.boundaries[boundaryKey];
+      if (!boundary) return null;
+
+      return {
+        boundary: boundaryKey,
+        valid: boundary.valid,
+        default: boundary.default,
+        actual: active.transitionFunction || null,
+        feign: active.feign || null
+      };
+    }
+  },
+
   tints: {
     gold: {
       native: "rgba(255, 238, 170, 0.98)",

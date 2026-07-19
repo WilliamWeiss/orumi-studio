@@ -491,6 +491,44 @@ const ORUMI_CATALOG = {
     "Gb", "G", "Ab", "A", "Bb", "B"
   ],
 
+  // Barbershop song-structure vocabulary. Shared across Design Studio
+  // (structural authority -- project.structuralMarkers / getActiveStructureAt)
+  // and Progression Builder Phase C (getExpectedFunctionAt).
+  structure: {
+    sectionTypes: [
+      "intro", "statement", "expansion", "transition",
+      "return", "tag", "coda"
+    ],
+
+    transitionFunctions: [
+      "bloom", "escalate", "settle", "homecoming", "suspend"
+    ],
+
+    // Keyed by "fromSectionType->toSectionType". Governs which
+    // transitionFunction values are valid on a marker of "to" type when it
+    // follows a marker of "from" type, and which one is the default.
+    // "tag->tag" is not a new boundary type -- it's a repeat/lap on the Tag
+    // marker itself (iteration N -> N+1); each lap can carry its own function.
+    boundaries: {
+      "intro->statement":      { valid: ["bloom"],                          default: "bloom" },
+      "statement->expansion":  { valid: ["bloom", "escalate"],              default: "bloom" },
+      "expansion->transition": { valid: ["escalate", "suspend"],            default: "escalate" },
+      "transition->return":    { valid: ["settle", "homecoming"],          default: "homecoming" },
+      "return->tag":           { valid: ["escalate", "homecoming", "settle"], default: "escalate" },
+      "tag->tag":              { valid: ["escalate", "suspend"],            default: "escalate" },
+      "tag->coda":             { valid: ["settle"],                         default: "settle" }
+    },
+
+    // Feign is a decoration, not a competing section/function type -- it
+    // rides alongside sectionType/transitionFunction on the marker it
+    // decorates. Never defaulted; always a deliberate, hand-placed override.
+    // Scope is intentionally narrow: terminal-adjacent boundaries only
+    // (Return->Tag, or an early Tag iteration pretending to be final).
+    feign: {
+      validTargets: ["coda", "tag"]
+    }
+  },
+
   tints: {
     gold: {
       native: "rgba(255, 238, 170, 0.98)",

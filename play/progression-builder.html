@@ -1185,6 +1185,20 @@
       "orumiPendingProgressionReviewPayload"
     ];
 
+    // Kept separate from HARMONY_PAYLOAD_KEYS/PROGRESSION_REVIEW_PAYLOAD_KEYS
+    // on purpose: those two arrays double as "does a valid payload exist"
+    // lookups (first non-null key wins), and this key holds a differently
+    // shaped object ({ currentProjectId, project }), not a harmony/review
+    // payload -- mixing it in could cause a stale full-project clone to be
+    // misread as one of those payloads once the narrower keys are cleared.
+    const DESIGN_STUDIO_PROJECT_HANDOFF_KEY = "orumiDesignStudioProjectForProgression";
+
+    function readInboundStructuralMarkers() {
+      const parsed = safeJsonParse(localStorage.getItem(DESIGN_STUDIO_PROJECT_HANDOFF_KEY));
+      const markers = parsed && parsed.project && parsed.project.structuralMarkers;
+      return Array.isArray(markers) ? markers : [];
+    }
+
     const CHORD_FACTORY_DESIGN_PAYLOAD_KEYS = [
       "orumiChordFactoryPayload",
       "orumiPendingChordFactoryPayload",
@@ -1210,6 +1224,12 @@
     let progressionReviewPayload = null;
     let harmonyPayload = null;
     let harmonyChoices = {};
+
+    // Structural markers arrive piggybacked on the full-project clone DS
+    // writes on every handoff (Suggest Harmony, Review Progression, or
+    // Focus Range) -- not tied to any one handoff mode, so this is read
+    // independently of shouldOpenSuggestHarmonyMode/shouldOpenProgressionReviewMode.
+    let inboundStructuralMarkers = [];
 
     const HARMONY_VOICE_ROLES = [
       { id: "tenor", label: "Tenor", order: 3 },
@@ -1316,6 +1336,7 @@
       HARMONY_PAYLOAD_KEYS.forEach(key => {
         localStorage.removeItem(key);
       });
+      localStorage.removeItem(DESIGN_STUDIO_PROJECT_HANDOFF_KEY);
     }
 
     function shouldOpenProgressionReviewMode() {
@@ -1353,6 +1374,7 @@
       PROGRESSION_REVIEW_PAYLOAD_KEYS.forEach(key => {
         localStorage.removeItem(key);
       });
+      localStorage.removeItem(DESIGN_STUDIO_PROJECT_HANDOFF_KEY);
     }
 
     function normalizeMidiToNoteName(value) {
@@ -4488,6 +4510,8 @@
         clearPlaybackTimers();
       }
     );
+
+    inboundStructuralMarkers = readInboundStructuralMarkers();
 
     const reviewModeActive = initializeProgressionReviewMode();
     const suggestModeActive = reviewModeActive ? false : initializeSuggestHarmonyMode();
