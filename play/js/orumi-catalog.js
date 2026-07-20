@@ -594,6 +594,205 @@ const ORUMI_CATALOG = {
     }
   },
 
+  // Phase B chord-transition classifier (Solid/Activated/Resolved/Shadowed/
+  // Returned/Kindred/Tinted/Modulate). Relocated here from Progression
+  // Builder so any tool (Progression Builder, Chord Factory) can call
+  // classifyProgression() the same way DS/PB already share
+  // ORUMI_CATALOG.structure. Ported originally from a validated Python
+  // prototype (tested against 6 real barbershop pieces + ground-truth-
+  // confirmed against a known notated key change). Pure -- touches only
+  // ORUMI_CATALOG.pitchClasses and whatever progression array is passed
+  // in, nothing tool-specific. Internal calls use this.xxx(...) since
+  // these are now object methods, not flat globals.
+  harmonicClassification: {
+    chordQualityIntervals: {
+      major: [0, 4, 7], minor: [0, 3, 7],
+      major6: [0, 4, 7, 9], minor6: [0, 3, 7, 9],
+      add9: [0, 2, 4, 7], dominant9: [0, 2, 4, 7, 10],
+      major9: [0, 2, 4, 7, 11], minor9: [0, 2, 3, 7, 10],
+      diminished: [0, 3, 6], augmented: [0, 4, 8],
+      sus2: [0, 2, 7], sus4: [0, 5, 7],
+      dominant7: [0, 4, 7, 10], major7: [0, 4, 7, 11],
+      minor7: [0, 3, 7, 10], halfDiminished7: [0, 3, 6, 10],
+      diminished7: [0, 3, 6, 9]
+    },
+
+    STABLE_QUALITIES: new Set([
+      "major", "minor", "major6", "minor6", "major7", "minor7", "add9", "major9", "minor9"
+    ]),
+
+    DOMINANT_FUNCTION_QUALITIES: new Set([
+      "dominant7", "dominant9", "diminished", "diminished7", "halfDiminished7", "augmented"
+    ]),
+
+    MAJOR_KEY_DIATONIC_QUALITY: { 0: "major", 2: "minor", 4: "minor", 5: "major", 7: "major", 9: "minor", 11: "diminished" },
+    MINOR_KEY_DIATONIC_QUALITY: { 0: "minor", 2: "diminished", 3: "major", 5: "minor", 7: "minor", 8: "major", 10: "major" },
+
+    getChordDisplayName(chord) {
+      return (chord && (chord.name || chord.root)) || "?";
+    },
+
+    qualityMajorMinorNess(quality) {
+      if (["major", "major6", "major7", "add9", "major9", "dominant7", "dominant9", "sus2", "sus4", "augmented"].includes(quality)) return "major";
+      if (["minor", "minor6", "minor7", "minor9"].includes(quality)) return "minor";
+      if (["diminished", "diminished7", "halfDiminished7"].includes(quality)) return "diminished";
+      return null;
+    },
+
+    chordRootPc(chord) {
+      return ORUMI_CATALOG.pitchClasses[chord.root] ? ORUMI_CATALOG.pitchClasses[chord.root].number : 0;
+    },
+
+    chordToneSet(chord) {
+      const intervals = this.chordQualityIntervals[chord.quality] || [0, 4, 7];
+      const rootPc = this.chordRootPc(chord);
+      return new Set(intervals.map(iv => (rootPc + iv) % 12));
+    },
+
+    sharedToneCount(chordA, chordB) {
+      const a = this.chordToneSet(chordA);
+      const b = this.chordToneSet(chordB);
+      let count = 0;
+      a.forEach(pc => { if (b.has(pc)) count++; });
+      return count;
+    },
+
+    getActiveKeyAt(progression, index) {
+      for (let i = Math.min(index, progression.length - 1); i >= 0; i--) {
+        if (progression[i] && progression[i].modulation) {
+          return {
+            root: progression[i].modulation.root,
+            mode: progression[i].modulation.mode,
+            modulatedAtIndex: i
+          };
+        }
+      }
+
+      const first = progression[0] || {};
+      const firstModeText = String(first.mode || "").toLowerCase();
+      const firstIsMinor = firstModeText === "minor" || firstModeText === "aeolian";
+
+      return {
+        root: first.keyRoot || "C",
+        mode: firstIsMinor ? "minor" : "major",
+        modulatedAtIndex: -1
+      };
+    },
+
+    classifyProgression(progression) {
+      const results = [null];
+      let establishedTonicsSeen = 0;
+      let recentPairs = [];
+
+      if (progression[0] && progression[0].root) {
+        const initialKey = this.getActiveKeyAt(progression, 0);
+        const initialTonicPc = ORUMI_CATALOG.pitchClasses[initialKey.root] ? ORUMI_CATALOG.pitchClasses[initialKey.root].number : 0;
+        const firstRootPc = this.chordRootPc(progression[0]);
+        const firstIsTonic = firstRootPc === initialTonicPc &&
+          ["major", "major6", "major7", "add9", "major9"].includes(progression[0].quality);
+        if (firstIsTonic) establishedTonicsSeen = 1;
+      }
+
+      for (let i = 1; i < progression.length; i++) {
+        const prevChord = progression[i - 1];
+        const curChord = progression[i];
+
+        if (!prevChord || !prevChord.root || !curChord || !curChord.root) {
+          results.push(null);
+          continue;
+        }
+
+        if (curChord.modulation) {
+          results.push({
+            stage: "Modulate",
+            reason: "New key center: " + curChord.modulation.root +
+              (curChord.modulation.mode === "minor" ? " Minor" : " Major")
+          });
+          establishedTonicsSeen = 0;
+          recentPairs.push([this.getChordDisplayName(prevChord), this.getChordDisplayName(curChord)]);
+          continue;
+        }
+
+        const activeKey = this.getActiveKeyAt(progression, i);
+        const tonicPc = ORUMI_CATALOG.pitchClasses[activeKey.root] ? ORUMI_CATALOG.pitchClasses[activeKey.root].number : 0;
+        const diatonicTable = activeKey.mode === "minor" ? this.MINOR_KEY_DIATONIC_QUALITY : this.MAJOR_KEY_DIATONIC_QUALITY;
+
+        const prevIsDominant = this.DOMINANT_FUNCTION_QUALITIES.has(prevChord.quality);
+        const curIsDominant = this.DOMINANT_FUNCTION_QUALITIES.has(curChord.quality);
+        const curIsStable = this.STABLE_QUALITIES.has(curChord.quality);
+
+        const prevRootPc = this.chordRootPc(prevChord);
+        const curRootPc = this.chordRootPc(curChord);
+        const rootMotion = ((curRootPc - prevRootPc) % 12 + 12) % 12;
+        const isFifthResolution = rootMotion === 5;
+        const sameRoot = rootMotion === 0;
+        const isTonicChord = curRootPc === tonicPc &&
+          ["major", "major6", "major7", "add9", "major9"].includes(curChord.quality);
+
+        let stage = null;
+        let reason = "";
+
+        const curPair = [this.getChordDisplayName(prevChord), this.getChordDisplayName(curChord)];
+        const isVampRepeat = recentPairs.length >= 1 &&
+          recentPairs[recentPairs.length - 1][0] === curPair[1] &&
+          recentPairs[recentPairs.length - 1][1] === curPair[0];
+
+        if (isVampRepeat && prevIsDominant) {
+          stage = "Activated";
+          reason = this.getChordDisplayName(prevChord) + " <-> " + this.getChordDisplayName(curChord) + " vamping -- sustained tension";
+        } else if (prevIsDominant && isFifthResolution && curIsStable) {
+          stage = "Resolved";
+          reason = this.getChordDisplayName(prevChord) + " resolves down a 5th to " + this.getChordDisplayName(curChord);
+        } else if (prevIsDominant && sameRoot && curIsStable) {
+          stage = "Resolved";
+          reason = this.getChordDisplayName(prevChord) + " settles in place to " + this.getChordDisplayName(curChord);
+        } else if (prevIsDominant && !isFifthResolution && !sameRoot && curIsStable) {
+          stage = "Shadowed";
+          reason = this.getChordDisplayName(prevChord) + " doesn't resolve as expected -- lands on " + this.getChordDisplayName(curChord) + " instead";
+        } else if (curIsDominant) {
+          stage = "Activated";
+          reason = this.getChordDisplayName(curChord) + " introduces dominant-function pull";
+        } else if (curIsStable && !prevIsDominant) {
+          if (isTonicChord) {
+            if (establishedTonicsSeen > 0) {
+              stage = "Returned";
+              reason = this.getChordDisplayName(curChord) + " is the tonic, already established earlier";
+            } else {
+              stage = "Solid";
+              reason = this.getChordDisplayName(curChord) + " is the tonic, established here";
+            }
+          } else {
+            const degree = ((curRootPc - tonicPc) % 12 + 12) % 12;
+            const expectedQuality = diatonicTable[degree];
+            const actualFlavor = this.qualityMajorMinorNess(curChord.quality);
+            const shared = this.sharedToneCount(prevChord, curChord);
+
+            if (expectedQuality && actualFlavor && expectedQuality !== actualFlavor &&
+                expectedQuality !== "diminished" && actualFlavor !== "diminished") {
+              stage = "Tinted";
+              reason = this.getChordDisplayName(curChord) + " is normally " + expectedQuality + " here, but is " + actualFlavor + " -- borrowed color";
+            } else if (shared >= 2) {
+              stage = "Kindred";
+              reason = this.getChordDisplayName(curChord) + " shares " + shared + " tones with " + this.getChordDisplayName(prevChord) + " -- same harmonic area";
+            } else {
+              stage = "Solid";
+              reason = this.getChordDisplayName(curChord) + " is stable, low tension";
+            }
+          }
+        } else {
+          stage = "Activated";
+          reason = this.getChordDisplayName(curChord) + " following " + this.getChordDisplayName(prevChord);
+        }
+
+        if (isTonicChord) establishedTonicsSeen++;
+        recentPairs.push(curPair);
+        results.push({ stage, reason });
+      }
+
+      return results;
+    }
+  },
+
   tints: {
     gold: {
       native: "rgba(255, 238, 170, 0.98)",

@@ -4205,23 +4205,33 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         };
       }
 
+      // qualityKey maps each pattern to Orumi's canonical 15-name quality
+      // vocabulary (ORUMI_CATALOG.harmonicClassification.chordQualityIntervals)
+      // so chords built from this analysis can carry a real quality instead
+      // of always falling back to "custom". Five patterns are deliberately
+      // left unmapped (null): power chord, tritone, and the two bare dyads
+      // are incomplete data (no third present to say major/minor), not
+      // chords to force a label onto; minor-major 7 is a real, fully-formed
+      // chord but genuinely isn't part of the barbershop-derived 15-name
+      // vocabulary, so it stays unmapped until/unless that vocabulary grows
+      // to include it.
       const chordPatterns = [
-        { name: "dominant 7", suffix: "7", intervals: [0, 4, 7, 10] },
-        { name: "major 7", suffix: "maj7", intervals: [0, 4, 7, 11] },
-        { name: "minor 7", suffix: "m7", intervals: [0, 3, 7, 10] },
-        { name: "half-diminished 7", suffix: "m7♭5", intervals: [0, 3, 6, 10] },
-        { name: "diminished 7", suffix: "dim7", intervals: [0, 3, 6, 9] },
-        { name: "minor-major 7", suffix: "mMaj7", intervals: [0, 3, 7, 11] },
-        { name: "major", suffix: "", intervals: [0, 4, 7] },
-        { name: "minor", suffix: "m", intervals: [0, 3, 7] },
-        { name: "diminished", suffix: "dim", intervals: [0, 3, 6] },
-        { name: "augmented", suffix: "aug", intervals: [0, 4, 8] },
-        { name: "suspended 2", suffix: "sus2", intervals: [0, 2, 7] },
-        { name: "suspended 4", suffix: "sus4", intervals: [0, 5, 7] },
-        { name: "power chord", suffix: "5", intervals: [0, 7] },
-        { name: "tritone", suffix: " tritone", intervals: [0, 6] },
-        { name: "major third dyad", suffix: " major dyad", intervals: [0, 4] },
-        { name: "minor third dyad", suffix: " minor dyad", intervals: [0, 3] }
+        { name: "dominant 7", suffix: "7", intervals: [0, 4, 7, 10], qualityKey: "dominant7" },
+        { name: "major 7", suffix: "maj7", intervals: [0, 4, 7, 11], qualityKey: "major7" },
+        { name: "minor 7", suffix: "m7", intervals: [0, 3, 7, 10], qualityKey: "minor7" },
+        { name: "half-diminished 7", suffix: "m7♭5", intervals: [0, 3, 6, 10], qualityKey: "halfDiminished7" },
+        { name: "diminished 7", suffix: "dim7", intervals: [0, 3, 6, 9], qualityKey: "diminished7" },
+        { name: "minor-major 7", suffix: "mMaj7", intervals: [0, 3, 7, 11], qualityKey: null },
+        { name: "major", suffix: "", intervals: [0, 4, 7], qualityKey: "major" },
+        { name: "minor", suffix: "m", intervals: [0, 3, 7], qualityKey: "minor" },
+        { name: "diminished", suffix: "dim", intervals: [0, 3, 6], qualityKey: "diminished" },
+        { name: "augmented", suffix: "aug", intervals: [0, 4, 8], qualityKey: "augmented" },
+        { name: "suspended 2", suffix: "sus2", intervals: [0, 2, 7], qualityKey: "sus2" },
+        { name: "suspended 4", suffix: "sus4", intervals: [0, 5, 7], qualityKey: "sus4" },
+        { name: "power chord", suffix: "5", intervals: [0, 7], qualityKey: null },
+        { name: "tritone", suffix: " tritone", intervals: [0, 6], qualityKey: null },
+        { name: "major third dyad", suffix: " major dyad", intervals: [0, 4], qualityKey: null },
+        { name: "minor third dyad", suffix: " minor dyad", intervals: [0, 3], qualityKey: null }
       ];
 
       let bestMatch = null;
@@ -4274,7 +4284,8 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         notesLabel,
         pitchClassLabel,
         chordLabel,
-        detail: bestMatch.pattern.name + (slash ? " · inversion / slash bass" : "")
+        detail: bestMatch.pattern.name + (slash ? " · inversion / slash bass" : ""),
+        qualityKey: bestMatch.pattern.qualityKey || null
       };
     }
 
@@ -4961,7 +4972,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
           name: analysis.chordLabel || "Chord " + (index + 1),
           chordLabel: analysis.chordLabel || "Chord " + (index + 1),
           root: rootMatch && pitchClasses[rootMatch[1]] ? rootMatch[1] : project.context.root,
-          quality: "custom",
+          quality: analysis.qualityKey || "custom",
           system: project.context.system,
           keyRoot: project.context.root,
           family: project.context.family,
