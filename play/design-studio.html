@@ -2086,44 +2086,12 @@
     const voices = ORUMI_CATALOG.voices;
     const systems = ORUMI_CATALOG.systems;
 
-    registerOrumiVoiceCatalog();
-
-    function registerOrumiVoiceCatalog() {
-      if (!ORUMI_CATALOG || !ORUMI_CATALOG.voices) {
-        return;
-      }
-
-      const standardizedVoices = {
-        orumiVocalAh: { label: "Orumi Vocal Ah" },
-        orumiVocalOo: { label: "Orumi Vocal Oo" },
-        orumiVocalHum: { label: "Orumi Vocal Hum" },
-        orumiChoir: { label: "Orumi Choir" },
-        orumiLeadVoice: { label: "Orumi Lead Voice" },
-        orumiBassVoice: { label: "Orumi Bass Voice" },
-        orumiWarmPad: { label: "Orumi Warm Pad" },
-        orumiKeys: { label: "Orumi Keys" },
-        orumiPiano: { label: "Orumi Piano" },
-        orumiOrgan: { label: "Orumi Organ" },
-        orumiBell: { label: "Orumi Bell" },
-        orumiPluck: { label: "Orumi Pluck" },
-        orumiPure: { label: "Orumi Pure Tone" },
-
-        softKeys: ORUMI_CATALOG.voices.softKeys || { label: "Soft Keys" },
-        piano: ORUMI_CATALOG.voices.piano || { label: "Piano" },
-        organ: ORUMI_CATALOG.voices.organ || { label: "Organ" },
-        bell: ORUMI_CATALOG.voices.bell || { label: "Bell" },
-        choir: ORUMI_CATALOG.voices.choir || { label: "Choir" },
-        synth: ORUMI_CATALOG.voices.synth || { label: "Synth Pad" },
-        pure: ORUMI_CATALOG.voices.pure || { label: "Pure Tone" }
-      };
-
-      Object.entries(standardizedVoices).forEach(([key, voice]) => {
-        ORUMI_CATALOG.voices[key] = {
-          ...voice,
-          label: voice.label || key
-        };
-      });
-    }
+    // Moved to orumi-catalog.js itself (as a self-running registration,
+    // not a function requiring a separate call) so Progression Builder and
+    // Chord Factory get the same fully-labeled ORUMI_CATALOG.voices that
+    // Design Studio always has -- that per-page gap (this only ran here)
+    // was the root cause of chords playing back with the wrong instrument
+    // in both of those tools.
 
     let project = createDefaultProject();
 

@@ -968,3 +968,48 @@ const ORUMI_CATALOG = {
     }
   }
 };
+
+// Merges labels for every real Orumi voice name (both the generic preview
+// palette already defined above and the four real per-lane vocal-part
+// names -- orumiVocalOo, orumiLeadVoice, orumiVocalAh, orumiBassVoice --
+// used by Design Studio's lane system) directly into ORUMI_CATALOG.voices.
+// Runs automatically the moment this file loads, rather than requiring
+// each tool to remember to call a separate registration function -- that's
+// exactly the gap that let Progression Builder and Chord Factory's copies
+// of ORUMI_CATALOG.voices go without these labels for as long as they did,
+// since only Design Studio ever called the original version of this logic.
+// Relocated from design-studio.html, where it lived as
+// registerOrumiVoiceCatalog() -- single source of truth now, no separate
+// call needed anywhere.
+(function registerOrumiVoiceCatalog() {
+  const standardizedVoices = {
+    orumiVocalAh: { label: "Orumi Vocal Ah" },
+    orumiVocalOo: { label: "Orumi Vocal Oo" },
+    orumiVocalHum: { label: "Orumi Vocal Hum" },
+    orumiChoir: { label: "Orumi Choir" },
+    orumiLeadVoice: { label: "Orumi Lead Voice" },
+    orumiBassVoice: { label: "Orumi Bass Voice" },
+    orumiWarmPad: { label: "Orumi Warm Pad" },
+    orumiKeys: { label: "Orumi Keys" },
+    orumiPiano: { label: "Orumi Piano" },
+    orumiOrgan: { label: "Orumi Organ" },
+    orumiBell: { label: "Orumi Bell" },
+    orumiPluck: { label: "Orumi Pluck" },
+    orumiPure: { label: "Orumi Pure Tone" },
+
+    softKeys: ORUMI_CATALOG.voices.softKeys || { label: "Soft Keys" },
+    piano: ORUMI_CATALOG.voices.piano || { label: "Piano" },
+    organ: ORUMI_CATALOG.voices.organ || { label: "Organ" },
+    bell: ORUMI_CATALOG.voices.bell || { label: "Bell" },
+    choir: ORUMI_CATALOG.voices.choir || { label: "Choir" },
+    synth: ORUMI_CATALOG.voices.synth || { label: "Synth Pad" },
+    pure: ORUMI_CATALOG.voices.pure || { label: "Pure Tone" }
+  };
+
+  Object.entries(standardizedVoices).forEach(([key, voice]) => {
+    ORUMI_CATALOG.voices[key] = {
+      ...voice,
+      label: voice.label || key
+    };
+  });
+})();
