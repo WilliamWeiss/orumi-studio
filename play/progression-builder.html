@@ -3363,6 +3363,7 @@
         chordIndex: index,
         chord,
         progression: getProgression(),
+        structuralMarkers: inboundStructuralMarkers,
         returnUrl: "progression-builder.html?mode=reviewProgression&source=design-studio"
       };
     }
@@ -4247,10 +4248,17 @@
     const addAChordLink = document.getElementById("addAChordLink");
     if (addAChordLink) {
       const prepareAddChordContext = () => {
+        // structuralMarkers has to travel through here now -- the DS handoff
+        // key it originally came from (orumiDesignStudioProjectForProgression)
+        // is already gone by this point in PB's own session; PB reads it
+        // once on load, into inboundStructuralMarkers, then clears it as
+        // part of initializeProgressionReviewMode's normal cleanup. This is
+        // the last surviving copy before navigating away.
         prepareChordFactoryProgressionContext({
           source: "progression-builder",
           mode: "addProgressionChord",
-          returnUrl: "progression-builder.html"
+          returnUrl: "progression-builder.html",
+          structuralMarkers: inboundStructuralMarkers
         });
       };
       addAChordLink.addEventListener("pointerdown", prepareAddChordContext);

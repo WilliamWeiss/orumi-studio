@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <script src="js/orumi-catalog.js"></script>
+  <script src="js/structural-chord-scorer.js"></script>
   <script src="js/voices.js"></script>
 
   <style>
@@ -337,6 +338,49 @@
     }
 
     .quality-square {
+      position: relative;
+    }
+
+    /* Phase C: rank badges show the best (lowest) overall rank a candidate
+       achieves -- root grid shows the best rank across all qualities at that
+       root; quality grid (once a root is selected) shows each quality's true
+       overall rank, unrenumbered. Deliberately a new class, not a reuse of
+       .quality-square.recommended -- that one already means "voicing
+       note-count match", an unrelated concept. Positioned top-left so it
+       never collides with .recommended's top-right "✦". */
+    .rank-badge {
+      position: absolute;
+      top: 3px;
+      left: 4px;
+      font-size: 9px;
+      font-weight: 900;
+      background: rgba(255,255,255,0.92);
+      color: #1a1f24;
+      border-radius: 999px;
+      min-width: 14px;
+      height: 14px;
+      line-height: 14px;
+      text-align: center;
+      padding: 0 3px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+      pointer-events: none;
+    }
+
+    /* Pin-conflict glyph: flags a candidate that clashes with a pinned note.
+       Never hides the candidate -- stays ranked and visible, this is just a
+       warning marker. Bottom-right so it can't collide with either the rank
+       badge (top-left) or .recommended's star (top-right). */
+    .pin-conflict-glyph {
+      position: absolute;
+      bottom: 3px;
+      right: 4px;
+      font-size: 10px;
+      line-height: 1;
+      color: rgba(255,180,60,0.95);
+      pointer-events: none;
+    }
+
+    .root-grid .square {
       position: relative;
     }
 
@@ -1429,6 +1473,76 @@ h1 {
     let designEditPayload = null;
     let userLaneOrder = null; // user-defined lane order (overrides auto-detection)
     let progressionEditContext = null;
+
+    // Phase C: the ranked suggestion list, computed once per "Add a Chord"
+    // session rather than recomputed on every root/quality click -- position
+    // and beat don't change while the user is just choosing among the 204
+    // already-scored candidates, so there's nothing to gain from rescoring
+    // on every click. Stays null (no badges anywhere) whenever this isn't
+    // the addProgressionChord flow, or there are no real structural markers
+    // to score against -- badges are a pure enhancement, never required.
+    let structuralSuggestions = null;
+
+    function computeStructuralSuggestionsIfApplicable() {
+      if (!progressionEditContext) {
+        return;
+      }
+
+      try {
+        let progression, position, beat;
+
+        if (progressionEditContext.mode === "addProgressionChord") {
+          // Appending: position is always the end, beat is wherever the
+          // last real chord finishes.
+          progression = JSON.parse(localStorage.getItem("orumiProgression") || "[]");
+          position = progression.length;
+          const lastChord = progression[progression.length - 1];
+          beat = lastChord
+            ? (Number(lastChord.startBeat || 0) + Number(lastChord.durationBeats || 0))
+            : 0;
+        } else if (progressionEditContext.mode === "editProgressionChord") {
+          // Editing an existing chord: position is THAT chord's own index
+          // (not the end of the progression), and beat is its own real
+          // startBeat -- not derived from anything else. progression and
+          // chordIndex both already travel in this context, no localStorage
+          // re-read needed.
+          progression = Array.isArray(progressionEditContext.progression)
+            ? progressionEditContext.progression
+            : [];
+          position = Number(progressionEditContext.chordIndex);
+          if (!Number.isFinite(position)) return;
+          const editedChord = progressionEditContext.chord || progression[position];
+          beat = editedChord && Number.isFinite(Number(editedChord.startBeat))
+            ? Number(editedChord.startBeat)
+            : 0;
+        } else {
+          // Other flows (harmony-choice editing, DS-direct-to-CF) aren't
+          // wired for Phase C yet -- leave suggestions null rather than
+          // guess at position/beat for a shape we haven't verified.
+          return;
+        }
+
+        const structuralMarkers = readInboundStructuralMarkers();
+
+        if (!Array.isArray(structuralMarkers) || structuralMarkers.length === 0) {
+          return;
+        }
+
+        structuralSuggestions = generateStructuralChordSuggestions(
+          progression,
+          position,
+          beat,
+          structuralMarkers,
+          {
+            qualities: Object.keys(qualities),
+            pinFitsQuality: buildPinCompatibilityCheck(chordPitchClasses, voicePins)
+          }
+        );
+      } catch (error) {
+        console.warn("Phase C: could not compute structural chord suggestions", error);
+        structuralSuggestions = null;
+      }
+    }
     let progressionReturnButton = null;
     let sendProgressionChordToDesignButton = null;
     let inactiveContextButton = null;
@@ -1737,6 +1851,20 @@ h1 {
       }
 
       return null;
+    }
+
+    // Phase C: structural markers arrive via the addProgressionChord
+    // context PB builds right before navigating here (structuralMarkers
+    // field). NOT read directly from the Design Studio handoff key
+    // (orumiDesignStudioProjectForProgression) -- that key is already
+    // cleared by the time this page opens, since PB reads it once on its
+    // own load and clears it immediately after
+    // (initializeProgressionReviewMode's cleanup). Uses readJsonStorage
+    // (CF's own helper) since CF doesn't have PB's safeJsonParse.
+    function readInboundStructuralMarkers() {
+      const context = readJsonStorage("orumiProgressionChordFactoryContext");
+      const markers = context && context.structuralMarkers;
+      return Array.isArray(markers) ? markers : [];
     }
 
     function isFixedProgressionHarmonyEdit() {
@@ -3954,6 +4082,25 @@ h1 {
         button.textContent =
           pitch.display;
 
+        // Phase C: badge = best (lowest) rank among all candidates at this
+        // root, across every quality -- not this root's rank at whatever
+        // quality happens to be currently selected.
+        if (structuralSuggestions) {
+          let bestRank = null;
+          for (const suggestion of structuralSuggestions) {
+            if (suggestion.root === key && (bestRank === null || suggestion.rank < bestRank)) {
+              bestRank = suggestion.rank;
+            }
+          }
+          if (bestRank !== null) {
+            const badge = document.createElement("span");
+            badge.className = "rank-badge";
+            badge.textContent = String(bestRank);
+            badge.title = "Best suggested rank at this root: #" + bestRank;
+            button.appendChild(badge);
+          }
+        }
+
         button.addEventListener("click", () => {
 
           selectedRoot = key;
@@ -3999,6 +4146,33 @@ h1 {
 
         button.textContent =
           quality.label;
+
+        // Phase C: badge = this exact (root, quality) candidate's TRUE
+        // overall rank out of all 204 -- not renumbered relative to just
+        // this root's own qualities. Only shows once a root is selected,
+        // since rank is meaningless without one. Pin conflicts get their own
+        // separate glyph and stay visible/ranked -- never filtered out,
+        // per the "transparency over hiding" rule this whole feature follows.
+        if (structuralSuggestions && selectedRoot) {
+          const match = structuralSuggestions.find(
+            s => s.root === selectedRoot && s.quality === key
+          );
+          if (match) {
+            const badge = document.createElement("span");
+            badge.className = "rank-badge";
+            badge.textContent = String(match.rank);
+            badge.title = match.reason;
+            button.appendChild(badge);
+
+            if (match.pinConflict) {
+              const glyph = document.createElement("span");
+              glyph.className = "pin-conflict-glyph";
+              glyph.textContent = "⚠";
+              glyph.title = "Conflicts with a pinned note";
+              button.appendChild(glyph);
+            }
+          }
+        }
 
         button.addEventListener("click", () => {
 
@@ -4994,6 +5168,8 @@ h1 {
     }
 
     activeToolMode = chooseDefaultToolMode();
+
+    computeStructuralSuggestionsIfApplicable();
 
     buildAll();
     updateToolModeVisibility();
