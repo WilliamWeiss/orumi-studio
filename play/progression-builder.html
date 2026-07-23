@@ -188,6 +188,121 @@
     .chord-classification-tag.stage-tinted     { background: rgba(200,150,80,0.85);  color: #2e1c00; }
     .chord-classification-tag.stage-modulate   { background: rgba(255,209,102,0.85); color: #2a1e00; }
 
+    /* Phase C: declared structural function, sitting alongside the
+       classification tag above -- a different concept (prospective intent
+       the user declared vs. retrospective harmonic analysis), so its own
+       class, not a reuse of chord-classification-tag. Solid = persisted
+       (a real marker exists); dashed = ephemeral peek only, nothing saved. */
+    .chord-structural-tag {
+      width: 100%;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-align: center;
+      padding: 4px 6px;
+      border-radius: 10px;
+      cursor: default;
+      border: 2px solid transparent;
+    }
+
+    .chord-structural-tag.declaration-ephemeral {
+      border-style: dashed;
+      opacity: 0.75;
+    }
+
+    .chord-structural-tag.function-bloom      { background: rgba(179,229,252,0.85); color: #052a3a; }
+    .chord-structural-tag.function-escalate   { background: rgba(255,138,101,0.85); color: #3a1000; }
+    .chord-structural-tag.function-settle     { background: rgba(174,213,129,0.85); color: #142b06; }
+    .chord-structural-tag.function-homecoming { background: rgba(255,213,79,0.85);  color: #3a2c00; }
+    .chord-structural-tag.function-suspend    { background: rgba(206,147,216,0.85); color: #2c0f30; }
+
+    .structural-declare-panel {
+      width: 100%;
+      background: rgba(0,0,0,0.35);
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 14px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      order: 99;
+    }
+
+    .structural-declare-title {
+      font-size: 11px;
+      color: #cfc7b8;
+      text-align: center;
+      font-weight: 700;
+    }
+
+    .structural-declare-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .structural-declare-row label {
+      font-size: 10px;
+      color: #b7ae9d;
+    }
+
+    .structural-declare-row select {
+      background: rgba(255,255,255,0.08);
+      color: #f5f0e6;
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 8px;
+      padding: 6px;
+      font-size: 12px;
+    }
+
+    /* The closed select above inherits the page's dark theme fine, but the
+       open option list doesn't automatically pick up that same styling --
+       most browsers default it to dark text on white, which is why
+       unselected options were hard to read. Setting both explicitly here
+       fixes contrast for every option, not just the selected one. */
+    .structural-declare-row select option {
+      background: #2a241c;
+      color: #f5f0e6;
+    }
+
+    .structural-declare-row select option:checked {
+      background: #5a4a2c;
+      color: #ffffff;
+    }
+
+    .structural-info-toggle {
+      align-self: center;
+      font-size: 11px;
+      color: #9fd8ff;
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-decoration: underline;
+      padding: 2px 4px;
+    }
+
+    .structural-info-panel {
+      background: rgba(255,255,255,0.06);
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 10.5px;
+      line-height: 1.5;
+      color: #ddd6c8;
+      display: none;
+    }
+
+    .structural-info-panel.open {
+      display: block;
+    }
+
+    .structural-info-panel div + div {
+      margin-top: 6px;
+    }
+
+    .structural-info-panel b {
+      color: #fff;
+    }
+
     .modulation-picker {
       width: 100%;
       background: rgba(0,0,0,0.35);
@@ -1055,13 +1170,19 @@
           Start Drone
         </button>
 
-        <a
-          class="action-button secondary"
+        class="action-button secondary"
           href="chord-factory.html?source=progression-builder&mode=addProgressionChord"
           id="addAChordLink"
         >
           Add a Chord
         </a>
+
+        <button
+          class="action-button secondary"
+          id="declareNextSectionButton"
+        >
+          Declare Next Section
+        </button>
 
         <a
           class="action-button secondary"
@@ -1084,6 +1205,8 @@
           Clear Progression
         </button>
       </div>
+
+      <div id="declareNextSectionPanelContainer"></div>
 
       <div
         class="drone-status"
@@ -1230,6 +1353,98 @@
     // Focus Range) -- not tied to any one handoff mode, so this is read
     // independently of shouldOpenSuggestHarmonyMode/shouldOpenProgressionReviewMode.
     let inboundStructuralMarkers = [];
+
+    // Phase C: session-only "peek" state, separate from inboundStructuralMarkers
+    // on purpose. Declaring a function with Section left Undeclared should
+    // still be visible on the card while you keep working -- it just never
+    // becomes a real, exported marker. Keyed by beat; cleared on reload,
+    // never sent anywhere.
+    let ephemeralStructuralDeclarations = {};
+
+    const STRUCTURAL_FUNCTION_INFO = {
+      bloom: {
+        label: "Bloom",
+        definition: "A gentle, low-tension opening move -- the first step into a new section."
+      },
+      escalate: {
+        label: "Escalate",
+        definition: "Builds energy and tension -- used to rise toward a peak."
+      },
+      settle: {
+        label: "Settle",
+        definition: "Releases the tension, but isn't the final landing -- a stepping-stone resolution."
+      },
+      homecoming: {
+        label: "Homecoming",
+        definition: "A return to familiar harmony, richer this time -- recognition, not just resolution."
+      },
+      suspend: {
+        label: "Suspend",
+        definition: "Holds the tension in place -- a vamp or sustained moment, not a build."
+      }
+    };
+
+    const STRUCTURAL_SECTION_TYPES = [
+      { value: "intro", label: "Intro" },
+      { value: "statement", label: "Statement" },
+      { value: "expansion", label: "Expansion" },
+      { value: "transition", label: "Transition" },
+      { value: "return", label: "Return" },
+      { value: "tag", label: "Tag" },
+      { value: "coda", label: "Coda" }
+    ];
+
+    function createStructureId() {
+      return "structure_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 11);
+    }
+
+    function findStructuralMarkerAtBeat(beat) {
+      return inboundStructuralMarkers.find(marker => Number(marker.beat) === Number(beat)) || null;
+    }
+
+    // Declaring is what makes something real and felt system-wide (a
+    // persisted marker Chord Factory's suggestions will actually see);
+    // leaving Section as Undeclared keeps it a peek only -- shown here,
+    // never exported, never affecting anything downstream.
+    function setStructuralDeclaration(index, sectionType, transitionFunction) {
+      const progression = getProgression();
+      const chord = progression[index];
+      if (!chord) return;
+
+      const beat = Number(chord.startBeat || 0);
+      let marker = findStructuralMarkerAtBeat(beat);
+
+      if (!sectionType) {
+        if (marker) {
+          inboundStructuralMarkers = inboundStructuralMarkers.filter(m => m !== marker);
+        }
+        ephemeralStructuralDeclarations[beat] = transitionFunction;
+        renderProgression();
+        return;
+      }
+
+      if (!marker) {
+        marker = { id: createStructureId(), beat };
+        inboundStructuralMarkers.push(marker);
+      }
+
+      marker.sectionType = sectionType;
+      marker.transitionFunction = transitionFunction;
+      delete ephemeralStructuralDeclarations[beat];
+
+      renderProgression();
+    }
+
+    function clearStructuralDeclaration(index) {
+      const progression = getProgression();
+      const chord = progression[index];
+      if (!chord) return;
+
+      const beat = Number(chord.startBeat || 0);
+      inboundStructuralMarkers = inboundStructuralMarkers.filter(m => Number(m.beat) !== beat);
+      delete ephemeralStructuralDeclarations[beat];
+      renderProgression();
+    }
 
     const HARMONY_VOICE_ROLES = [
       { id: "tenor", label: "Tenor", order: 3 },
@@ -3572,6 +3787,341 @@
       if (card) card.appendChild(picker);
     }
 
+    function toggleStructuralDeclarePicker(index) {
+      const alreadyOpen = document.getElementById("structuralDeclarePicker-" + index);
+
+      // Only one picker open at a time (matches the modulation picker's own
+      // convention), and clicking the same chord's button again closes it.
+      document.querySelectorAll(".structural-declare-panel").forEach(el => el.remove());
+      if (alreadyOpen) return;
+
+      const progression = getProgression();
+      const chord = progression[index];
+      if (!chord) return;
+
+      const beat = Number(chord.startBeat || 0);
+      const existingMarker = findStructuralMarkerAtBeat(beat);
+      const existingEphemeral = ephemeralStructuralDeclarations[beat];
+
+      let selectedSection = existingMarker ? existingMarker.sectionType : "";
+      let selectedFunction = existingMarker
+        ? (existingMarker.transitionFunction || "")
+        : (existingEphemeral || "");
+
+      const picker = document.createElement("div");
+      picker.className = "structural-declare-panel";
+      picker.id = "structuralDeclarePicker-" + index;
+
+      const title = document.createElement("div");
+      title.className = "structural-declare-title";
+      title.textContent = "Declare the part of the piece this chord is in:";
+      picker.appendChild(title);
+
+      const functionRow = document.createElement("div");
+      functionRow.className = "structural-declare-row";
+
+      const functionLabel = document.createElement("label");
+      functionLabel.textContent = "Function";
+      functionRow.appendChild(functionLabel);
+
+      const functionSelect = document.createElement("select");
+      const blankFunctionOption = document.createElement("option");
+      blankFunctionOption.value = "";
+      blankFunctionOption.textContent = "-- None --";
+      functionSelect.appendChild(blankFunctionOption);
+
+      Object.keys(STRUCTURAL_FUNCTION_INFO).forEach(key => {
+        const option = document.createElement("option");
+        option.value = key;
+        option.textContent = STRUCTURAL_FUNCTION_INFO[key].label;
+        if (key === selectedFunction) option.selected = true;
+        functionSelect.appendChild(option);
+      });
+
+      functionSelect.addEventListener("change", () => {
+        selectedFunction = functionSelect.value;
+      });
+
+      functionRow.appendChild(functionSelect);
+
+      const infoToggle = document.createElement("button");
+      infoToggle.type = "button";
+      infoToggle.className = "structural-info-toggle";
+      infoToggle.textContent = "(i) What do these mean?";
+
+      const infoPanel = document.createElement("div");
+      infoPanel.className = "structural-info-panel";
+      Object.values(STRUCTURAL_FUNCTION_INFO).forEach(info => {
+        const line = document.createElement("div");
+        line.innerHTML = "<b>" + info.label + "</b> -- " + info.definition;
+        infoPanel.appendChild(line);
+      });
+
+      infoToggle.addEventListener("click", () => {
+        infoPanel.classList.toggle("open");
+      });
+
+      functionRow.appendChild(infoToggle);
+      functionRow.appendChild(infoPanel);
+      picker.appendChild(functionRow);
+
+      const sectionRow = document.createElement("div");
+      sectionRow.className = "structural-declare-row";
+
+      const sectionLabel = document.createElement("label");
+      sectionLabel.textContent = "Section";
+      sectionRow.appendChild(sectionLabel);
+
+      const sectionSelect = document.createElement("select");
+      const undeclaredOption = document.createElement("option");
+      undeclaredOption.value = "";
+      undeclaredOption.textContent = "Undeclared (just a peek, won't be saved)";
+      sectionSelect.appendChild(undeclaredOption);
+
+      STRUCTURAL_SECTION_TYPES.forEach(section => {
+        const option = document.createElement("option");
+        option.value = section.value;
+        option.textContent = section.label;
+        if (section.value === selectedSection) option.selected = true;
+        sectionSelect.appendChild(option);
+      });
+
+      sectionSelect.addEventListener("change", () => {
+        selectedSection = sectionSelect.value;
+      });
+
+      sectionRow.appendChild(sectionSelect);
+      picker.appendChild(sectionRow);
+
+      const confirmRow = document.createElement("div");
+      confirmRow.className = "modulation-confirm-row";
+
+      const confirmBtn = document.createElement("button");
+      confirmBtn.type = "button";
+      confirmBtn.className = "small-button primary wide";
+      confirmBtn.textContent = "Declare";
+
+      confirmBtn.addEventListener("click", () => {
+        if (!selectedFunction) {
+          confirmBtn.textContent = "Pick a function first";
+          return;
+        }
+        setStructuralDeclaration(index, selectedSection, selectedFunction);
+      });
+
+      confirmRow.appendChild(confirmBtn);
+
+      if (existingMarker || existingEphemeral) {
+        const clearBtn = document.createElement("button");
+        clearBtn.type = "button";
+        clearBtn.className = "small-button danger wide";
+        clearBtn.textContent = "Clear Declaration";
+        clearBtn.addEventListener("click", () => {
+          clearStructuralDeclaration(index);
+        });
+        confirmRow.appendChild(clearBtn);
+      }
+
+      const cancelBtn = document.createElement("button");
+      cancelBtn.type = "button";
+      cancelBtn.className = "small-button wide";
+      cancelBtn.textContent = "Cancel";
+      cancelBtn.addEventListener("click", () => {
+        picker.remove();
+      });
+
+      confirmRow.appendChild(cancelBtn);
+      picker.appendChild(confirmRow);
+
+      const card = document.querySelector('.chord-card[data-chord-index="' + index + '"]');
+      if (card) card.appendChild(picker);
+    }
+
+    // Computes the beat where the NEXT chord (via "Add a Chord") would
+    // land -- same derivation the scorer itself already uses for the
+    // append case, so a declaration made here lines up exactly with what
+    // Chord Factory will actually score against.
+    function getNextChordAppendBeat() {
+      const progression = getProgression();
+      const lastChord = progression[progression.length - 1];
+      return lastChord
+        ? Number(lastChord.startBeat || 0) + Number(lastChord.durationBeats || 0)
+        : 0;
+    }
+
+    function updateDeclareNextSectionButtonLabel() {
+      const button = document.getElementById("declareNextSectionButton");
+      if (!button) return;
+
+      const marker = findStructuralMarkerAtBeat(getNextChordAppendBeat());
+      if (marker && marker.transitionFunction) {
+        const info = STRUCTURAL_FUNCTION_INFO[marker.transitionFunction];
+        button.textContent = "Next Section: " + (info ? info.label : marker.transitionFunction);
+      } else {
+        button.textContent = "Declare Next Section";
+      }
+    }
+
+    // Declaring a section for a chord that doesn't exist yet only makes
+    // sense as a real, persisted marker -- an ephemeral "just a peek"
+    // declaration has nothing to show a badge on and would never reach
+    // Chord Factory's recommendations either way (that path is
+    // deliberately marker-only). So unlike the per-card picker, there's no
+    // Undeclared option here at all.
+    function toggleDeclareNextSectionPicker() {
+      const container = document.getElementById("declareNextSectionPanelContainer");
+      if (!container) return;
+
+      const alreadyOpen = container.querySelector(".structural-declare-panel");
+      container.innerHTML = "";
+      if (alreadyOpen) return;
+
+      const beat = getNextChordAppendBeat();
+      const existingMarker = findStructuralMarkerAtBeat(beat);
+
+      let selectedSection = existingMarker ? existingMarker.sectionType : "";
+      let selectedFunction = existingMarker ? (existingMarker.transitionFunction || "") : "";
+
+      const picker = document.createElement("div");
+      picker.className = "structural-declare-panel";
+
+      const title = document.createElement("div");
+      title.className = "structural-declare-title";
+      title.textContent = "Declare the section the next added chord will be in:";
+      picker.appendChild(title);
+
+      const functionRow = document.createElement("div");
+      functionRow.className = "structural-declare-row";
+
+      const functionLabel = document.createElement("label");
+      functionLabel.textContent = "Function";
+      functionRow.appendChild(functionLabel);
+
+      const functionSelect = document.createElement("select");
+      const blankFunctionOption = document.createElement("option");
+      blankFunctionOption.value = "";
+      blankFunctionOption.textContent = "-- Select --";
+      functionSelect.appendChild(blankFunctionOption);
+
+      Object.keys(STRUCTURAL_FUNCTION_INFO).forEach(key => {
+        const option = document.createElement("option");
+        option.value = key;
+        option.textContent = STRUCTURAL_FUNCTION_INFO[key].label;
+        if (key === selectedFunction) option.selected = true;
+        functionSelect.appendChild(option);
+      });
+
+      functionSelect.addEventListener("change", () => {
+        selectedFunction = functionSelect.value;
+      });
+
+      functionRow.appendChild(functionSelect);
+
+      const infoToggle = document.createElement("button");
+      infoToggle.type = "button";
+      infoToggle.className = "structural-info-toggle";
+      infoToggle.textContent = "(i) What do these mean?";
+
+      const infoPanel = document.createElement("div");
+      infoPanel.className = "structural-info-panel";
+      Object.values(STRUCTURAL_FUNCTION_INFO).forEach(info => {
+        const line = document.createElement("div");
+        line.innerHTML = "<b>" + info.label + "</b> -- " + info.definition;
+        infoPanel.appendChild(line);
+      });
+
+      infoToggle.addEventListener("click", () => {
+        infoPanel.classList.toggle("open");
+      });
+
+      functionRow.appendChild(infoToggle);
+      functionRow.appendChild(infoPanel);
+      picker.appendChild(functionRow);
+
+      const sectionRow = document.createElement("div");
+      sectionRow.className = "structural-declare-row";
+
+      const sectionLabel = document.createElement("label");
+      sectionLabel.textContent = "Section";
+      sectionRow.appendChild(sectionLabel);
+
+      const sectionSelect = document.createElement("select");
+      const blankSectionOption = document.createElement("option");
+      blankSectionOption.value = "";
+      blankSectionOption.textContent = "-- Select --";
+      sectionSelect.appendChild(blankSectionOption);
+
+      STRUCTURAL_SECTION_TYPES.forEach(section => {
+        const option = document.createElement("option");
+        option.value = section.value;
+        option.textContent = section.label;
+        if (section.value === selectedSection) option.selected = true;
+        sectionSelect.appendChild(option);
+      });
+
+      sectionSelect.addEventListener("change", () => {
+        selectedSection = sectionSelect.value;
+      });
+
+      sectionRow.appendChild(sectionSelect);
+      picker.appendChild(sectionRow);
+
+      const confirmRow = document.createElement("div");
+      confirmRow.className = "modulation-confirm-row";
+
+      const confirmBtn = document.createElement("button");
+      confirmBtn.type = "button";
+      confirmBtn.className = "small-button primary wide";
+      confirmBtn.textContent = "Declare";
+
+      confirmBtn.addEventListener("click", () => {
+        if (!selectedFunction || !selectedSection) {
+          confirmBtn.textContent = "Pick both a function and a section";
+          return;
+        }
+
+        const appendBeat = getNextChordAppendBeat();
+        let marker = findStructuralMarkerAtBeat(appendBeat);
+        if (!marker) {
+          marker = { id: createStructureId(), beat: appendBeat };
+          inboundStructuralMarkers.push(marker);
+        }
+        marker.sectionType = selectedSection;
+        marker.transitionFunction = selectedFunction;
+
+        container.innerHTML = "";
+        updateDeclareNextSectionButtonLabel();
+      });
+
+      confirmRow.appendChild(confirmBtn);
+
+      if (existingMarker) {
+        const clearBtn = document.createElement("button");
+        clearBtn.type = "button";
+        clearBtn.className = "small-button danger wide";
+        clearBtn.textContent = "Clear Declaration";
+        clearBtn.addEventListener("click", () => {
+          inboundStructuralMarkers = inboundStructuralMarkers.filter(m => m !== existingMarker);
+          container.innerHTML = "";
+          updateDeclareNextSectionButtonLabel();
+        });
+        confirmRow.appendChild(clearBtn);
+      }
+
+      const cancelBtn = document.createElement("button");
+      cancelBtn.type = "button";
+      cancelBtn.className = "small-button wide";
+      cancelBtn.textContent = "Cancel";
+      cancelBtn.addEventListener("click", () => {
+        container.innerHTML = "";
+      });
+
+      confirmRow.appendChild(cancelBtn);
+      picker.appendChild(confirmRow);
+
+      container.appendChild(picker);
+    }
+
     function createChordCard(chord, index, total, classification) {
       const card =
         document.createElement("article");
@@ -3727,11 +4277,27 @@
         toggleModulationPicker(index);
       });
 
+      const declareButton =
+        document.createElement("button");
+
+      declareButton.classList.add(
+        "small-button",
+        "wide"
+      );
+
+      declareButton.textContent =
+        "Declare Section";
+
+      declareButton.addEventListener("click", () => {
+        toggleStructuralDeclarePicker(index);
+      });
+
       actions.appendChild(playButton);
       actions.appendChild(editLink);
       actions.appendChild(moveLeft);
       actions.appendChild(moveRight);
       actions.appendChild(modulateButton);
+      actions.appendChild(declareButton);
       actions.appendChild(removeButton);
 
       card.appendChild(chordNumber);
@@ -3749,6 +4315,42 @@
         tag.textContent = classification.stage;
         tag.title = classification.reason || "";
         card.appendChild(tag);
+      }
+
+      // Phase C: shows the declared structural function next to the
+      // classification tag above, when one exists -- solid if it's a real,
+      // persisted marker; dashed if it's just this session's peek. Checked
+      // by beat, matching how markers are matched everywhere else.
+      const structuralBeat = Number(chord.startBeat || 0);
+      const structuralMarker = findStructuralMarkerAtBeat(structuralBeat);
+      const structuralEphemeralFunction = ephemeralStructuralDeclarations[structuralBeat];
+
+      if (structuralMarker && structuralMarker.transitionFunction) {
+        const structuralTag = document.createElement("div");
+        const fn = structuralMarker.transitionFunction;
+        const sectionMeta = STRUCTURAL_SECTION_TYPES.find(s => s.value === structuralMarker.sectionType);
+        structuralTag.classList.add("chord-structural-tag", "function-" + fn);
+        structuralTag.textContent =
+          (sectionMeta ? sectionMeta.label + " · " : "") +
+          (STRUCTURAL_FUNCTION_INFO[fn] ? STRUCTURAL_FUNCTION_INFO[fn].label : fn);
+        structuralTag.title = STRUCTURAL_FUNCTION_INFO[fn] ? STRUCTURAL_FUNCTION_INFO[fn].definition : "";
+        card.appendChild(structuralTag);
+      } else if (structuralEphemeralFunction) {
+        const structuralTag = document.createElement("div");
+        structuralTag.classList.add(
+          "chord-structural-tag",
+          "declaration-ephemeral",
+          "function-" + structuralEphemeralFunction
+        );
+        structuralTag.textContent =
+          STRUCTURAL_FUNCTION_INFO[structuralEphemeralFunction]
+            ? STRUCTURAL_FUNCTION_INFO[structuralEphemeralFunction].label
+            : structuralEphemeralFunction;
+        structuralTag.title =
+          (STRUCTURAL_FUNCTION_INFO[structuralEphemeralFunction]
+            ? STRUCTURAL_FUNCTION_INFO[structuralEphemeralFunction].definition
+            : "") + " (peek only -- not saved)";
+        card.appendChild(structuralTag);
       }
 
       card.appendChild(chordName);
@@ -3795,6 +4397,7 @@
         " in progression";
 
       updateDroneUi();
+      updateDeclareNextSectionButtonLabel();
     }
 
     function moveChord(index, direction) {
@@ -4010,6 +4613,7 @@
         createdAt: new Date().toISOString(),
         preservationMode: "free-analysis",
         keepNote: null,
+        structuralMarkers: inboundStructuralMarkers,
         chords: progression.map((chord, index) => {
           const chosenName =
             chord.selectedAnalysisSymbol ||
@@ -4214,6 +4818,11 @@
       "click",
       clearProgression
     );
+
+    const declareNextSectionButton = document.getElementById("declareNextSectionButton");
+    if (declareNextSectionButton) {
+      declareNextSectionButton.addEventListener("click", toggleDeclareNextSectionPicker);
+    }
 
     if (sendReviewedProgressionButton) {
       sendReviewedProgressionButton.addEventListener(

@@ -525,6 +525,14 @@ const ORUMI_CATALOG = {
       "intro->statement":      { valid: ["bloom"],                          default: "bloom" },
       "statement->expansion":  { valid: ["bloom", "escalate"],              default: "bloom" },
       "expansion->transition": { valid: ["escalate", "suspend"],            default: "escalate" },
+      // A direct Chorus->Tag jump (skipping Transition/Return entirely) is
+      // a common, simple song shape -- confirmed by "In the Good Old
+      // Summer Time" itself. Escalate default: jumping straight from an
+      // active Expansion into the Tag usually carries momentum forward
+      // rather than settling first. Homecoming stays valid for cases where
+      // the Expansion already felt like the arrival, and the Tag is a
+      // richer second confirmation of it.
+      "expansion->tag":        { valid: ["escalate", "homecoming"],         default: "escalate" },
       "transition->return":    { valid: ["settle", "homecoming"],          default: "homecoming" },
       "return->tag":           { valid: ["escalate", "homecoming", "settle"], default: "escalate" },
       "tag->tag":              { valid: ["escalate", "suspend"],            default: "escalate" },

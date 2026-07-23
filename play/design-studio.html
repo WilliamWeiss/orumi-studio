@@ -6728,7 +6728,22 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
       voiceSelect.addEventListener("change", () => {
         saveHistory();
-        lane.voice = voiceSelect.value || null;
+        const newVoice = voiceSelect.value || null;
+        lane.voice = newVoice;
+
+        // Lane Voice should be able to change and apply at any time --
+        // one simple control, not a separate "set once" vs "change later"
+        // pair. Without this, every existing note keeps its own
+        // individually-stored voice (set when it was first created), which
+        // always wins over the lane default in getLaneVoiceForBlock() --
+        // so picking a new option here would silently do nothing audible
+        // for any note that already exists in the lane.
+        project.blocks.forEach(block => {
+          if (block.laneId === lane.id) {
+            block.voice = newVoice;
+          }
+        });
+
         localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
         render();
       });
@@ -11229,6 +11244,18 @@ function applyPendingPlayerLineImport() {
           changedIds.push(target.id);
         });
       });
+
+      // Carries the round-tripped structuralMarkers array back into the
+      // real project -- only when the payload actually has one, so an
+      // older-format payload (or one from before this feature existed)
+      // never silently wipes out markers already declared here in DS.
+      // Full replace, not a per-id merge: PB's copy is the authoritative,
+      // up-to-date picture for this session (original DS markers plus
+      // anything newly declared in PB), matching how the chord data just
+      // above is already treated as authoritative for what it touches.
+      if (Array.isArray(payload.structuralMarkers)) {
+        project.structuralMarkers = payload.structuralMarkers;
+      }
 
       normalizeProject();
       selectedBlockIds = new Set(changedIds);

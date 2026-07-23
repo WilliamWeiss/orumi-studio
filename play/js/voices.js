@@ -36,8 +36,10 @@ const ORUMI_VOICES = {
     orumiBell: "orumiBell",
     orumiVocalAh: "orumiVocalAh",
     orumiVocalOo: "orumiVocalOo",
+    orumiLeadVoice: "orumiLeadVoice",
     orumiPluck: "orumiPluck",
     orumiBass: "orumiBass",
+    orumiBassVoice: "orumiBass",
     orumiPad: "orumiPad",
     orumiPure: "orumiPure",
     orumiKoto: "orumiKoto",
@@ -53,6 +55,7 @@ const ORUMI_VOICES = {
     "orumiOrgan",
     "orumiVocalAh",
     "orumiVocalOo",
+    "orumiLeadVoice",
     "orumiPad",
     "orumiPure",
     "orumiBass"
@@ -286,6 +289,35 @@ const ORUMI_VOICES = {
       addOsc("sine", 1.004, 0.30, 6);
       addOsc("triangle", 2, 0.08);
       addChorus(0.08, 4.8);
+    }
+
+    else if (canonicalVoice === "orumiLeadVoice") {
+      // Lead carries the melody and needs to read as the clearest, most
+      // present voice in the four-part texture -- a real distinct timbre,
+      // not a variant of Tenor or Baritone. Filter sits between Tenor's
+      // 680Hz (darker, rounder "Oo") and Baritone's 1020Hz (more open
+      // "Ah"), giving Lead its own centered placement. Detune spread is
+      // narrower than either (+/-3c vs their +/-5-7c) for a more focused,
+      // less diffuse character, and attack is faster (0.28s vs their
+      // 0.36-0.42s) so melodic entrances speak immediately rather than
+      // swelling in like a pad.
+      autoStopSeconds = 10;
+      this.applyEnvelope(mainGain, now, {
+        attack: 0.28,
+        decay: 0.28,
+        sustain: 0.155,
+        peak: 0.175,
+        curve: "linear"
+      });
+
+      filter.type = "lowpass";
+      filter.frequency.setValueAtTime(850, now);
+      filter.Q.value = 1.35;
+
+      addOsc("sine", 1, 0.46, -3);
+      addOsc("triangle", 1, 0.30, 3);
+      addOsc("sine", 2, 0.10);
+      addChorus(0.10, 4.0);
     }
 
     else if (canonicalVoice === "orumiPluck") {
