@@ -548,6 +548,45 @@ const ORUMI_CATALOG = {
       validTargets: ["coda", "tag"]
     },
 
+    // Display layer for transitionFunctions above -- labels + plain-
+    // language definitions for UI pickers (Progression Builder's "Declare
+    // Section" panel, and Design Studio's timeline UI). Kept alongside
+    // transitionFunctions itself, rather than as a separate constant
+    // somewhere else, so the two can't drift out of sync with each other.
+    functionInfo: {
+      bloom: {
+        label: "Bloom",
+        definition: "A gentle, low-tension opening move -- the first step into a new section."
+      },
+      escalate: {
+        label: "Escalate",
+        definition: "Builds energy and tension -- used to rise toward a peak."
+      },
+      settle: {
+        label: "Settle",
+        definition: "Releases the tension, but isn't the final landing -- a stepping-stone resolution."
+      },
+      homecoming: {
+        label: "Homecoming",
+        definition: "A return to familiar harmony, richer this time -- recognition, not just resolution."
+      },
+      suspend: {
+        label: "Suspend",
+        definition: "Holds the tension in place -- a vamp or sustained moment, not a build."
+      }
+    },
+
+    // Display layer for sectionTypes above -- same reasoning as functionInfo.
+    sectionTypeLabels: [
+      { value: "intro", label: "Intro" },
+      { value: "statement", label: "Statement" },
+      { value: "expansion", label: "Expansion" },
+      { value: "transition", label: "Transition" },
+      { value: "return", label: "Return" },
+      { value: "tag", label: "Tag" },
+      { value: "coda", label: "Coda" }
+    ],
+
     // Pure query functions -- take a structuralMarkers array as an argument
     // rather than reaching into a global project, so any tool (Design
     // Studio, Progression Builder, or future tools) can call the exact same

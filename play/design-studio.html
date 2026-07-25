@@ -448,6 +448,150 @@
       box-shadow: 0 0 18px rgba(255,255,255,0.95);
     }
 
+    .structure-ruler-row {
+      display: grid;
+      grid-template-columns: 104px 1fr;
+      height: 26px;
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+
+    .structure-ruler-name {
+      display: grid;
+      place-items: center;
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.02em;
+      cursor: default;
+    }
+
+    .structure-ruler-track {
+      position: relative;
+      overflow: hidden;
+      cursor: crosshair;
+      background: rgba(255,255,255,0.03);
+      border-radius: 4px;
+    }
+
+    .structure-marker-flag {
+      position: absolute;
+      top: 2px;
+      transform: translateX(2px);
+      font-size: 10px;
+      font-weight: 800;
+      color: #1c1712;
+      background: rgba(179,229,252,0.9);
+      padding: 2px 6px;
+      border-radius: 999px;
+      white-space: nowrap;
+      cursor: pointer;
+      z-index: 3;
+    }
+
+    .structure-marker-flag:hover {
+      box-shadow: 0 0 10px rgba(255,255,255,0.5);
+    }
+
+    .structure-marker-pending {
+      position: absolute;
+      top: 0;
+      width: 2px;
+      height: 100%;
+      background: rgba(255,255,255,0.85);
+      box-shadow: 0 0 10px rgba(255,255,255,0.6);
+      z-index: 4;
+      pointer-events: none;
+    }
+
+    .structure-marker-picker {
+      background: #1c1f26;
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 14px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-width: 360px;
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+      z-index: 50;
+    }
+
+    .structure-marker-picker-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .structure-marker-picker-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .structure-marker-picker-row label {
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .structure-marker-picker-row select {
+      background: rgba(255,255,255,0.08);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 8px;
+      padding: 6px;
+      font-size: 12px;
+    }
+
+    .structure-marker-picker-row select option {
+      background: #2a241c;
+      color: var(--text);
+    }
+
+    .structure-marker-picker-row select option:checked {
+      background: #5a4a2c;
+      color: #ffffff;
+    }
+
+    .structure-marker-info-toggle {
+      align-self: flex-start;
+      font-size: 11px;
+      color: #9fd8ff;
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-decoration: underline;
+      padding: 2px 0;
+    }
+
+    .structure-marker-info-panel {
+      background: rgba(255,255,255,0.06);
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 10.5px;
+      line-height: 1.5;
+      color: var(--text);
+      display: none;
+    }
+
+    .structure-marker-info-panel.open {
+      display: block;
+    }
+
+    .structure-marker-info-panel div + div {
+      margin-top: 6px;
+    }
+
+    .structure-marker-picker-buttons {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
     .lane {
       display: grid;
       grid-template-columns: 104px 1fr;
@@ -1880,11 +2024,18 @@
               <div class="ruler-beats" id="rulerBeats" title="Click to set selected location"></div>
             </div>
 
+            <div class="structure-ruler-row">
+              <div class="structure-ruler-name" title="Click an empty spot to declare a new section here. Click an existing marker to edit or delete it.">Structure</div>
+              <div class="structure-ruler-track" id="structureRulerTrack"></div>
+            </div>
+
             <div class="playhead" id="playhead"></div>
 
             <div id="lanesContainer"></div>
           </div>
         </div>
+
+        <div id="structureMarkerPickerContainer"></div>
 
         <div class="status" id="projectStatus">
           Default lanes: Tenor, Lead, Baritone, Bass.
@@ -3570,6 +3721,255 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       rulerBeats.appendChild(selectedMarker);
     }
 
+    // Renders the row of clickable structural-marker flags aligned with
+    // the beat ruler above it -- same BEAT_WIDTH positioning convention,
+    // so a marker always lines up with the exact beat it sits at. Reuses
+    // beatFromRulerEvent() for click-to-beat conversion even though the
+    // click happens on this row, not the ruler itself: both rows share
+    // the same grid-column layout (104px name + 1fr track), so their
+    // horizontal position and scroll are identical, and beatFromRulerEvent
+    // only needs event.clientX plus rulerBeats' own bounding rect, which
+    // lines up correctly either way.
+    function renderStructureRuler() {
+      const track = document.getElementById("structureRulerTrack");
+      if (!track) return;
+
+      track.innerHTML = "";
+      track.onclick = event => {
+        const clickedBeat = beatFromRulerEvent(event);
+        openStructureMarkerPicker(null, clickedBeat);
+      };
+
+      const markers = Array.isArray(project.structuralMarkers) ? project.structuralMarkers : [];
+
+      markers.forEach(marker => {
+        const flag = document.createElement("div");
+        flag.className = "structure-marker-flag";
+
+        const sectionMeta = ORUMI_CATALOG.structure.sectionTypeLabels.find(s => s.value === marker.sectionType);
+        const functionMeta = marker.transitionFunction
+          ? ORUMI_CATALOG.structure.functionInfo[marker.transitionFunction]
+          : null;
+
+        flag.textContent =
+          (sectionMeta ? sectionMeta.label : marker.sectionType) +
+          (functionMeta ? " · " + functionMeta.label : "");
+        flag.style.left = marker.beat * BEAT_WIDTH + "px";
+        flag.title = functionMeta
+          ? functionMeta.definition
+          : "Using this boundary's default function. Click to edit or delete this marker.";
+
+        flag.addEventListener("click", event => {
+          event.stopPropagation();
+          openStructureMarkerPicker(marker, marker.beat);
+        });
+
+        track.appendChild(flag);
+      });
+    }
+
+    // Section is required to create or keep a marker at all -- DS only
+    // ever holds real, persisted markers (no ephemeral "just a peek"
+    // concept the way Progression Builder's own picker has, since there's
+    // no chord card here to show a peek on). Function is optional: leaving
+    // it blank means "use this boundary's default", which
+    // getExpectedFunctionAt() already handles via its own actual||default
+    // fallback -- no special-casing needed here for that.
+    function openStructureMarkerPicker(existingMarker, beat) {
+      const container = document.getElementById("structureMarkerPickerContainer");
+      if (!container) return;
+
+      container.innerHTML = "";
+
+      // Temporary vertical line marking the exact beat being decided on,
+      // for as long as the picker stays open -- helpful for remembering
+      // what you were doing partway through a decision. Removed on Cancel;
+      // replaced automatically on Save, since that triggers a full
+      // render() -> renderStructureRuler() that clears and rebuilds this
+      // whole row anyway (the pending line and the real marker flag are
+      // never both on screen at once).
+      const track = document.getElementById("structureRulerTrack");
+      if (track) {
+        const oldPending = track.querySelector(".structure-marker-pending");
+        if (oldPending) oldPending.remove();
+
+        const pendingLine = document.createElement("div");
+        pendingLine.className = "structure-marker-pending";
+        pendingLine.style.left = beat * BEAT_WIDTH + "px";
+        track.appendChild(pendingLine);
+      }
+
+      let selectedSection = existingMarker ? existingMarker.sectionType : "";
+      let selectedFunction = existingMarker ? (existingMarker.transitionFunction || "") : "";
+
+      const panel = document.createElement("div");
+      panel.className = "structure-marker-picker";
+
+      const title = document.createElement("div");
+      title.className = "structure-marker-picker-title";
+      const beatInfo = beatToMeasureInfo(beat);
+      title.textContent =
+        (existingMarker ? "Edit" : "New") +
+        " structural marker -- Beat " + beatInfo.beatWithinMeasure + " of M" + beatInfo.measure;
+      panel.appendChild(title);
+
+      const sectionRow = document.createElement("div");
+      sectionRow.className = "structure-marker-picker-row";
+
+      const sectionLabel = document.createElement("label");
+      sectionLabel.textContent = "Section";
+      sectionRow.appendChild(sectionLabel);
+
+      const sectionSelect = document.createElement("select");
+      const blankSectionOption = document.createElement("option");
+      blankSectionOption.value = "";
+      blankSectionOption.textContent = "-- Select --";
+      sectionSelect.appendChild(blankSectionOption);
+
+      ORUMI_CATALOG.structure.sectionTypeLabels.forEach(section => {
+        const option = document.createElement("option");
+        option.value = section.value;
+        option.textContent = section.label;
+        if (section.value === selectedSection) option.selected = true;
+        sectionSelect.appendChild(option);
+      });
+
+      sectionSelect.addEventListener("change", () => {
+        selectedSection = sectionSelect.value;
+      });
+
+      sectionRow.appendChild(sectionSelect);
+      panel.appendChild(sectionRow);
+
+      const functionRow = document.createElement("div");
+      functionRow.className = "structure-marker-picker-row";
+
+      const functionLabel = document.createElement("label");
+      functionLabel.textContent = "Function";
+      functionRow.appendChild(functionLabel);
+
+      const functionSelect = document.createElement("select");
+      const blankFunctionOption = document.createElement("option");
+      blankFunctionOption.value = "";
+      blankFunctionOption.textContent = "-- Use Default --";
+      functionSelect.appendChild(blankFunctionOption);
+
+      Object.keys(ORUMI_CATALOG.structure.functionInfo).forEach(key => {
+        const option = document.createElement("option");
+        option.value = key;
+        option.textContent = ORUMI_CATALOG.structure.functionInfo[key].label;
+        if (key === selectedFunction) option.selected = true;
+        functionSelect.appendChild(option);
+      });
+
+      functionSelect.addEventListener("change", () => {
+        selectedFunction = functionSelect.value;
+      });
+
+      functionRow.appendChild(functionSelect);
+
+      const infoToggle = document.createElement("button");
+      infoToggle.type = "button";
+      infoToggle.className = "structure-marker-info-toggle";
+      infoToggle.textContent = "(i) What do these mean?";
+
+      const infoPanel = document.createElement("div");
+      infoPanel.className = "structure-marker-info-panel";
+      Object.values(ORUMI_CATALOG.structure.functionInfo).forEach(fnInfo => {
+        const line = document.createElement("div");
+        line.innerHTML = "<b>" + fnInfo.label + "</b> -- " + fnInfo.definition;
+        infoPanel.appendChild(line);
+      });
+
+      infoToggle.addEventListener("click", () => {
+        infoPanel.classList.toggle("open");
+      });
+
+      functionRow.appendChild(infoToggle);
+      functionRow.appendChild(infoPanel);
+      panel.appendChild(functionRow);
+
+      const buttonRow = document.createElement("div");
+      buttonRow.className = "structure-marker-picker-buttons";
+
+      const saveBtn = document.createElement("button");
+      saveBtn.type = "button";
+      saveBtn.className = "control-button";
+      saveBtn.textContent = "Save";
+
+      saveBtn.addEventListener("click", () => {
+        if (!selectedSection) {
+          saveBtn.textContent = "Pick a section first";
+          return;
+        }
+        saveStructuralMarker(existingMarker, beat, selectedSection, selectedFunction);
+        container.innerHTML = "";
+      });
+
+      buttonRow.appendChild(saveBtn);
+
+      if (existingMarker) {
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.className = "control-button danger";
+        deleteBtn.textContent = "Delete Marker";
+        deleteBtn.addEventListener("click", () => {
+          deleteStructuralMarker(existingMarker);
+          container.innerHTML = "";
+        });
+        buttonRow.appendChild(deleteBtn);
+      }
+
+      const cancelBtn = document.createElement("button");
+      cancelBtn.type = "button";
+      cancelBtn.className = "control-button secondary";
+      cancelBtn.textContent = "Cancel";
+      cancelBtn.addEventListener("click", () => {
+        container.innerHTML = "";
+        if (track) {
+          const pending = track.querySelector(".structure-marker-pending");
+          if (pending) pending.remove();
+        }
+      });
+
+      buttonRow.appendChild(cancelBtn);
+      panel.appendChild(buttonRow);
+      container.appendChild(panel);
+    }
+
+    function saveStructuralMarker(existingMarker, beat, sectionType, transitionFunction) {
+      if (!Array.isArray(project.structuralMarkers)) {
+        project.structuralMarkers = [];
+      }
+
+      let marker = existingMarker;
+      if (!marker) {
+        marker = {
+          id: "structure_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 11),
+          beat
+        };
+        project.structuralMarkers.push(marker);
+      }
+
+      marker.sectionType = sectionType;
+      if (transitionFunction) {
+        marker.transitionFunction = transitionFunction;
+      } else {
+        delete marker.transitionFunction;
+      }
+
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+      render();
+      status.textContent = "Structural marker saved.";
+    }
+
+    function deleteStructuralMarker(existingMarker) {
+      project.structuralMarkers = (project.structuralMarkers || []).filter(m => m !== existingMarker);
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+      render();
+      status.textContent = "Structural marker deleted.";
+    }
+
     function hasSelectedLocation() {
       return Number.isFinite(selectedInsertBeat);
     }
@@ -3777,6 +4177,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       createPalette();
       applyTimelineScale();
       renderRuler();
+      renderStructureRuler();
       renderLanes();
       renderInspectors();
 

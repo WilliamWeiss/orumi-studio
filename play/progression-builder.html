@@ -498,6 +498,11 @@
       text-decoration: none;
     }
 
+    .action-button.disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
     .action-button.secondary {
       background: rgba(255,255,255,0.16);
       color: #fff7ea;
@@ -1362,38 +1367,12 @@
     // never sent anywhere.
     let ephemeralStructuralDeclarations = {};
 
-    const STRUCTURAL_FUNCTION_INFO = {
-      bloom: {
-        label: "Bloom",
-        definition: "A gentle, low-tension opening move -- the first step into a new section."
-      },
-      escalate: {
-        label: "Escalate",
-        definition: "Builds energy and tension -- used to rise toward a peak."
-      },
-      settle: {
-        label: "Settle",
-        definition: "Releases the tension, but isn't the final landing -- a stepping-stone resolution."
-      },
-      homecoming: {
-        label: "Homecoming",
-        definition: "A return to familiar harmony, richer this time -- recognition, not just resolution."
-      },
-      suspend: {
-        label: "Suspend",
-        definition: "Holds the tension in place -- a vamp or sustained moment, not a build."
-      }
-    };
-
-    const STRUCTURAL_SECTION_TYPES = [
-      { value: "intro", label: "Intro" },
-      { value: "statement", label: "Statement" },
-      { value: "expansion", label: "Expansion" },
-      { value: "transition", label: "Transition" },
-      { value: "return", label: "Return" },
-      { value: "tag", label: "Tag" },
-      { value: "coda", label: "Coda" }
-    ];
+    // Relocated into ORUMI_CATALOG.structure (functionInfo / sectionTypeLabels)
+    // so Design Studio's timeline UI can use the exact same vocabulary and
+    // definitions instead of a second, potentially-drifting copy -- same
+    // relocation pattern already used for the harmonicClassification cluster.
+    const STRUCTURAL_FUNCTION_INFO = ORUMI_CATALOG.structure.functionInfo;
+    const STRUCTURAL_SECTION_TYPES = ORUMI_CATALOG.structure.sectionTypeLabels;
 
     function createStructureId() {
       return "structure_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 11);
@@ -4855,9 +4834,69 @@
       });
     });
 
+// Chords added here can't currently be sent back to Design Studio --
+    // applyPendingReviewedProgressionFromStorage() only ever updates
+    // EXISTING DS blocks (matched by id or by lane+beat proximity); a
+    // brand-new chord with no matching block is silently skipped, meaning
+    // it would vanish without warning the moment "Send Edited Chords to
+    // Design" runs. Disabling this here rather than shipping that silent
+    // data loss. progressionReviewPayload is only ever set once a DS
+    // review handoff actually loads -- if it's null (e.g. building a
+    // progression from scratch, never sent from DS), there's nothing to
+    // lose, so Add a Chord stays fully available.
+    //
+    // The check runs live inside the click handler (not at setup time)
+    // deliberately: progressionReviewPayload isn't set yet at the point
+    // this setup code runs -- initializeProgressionReviewMode() runs later
+    // in page init. A click, by definition, can only ever happen after
+    // page init has fully finished, so checking at click time sidesteps
+    // that ordering issue entirely.
+    function updateAddAChordAvailability() {
+      if (!addAChordLink) return;
+      if (progressionReviewPayload) {
+        addAChordLink.classList.add("disabled");
+        addAChordLink.title = "Not available yet for chords reviewed from Design Studio -- new chords can't be sent back there until that's built. Coming later.";
+      } else {
+        addAChordLink.classList.remove("disabled");
+        addAChordLink.title = "";
+      }
+    }
+
     const addAChordLink = document.getElementById("addAChordLink");
     if (addAChordLink) {
-      const prepareAddChordContext = () => {
+      const prepareAddChordContext = event => {
+        if (progressionReviewPayload) {
+          if (event) event.preventDefault();
+          return;
+        }
+
+        // Add a Chord had no equivalent of what buildChordFactoryEditUrl()
+        // already does for Edit Chord (params.set("voice", chord.voice)) --
+        // so a brand-new chord always fell back to Chord Factory's own
+        // default voice ("softKeys"/piano) instead of matching the rest of
+        // the arrangement. Fixed by sourcing voice from the last chord
+        // already in the progression, same idea as the edit flow, just no
+        // specific chord to read it from until now.
+        // Prefer the last chord's own voice (most specific -- matches
+        // whatever's actually been placed most recently). If the
+        // progression is empty, fall back to the project-level default
+        // voice DS originally sent over -- still sitting in
+        // progressionReviewPayload.context.voice from the initial import,
+        // even though nothing else has read it since. Only if neither
+        // exists does this fall through to Chord Factory's own default.
+        const currentProgression = getProgression();
+        const lastChord = currentProgression[currentProgression.length - 1];
+        const fallbackVoice =
+          (lastChord && lastChord.voice) ||
+          (progressionReviewPayload && progressionReviewPayload.context && progressionReviewPayload.context.voice) ||
+          null;
+
+        if (fallbackVoice) {
+          const url = new URL(addAChordLink.href, window.location.href);
+          url.searchParams.set("voice", fallbackVoice);
+          addAChordLink.href = url.toString();
+        }
+
         // structuralMarkers has to travel through here now -- the DS handoff
         // key it originally came from (orumiDesignStudioProjectForProgression)
         // is already gone by this point in PB's own session; PB reads it
@@ -4921,6 +4960,7 @@
 
     const reviewModeActive = initializeProgressionReviewMode();
     const suggestModeActive = reviewModeActive ? false : initializeSuggestHarmonyMode();
+    updateAddAChordAvailability();
 
     if (!reviewModeActive && !suggestModeActive) {
       renderProgression();
