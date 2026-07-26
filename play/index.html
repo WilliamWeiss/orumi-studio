@@ -5,13 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" href="/assets/orumi-icon.png" />
   <script src="js/orumi-catalog.js"></script>
+  <link rel="stylesheet" href="css/orumi-theme.css">
 
 
   <style>
     body {
   font-family: Arial, sans-serif;
-  background: #0f1115;
-  color: #f5f0e8;
+  background: var(--bg);
+  color: var(--text);
   margin: 0;
   min-height: 100vh;
   overflow-x: hidden;
@@ -31,7 +32,7 @@
   align-items: center;
   gap: 16px;
   text-decoration: none;
-  color: #f5f0e8;
+  color: var(--text);
 }
 
 .logo img {
@@ -61,7 +62,7 @@ nav a:visited {
 }
 
 nav a:hover {
-  color: #f5f0e8;
+  color: var(--text);
 }
 
 .play-page {

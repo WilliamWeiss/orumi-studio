@@ -6,15 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <script src="js/orumi-catalog.js"></script>
+  <link rel="stylesheet" href="css/orumi-theme.css">
 
   <style>
-    :root {
-      --orumi-bg: #111111;
-      --orumi-text: #f5f0e8;
-      --orumi-muted: #b9b3a4;
-      --orumi-soft: #8f8878;
-      --orumi-gold: #d6b76a;
-    }
+    /* --orumi-bg/--orumi-text/--orumi-muted renamed to the shared,
+       unprefixed --bg/--text/--muted from css/orumi-theme.css (DS/CF's
+       naming convention won when reconciling). --orumi-soft/--orumi-gold
+       were never actually used anywhere in this file -- promoted to the
+       shared stylesheet as --soft/--gold regardless, in case that was an
+       oversight rather than intentional. */
 
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;

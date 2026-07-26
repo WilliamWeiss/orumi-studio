@@ -1,0 +1,23 @@
+/* Orumi shared design tokens -- single source of truth for the base theme
+   used across Design Studio, Chord Factory, Progression Builder, Player,
+   Selection Control, and the Play landing page. Previously each of these
+   maintained its own separate copy of this (or, in Selection Control's and
+   Player's case, an entirely different naming convention), and it had
+   already drifted: different background hex values between files, tokens
+   that existed in one place but not another. Consolidated here so nothing
+   can drift out of sync again -- DS/CF's original naming and values are
+   what won when reconciling, since they already agreed with each other.
+   --accent (from Chord Factory) and --soft/--gold (from Selection Control,
+   previously prefixed --orumi-soft/--orumi-gold, unused there until now)
+   are promoted here so every tool can use them, not just their original
+   file. */
+:root {
+  --bg: #0f1115;
+  --panel: rgba(255,255,255,0.06);
+  --panel-2: rgba(255,255,255,0.10);
+  --text: #f5f0e8;
+  --muted: #bdb4a6;
+  --accent: rgba(155, 235, 215, 0.92);
+  --soft: #8f8878;
+  --gold: #d6b76a;
+}

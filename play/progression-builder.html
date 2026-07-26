@@ -7,12 +7,13 @@
 
   <script src="js/orumi-catalog.js"></script>
   <script src="js/voices.js"></script>
+  <link rel="stylesheet" href="css/orumi-theme.css">
 
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #111;
-      color: #f5f0e8;
+      background: var(--bg);
+      color: var(--text);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -72,12 +73,12 @@
   align-items: center;
   gap: 16px;
   text-decoration: none;
-  color: #f5f0e8;
+  color: var(--text);
   z-index: 1000;
 }
 
 .logo-button:visited {
-  color: #f5f0e8;
+  color: var(--text);
 }
 
 .logo-button:hover,

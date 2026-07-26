@@ -7,14 +7,14 @@
 
   <script src="js/orumi-catalog.js"></script>
   <script src="js/voices.js"></script>
+  <link rel="stylesheet" href="css/orumi-theme.css">
 
   <style>
+    /* --bg/--panel/--panel-2/--text/--muted now come from the shared
+       css/orumi-theme.css stylesheet -- these two stay local since they're
+       specific to this page's own timeline sizing, not part of the shared
+       theme. */
     :root {
-      --bg: #0f1115;
-      --panel: rgba(255,255,255,0.06);
-      --panel-2: rgba(255,255,255,0.10);
-      --text: #f5f0e8;
-      --muted: #bdb4a6;
       --beat-width: 72px;
       --lane-height: 92px;
     }
@@ -366,6 +366,37 @@
       padding: 14px 14px 18px;
     }
 
+    ./* Sticky headers: freezes the part-name column (left) and the Beat
+       Ruler/Structure/Meter rows (top) so the part and beat you're working
+       with stay visible no matter how far you've scrolled into a long
+       piece -- same idea as frozen panes in a spreadsheet. top: 122px
+       matches the existing fixed site header's own height (body::before,
+       elsewhere in this file) -- without that offset these rows would
+       land underneath it instead of just below it. Solid backgrounds are
+       required for sticky positioning to actually look right -- without
+       one, lane content scrolling past would visibly show through the
+       "frozen" rows instead of being hidden behind them. z-index order:
+       corner cells (doubly-sticky, both directions at once) sit highest,
+       then the sticky rows, then sticky lane labels, so layering is
+       correct regardless of which direction you're scrolling. */
+    .time-ruler,
+    .structure-ruler-row,
+    .meter-ruler-row {
+      position: sticky;
+      top: 122px;
+      background: var(--bg);
+      z-index: 20;
+    }
+
+    .ruler-name,
+    .structure-ruler-name,
+    .meter-ruler-name {
+      position: sticky;
+      left: 0;
+      background: var(--bg);
+      z-index: 21;
+    }
+
     .time-ruler {
       display: grid;
       grid-template-columns: 104px 1fr;
@@ -504,6 +535,129 @@
       pointer-events: none;
     }
 
+    .meter-ruler-row {
+      display: grid;
+      grid-template-columns: 104px 1fr;
+      height: 26px;
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+
+    .meter-ruler-name {
+      display: grid;
+      place-items: center;
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.02em;
+      cursor: default;
+    }
+
+    .meter-ruler-track {
+      position: relative;
+      overflow: hidden;
+      cursor: crosshair;
+      background: rgba(255,255,255,0.03);
+      border-radius: 4px;
+    }
+
+    .meter-marker-flag {
+      position: absolute;
+      top: 2px;
+      transform: translateX(2px);
+      font-size: 10px;
+      font-weight: 800;
+      color: #1c1712;
+      padding: 2px 6px;
+      border-radius: 999px;
+      white-space: nowrap;
+      cursor: pointer;
+      z-index: 3;
+    }
+
+    .meter-marker-flag.type-signature {
+      background: rgba(255,213,79,0.9);
+    }
+
+    .meter-marker-flag.type-irregular {
+      background: rgba(206,147,216,0.9);
+    }
+
+    .meter-marker-flag:hover {
+      box-shadow: 0 0 10px rgba(255,255,255,0.5);
+    }
+
+    .meter-marker-pending {
+      position: absolute;
+      top: 0;
+      width: 2px;
+      height: 100%;
+      background: rgba(255,255,255,0.85);
+      box-shadow: 0 0 10px rgba(255,255,255,0.6);
+      z-index: 4;
+      pointer-events: none;
+    }
+
+    .meter-marker-picker {
+      background: #1c1f26;
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 14px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-width: 360px;
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+      z-index: 50;
+    }
+
+    .meter-marker-picker-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .meter-marker-picker-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .meter-marker-picker-row label {
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .meter-marker-picker-row select,
+    .meter-marker-picker-row input {
+      background: rgba(255,255,255,0.08);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 8px;
+      padding: 6px;
+      font-size: 12px;
+    }
+
+    .meter-marker-picker-row select option {
+      background: #2a241c;
+      color: var(--text);
+    }
+
+    .meter-marker-picker-row select option:checked {
+      background: #5a4a2c;
+      color: #ffffff;
+    }
+
+    .meter-marker-picker-buttons {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
     .structure-marker-picker {
       background: #1c1f26;
       border: 1px solid rgba(255,255,255,0.16);
@@ -616,6 +770,9 @@
       color: #fff7ea;
       cursor: pointer;
       grid-row: 1 / 3;
+      position: sticky;
+      left: 0;
+      z-index: 15;
     }
 
     .lane-label-text {
@@ -2029,6 +2186,11 @@
               <div class="structure-ruler-track" id="structureRulerTrack"></div>
             </div>
 
+            <div class="meter-ruler-row">
+              <div class="meter-ruler-name" title="Click an empty spot to declare a new time signature or an irregular measure starting there. Click an existing marker to edit or delete it.">Meter</div>
+              <div class="meter-ruler-track" id="meterRulerTrack"></div>
+            </div>
+
             <div class="playhead" id="playhead"></div>
 
             <div id="lanesContainer"></div>
@@ -2036,6 +2198,7 @@
         </div>
 
         <div id="structureMarkerPickerContainer"></div>
+        <div id="meterMarkerPickerContainer"></div>
 
         <div class="status" id="projectStatus">
           Default lanes: Tenor, Lead, Baritone, Bass.
@@ -2951,20 +3114,100 @@
       return signature.numerator + "/" + signature.denominator;
     }
 
+    // getBeatsPerMeasure() (no-arg) stays as "the nominal/measure-1 time
+    // signature" for backward compatibility with existing callers that
+    // haven't been made measure-aware (most now don't need to be, since
+    // getMeasureStartBeat/beatToMeasureInfo below no longer call this at
+    // all). Note: this also fixes a real, pre-existing bug -- the old
+    // version returned the bare numerator regardless of denominator,
+    // which was only ever correct for /4 time signatures (3/8 read as 3
+    // beats instead of the correct 1.5; 2/2 read as 2 instead of 4).
     function getBeatsPerMeasure() {
       const signature = getTimeSignature();
-      return Math.max(1, Number(signature.numerator || 4));
+      return Math.max(0.25, signature.numerator * (4 / signature.denominator));
     }
 
+    // Returns the active beats-per-measure at a given measure, walking
+    // timeSignatureChanges to find the most recent entry at or before it.
+    // Falls back to getBeatsPerMeasure() if the list is somehow empty
+    // (shouldn't happen once normalizeProject has run, but defensive).
+    function getBeatsPerMeasureAt(measureNumber) {
+      const n = Math.max(1, Number(measureNumber || 1));
+      const changes = Array.isArray(project.context && project.context.timeSignatureChanges)
+        ? project.context.timeSignatureChanges
+        : null;
+
+      if (!changes || !changes.length) {
+        return getBeatsPerMeasure();
+      }
+
+      let active = changes[0];
+      for (const change of changes) {
+        if (change.measureNumber <= n) {
+          active = change;
+        } else {
+          break;
+        }
+      }
+      return active.beatsPerMeasure;
+    }
+
+    // The actual length of a specific measure -- an irregularMeasures
+    // override if one exists there, otherwise whatever time signature is
+    // active at that point. This is the one place "how long is measure N"
+    // gets decided; everything else builds on this.
+    function getMeasureLength(measureNumber) {
+      const irregulars = Array.isArray(project.context && project.context.irregularMeasures)
+        ? project.context.irregularMeasures
+        : [];
+      const override = irregulars.find(m => m.measureNumber === measureNumber);
+      return override ? override.beats : getBeatsPerMeasureAt(measureNumber);
+    }
+
+    // The active {numerator, denominator} pair at a given measure --
+    // complements getBeatsPerMeasureAt() (which returns the combined
+    // quarter-note-equivalent value) and getMeasureLength() (which also
+    // folds in irregularMeasures overrides). Used both for the rescale
+    // prompt's "did the beat unit actually change" check and for MusicXML
+    // export's per-measure <time> emission.
+    function getTimeSignatureAt(measureNumber) {
+      const changes = Array.isArray(project.context && project.context.timeSignatureChanges) && project.context.timeSignatureChanges.length
+        ? project.context.timeSignatureChanges
+        : [{ measureNumber: 1, numerator: 4, denominator: 4 }];
+      let active = changes[0];
+      for (const change of changes) {
+        if (change.measureNumber <= measureNumber) active = change; else break;
+      }
+      return { numerator: active.numerator, denominator: active.denominator };
+    }
+
+    // Was closed-form arithmetic assuming one uniform measure length for
+    // the whole piece -- now a cumulative walk summing each measure's real
+    // length, so pickups, one-off irregular measures, and mid-piece meter
+    // changes all fall out correctly with no special-casing. Cost is O(n)
+    // in measure number instead of O(1); fine for realistic piece lengths,
+    // worth revisiting with a cached lookup table only if this proves slow
+    // in practice, not pre-emptively.
     function getMeasureStartBeat(measureNumber) {
-      return Math.max(0, (Math.max(1, Number(measureNumber || 1)) - 1) * getBeatsPerMeasure());
+      const n = Math.max(1, Number(measureNumber || 1));
+      let beat = 0;
+      for (let m = 1; m < n; m++) {
+        beat += getMeasureLength(m);
+      }
+      return Math.max(0, beat);
     }
 
     function beatToMeasureInfo(beat) {
       const safeBeat = Math.max(0, Number(beat || 0));
-      const beatsPerMeasure = getBeatsPerMeasure() || 4;
-      const measure = Math.floor(safeBeat / beatsPerMeasure) + 1;
-      const measureStart = getMeasureStartBeat(measure);
+      let measure = 1;
+      let measureStart = 0;
+
+      while (measureStart + getMeasureLength(measure) <= safeBeat + 1e-9) {
+        measureStart += getMeasureLength(measure);
+        measure++;
+      }
+
+      const beatsPerMeasure = getMeasureLength(measure);
       const beatWithinMeasure = (safeBeat - measureStart) + 1;
 
       return { measure, beatWithinMeasure, measureStart, beatsPerMeasure };
@@ -3039,6 +3282,44 @@
       return convertedCount;
     }
 
+
+    // Region-scoped version of convertExistingTimingToNewBeatUnit, for a
+    // time signature change declared mid-piece rather than the global
+    // dropdown. Two real differences from the whole-piece version: (1)
+    // blocks before regionStartBeat are never touched at all -- that
+    // material is correctly in the old meter and must stay exactly where
+    // it is; (2) rescaling is relative to regionStartBeat, not to beat 0
+    // -- naively multiplying startBeat directly (like the whole-piece
+    // version does) would incorrectly shift the region's own starting
+    // point too.
+    function convertTimingFromBeatOnward(regionStartBeat, currentSignature, nextSignature) {
+      const oldDenominator = Number(currentSignature.denominator || 4);
+      const newDenominator = Number(nextSignature.denominator || 4);
+      const factor = newDenominator / oldDenominator;
+
+      if (!Number.isFinite(factor) || Math.abs(factor - 1) < 0.000001) {
+        return 0;
+      }
+
+      let convertedCount = 0;
+
+      project.blocks.forEach(block => {
+        const startBeat = Number(block.startBeat || 0);
+        if (startBeat < regionStartBeat - 1e-9) return;
+
+        block.startBeat = roundBeatForStorage(regionStartBeat + (startBeat - regionStartBeat) * factor);
+        block.durationBeats = Math.max(
+          MIN_DURATION,
+          snapDurationToReadableStandard(
+            roundBeatForStorage(Number(block.durationBeats || MIN_DURATION) * factor),
+            0.08
+          )
+        );
+        convertedCount += 1;
+      });
+
+      return convertedCount;
+    }
 
     function handleTimeSignatureChange() {
       const value = timeSignatureSelect.value;
@@ -3151,6 +3432,74 @@
           : "full";
 
       project.context.timeSignature = normalizeTimeSignature(project.context.timeSignature);
+
+      // timeSignatureChanges: ordered {measureNumber, numerator,
+      // denominator, beatsPerMeasure} entries, each persisting until the
+      // next. Stores BOTH the original fraction (numerator/denominator --
+      // needed for display, e.g. "3/8", and for the rescale-factor
+      // calculation when converting existing timing) AND the derived
+      // quarter-note-equivalent beatsPerMeasure (what the actual beat math
+      // uses) -- keeping both means neither has to be reverse-engineered
+      // from the other later. Additive, not a migration -- old projects
+      // just get a single synthesized entry from the existing global
+      // timeSignature, so behavior is identical until a second region is
+      // actually declared.
+      if (!Array.isArray(project.context.timeSignatureChanges) || !project.context.timeSignatureChanges.length) {
+        project.context.timeSignatureChanges = [{
+          measureNumber: 1,
+          numerator: project.context.timeSignature.numerator,
+          denominator: project.context.timeSignature.denominator,
+          beatsPerMeasure: project.context.timeSignature.numerator * (4 / project.context.timeSignature.denominator)
+        }];
+      } else {
+        project.context.timeSignatureChanges = project.context.timeSignatureChanges
+          .filter(change =>
+            change &&
+            Number.isFinite(Number(change.measureNumber)) &&
+            Number.isFinite(Number(change.numerator)) &&
+            Number.isFinite(Number(change.denominator)) &&
+            Number(change.numerator) > 0 &&
+            Number(change.denominator) > 0
+          )
+          .map(change => {
+            const numerator = Number(change.numerator);
+            const denominator = Number(change.denominator);
+            return {
+              measureNumber: Math.max(1, Math.round(Number(change.measureNumber))),
+              numerator,
+              denominator,
+              beatsPerMeasure: numerator * (4 / denominator)
+            };
+          })
+          .sort((a, b) => a.measureNumber - b.measureNumber);
+
+        if (!project.context.timeSignatureChanges.length || project.context.timeSignatureChanges[0].measureNumber !== 1) {
+          project.context.timeSignatureChanges.unshift({
+            measureNumber: 1,
+            numerator: project.context.timeSignature.numerator,
+            denominator: project.context.timeSignature.denominator,
+            beatsPerMeasure: project.context.timeSignature.numerator * (4 / project.context.timeSignature.denominator)
+          });
+        }
+      }
+
+      // irregularMeasures: one-off {measureNumber, beats} overrides,
+      // reverting automatically the very next measure. Independent of
+      // timeSignatureChanges -- an irregular measure can occur under any
+      // currently-active time signature.
+      project.context.irregularMeasures = Array.isArray(project.context.irregularMeasures)
+        ? project.context.irregularMeasures
+            .filter(m =>
+              m &&
+              Number.isFinite(Number(m.measureNumber)) &&
+              Number.isFinite(Number(m.beats)) &&
+              Number(m.beats) > 0
+            )
+            .map(m => ({
+              measureNumber: Math.max(1, Math.round(Number(m.measureNumber))),
+              beats: Number(m.beats)
+            }))
+        : [];
 
       project.context.snapGrid =
         ["beat", "half", "quarter", "eighth", "triplet", "sixth", "free"].includes(project.context.snapGrid)
@@ -3970,6 +4319,291 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       status.textContent = "Structural marker deleted.";
     }
 
+    // Renders the row of clickable meter markers (time signature changes
+    // and irregular measures) aligned with the beat ruler, same convention
+    // as renderStructureRuler(). A click gives a beat position; converting
+    // that to a measure number uses beatToMeasureInfo(), which is exactly
+    // the CURRENT (pre-change) measure structure -- correct, since a new
+    // declaration should attach to whichever measure you actually clicked
+    // on as things stand right now, not some hypothetical post-change
+    // numbering.
+    function renderMeterRuler() {
+      const track = document.getElementById("meterRulerTrack");
+      if (!track) return;
+
+      track.innerHTML = "";
+      track.onclick = event => {
+        const clickedBeat = beatFromRulerEvent(event);
+        const measureNumber = beatToMeasureInfo(clickedBeat).measure;
+        openMeterMarkerPicker(null, null, measureNumber);
+      };
+
+      const changes = Array.isArray(project.context && project.context.timeSignatureChanges)
+        ? project.context.timeSignatureChanges : [];
+      const irregulars = Array.isArray(project.context && project.context.irregularMeasures)
+        ? project.context.irregularMeasures : [];
+
+      changes.forEach(change => {
+        const flag = document.createElement("div");
+        flag.className = "meter-marker-flag type-signature";
+        flag.textContent = change.numerator + "/" + change.denominator;
+        flag.style.left = getMeasureStartBeat(change.measureNumber) * BEAT_WIDTH + "px";
+        flag.title = "M" + change.measureNumber + ": time signature changes to " + change.numerator + "/" + change.denominator + ". Click to edit or delete.";
+        flag.addEventListener("click", event => {
+          event.stopPropagation();
+          openMeterMarkerPicker(change, null, change.measureNumber);
+        });
+        track.appendChild(flag);
+      });
+
+      irregulars.forEach(irregular => {
+        const flag = document.createElement("div");
+        flag.className = "meter-marker-flag type-irregular";
+        flag.textContent = "M" + irregular.measureNumber + ": " + irregular.beats + "b";
+        flag.style.left = getMeasureStartBeat(irregular.measureNumber) * BEAT_WIDTH + "px";
+        flag.title = "M" + irregular.measureNumber + " is irregular: " + irregular.beats + " beats, this measure only. Click to edit or delete.";
+        flag.addEventListener("click", event => {
+          event.stopPropagation();
+          openMeterMarkerPicker(null, irregular, irregular.measureNumber);
+        });
+        track.appendChild(flag);
+      });
+    }
+
+    // existingChange / existingIrregular: at most one is non-null (a click
+    // either hit one kind of existing flag, the other kind, or empty
+    // space -- never two at once, since they're rendered as separate
+    // flags). measureNumber is always required, computed from wherever the
+    // click landed.
+    function openMeterMarkerPicker(existingChange, existingIrregular, measureNumber) {
+      const container = document.getElementById("meterMarkerPickerContainer");
+      if (!container) return;
+
+      container.innerHTML = "";
+
+      const track = document.getElementById("meterRulerTrack");
+      if (track) {
+        const oldPending = track.querySelector(".meter-marker-pending");
+        if (oldPending) oldPending.remove();
+        const pendingLine = document.createElement("div");
+        pendingLine.className = "meter-marker-pending";
+        pendingLine.style.left = getMeasureStartBeat(measureNumber) * BEAT_WIDTH + "px";
+        track.appendChild(pendingLine);
+      }
+
+      let selectedType = existingIrregular ? "irregular" : "signature";
+      let numerator = existingChange ? existingChange.numerator : 4;
+      let denominator = existingChange ? existingChange.denominator : 4;
+      let irregularBeats = existingIrregular ? existingIrregular.beats : 1;
+
+      const panel = document.createElement("div");
+      panel.className = "meter-marker-picker";
+
+      const title = document.createElement("div");
+      title.className = "meter-marker-picker-title";
+      title.textContent = (existingChange || existingIrregular ? "Edit" : "New") + " meter marker -- Measure " + measureNumber;
+      panel.appendChild(title);
+
+      const typeRow = document.createElement("div");
+      typeRow.className = "meter-marker-picker-row";
+      const typeLabel = document.createElement("label");
+      typeLabel.textContent = "Type";
+      typeRow.appendChild(typeLabel);
+
+      const typeSelect = document.createElement("select");
+      [["signature", "New Time Signature (persists forward)"], ["irregular", "Irregular Measure (this measure only)"]].forEach(([value, label]) => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = label;
+        if (value === selectedType) option.selected = true;
+        typeSelect.appendChild(option);
+      });
+      typeRow.appendChild(typeSelect);
+      panel.appendChild(typeRow);
+
+      const fieldsContainer = document.createElement("div");
+      panel.appendChild(fieldsContainer);
+
+      function renderFields() {
+        fieldsContainer.innerHTML = "";
+
+        if (selectedType === "signature") {
+          const numRow = document.createElement("div");
+          numRow.className = "meter-marker-picker-row";
+          const numLabel = document.createElement("label");
+          numLabel.textContent = "Numerator";
+          numRow.appendChild(numLabel);
+          const numInput = document.createElement("input");
+          numInput.type = "number";
+          numInput.min = "1";
+          numInput.value = numerator;
+          numInput.addEventListener("change", () => { numerator = Math.max(1, Math.round(Number(numInput.value) || 1)); });
+          numRow.appendChild(numInput);
+          fieldsContainer.appendChild(numRow);
+
+          const denRow = document.createElement("div");
+          denRow.className = "meter-marker-picker-row";
+          const denLabel = document.createElement("label");
+          denLabel.textContent = "Denominator";
+          denRow.appendChild(denLabel);
+          const denSelect = document.createElement("select");
+          [1, 2, 4, 8, 16, 32].forEach(value => {
+            const option = document.createElement("option");
+            option.value = value;
+            option.textContent = value;
+            if (value === denominator) option.selected = true;
+            denSelect.appendChild(option);
+          });
+          denSelect.addEventListener("change", () => { denominator = Number(denSelect.value); });
+          denRow.appendChild(denSelect);
+          fieldsContainer.appendChild(denRow);
+        } else {
+          const beatsRow = document.createElement("div");
+          beatsRow.className = "meter-marker-picker-row";
+          const beatsLabel = document.createElement("label");
+          beatsLabel.textContent = "Beats in this measure";
+          beatsRow.appendChild(beatsLabel);
+          const beatsInput = document.createElement("input");
+          beatsInput.type = "number";
+          beatsInput.min = "0.25";
+          beatsInput.step = "0.25";
+          beatsInput.value = irregularBeats;
+          beatsInput.addEventListener("change", () => { irregularBeats = Math.max(0.25, Number(beatsInput.value) || 1); });
+          beatsRow.appendChild(beatsInput);
+          fieldsContainer.appendChild(beatsRow);
+        }
+      }
+      renderFields();
+
+      typeSelect.addEventListener("change", () => {
+        selectedType = typeSelect.value;
+        renderFields();
+      });
+
+      const buttonRow = document.createElement("div");
+      buttonRow.className = "meter-marker-picker-buttons";
+
+      function closePickerAndPending() {
+        container.innerHTML = "";
+        if (track) {
+          const pending = track.querySelector(".meter-marker-pending");
+          if (pending) pending.remove();
+        }
+      }
+
+      const saveBtn = document.createElement("button");
+      saveBtn.type = "button";
+      saveBtn.className = "control-button";
+      saveBtn.textContent = "Save";
+      saveBtn.addEventListener("click", () => {
+        if (selectedType === "signature") {
+          saveTimeSignatureChangeAt(measureNumber, numerator, denominator, existingChange);
+        } else {
+          saveIrregularMeasureAt(measureNumber, irregularBeats);
+        }
+        closePickerAndPending();
+      });
+      buttonRow.appendChild(saveBtn);
+
+      if (existingChange || existingIrregular) {
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.className = "control-button danger";
+        deleteBtn.textContent = "Delete Marker";
+        deleteBtn.addEventListener("click", () => {
+          if (existingChange) {
+            project.context.timeSignatureChanges = project.context.timeSignatureChanges.filter(c => c !== existingChange);
+          }
+          if (existingIrregular) {
+            project.context.irregularMeasures = project.context.irregularMeasures.filter(m => m !== existingIrregular);
+          }
+          localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+          render();
+          status.textContent = "Meter marker deleted.";
+          closePickerAndPending();
+        });
+        buttonRow.appendChild(deleteBtn);
+      }
+
+      const cancelBtn = document.createElement("button");
+      cancelBtn.type = "button";
+      cancelBtn.className = "control-button secondary";
+      cancelBtn.textContent = "Cancel";
+      cancelBtn.addEventListener("click", closePickerAndPending);
+      buttonRow.appendChild(cancelBtn);
+
+      panel.appendChild(buttonRow);
+      container.appendChild(panel);
+    }
+
+    // Creating/updating a mid-piece time signature change offers the same
+    // "convert existing timing" choice the global dropdown does, but
+    // region-scoped: only blocks from this measure's start beat onward are
+    // eligible, via convertTimingFromBeatOnward() rather than the
+    // whole-piece convertExistingTimingToNewBeatUnit(). Measure 1's own
+    // entry is treated the same way as any other here for consistency,
+    // though the existing global dropdown (handleTimeSignatureChange) is
+    // still there too and remains the quicker path for that specific case.
+    function saveTimeSignatureChangeAt(measureNumber, numerator, denominator, existingChange) {
+      if (!Array.isArray(project.context.timeSignatureChanges)) {
+        project.context.timeSignatureChanges = [];
+      }
+
+      const previousSignatureAtMeasure = getTimeSignatureAt(measureNumber);
+      const nextSignature = { numerator, denominator };
+
+      let shouldConvert = false;
+      if (project.blocks.length > 0 && previousSignatureAtMeasure.denominator !== denominator) {
+        shouldConvert = window.confirm(
+          "The beat unit is changing at measure " + measureNumber + ".\\n\\n" +
+          "Convert existing notes FROM THIS MEASURE ONWARD so their musical note values stay the same?\\n\\n" +
+          "OK = convert note timing from here forward\\nCancel = only regroup the measures"
+        );
+      }
+
+      saveHistory();
+
+      const regionStartBeat = getMeasureStartBeat(measureNumber);
+      if (shouldConvert) {
+        convertTimingFromBeatOnward(regionStartBeat, previousSignatureAtMeasure, nextSignature);
+      }
+
+      let entry = existingChange;
+      if (!entry) {
+        entry = project.context.timeSignatureChanges.find(c => c.measureNumber === measureNumber);
+      }
+      if (!entry) {
+        entry = { measureNumber };
+        project.context.timeSignatureChanges.push(entry);
+      }
+      entry.numerator = numerator;
+      entry.denominator = denominator;
+      entry.beatsPerMeasure = numerator * (4 / denominator);
+
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+      render();
+      status.textContent = "Time signature change saved at measure " + measureNumber + ".";
+    }
+
+    function saveIrregularMeasureAt(measureNumber, beats) {
+      if (!Array.isArray(project.context.irregularMeasures)) {
+        project.context.irregularMeasures = [];
+      }
+
+      saveHistory();
+
+      let entry = project.context.irregularMeasures.find(m => m.measureNumber === measureNumber);
+      if (!entry) {
+        entry = { measureNumber };
+        project.context.irregularMeasures.push(entry);
+      }
+      entry.beats = beats;
+
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+      render();
+      status.textContent = "Irregular measure saved at measure " + measureNumber + ".";
+    }
+
     function hasSelectedLocation() {
       return Number.isFinite(selectedInsertBeat);
     }
@@ -4178,6 +4812,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       applyTimelineScale();
       renderRuler();
       renderStructureRuler();
+      renderMeterRuler();
       renderLanes();
       renderInspectors();
 
@@ -11903,16 +12538,25 @@ mxmlImportConfirm.addEventListener("click", () => {
 
       const lanes = { tenor: [], lead: [], baritone: [], bass: [] };
 
+      // Collects measures whose real content (summed note/rest/backup/
+      // forward duration) doesn't match the nominal time signature length
+      // -- pickups, or any other genuinely short measure. Keyed by measure
+      // number (1-based), shared across all parts/staves rather than
+      // reset per part, since a real irregular measure should agree across
+      // every staff in a well-formed piece.
+      const importedIrregularMeasures = new Map();
+
         parts.forEach((part, partIndex) => {
         const partId = part.getAttribute("id");
         const isTreble = partIndex === 0;
         let cumulativeBeat = 0;
         let divisions = 1;
 
-        [...part.querySelectorAll(":scope > measure")].forEach(measure => {
+        [...part.querySelectorAll(":scope > measure")].forEach((measure, measureIndex) => {
           const divEl = measure.querySelector(":scope > attributes > divisions");
           if (divEl) divisions = parseInt(divEl.textContent, 10) || 1;
 
+          const measureStartBeat = cumulativeBeat;
           let measureBeat = cumulativeBeat;
           const voicePositions = {};
 
@@ -12027,10 +12671,36 @@ mxmlImportConfirm.addEventListener("click", () => {
             }
           });
 
-          // Advance cumulative beat by measure length
-          const measureDivisions = [...measure.querySelectorAll(":scope > note:not(:has(> chord))")];
-          // Use time signature to determine measure length
-          cumulativeBeat += timeSig.numerator * (4 / timeSig.denominator);
+          // This is the actual fix for the original "measure 1 padding"
+          // bug: advance by this measure's REAL content length whenever it
+          // genuinely differs from the nominal time signature, instead of
+          // always assuming every measure is the same fixed length. A
+          // pickup measure (or any short measure) is detected simply by
+          // comparing measureBeat's final value -- which already correctly
+          // accounts for every note/rest/backup/forward in the measure --
+          // against what a full measure should be.
+          //
+          // Caveat worth knowing: this relies on the measure's notated
+          // content actually summing to less than a full measure to detect
+          // irregularity, since plain MusicXML (unlike MuseScore's own
+          // format) has no explicit "this measure is short" flag. Real,
+          // valid, software-exported MusicXML reliably notates trailing
+          // rests explicitly (a bare requirement for the file to validate
+          // at all), so this is safe in practice -- but a hand-edited or
+          // malformed file that omits an implied trailing rest could be
+          // misread as a pickup. Not a concern for real-world imports from
+          // real notation software, worth knowing if a hand-crafted file
+          // ever behaves oddly.
+          const nominalMeasureLength = timeSig.numerator * (4 / timeSig.denominator);
+          const actualMeasureLength = measureBeat - measureStartBeat;
+          const measureNumber = measureIndex + 1;
+
+          if (Math.abs(actualMeasureLength - nominalMeasureLength) > 0.01 && actualMeasureLength > 0) {
+            importedIrregularMeasures.set(measureNumber, actualMeasureLength);
+            cumulativeBeat = measureBeat;
+          } else {
+            cumulativeBeat += nominalMeasureLength;
+          }
         });
       });
 
@@ -12060,7 +12730,8 @@ mxmlImportConfirm.addEventListener("click", () => {
         tempo,
         lanes,
         lyricCount,
-        partsDescription: "Treble (Tenor + Lead), Bass (Baritone + Bass)"
+        partsDescription: "Treble (Tenor + Lead), Bass (Baritone + Bass)",
+        irregularMeasures: Array.from(importedIrregularMeasures, ([measureNumber, beats]) => ({ measureNumber, beats }))
       };
     }
 
@@ -12104,6 +12775,13 @@ mxmlImportConfirm.addEventListener("click", () => {
         numerator: data.timeSig.numerator,
         denominator: data.timeSig.denominator
       };
+
+      // Real pickups/short measures detected during parsing (see
+      // parseMusicXml's importedIrregularMeasures) -- normalizeProject()
+      // will validate and backfill timeSignatureChanges from
+      // context.timeSignature above regardless, so this only needs to
+      // carry the irregular-measure overrides through.
+      newProject.context.irregularMeasures = data.irregularMeasures || [];
 
       const laneIds = ["tenor", "lead", "baritone", "bass"];
       laneIds.forEach(laneId => {
@@ -12215,9 +12893,12 @@ mxmlImportConfirm.addEventListener("click", () => {
         ? Math.max(...project.blocks.map(b => b.startBeat + b.durationBeats))
         : 4;
 
-      const beatsPerMeasure = ts.numerator * (4 / ts.denominator);
-      const totalMeasures = Math.ceil(maxBeat / beatsPerMeasure);
-
+      // Was a single global beatsPerMeasure applied uniformly to every
+      // measure -- now uses the real per-measure model (time signature
+      // changes + irregular measures), same functions Design Studio's own
+      // timeline uses, so export can no longer silently disagree with what
+      // DS actually shows.
+      const totalMeasures = Math.max(1, beatToMeasureInfo(Math.max(0, maxBeat - 0.000001)).measure);
       let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
       xml += `<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">\n`;
       xml += `<score-partwise version="4.0">\n`;
@@ -12246,21 +12927,30 @@ mxmlImportConfirm.addEventListener("click", () => {
         xml += `  <part id="${def.id}">\n`;
 
         for (let m = 0; m < totalMeasures; m++) {
-          const measureStartBeat = m * beatsPerMeasure;
-          const measureEndBeat = measureStartBeat + beatsPerMeasure;
+          const measureNumber = m + 1;
+          const measureStartBeat = getMeasureStartBeat(measureNumber);
+          const measureEndBeat = measureStartBeat + getMeasureLength(measureNumber);
+          const activeSignature = getTimeSignatureAt(measureNumber);
 
           xml += `    <measure number="${m + 1}">\n`;
 
-          if (m === 0) {
+          const signatureChangesHere = m === 0 ||
+            (project.context.timeSignatureChanges || []).some(c => c.measureNumber === measureNumber);
+
+          if (signatureChangesHere) {
             xml += `      <attributes>\n`;
-            xml += `        <divisions>${divisions}</divisions>\n`;
-            xml += `        <key><fifths>${fifths}</fifths></key>\n`;
-            xml += `        <time><beats>${ts.numerator}</beats><beat-type>${ts.denominator}</beat-type></time>\n`;
-            xml += `        <clef><sign>${def.clef}</sign><line>${def.clefLine}</line>`;
-            if (def.octaveChange !== 0) {
-              xml += `<clef-octave-change>${def.octaveChange}</clef-octave-change>`;
+            if (m === 0) {
+              xml += `        <divisions>${divisions}</divisions>\n`;
+              xml += `        <key><fifths>${fifths}</fifths></key>\n`;
             }
-            xml += `</clef>\n`;
+            xml += `        <time><beats>${activeSignature.numerator}</beats><beat-type>${activeSignature.denominator}</beat-type></time>\n`;
+            if (m === 0) {
+              xml += `        <clef><sign>${def.clef}</sign><line>${def.clefLine}</line>`;
+              if (def.octaveChange !== 0) {
+                xml += `<clef-octave-change>${def.octaveChange}</clef-octave-change>`;
+              }
+              xml += `</clef>\n`;
+            }
             xml += `      </attributes>\n`;
             if (m === 0) {
               xml += `      <direction placement="above"><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>${tempo}</per-minute></metronome></direction-type><sound tempo="${tempo}"/></direction>\n`;
@@ -12420,18 +13110,27 @@ mxmlImportConfirm.addEventListener("click", () => {
 
           xml += `    <measure number="${m + 1}">\n`;
 
-          if (m === 0) {
+          const signatureChangesHere = m === 0 ||
+            (project.context.timeSignatureChanges || []).some(c => c.measureNumber === measureNumber);
+
+          if (signatureChangesHere) {
             xml += `      <attributes>\n`;
-            xml += `        <divisions>${divisions}</divisions>\n`;
-            xml += `        <key><fifths>${fifths}</fifths></key>\n`;
-            xml += `        <time><beats>${ts.numerator}</beats><beat-type>${ts.denominator}</beat-type></time>\n`;
-            xml += `        <clef><sign>${def.clef}</sign><line>${def.clefLine}</line>`;
-            if (def.octaveChange !== 0) {
-              xml += `<clef-octave-change>${def.octaveChange}</clef-octave-change>`;
+            if (m === 0) {
+              xml += `        <divisions>${divisions}</divisions>\n`;
+              xml += `        <key><fifths>${fifths}</fifths></key>\n`;
             }
-            xml += `</clef>\n`;
+            xml += `        <time><beats>${activeSignature.numerator}</beats><beat-type>${activeSignature.denominator}</beat-type></time>\n`;
+            if (m === 0) {
+              xml += `        <clef><sign>${def.clef}</sign><line>${def.clefLine}</line>`;
+              if (def.octaveChange !== 0) {
+                xml += `<clef-octave-change>${def.octaveChange}</clef-octave-change>`;
+              }
+              xml += `</clef>\n`;
+            }
             xml += `      </attributes>\n`;
-            xml += `      <direction placement="above"><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>${tempo}</per-minute></metronome></direction-type><sound tempo="${tempo}"/></direction>\n`;
+            if (m === 0) {
+              xml += `      <direction placement="above"><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>${tempo}</per-minute></metronome></direction-type><sound tempo="${tempo}"/></direction>\n`;
+            }
           }
 
           const measureBlocks = laneBlocks.filter(b =>
