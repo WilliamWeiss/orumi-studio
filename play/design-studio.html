@@ -757,7 +757,14 @@
 
     .lane-label {
       border-radius: 14px 0 0 14px;
-      background: rgba(255,255,255,0.10);
+      /* Solid, opaque color instead of a translucent overlay -- same
+         visual look as before (this is the exact flat equivalent of the
+         old rgba(255,255,255,0.10) over the page's --bg), but genuinely
+         opaque now that this cell is sticky. A translucent background was
+         fine when nothing needed to be fully hidden behind it; now that
+         note blocks scroll underneath it, a translucent one lets them
+         visibly bleed through instead of being covered. */
+      background: #27292c;
       border: 1px solid rgba(255,255,255,0.10);
       border-right: none;
       display: flex;
