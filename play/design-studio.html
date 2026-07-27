@@ -366,7 +366,7 @@
       padding: 14px 14px 18px;
     }
 
-    ./* Sticky headers: freezes the part-name column (left) and the Beat
+    /* Sticky headers: freezes the part-name column (left) and the Beat
        Ruler/Structure/Meter rows (top) so the part and beat you're working
        with stay visible no matter how far you've scrolled into a long
        piece -- same idea as frozen panes in a spreadsheet. top: 122px
@@ -1938,6 +1938,7 @@
         <button class="control-button secondary" id="importProgressionButton">⤓ Import Progression</button>
         <button class="control-button secondary" id="importMidiButton">⤓ Import MIDI</button>
         <button class="control-button secondary" id="importMusicXmlButton">⤓ Import MusicXML</button>
+        <button class="control-button secondary" id="importMuseScoreButton">⤓ Import MuseScore</button>
       </div>
     </div>
 
@@ -2077,7 +2078,7 @@
 <!-- MusicXML import dialog -->
   <div class="mxml-import-overlay" id="mxmlImportOverlay">
     <div class="mxml-import-dialog">
-      <div class="mxml-import-title">Import MusicXML</div>
+      <div class="mxml-import-title" id="mxmlImportTitle">Import MusicXML</div>
       <div class="mxml-import-detected" id="mxmlDetectedInfo">
         <div class="mxml-import-row">
           <span class="mxml-import-row-label">Title</span>
@@ -2112,8 +2113,11 @@
     </div>
   </div>
 
-  <!-- Hidden file input for MusicXML -->
+ <!-- Hidden file input for MusicXML -->
   <input type="file" id="mxmlFileInput" accept=".musicxml,.xml,.mxl,.playscore" style="display:none;" />
+
+  <!-- Hidden file input for MuseScore -->
+  <input type="file" id="msczFileInput" accept=".mscz" style="display:none;" />
 
   <div class="studio">
 
@@ -12451,6 +12455,41 @@ exportMidiButton.addEventListener("click", exportMidi);
       mxmlParsedData = null;
     });
 
+    const importMuseScoreButton = document.getElementById("importMuseScoreButton");
+    const msczFileInput = document.getElementById("msczFileInput");
+
+    importMuseScoreButton.addEventListener("click", () => {
+      msczFileInput.value = "";
+      msczFileInput.click();
+    });
+
+    async function readMscxFile(file) {
+      const JSZip = window.JSZip;
+      if (!JSZip) throw new Error("JSZip not loaded. Try again.");
+      const zip = await JSZip.loadAsync(await file.arrayBuffer());
+
+      // No fixed/predictable name the way .mxl has via container.xml --
+      // just find whichever single .mscx file is inside.
+      const mscxPath = Object.keys(zip.files).find(n => /\.mscx$/i.test(n));
+      if (!mscxPath || !zip.file(mscxPath)) {
+        throw new Error("No .mscx score found inside this .mscz file.");
+      }
+      return await zip.file(mscxPath).async("text");
+    }
+
+    msczFileInput.addEventListener("change", async (ev) => {
+      const file = ev.target.files[0];
+      if (!file) return;
+      try {
+        const mscx = await readMscxFile(file);
+        mxmlParsedData = parseMuseScoreXml(mscx, file.name);
+        showMxmlImportDialog(mxmlParsedData, "Import MuseScore");
+      } catch (err) {
+        flashStatus("Could not read MuseScore file: " + err.message);
+        console.error(err);
+      }
+    });
+
 mxmlImportConfirm.addEventListener("click", () => {
       if (!mxmlParsedData) return;
       saveHistory();
@@ -12466,6 +12505,210 @@ mxmlImportConfirm.addEventListener("click", () => {
       mxmlImportOverlay.classList.remove("visible");
       mxmlParsedData = null;
     });
+
+    function mergeConsecutiveTiedNotes(events) {
+      const merged = [];
+      for (const event of events) {
+        const prev = merged[merged.length - 1];
+        if (prev && prev.tieStart && event.tieEnd && prev.pitch === event.pitch && event.pitch !== null) {
+          prev.duration += event.duration;
+          prev.tieStart = event.tieStart;
+          prev.lyric = prev.lyric || event.lyric;
+          prev.syllabic = prev.syllabic || event.syllabic;
+          continue;
+        }
+        merged.push({ ...event });
+      }
+      return merged;
+    }
+
+    const MSCZ_DURATION_BEATS = {
+      "whole": 4, "half": 2, "quarter": 1, "eighth": 0.5,
+      "16th": 0.25, "32nd": 0.125, "64th": 0.0625
+    };
+
+    function parseMuseScoreXml(xmlText, fileName) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(xmlText, "text/xml");
+
+      const parseErrorEl = doc.querySelector("parsererror");
+      if (parseErrorEl) {
+        throw new Error("Could not parse MuseScore file -- invalid XML.");
+      }
+
+      const scoreEl = doc.querySelector("museScore > Score");
+      if (!scoreEl) {
+        throw new Error("Not a recognized MuseScore file (no <Score> element found).");
+      }
+
+      const workTitleTag = [...doc.querySelectorAll("metaTag")].find(t => t.getAttribute("name") === "workTitle");
+      const title = (workTitleTag && workTitleTag.textContent.trim()) || fileName.replace(/\.(mscz|mscx)$/i, "");
+
+      const parts = [...scoreEl.querySelectorAll(":scope > Part")];
+      const staffs = [...scoreEl.querySelectorAll(":scope > Staff")].filter(s => s.querySelector(":scope > Measure"));
+
+      const lanes = { tenor: [], lead: [], baritone: [], bass: [] };
+      const importedIrregularMeasures = new Map();
+      const importedTimeSignatureChanges = new Map();
+      let openingTimeSig = { numerator: 4, denominator: 4, display: "4/4" };
+      let firstTimeSigSeen = false;
+
+      staffs.forEach((staff, staffIndex) => {
+        const part = parts[staffIndex];
+        const instrumentId = part ? (part.querySelector("Instrument")?.getAttribute("id") || "") : "";
+        const isTreble = instrumentId === "tenor" || staffIndex === 0;
+        const laneNames = isTreble ? ["tenor", "lead"] : ["baritone", "bass"];
+
+        let cumulativeBeat = 0;
+        let localActiveTimeSig = openingTimeSig;
+        const voiceEvents = { 0: [], 1: [] };
+        const voiceBeatOffsets = { 0: [], 1: [] };
+
+        const measures = [...staff.querySelectorAll(":scope > Measure")];
+        measures.forEach((measure, measureIndex) => {
+          const measureNumber = measureIndex + 1;
+          const measureStartBeat = cumulativeBeat;
+
+          const lenAttr = measure.getAttribute("len");
+          let explicitMeasureLength = null;
+          if (lenAttr && lenAttr.includes("/")) {
+            const [num, den] = lenAttr.split("/").map(Number);
+            if (num > 0 && den > 0) {
+              explicitMeasureLength = num * (4 / den);
+            }
+          }
+
+          const voiceEls = [...measure.querySelectorAll(":scope > voice")];
+          voiceEls.forEach((voiceEl, voiceIndex) => {
+            const timeSigEl = voiceEl.querySelector(":scope > TimeSig");
+            if (timeSigEl) {
+              const sigN = parseInt(timeSigEl.querySelector("sigN")?.textContent, 10);
+              const sigD = parseInt(timeSigEl.querySelector("sigD")?.textContent, 10);
+              if (sigN > 0 && sigD > 0) {
+                if (!firstTimeSigSeen) {
+                  openingTimeSig = { numerator: sigN, denominator: sigD, display: sigN + "/" + sigD };
+                  localActiveTimeSig = openingTimeSig;
+                  firstTimeSigSeen = true;
+                } else if (sigN !== localActiveTimeSig.numerator || sigD !== localActiveTimeSig.denominator) {
+                  localActiveTimeSig = { numerator: sigN, denominator: sigD };
+                  importedTimeSignatureChanges.set(measureNumber, { numerator: sigN, denominator: sigD });
+                }
+              }
+            }
+
+            let voiceBeat = measureStartBeat;
+            const children = [...voiceEl.children].filter(c => c.tagName === "Chord" || c.tagName === "Rest");
+
+            children.forEach(child => {
+              const durationTypeEl = child.querySelector(":scope > durationType");
+              const durationType = durationTypeEl ? durationTypeEl.textContent : "quarter";
+              let duration = MSCZ_DURATION_BEATS[durationType] || 1;
+
+              const dotsEl = child.querySelector(":scope > dots");
+              if (dotsEl) {
+                const dots = parseInt(dotsEl.textContent, 10) || 0;
+                duration = duration * (2 - Math.pow(0.5, dots));
+              }
+
+              if (child.tagName === "Rest") {
+                voiceEvents[voiceIndex].push({ pitch: null, duration, tieStart: false, tieEnd: false, lyric: null, syllabic: null, isRest: true });
+                voiceBeatOffsets[voiceIndex].push(voiceBeat);
+                voiceBeat += duration;
+                return;
+              }
+
+              const noteEl = child.querySelector(":scope > Note");
+              if (!noteEl) return;
+
+              const pitch = parseInt(noteEl.querySelector(":scope > pitch")?.textContent, 10);
+              const spannerEl = noteEl.querySelector(":scope > Spanner[type='Tie']");
+              const tieStart = !!(spannerEl && spannerEl.querySelector(":scope > next"));
+              const tieEnd = !!(spannerEl && spannerEl.querySelector(":scope > prev"));
+
+              const lyricsEl = child.querySelector(":scope > Lyrics");
+              const lyric = lyricsEl ? (lyricsEl.querySelector(":scope > text")?.textContent || "") : null;
+              const syllabic = lyricsEl ? (lyricsEl.querySelector(":scope > syllabic")?.textContent || null) : null;
+
+              voiceEvents[voiceIndex].push({ pitch, duration, tieStart, tieEnd, lyric, syllabic, isRest: false });
+              voiceBeatOffsets[voiceIndex].push(voiceBeat);
+              voiceBeat += duration;
+            });
+          });
+
+          const actualMeasureLength = explicitMeasureLength !== null
+            ? explicitMeasureLength
+            : (localActiveTimeSig.numerator * (4 / localActiveTimeSig.denominator));
+
+          if (explicitMeasureLength !== null) {
+            const nominalLength = localActiveTimeSig.numerator * (4 / localActiveTimeSig.denominator);
+            if (Math.abs(explicitMeasureLength - nominalLength) > 0.01) {
+              importedIrregularMeasures.set(measureNumber, explicitMeasureLength);
+            }
+          }
+
+          cumulativeBeat = measureStartBeat + actualMeasureLength;
+        });
+
+        [0, 1].forEach(voiceIndex => {
+          const laneName = laneNames[voiceIndex];
+          if (!laneName) return;
+
+          const rawEvents = voiceEvents[voiceIndex];
+          const rawOffsets = voiceBeatOffsets[voiceIndex];
+          const eventsWithOffsets = rawEvents.map((e, i) => ({ ...e, startBeat: rawOffsets[i] }));
+
+          const merged = mergeConsecutiveTiedNotes(eventsWithOffsets);
+
+          merged.forEach(event => {
+            lanes[laneName].push({
+              startBeat: event.startBeat,
+              durationBeats: event.duration,
+              midi: event.isRest ? null : event.pitch,
+              name: event.isRest ? "Rest" : midiToDisplayName(event.pitch),
+              isRest: event.isRest,
+              lyric: event.lyric,
+              syllabic: event.syllabic
+            });
+          });
+        });
+      });
+
+      // Key: <concertKey> is MuseScore's own fifths encoding, identical
+      // concept to MusicXML's <fifths> (negative = flats, positive = sharps).
+      // No explicit major/minor indicator exists in this format at all --
+      // fifthsToKeyContext's own default-to-major fallback applies, same as
+      // when parseMusicXml encounters a MusicXML file missing <mode> too.
+      const firstConcertKeyEl = scoreEl.querySelector("KeySig > concertKey");
+      const fifths = firstConcertKeyEl ? parseInt(firstConcertKeyEl.textContent, 10) || 0 : 0;
+      const keyContext = fifthsToKeyContext(fifths, null);
+
+      // Neither real reference file for this format had an explicit starting
+      // tempo marking at all (just a later GradualTempoChange in one) -- 120
+      // matches Design Studio's own established default elsewhere.
+      const tempoEl = scoreEl.querySelector("Tempo > tempo");
+      const tempo = tempoEl ? Math.round(parseFloat(tempoEl.textContent) * 60) || 120 : 120;
+
+      const lyricCount = Object.values(lanes).reduce(
+        (count, lane) => count + lane.filter(n => n.lyric).length,
+        0
+      );
+
+      return {
+        title,
+        root: keyContext.root,
+        mode: keyContext.mode,
+        timeSig: openingTimeSig,
+        tempo,
+        lanes,
+        lyricCount,
+        partsDescription: "Treble (Tenor + Lead), Bass (Baritone + Bass)",
+        irregularMeasures: Array.from(importedIrregularMeasures, ([measureNumber, beats]) => ({ measureNumber, beats })),
+        timeSignatureChanges: Array.from(
+          importedTimeSignatureChanges,
+          ([measureNumber, sig]) => ({ measureNumber, numerator: sig.numerator, denominator: sig.denominator })
+        )
+      };
+    }
 
     async function readMxmlFile(file) {
       const name = file.name.toLowerCase();
@@ -12553,15 +12796,47 @@ mxmlImportConfirm.addEventListener("click", () => {
       // every staff in a well-formed piece.
       const importedIrregularMeasures = new Map();
 
+      // Collects REAL mid-piece time signature changes -- a genuine new
+      // <attributes><time> block appearing partway through the piece, not
+      // just the one nominal signature read once at the top of the file
+      // (timeSig, below). Same sharing convention as
+      // importedIrregularMeasures: keyed by measure number, last part
+      // encountered to notice a given change wins (harmless for a
+      // well-formed piece, where every staff should agree).
+      const importedTimeSignatureChanges = new Map();
+
         parts.forEach((part, partIndex) => {
         const partId = part.getAttribute("id");
         const isTreble = partIndex === 0;
         let cumulativeBeat = 0;
         let divisions = 1;
 
+        // Tracks whatever time signature is ACTUALLY active as this part
+        // walks through its own measures -- starts as the piece's opening
+        // signature (timeSig), but updates the moment a real mid-piece
+        // <attributes><time> change is encountered, so later measures get
+        // compared against the CORRECT current nominal length instead of
+        // always the piece-opening one (which would otherwise wrongly
+        // flag every post-change measure as "irregular").
+        let localActiveTimeSig = timeSig;
+
         [...part.querySelectorAll(":scope > measure")].forEach((measure, measureIndex) => {
           const divEl = measure.querySelector(":scope > attributes > divisions");
           if (divEl) divisions = parseInt(divEl.textContent, 10) || 1;
+
+          const measureBeatsEl = measure.querySelector(":scope > attributes > time > beats");
+          const measureBeatTypeEl = measure.querySelector(":scope > attributes > time > beat-type");
+          if (measureBeatsEl && measureBeatTypeEl) {
+            const newNumerator = parseInt(measureBeatsEl.textContent, 10) || localActiveTimeSig.numerator;
+            const newDenominator = parseInt(measureBeatTypeEl.textContent, 10) || localActiveTimeSig.denominator;
+            if (newNumerator !== localActiveTimeSig.numerator || newDenominator !== localActiveTimeSig.denominator) {
+              localActiveTimeSig = { numerator: newNumerator, denominator: newDenominator };
+              importedTimeSignatureChanges.set(measureIndex + 1, {
+                numerator: newNumerator,
+                denominator: newDenominator
+              });
+            }
+          }
 
           const measureStartBeat = cumulativeBeat;
           let measureBeat = cumulativeBeat;
@@ -12642,14 +12917,40 @@ mxmlImportConfirm.addEventListener("click", () => {
               const lyricEl = el.querySelector(":scope > lyric > text");
               const lyric = lyricEl?.textContent?.trim() || null;
 
-              lanes[laneId].push({
-                startBeat,
-                durationBeats,
-                midi,
-                name: midiToDisplayName(midi),
-                lyric,
-                voice
-              });
+              // <tie type="start"/> and <tie type="stop"/> are direct
+              // children of <note>, siblings to <pitch>/<duration> -- a
+              // note can have BOTH at once (the middle link in a chain of
+              // 3+ tied notes; confirmed a real case in this piece's own
+              // real files). A tie means "don't re-articulate this pitch,
+              // just sustain it longer", so it's merged here at import
+              // time rather than kept as a separate property -- same
+              // philosophy as the MuseScore importer's tie handling.
+              // Looks at whatever was most recently pushed into THIS lane
+              // specifically (notes are always pushed in correct time
+              // order per lane, even when <backup> interleaves other
+              // voices' pushes into OTHER lanes in between); if it's still
+              // mid-tie and this note continues the same pitch, extend it
+              // instead of adding a new block. tieStart never needs to
+              // survive past this import step -- normalizeProject()'s
+              // field whitelist drops it naturally once ties are resolved.
+              const tieStart = el.querySelector(":scope > tie[type='start']") !== null;
+              const tieEnd = el.querySelector(":scope > tie[type='stop']") !== null;
+              const lastInLane = lanes[laneId][lanes[laneId].length - 1];
+
+              if (tieEnd && lastInLane && lastInLane.tieStart && lastInLane.midi === midi) {
+                lastInLane.durationBeats += durationBeats;
+                lastInLane.tieStart = tieStart;
+              } else {
+                lanes[laneId].push({
+                  startBeat,
+                  durationBeats,
+                  midi,
+                  name: midiToDisplayName(midi),
+                  lyric,
+                  voice,
+                  tieStart
+                });
+              }
             } else {
               // Explicit notated rests were previously discarded here --
               // silently correct as long as the old auto-generated filler
@@ -12698,7 +12999,7 @@ mxmlImportConfirm.addEventListener("click", () => {
           // misread as a pickup. Not a concern for real-world imports from
           // real notation software, worth knowing if a hand-crafted file
           // ever behaves oddly.
-          const nominalMeasureLength = timeSig.numerator * (4 / timeSig.denominator);
+          const nominalMeasureLength = localActiveTimeSig.numerator * (4 / localActiveTimeSig.denominator);
           const actualMeasureLength = measureBeat - measureStartBeat;
           const measureNumber = measureIndex + 1;
 
@@ -12710,6 +13011,60 @@ mxmlImportConfirm.addEventListener("click", () => {
           }
         });
       });
+
+      // Some real-world MusicXML files don't explicitly re-declare a time
+      // signature when returning to it -- e.g. after a nested repeat with
+      // its own odd meters closes, the piece may simply resume the
+      // original meter without an explicit <attributes><time> block
+      // anywhere marking that return. Nothing in the file signals it, so
+      // the measures affected just show up as a long run of "irregular"
+      // measures that all happen to share the exact same length -- which
+      // is precisely the signal that distinguishes this case from a
+      // genuine one-off pickup (always isolated) or a genuine split pair
+      // (adjacent, but with DIFFERING lengths, like Summer Time's 1+2).
+      // A run of 2 or more CONSECUTIVE measures with an IDENTICAL
+      // irregular length gets promoted here into a single, clean
+      // timeSignatureChanges entry instead of staying as a string of
+      // individually-flagged irregular measures -- this doesn't change any
+      // actual note timing (that was already correct either way, since
+      // cumulativeBeat always advanced by real content regardless of which
+      // list a measure ended up in) -- it only affects what gets displayed
+      // and what MusicXML export can correctly round-trip.
+      const sortedIrregularMeasureNumbers = [...importedIrregularMeasures.keys()].sort((a, b) => a - b);
+      let scanIndex = 0;
+      while (scanIndex < sortedIrregularMeasureNumbers.length) {
+        const runStart = sortedIrregularMeasureNumbers[scanIndex];
+        const runBeats = importedIrregularMeasures.get(runStart);
+        let runEnd = runStart;
+        let nextIndex = scanIndex + 1;
+
+        while (
+          nextIndex < sortedIrregularMeasureNumbers.length &&
+          sortedIrregularMeasureNumbers[nextIndex] === runEnd + 1 &&
+          importedIrregularMeasures.get(sortedIrregularMeasureNumbers[nextIndex]) === runBeats
+        ) {
+          runEnd = sortedIrregularMeasureNumbers[nextIndex];
+          nextIndex++;
+        }
+
+        if (runEnd - runStart + 1 >= 2) {
+          // Prefer the piece's own original opening signature if its
+          // nominal length exactly matches -- reverting to what the piece
+          // started in is the most likely real-world case. Otherwise fall
+          // back to a simple beats/4 fraction as a reasonable default.
+          const originalNominalLength = timeSig.numerator * (4 / timeSig.denominator);
+          const inferredSignature = Math.abs(runBeats - originalNominalLength) < 0.01
+            ? { numerator: timeSig.numerator, denominator: timeSig.denominator }
+            : { numerator: runBeats, denominator: 4 };
+
+          importedTimeSignatureChanges.set(runStart, inferredSignature);
+          for (let m = runStart; m <= runEnd; m++) {
+            importedIrregularMeasures.delete(m);
+          }
+        }
+
+        scanIndex = nextIndex;
+      }
 
       // Distribute Lead lyrics to other parts by beat position
       const leadLyrics = lanes.lead.filter(n => n.lyric);
@@ -12738,7 +13093,11 @@ mxmlImportConfirm.addEventListener("click", () => {
         lanes,
         lyricCount,
         partsDescription: "Treble (Tenor + Lead), Bass (Baritone + Bass)",
-        irregularMeasures: Array.from(importedIrregularMeasures, ([measureNumber, beats]) => ({ measureNumber, beats }))
+        irregularMeasures: Array.from(importedIrregularMeasures, ([measureNumber, beats]) => ({ measureNumber, beats })),
+        timeSignatureChanges: Array.from(
+          importedTimeSignatureChanges,
+          ([measureNumber, sig]) => ({ measureNumber, numerator: sig.numerator, denominator: sig.denominator })
+        )
       };
     }
 
@@ -12759,7 +13118,8 @@ mxmlImportConfirm.addEventListener("click", () => {
       return 12 * (octave + 1) + (steps[step] || 0) + Math.round(alter);
     }
 
-    function showMxmlImportDialog(data) {
+    function showMxmlImportDialog(data, formatLabel = "Import MusicXML") {
+      document.getElementById("mxmlImportTitle").textContent = formatLabel;
       document.getElementById("mxmlDetectedTitle").textContent = data.title;
       document.getElementById("mxmlDetectedKey").textContent =
         data.root + " " + (data.mode === "aeolian" ? "Minor" : "Major");
@@ -12789,6 +13149,22 @@ mxmlImportConfirm.addEventListener("click", () => {
       // context.timeSignature above regardless, so this only needs to
       // carry the irregular-measure overrides through.
       newProject.context.irregularMeasures = data.irregularMeasures || [];
+
+      // Real mid-piece time signature changes detected during parsing.
+      // normalizeProject() always guarantees a measure-1 entry from
+      // context.timeSignature above, so this only needs to carry through
+      // whatever ADDITIONAL changes were actually found partway through --
+      // no need to separately include a measure-1 entry here too.
+      if (Array.isArray(data.timeSignatureChanges) && data.timeSignatureChanges.length) {
+        newProject.context.timeSignatureChanges = [
+          {
+            measureNumber: 1,
+            numerator: data.timeSig.numerator,
+            denominator: data.timeSig.denominator
+          },
+          ...data.timeSignatureChanges
+        ];
+      }
 
       const laneIds = ["tenor", "lead", "baritone", "bass"];
       laneIds.forEach(laneId => {
@@ -12998,17 +13374,40 @@ mxmlImportConfirm.addEventListener("click", () => {
               const { step, alter, octave } = midiToStepOctave(block.midi);
               const stemDir = (role === "tenor" || role === "baritone") ? "up" : "down";
 
+              // The clipping above already correctly splits a block that
+              // crosses one or more barlines into separate per-measure
+              // pieces with the right individual durations -- but it never
+              // marked them as tied, so a cross-barline note previously
+              // exported as two separately-attacked notes that only
+              // happened to add up to the right total duration. A tie is
+              // needed on the FIRST piece (continues into a later measure)
+              // and/or the LAST piece (continues FROM an earlier measure)
+              // -- both at once for a note spanning 3+ measures, matching
+              // how a real tied note's middle link works on import too.
+              const blockTrueEnd = Number(block.startBeat) + Number(block.durationBeats);
+              const tieStartsHere = blockTrueEnd > measureEndBeat + 0.001;
+              const tieContinuesFromBefore = Number(block.startBeat) < measureStartBeat - 0.001;
+
               xml += `      <note>\n`;
               xml += `        <pitch><step>${step}</step>`;
               if (alter !== 0) xml += `<alter>${alter}</alter>`;
               xml += `<octave>${octave}</octave></pitch>\n`;
               xml += `        <duration>${dur}</duration>\n`;
+              if (tieContinuesFromBefore) xml += `        <tie type="stop"/>\n`;
+              if (tieStartsHere) xml += `        <tie type="start"/>\n`;
               xml += `        <voice>1</voice>\n`;
               xml += `        <type>${noteType}</type>\n`;
               xml += `        <stem>${stemDir}</stem>\n`;
 
               if (block.lyric) {
                 xml += `        <lyric number="1"><syllabic>single</syllabic><text>${escapeXml(block.lyric)}</text></lyric>\n`;
+              }
+
+              if (tieContinuesFromBefore || tieStartsHere) {
+                xml += `        <notations>\n`;
+                if (tieContinuesFromBefore) xml += `          <tied type="stop"/>\n`;
+                if (tieStartsHere) xml += `          <tied type="start"/>\n`;
+                xml += `        </notations>\n`;
               }
 
               xml += `      </note>\n`;
