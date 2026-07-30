@@ -382,10 +382,12 @@
     .time-ruler,
     .structure-ruler-row,
     .meter-ruler-row {
-      position: sticky;
-      top: 122px;
-      background: var(--bg);
-      z-index: 20;
+      display: grid;
+      grid-template-columns: 104px 1fr;
+      height: 48px;
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 4px;
     }
 
     .ruler-name,
@@ -535,15 +537,6 @@
       pointer-events: none;
     }
 
-    .meter-ruler-row {
-      display: grid;
-      grid-template-columns: 104px 1fr;
-      height: 26px;
-      color: var(--muted);
-      font-size: 11px;
-      margin-bottom: 4px;
-    }
-
     .meter-ruler-name {
       display: grid;
       place-items: center;
@@ -579,8 +572,16 @@
       background: rgba(255,213,79,0.9);
     }
 
+    /* A time-signature change and an irregular measure can legitimately
+       both exist at the same measure (e.g. measure 1 is both "the piece
+       is in 4/4" and "but this specific measure is a 2-beat pickup") --
+       without this, both flags land at the identical position and the
+       irregular one (added second) draws directly over the signature
+       one, hiding it entirely. Offsetting irregular flags downward keeps
+       both visible and independently clickable. */
     .meter-marker-flag.type-irregular {
       background: rgba(206,147,216,0.9);
+      top: 24px;
     }
 
     .meter-marker-flag:hover {
@@ -892,7 +893,7 @@
     .lyric-strip {
       display: none;
       position: relative;
-      height: 22px;
+      height: 28px;
       overflow: visible;
       pointer-events: none;
       grid-column: 2;
@@ -906,8 +907,9 @@
 
     .lyric-token {
       position: absolute;
-      font-size: 11px;
-      color: var(--muted-text, #b9b3a7);
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text, #f5f0e8);
       white-space: nowrap;
       transform: translateY(2px);
       pointer-events: none;
@@ -4370,9 +4372,14 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       irregulars.forEach(irregular => {
         const flag = document.createElement("div");
         flag.className = "meter-marker-flag type-irregular";
-        flag.textContent = "M" + irregular.measureNumber + ": " + irregular.beats + "b";
+        const isPickup = irregular.measureNumber === 1;
+        flag.textContent = isPickup
+          ? irregular.beats + "b pickup"
+          : "M" + irregular.measureNumber + ": " + irregular.beats + "b";
         flag.style.left = getMeasureStartBeat(irregular.measureNumber) * BEAT_WIDTH + "px";
-        flag.title = "M" + irregular.measureNumber + " is irregular: " + irregular.beats + " beats, this measure only. Click to edit or delete.";
+        flag.title = isPickup
+          ? irregular.beats + "-beat pickup at the start of the piece. Click to edit or delete."
+          : "M" + irregular.measureNumber + " is irregular: " + irregular.beats + " beats, this measure only. Click to edit or delete.";
         flag.addEventListener("click", event => {
           event.stopPropagation();
           openMeterMarkerPicker(null, irregular, irregular.measureNumber);
@@ -6660,6 +6667,25 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         });
 
         blockInspector.appendChild(voiceSelect);
+
+        const lyricLabel = document.createElement("label");
+        lyricLabel.textContent = "Lyric";
+        blockInspector.appendChild(lyricLabel);
+
+        const lyricInput = document.createElement("input");
+        lyricInput.type = "text";
+        lyricInput.placeholder = "(no lyric)";
+        lyricInput.value = block.lyric || "";
+        lyricInput.title = "The word or syllable sung on this note.";
+
+        lyricInput.addEventListener("change", () => {
+          saveHistory();
+          block.lyric = lyricInput.value.trim() || null;
+          localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+          render();
+        });
+
+        blockInspector.appendChild(lyricInput);
       } else {
         blockInspector.innerHTML =
           "<div class='inspector-empty'>Rest block selected.</div>";
@@ -12781,14 +12807,34 @@ mxmlImportConfirm.addEventListener("click", () => {
 
       // Parse parts
       const parts = [...doc.querySelectorAll("score-partwise > part")];
+
+      // A single-<part> file is a melody-only lead sheet (like a solo
+      // vocal line with lyrics), not a real 4-part arrangement -- there's
+      // no actual tenor harmony to speak of, just one primary voice (and
+      // sometimes a second "alternative note" voice, a real barbershop
+      // arranging convention, not a second harmony part). Voice 1 -> tenor
+      // is the right convention for a genuine 2-staff arrangement (tenor
+      // written above lead on the same staff), but for a single-part
+      // melody file specifically, voice 1 IS the melody and belongs in
+      // Lead, matching Orumi's own lane semantics (Lead = melody).
+      const isSinglePartPiece = parts.length === 1;
+
       const partNames = {};
       [...doc.querySelectorAll("score-part")].forEach(sp => {
         partNames[sp.getAttribute("id")] = sp.querySelector("part-name")?.textContent?.trim() || sp.getAttribute("id");
       });
 
-      const lanes = { tenor: [], lead: [], baritone: [], bass: [] };
+      let lanes = { tenor: [], lead: [], baritone: [], bass: [] };
 
-      // Collects measures whose real content (summed note/rest/backup/
+      // Assumes every part has the same measure count -- true for any
+      // well-formed piece, since all staves of one piece share the same
+      // measures. Needed to correctly offset measure numbers across
+      // unrolled verses later (unrollMeasureMetadata below).
+      const totalMeasureCount = parts.length
+        ? [...parts[0].querySelectorAll(":scope > measure")].length
+        : 0;
+
+      // Collects measures whose real content
       // forward duration) doesn't match the nominal time signature length
       // -- pickups, or any other genuinely short measure. Keyed by measure
       // number (1-based), shared across all parts/staves rather than
@@ -12887,17 +12933,25 @@ mxmlImportConfirm.addEventListener("click", () => {
 
               if (hasVoiceTag) {
                 laneId = isTreble
-                  ? (voice === "2" ? "lead" : "tenor")
+                  ? (isSinglePartPiece
+                      ? (voice === "2" ? "tenor" : "lead")
+                      : (voice === "2" ? "lead" : "tenor"))
                   : (voice === "2" ? "bass" : "baritone");
               } else if (isTreble) {
-                laneId = stem === "up" ? "tenor" : "lead";
+                laneId = isSinglePartPiece
+                  ? (stem === "up" ? "lead" : "tenor")
+                  : (stem === "up" ? "tenor" : "lead");
               } else {
                 laneId = stem === "up" ? "baritone" : "bass";
               }
 
               // Whole notes with neither a voice nor a stem to go on --
               // split by pitch, using whichever lane already has a note at
-              // this beat in this staff.
+              // this beat in this staff. Already defaults to "lead" first
+              // regardless of isSinglePartPiece -- that's the right
+              // behavior either way (a real arrangement's primary voice,
+              // or a single-part melody's only voice), so no swap needed
+              // here, unlike the two branches above.
               if (!hasVoiceTag && (type === "whole" || type === "half" && !el.querySelector(":scope > stem"))) {
                 const existing = lanes[isTreble ? "lead" : "bass"].find(
                   b => Math.abs(b.startBeat - startBeat) < 0.01
@@ -12913,44 +12967,43 @@ mxmlImportConfirm.addEventListener("click", () => {
               const alter = parseFloat(el.querySelector(":scope > pitch > alter")?.textContent || "0");
               const midi = stepOctaveToMidi(step, octave, alter);
 
-              // Lyric
-              const lyricEl = el.querySelector(":scope > lyric > text");
-              const lyric = lyricEl?.textContent?.trim() || null;
+              // Lyric -- capture EVERY verse number found on this note
+              // (not just the first), keyed by number. Real files can
+              // stack multiple verses under one shared melody (e.g. lyric
+              // number="1" through "6"); which verse's text actually gets
+              // used, and how ties get resolved, is decided later in
+              // unrollVerses() -- that decision depends on the per-verse
+              // tie-merge rule below, so it can't happen here.
+              const lyricsByVerse = {};
+              el.querySelectorAll(":scope > lyric").forEach(lyricNode => {
+                const num = lyricNode.getAttribute("number") || "1";
+                const text = lyricNode.querySelector(":scope > text")?.textContent?.trim();
+                if (text) lyricsByVerse[num] = text;
+              });
 
               // <tie type="start"/> and <tie type="stop"/> are direct
               // children of <note>, siblings to <pitch>/<duration> -- a
               // note can have BOTH at once (the middle link in a chain of
               // 3+ tied notes; confirmed a real case in this piece's own
-              // real files). A tie means "don't re-articulate this pitch,
-              // just sustain it longer", so it's merged here at import
-              // time rather than kept as a separate property -- same
-              // philosophy as the MuseScore importer's tie handling.
-              // Looks at whatever was most recently pushed into THIS lane
-              // specifically (notes are always pushed in correct time
-              // order per lane, even when <backup> interleaves other
-              // voices' pushes into OTHER lanes in between); if it's still
-              // mid-tie and this note continues the same pitch, extend it
-              // instead of adding a new block. tieStart never needs to
-              // survive past this import step -- normalizeProject()'s
-              // field whitelist drops it naturally once ties are resolved.
+              // real files). Recorded here but NOT merged yet -- whether
+              // to merge a tied pair now depends on which verse is being
+              // unrolled (a verse with its own distinct word on the tied
+              // continuation note needs it kept as a separate block,
+              // since Orumi's block model only holds one lyric per
+              // block), so the actual merge happens in unrollVerses().
               const tieStart = el.querySelector(":scope > tie[type='start']") !== null;
               const tieEnd = el.querySelector(":scope > tie[type='stop']") !== null;
-              const lastInLane = lanes[laneId][lanes[laneId].length - 1];
 
-              if (tieEnd && lastInLane && lastInLane.tieStart && lastInLane.midi === midi) {
-                lastInLane.durationBeats += durationBeats;
-                lastInLane.tieStart = tieStart;
-              } else {
-                lanes[laneId].push({
-                  startBeat,
-                  durationBeats,
-                  midi,
-                  name: midiToDisplayName(midi),
-                  lyric,
-                  voice,
-                  tieStart
-                });
-              }
+              lanes[laneId].push({
+                startBeat,
+                durationBeats,
+                midi,
+                name: midiToDisplayName(midi),
+                lyricsByVerse,
+                voice,
+                tieStart,
+                tieEnd
+              });
             } else {
               // Explicit notated rests were previously discarded here --
               // silently correct as long as the old auto-generated filler
@@ -12958,9 +13011,14 @@ mxmlImportConfirm.addEventListener("click", () => {
               // that mechanism is gone. Rests have no stem to split
               // tenor/lead or baritone/bass, so fall back to MusicXML's
               // standard two-voice convention: voice 1 = the upper/stem-up
-              // voice, voice 2 = the lower/stem-down voice.
+              // voice, voice 2 = the lower/stem-down voice -- except for a
+              // single-part melody-only file, where voice 1 is the melody
+              // itself and belongs in Lead, matching the same swap applied
+              // to real notes above.
               const laneId = isTreble
-                ? (voice === "2" ? "lead" : "tenor")
+                ? (isSinglePartPiece
+                    ? (voice === "2" ? "tenor" : "lead")
+                    : (voice === "2" ? "lead" : "tenor"))
                 : (voice === "2" ? "bass" : "baritone");
 
               lanes[laneId].push({
@@ -13066,6 +13124,181 @@ mxmlImportConfirm.addEventListener("click", () => {
         scanIndex = nextIndex;
       }
 
+      // Resolves the deferred lyricsByVerse/tieStart/tieEnd recording above
+      // into final, single-lyric-per-block lane data. If the piece has no
+      // multi-verse structure at all (maxVerse <= 1), this reduces to one
+      // pass with unconditional tie-merging -- identical in effect to how
+      // this parser always worked before verse-unrolling existed. If a
+      // real stacked-verse structure is found (e.g. lyric number="1"
+      // through "6"), each lane gets unrolled into that many sequential
+      // copies, each offset to start where the previous verse ends, each
+      // verse deciding its own tie-merges independently: a tied pair
+      // merges into one block UNLESS this specific verse has its own
+      // distinct word on the continuation note, in which case it's kept
+      // as two separate blocks so that verse's second word has
+      // somewhere to go (Orumi's block model holds one lyric per block).
+      // Known limitation: doesn't yet duplicate irregularMeasures/
+      // timeSignatureChanges entries across unrolled verse copies -- not
+      // needed for a piece like this one with no such markers, but worth
+      // knowing if a future multi-verse piece also has a pickup or a
+      // mid-piece meter change.
+      function unrollVerses(lanesIn) {
+        let maxVerse = 1;
+        Object.values(lanesIn).forEach(laneNotes => {
+          laneNotes.forEach(note => {
+            Object.keys(note.lyricsByVerse || {}).forEach(num => {
+              maxVerse = Math.max(maxVerse, parseInt(num, 10) || 1);
+            });
+          });
+        });
+
+        if (maxVerse <= 1) {
+          const resolved = {};
+          Object.keys(lanesIn).forEach(laneId => {
+            const merged = [];
+            lanesIn[laneId].forEach(note => {
+              const lyric = note.isRest
+                ? null
+                : ((note.lyricsByVerse && (note.lyricsByVerse["1"] || Object.values(note.lyricsByVerse)[0])) || null);
+              const prev = merged[merged.length - 1];
+              if (prev && prev.tieStart && note.tieEnd && !note.isRest && prev.midi === note.midi) {
+                prev.durationBeats += note.durationBeats;
+                prev.tieStart = note.tieStart;
+              } else {
+                merged.push({
+                  startBeat: note.startBeat,
+                  durationBeats: note.durationBeats,
+                  midi: note.midi,
+                  name: note.name,
+                  lyric,
+                  voice: note.voice,
+                  isRest: note.isRest,
+                  tieStart: note.tieStart
+                });
+              }
+            });
+            resolved[laneId] = merged;
+          });
+          return { lanes: resolved, verseCount: 1 };
+        }
+
+        const pieceLength = Math.max(
+          0,
+          ...Object.values(lanesIn).flatMap(laneNotes => laneNotes.map(n => n.startBeat + n.durationBeats))
+        );
+
+        const unrolled = {};
+        Object.keys(lanesIn).forEach(laneId => { unrolled[laneId] = []; });
+
+        for (let verse = 1; verse <= maxVerse; verse++) {
+          const verseOffset = (verse - 1) * pieceLength;
+
+          Object.keys(lanesIn).forEach(laneId => {
+            const merged = [];
+            lanesIn[laneId].forEach(note => {
+              const lyric = note.isRest ? null : ((note.lyricsByVerse && note.lyricsByVerse[String(verse)]) || null);
+              const prev = merged[merged.length - 1];
+
+              if (prev && prev.tieStart && note.tieEnd && !note.isRest && prev.midi === note.midi && !lyric) {
+                prev.durationBeats += note.durationBeats;
+                prev.tieStart = note.tieStart;
+              } else {
+                merged.push({
+                  startBeat: note.startBeat + verseOffset,
+                  durationBeats: note.durationBeats,
+                  midi: note.midi,
+                  name: note.name,
+                  lyric,
+                  voice: note.voice,
+                  isRest: note.isRest,
+                  tieStart: note.tieStart
+                });
+              }
+            });
+            unrolled[laneId].push(...merged);
+          });
+        }
+
+        return { lanes: unrolled, verseCount: maxVerse };
+      }
+
+      const verseUnrollResult = unrollVerses(lanes);
+      lanes = verseUnrollResult.lanes;
+      const detectedVerseCount = verseUnrollResult.verseCount;
+
+      // Extends the piece's own irregular-measure/time-signature data
+      // across however many verses were actually unrolled -- without
+      // this, Design Studio has no idea verse 2 onward even exists as far
+      // as measure numbering goes, and assumes everything past the first
+      // verse's own last measure is a plain nominal measure. Also
+      // implements the seam-merge: when the piece opens AND closes with a
+      // matching short measure (the classic "pickup measure = final
+      // measure" repeat convention), the closing measure of one verse and
+      // the opening pickup of the next aren't two separate short
+      // measures at all -- they're one continuous full measure once
+      // unrolled, so no measure boundary (or irregular flag) belongs
+      // between them. Only the very last verse's own closing measure has
+      // nothing after it to merge into, so it alone stays a genuine short
+      // measure.
+      function unrollMeasureMetadata(originalIrregulars, originalTimeSigChanges, verseCount) {
+        if (verseCount <= 1 || !totalMeasureCount) {
+          return { irregularMeasures: originalIrregulars, timeSignatureChanges: originalTimeSigChanges };
+        }
+
+        const openingEntry = originalIrregulars.find(m => m.measureNumber === 1);
+        const closingEntry = originalIrregulars.find(m => m.measureNumber === totalMeasureCount);
+
+        // Nominal length active at the piece's own last measure -- the
+        // most recent declared signature at or before totalMeasureCount,
+        // falling back to the piece's opening signature if there's no
+        // mid-piece change (true for most pieces, including this one).
+        let nominalClosingLength = timeSig.numerator * (4 / timeSig.denominator);
+        originalTimeSigChanges
+          .filter(c => c.measureNumber <= totalMeasureCount)
+          .sort((a, b) => a.measureNumber - b.measureNumber)
+          .forEach(c => { nominalClosingLength = c.numerator * (4 / c.denominator); });
+
+        const seamMergeEligible =
+          !!openingEntry && !!closingEntry &&
+          Math.abs((openingEntry.beats + closingEntry.beats) - nominalClosingLength) < 0.01;
+
+        const measuresPerAdditionalVerse = seamMergeEligible ? totalMeasureCount - 1 : totalMeasureCount;
+
+        function mapMeasureNumber(verse, localMeasureNumber) {
+          if (verse === 1) return localMeasureNumber;
+          const priorVersesContribution = totalMeasureCount + (verse - 2) * measuresPerAdditionalVerse;
+          return seamMergeEligible
+            ? priorVersesContribution + (localMeasureNumber - 1)
+            : priorVersesContribution + localMeasureNumber;
+        }
+
+        const combinedIrregulars = [];
+        const combinedTimeSigChanges = [];
+
+        for (let verse = 1; verse <= verseCount; verse++) {
+          const isLastVerse = verse === verseCount;
+
+          originalIrregulars.forEach(entry => {
+            if (seamMergeEligible && verse > 1 && entry.measureNumber === 1) return;
+            if (seamMergeEligible && entry.measureNumber === totalMeasureCount && !isLastVerse) return;
+            combinedIrregulars.push({
+              measureNumber: mapMeasureNumber(verse, entry.measureNumber),
+              beats: entry.beats
+            });
+          });
+
+          originalTimeSigChanges.forEach(entry => {
+            combinedTimeSigChanges.push({
+              measureNumber: mapMeasureNumber(verse, entry.measureNumber),
+              numerator: entry.numerator,
+              denominator: entry.denominator
+            });
+          });
+        }
+
+        return { irregularMeasures: combinedIrregulars, timeSignatureChanges: combinedTimeSigChanges };
+      }
+
       // Distribute Lead lyrics to other parts by beat position
       const leadLyrics = lanes.lead.filter(n => n.lyric);
       ["tenor", "baritone", "bass"].forEach(laneId => {
@@ -13084,6 +13317,13 @@ mxmlImportConfirm.addEventListener("click", () => {
         .flat()
         .filter(n => n.lyric).length;
 
+      const rawIrregulars = Array.from(importedIrregularMeasures, ([measureNumber, beats]) => ({ measureNumber, beats }));
+      const rawTimeSigChanges = Array.from(
+        importedTimeSignatureChanges,
+        ([measureNumber, sig]) => ({ measureNumber, numerator: sig.numerator, denominator: sig.denominator })
+      );
+      const finalMeasureMetadata = unrollMeasureMetadata(rawIrregulars, rawTimeSigChanges, detectedVerseCount);
+
       return {
         title,
         root,
@@ -13093,11 +13333,8 @@ mxmlImportConfirm.addEventListener("click", () => {
         lanes,
         lyricCount,
         partsDescription: "Treble (Tenor + Lead), Bass (Baritone + Bass)",
-        irregularMeasures: Array.from(importedIrregularMeasures, ([measureNumber, beats]) => ({ measureNumber, beats })),
-        timeSignatureChanges: Array.from(
-          importedTimeSignatureChanges,
-          ([measureNumber, sig]) => ({ measureNumber, numerator: sig.numerator, denominator: sig.denominator })
-        )
+        irregularMeasures: finalMeasureMetadata.irregularMeasures,
+        timeSignatureChanges: finalMeasureMetadata.timeSignatureChanges
       };
     }
 
