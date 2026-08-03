@@ -2903,7 +2903,11 @@ h1 {
       return designEditPayload.selectedBlocks
         .map((block, index) => {
           const midi = midiFromPayloadBlock(block);
-          if (!Number.isFinite(Number(midi))) return null;
+          // A rest's midi is null -- Number(null) coerces to 0, which
+          // would otherwise pass Number.isFinite and get treated as a
+          // real MIDI-0 (C-1) note. The same > 0 guard is already used
+          // elsewhere in this file for exactly this situation.
+          if (!Number.isFinite(Number(midi)) || Number(midi) <= 0) return null;
 
           return {
             laneId: block.laneId || designEditPayload.laneId || getDesignVoiceLanesLowToHigh()[index] || "lead",
@@ -3320,6 +3324,7 @@ h1 {
       }
 
       manuallyPlacedLanes[laneId] = true;
+      delete voiceOctaveOverrides[laneId]; // a direct drag supersedes a plain octave override, same precedent as toggleVoicePin
 
       const assignments = getCurrentSelectionStackAssignments()
         .map(item => ({
@@ -3580,12 +3585,15 @@ h1 {
         row.appendChild(block);
 
         if (isNewStack) {
+          const isManuallyPlaced = !!manuallyPlacedLanes[laneId];
           const octaveSelect = document.createElement("select");
           octaveSelect.className = "stack-octave-select";
-          octaveSelect.disabled = isPinned;
+          octaveSelect.disabled = isPinned || isManuallyPlaced;
           octaveSelect.title = isPinned
             ? "Octave is fixed while this voice is pinned"
-            : "Set this voice's octave independently";
+            : isManuallyPlaced
+              ? "This voice was set by dragging an exact note, so its octave is already fully determined"
+              : "Set this voice's octave independently";
 
           const currentOctave = assignment && Number.isFinite(Number(assignment.midi))
             ? Math.floor(Number(assignment.midi) / 12) - 1

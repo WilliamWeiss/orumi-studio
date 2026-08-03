@@ -481,6 +481,21 @@
       box-shadow: 0 0 18px rgba(255,255,255,0.95);
     }
 
+    /* Live highlight shown on the Beat Ruler while dragging out a range
+       selection -- removed the instant the drag finishes, replaced by the
+       darker "outside the selection" overlay if the resulting selection
+       has 2+ blocks in it. */
+    .ruler-drag-highlight {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      background: rgba(155, 235, 215, 0.35);
+      border-left: 2px solid rgba(155, 235, 215, 0.9);
+      border-right: 2px solid rgba(155, 235, 215, 0.9);
+      pointer-events: none;
+      z-index: 5;
+    }
+
     .structure-ruler-row {
       display: grid;
       grid-template-columns: 104px 1fr;
@@ -1157,26 +1172,6 @@
 
     .focus-send-pill:hover {
       background: rgba(255,255,255,1);
-    }
-
-    .orumi-block.generated-rest {
-      opacity: 0.13;
-    }
-
-    .orumi-block.generated-rest .resize-handle {
-      opacity: 0.6;
-      cursor: ew-resize;
-      pointer-events: auto;
-    }
-
-    .orumi-block.generated-rest:hover .resize-handle {
-      opacity: 1;
-    }
-
-    .show-generated-rests .orumi-block.generated-rest {
-      opacity: 0.45;
-      outline: 1px dashed rgba(255,255,255,0.35);
-      outline-offset: -1px;
     }
 
     .orumi-block.in-clipboard,
@@ -2070,7 +2065,6 @@
         <button class="control-button secondary" id="readableViewButton">↔ Readable View</button>
         <button class="control-button secondary" id="goToMeasureButton">📍 Go to Measure</button>
         <button class="control-button secondary" id="showLyricsButton">♩ Show Lyrics</button>
-        <button class="control-button secondary" id="toggleGeneratedRestsButton">☁ Show Rest Fill</button>
         <button class="control-button secondary" id="focusRangeButton">🔎 Focus Range</button>
         <button class="control-button secondary" id="findOverlapsButton">🔍 Find Overlapping Notes</button>
       </div>
@@ -2266,7 +2260,6 @@
     let blockClipboard = [];
     let clipboardBlockIds = new Set();
     let insertMode = false;
-    let showGeneratedRests = false;
     let focusRange = null; // { startBeat, endBeat } when active, null otherwise
     let selectedInsertBeat = 0;
     let playbackState = "stopped";
@@ -4019,6 +4012,8 @@
         );
       };
 
+      rulerBeats.addEventListener("pointerdown", armRulerRangeDrag);
+
       const beatsPerMeasure = getBeatsPerMeasure();
       const maxBeat = Math.max(12, Math.ceil(getProjectLength()) + Math.ceil(beatsPerMeasure));
       const maxMeasure = Math.ceil(maxBeat / beatsPerMeasure) + 1;
@@ -4820,10 +4815,12 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
     function render() {
       normalizeProject();
-      document.body.classList.toggle("show-generated-rests", showGeneratedRests);
-      if (focusRange) {
-        requestAnimationFrame(() => applyFocusOverlay());
-      }
+      // Darkening everything outside a range is now a direct visual
+      // consequence of having more than one block selected -- true
+      // whether the selection came from shift-clicking, the ruler drag
+      // below, or anything else -- rather than a separate focusRange
+      // variable that could drift out of sync with the real selection.
+      requestAnimationFrame(() => applySelectionRangeOverlay());
       renderProjectName();
       populateContextControls();
       createPalette();
@@ -5104,10 +5101,6 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
       const intensityHandle = document.createElement("div");
       intensityHandle.classList.add("intensity-handle");
-
-      if (block.generated) {
-        element.classList.add("generated-rest");
-      }
 
       element.appendChild(resizeHandle);
 
@@ -11356,6 +11349,203 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       updateSendFocusRangeButton();
     }
 
+    // Shared range-selection logic: given a beat range and a scope (all
+    // lanes, or just one), selects every block overlapping that range --
+    // extracted from the old selectMeasureRange's own filter/sort logic,
+    // now callable directly with real beat values instead of requiring
+    // measure numbers typed into a prompt.
+    function selectBlocksInBeatRange(startBeat, endBeat, scope, scopeLaneId) {
+      const tolerance = 0.0001;
+
+      const matchingBlocks = project.blocks
+        .filter(block => {
+          const blockStart = Number(block.startBeat || 0);
+          const blockEnd = blockStart + Number(block.durationBeats || MIN_DURATION);
+          const overlapsRange =
+            blockStart < endBeat - tolerance &&
+            blockEnd > startBeat + tolerance;
+          const matchesScope =
+            scope === "all" || block.laneId === scopeLaneId;
+
+          return overlapsRange && matchesScope;
+        })
+        .sort((a, b) => {
+          if (Number(a.startBeat || 0) !== Number(b.startBeat || 0)) {
+            return Number(a.startBeat || 0) - Number(b.startBeat || 0);
+          }
+
+          const laneA = project.lanes.findIndex(lane => lane.id === a.laneId);
+          const laneB = project.lanes.findIndex(lane => lane.id === b.laneId);
+
+          if (laneA !== laneB) {
+            return laneA - laneB;
+          }
+
+          return Number(a.midi || 0) - Number(b.midi || 0);
+        });
+
+      if (matchingBlocks.length === 0) {
+        clearBlockSelection();
+        return matchingBlocks;
+      }
+
+      selectedBlockIds = new Set(matchingBlocks.map(block => block.id));
+      selectedBlockId = matchingBlocks[0].id;
+      selectedLaneId = matchingBlocks[0].laneId || selectedLaneId;
+
+      return matchingBlocks;
+    }
+
+    // Darkening everything outside the current selection's own beat span
+    // -- only kicks in for a genuine multi-block range (2+ blocks), so a
+    // normal single-block selection looks exactly as it always has.
+    // Reuses the exact same overlay-div technique the old focusRange
+    // mechanism used, just driven by the real selection instead of a
+    // separate variable that could disagree with it.
+    function applySelectionRangeOverlay() {
+      removeSelectionRangeOverlay();
+
+      if (selectedBlockIds.size < 2) return;
+
+      const selectedBlocks = project.blocks.filter(b => selectedBlockIds.has(b.id));
+      if (selectedBlocks.length < 2) return;
+
+      const rangeStart = Math.min(...selectedBlocks.map(b => Number(b.startBeat || 0)));
+      const rangeEnd = Math.max(...selectedBlocks.map(b => Number(b.startBeat || 0) + Number(b.durationBeats || MIN_DURATION)));
+
+      const lanesContainer = document.getElementById("lanesContainer");
+      const anchor = lanesContainer || document.getElementById("timeline");
+      if (!anchor) return;
+
+      const firstTrack = anchor.querySelector(".lane-track");
+      let beatZeroOffset = 0;
+      if (firstTrack) {
+        const anchorRect = anchor.getBoundingClientRect();
+        const trackRect = firstTrack.getBoundingClientRect();
+        beatZeroOffset = trackRect.left - anchorRect.left;
+      }
+
+      const startPx = beatZeroOffset + rangeStart * BEAT_WIDTH;
+      const endPx = beatZeroOffset + rangeEnd * BEAT_WIDTH;
+
+      if (startPx > 0) {
+        const leftEl = document.createElement("div");
+        leftEl.className = "focus-range-overlay";
+        leftEl.style.cssText = "position:absolute;top:0;bottom:0;left:0;z-index:20;pointer-events:none;background:rgba(0,0,0,0.55);";
+        leftEl.style.width = startPx + "px";
+        anchor.appendChild(leftEl);
+      }
+
+      const rightEl = document.createElement("div");
+      rightEl.className = "focus-range-overlay";
+      rightEl.style.cssText = "position:absolute;top:0;bottom:0;z-index:20;pointer-events:none;background:rgba(0,0,0,0.55);width:99999px;";
+      rightEl.style.left = endPx + "px";
+      anchor.appendChild(rightEl);
+    }
+
+    function removeSelectionRangeOverlay() {
+      document.querySelectorAll(".focus-range-overlay").forEach(el => el.remove());
+    }
+
+    // Ruler drag-to-select: click-and-drag across the Beat Ruler selects
+    // every block across all lanes within the dragged beat range --
+    // replaces having to shift-click every individual block, or type
+    // beat/measure numbers into a prompt dialog.
+    const RULER_DRAG_THRESHOLD_PX = 4;
+    let pendingRulerDrag = null;
+    let activeRulerDrag = null;
+
+    function armRulerRangeDrag(event) {
+      if (event.target && event.target.classList && event.target.classList.contains("measure-label")) {
+        return;
+      }
+
+      pendingRulerDrag = {
+        startClientX: event.clientX,
+        startBeat: beatFromRulerEvent(event)
+      };
+
+      window.addEventListener("pointermove", handlePendingRulerDragMove);
+      window.addEventListener("pointerup", handlePendingRulerDragRelease);
+    }
+
+    function handlePendingRulerDragMove(event) {
+      if (!pendingRulerDrag) return;
+
+      if (Math.abs(event.clientX - pendingRulerDrag.startClientX) >= RULER_DRAG_THRESHOLD_PX) {
+        window.removeEventListener("pointermove", handlePendingRulerDragMove);
+        window.removeEventListener("pointerup", handlePendingRulerDragRelease);
+
+        activeRulerDrag = { startBeat: pendingRulerDrag.startBeat };
+        pendingRulerDrag = null;
+
+        const highlight = document.createElement("div");
+        highlight.id = "rulerDragHighlight";
+        highlight.className = "ruler-drag-highlight";
+        rulerBeats.appendChild(highlight);
+
+        window.addEventListener("pointermove", handleActiveRulerDragMove);
+        window.addEventListener("pointerup", handleActiveRulerDragRelease);
+
+        updateRulerDragHighlight(event);
+      }
+    }
+
+    function handlePendingRulerDragRelease() {
+      window.removeEventListener("pointermove", handlePendingRulerDragMove);
+      window.removeEventListener("pointerup", handlePendingRulerDragRelease);
+      pendingRulerDrag = null;
+      // Below the drag threshold -- this was just a click, not a drag.
+      // The ruler's own existing onclick handler (set selected location)
+      // fires normally afterward, since nothing here called
+      // preventDefault or stopPropagation.
+    }
+
+    function updateRulerDragHighlight(event) {
+      const highlight = document.getElementById("rulerDragHighlight");
+      if (!highlight || !activeRulerDrag) return;
+
+      const currentBeat = beatFromRulerEvent(event);
+      const lo = Math.min(activeRulerDrag.startBeat, currentBeat);
+      const hi = Math.max(activeRulerDrag.startBeat, currentBeat);
+
+      highlight.style.left = (lo * BEAT_WIDTH) + "px";
+      highlight.style.width = Math.max(2, (hi - lo) * BEAT_WIDTH) + "px";
+    }
+
+    function handleActiveRulerDragMove(event) {
+      updateRulerDragHighlight(event);
+    }
+
+    function handleActiveRulerDragRelease(event) {
+      window.removeEventListener("pointermove", handleActiveRulerDragMove);
+      window.removeEventListener("pointerup", handleActiveRulerDragRelease);
+
+      const highlight = document.getElementById("rulerDragHighlight");
+      if (highlight) highlight.remove();
+
+      if (!activeRulerDrag) return;
+
+      const endBeat = beatFromRulerEvent(event);
+      const startBeat = Math.min(activeRulerDrag.startBeat, endBeat);
+      const finalEndBeat = Math.max(activeRulerDrag.startBeat, endBeat);
+      activeRulerDrag = null;
+
+      const matchingBlocks = selectBlocksInBeatRange(startBeat, finalEndBeat, "all");
+
+      render();
+
+      if (matchingBlocks.length === 0) {
+        status.textContent = "No blocks found in the selected beat range.";
+      } else {
+        status.textContent =
+          "Selected " + matchingBlocks.length +
+          " block" + (matchingBlocks.length === 1 ? "" : "s") +
+          " from beat " + (Math.round(startBeat) + 1) +
+          " to beat " + (Math.round(finalEndBeat) + 1) + ".";
+      }
+    }
+
     function applyFocusOverlay() {
       if (!focusRange) return;
       removeFocusOverlay();
@@ -13918,14 +14108,7 @@ mxmlImportConfirm.addEventListener("click", () => {
     });
 
 
-    document.getElementById("toggleGeneratedRestsButton")?.addEventListener("click", e => {
-      showGeneratedRests = !showGeneratedRests;
-      const btn = e.currentTarget;
-      btn.textContent = showGeneratedRests ? "☁ Hide Rest Fill" : "☁ Show Rest Fill";
-      btn.classList.toggle("clipboard-active", showGeneratedRests);
-      flashButtonSuccess(btn);
-      render();
-    });
+    
     jumpToEndButton.addEventListener("click", jumpToEnd);
     zoomOutButton.addEventListener("click", zoomOutTimeline);
     zoomInButton.addEventListener("click", zoomInTimeline);
