@@ -820,10 +820,10 @@
     }
 
     .stack-octave-select {
-      background: rgba(255,255,255,0.10);
-      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.92);
+      border: 1px solid rgba(255,255,255,0.3);
       border-radius: 8px;
-      color: #f5f0e8;
+      color: #1a1f24;
       font-size: 11px;
       font-weight: 800;
       padding: 5px 3px;
@@ -3804,8 +3804,14 @@ h1 {
           originalBlocks[originalBlocks.length - 1] ||
           {};
 
+        // note.laneId is the voice this note was actually placed on in the
+        // New stack -- e.g. a deliberate revoicing (swapping which lane
+        // holds which pitch) sets this explicitly, and it must win over
+        // any positional guess. Positional/suggestion-based fallbacks only
+        // apply when a note genuinely has no lane of its own to report.
         const suggestedLaneId = getSuggestedLaneForNoteIndex(currentNotes, index);
         const laneId =
+          note.laneId ||
           suggestedLaneId ||
           original.laneId ||
           getFallbackLaneIdForIndex(
@@ -4025,7 +4031,8 @@ h1 {
         .map(item => ({
           midi: Number(item.midi),
           displayName: item.displayName || midiToDisplayName(Number(item.midi)),
-          frequency: midiToFrequency(Number(item.midi))
+          frequency: midiToFrequency(Number(item.midi)),
+          laneId: item.laneId || null
         }))
         .sort((a, b) => a.midi - b.midi);
     }
