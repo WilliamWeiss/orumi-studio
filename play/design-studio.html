@@ -25,7 +25,7 @@
       color: var(--text);
       margin: 0;
       min-height: 100vh;
-      padding: 128px 18px 80px;
+      padding: 210px 18px 80px;
       box-sizing: border-box;
       user-select: none;
       overflow-x: hidden;
@@ -35,6 +35,37 @@
       text-align: center;
       margin: 14px 0 6px;
       font-weight: 600;
+      cursor: help;
+    }
+
+    .studio-heading-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      position: fixed;
+      top: 108px;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+    }
+
+    .studio-heading-row h1 {
+      margin: 0;
+    }
+
+    .context-message {
+      text-align: center;
+      min-height: 22px;
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      position: fixed;
+      top: 154px;
+      left: 0;
+      right: 0;
+      z-index: 1000;
     }
 
     .subtitle {
@@ -48,24 +79,24 @@
 
 
     .design-studio-mark {
-      width: 86px;
-      height: 86px;
-      margin: 8px auto 8px;
+      width: 38px;
+      height: 38px;
+      margin: 0;
       display: grid;
       place-items: center;
-      border-radius: 24px;
+      border-radius: 12px;
       background: rgba(255,255,255,0.055);
       border: 1px solid rgba(255,255,255,0.10);
       box-shadow:
-        0 12px 28px rgba(0,0,0,0.30),
+        0 6px 14px rgba(0,0,0,0.30),
         inset 0 1px 0 rgba(255,255,255,0.12);
     }
 
     .design-studio-icon {
-      width: 58px;
-      height: 58px;
+      width: 26px;
+      height: 26px;
       overflow: visible;
-      filter: drop-shadow(0 8px 14px rgba(0,0,0,0.32));
+      filter: drop-shadow(0 4px 7px rgba(0,0,0,0.32));
     }
 
     .design-studio-icon .grid-line {
@@ -98,7 +129,7 @@
       top: 0;
       left: 0;
       right: 0;
-      height: 122px;
+      height: 196px;
       background: var(--bg);
       box-shadow: 0 2px 18px rgba(0,0,0,0.35);
       z-index: 999;
@@ -176,6 +207,12 @@
       grid-template-columns: 260px 1fr 260px;
       gap: 16px;
       align-items: start;
+      height: calc(100vh - 290px);
+    }
+
+    .studio > aside.panel {
+      height: 100%;
+      overflow-y: auto;
     }
 
     .panel {
@@ -342,6 +379,16 @@
 
     .workspace {
       min-width: 0;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .workspace > .panel {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
     }
 
     .toolbar {
@@ -353,11 +400,13 @@
 
     .timeline-shell {
       overflow-x: auto;
-      overflow-y: visible;
+      overflow-y: auto;
       border-radius: 18px;
       background: rgba(255,255,255,0.04);
       border: 1px solid rgba(255,255,255,0.08);
       position: relative;
+      flex: 1;
+      min-height: 0;
     }
 
     .timeline {
@@ -402,11 +451,28 @@
     .time-ruler {
       display: grid;
       grid-template-columns: 104px 1fr;
-      height: 34px;
+      height: 56px;
       color: var(--muted);
       font-size: 12px;
       font-weight: 700;
       margin-bottom: 4px;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: var(--bg);
+    }
+
+    .time-ruler .ruler-beats {
+      background: rgba(77,150,255,0.06);
+      border-radius: 6px;
+    }
+
+    .ruler-name-hint {
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--muted);
+      opacity: 0.75;
+      letter-spacing: 0.02em;
     }
 
     .ruler-name {
@@ -429,7 +495,7 @@
       position: absolute;
       top: 0;
       width: 1px;
-      height: 26px;
+      height: 40px;
       background: rgba(255,255,255,0.18);
     }
 
@@ -471,7 +537,7 @@
     }
 
     .beat-mark.measure-start {
-      height: 28px;
+      height: 44px;
       background: rgba(255,255,255,0.34);
     }
 
@@ -503,6 +569,17 @@
       color: var(--muted);
       font-size: 11px;
       margin-bottom: 4px;
+      position: sticky;
+      top: 60px;
+      z-index: 20;
+      background: var(--bg);
+    }
+
+    .meter-ruler-row {
+      position: sticky;
+      top: 90px;
+      z-index: 20;
+      background: var(--bg);
     }
 
     .structure-ruler-name {
@@ -883,6 +960,13 @@
       grid-template-columns: 104px 1fr;
       margin: -4px 0 6px;
       opacity: 0.35;
+    }
+
+    #lanesContainer > .lane-insert-zone:first-child {
+      position: sticky;
+      top: 142px;
+      z-index: 20;
+      background: var(--bg);
     }
 
     .lane-insert-label {
@@ -1894,27 +1978,27 @@
     title="Open Progression Builder"
   >≡</a>
 
-  <div class="design-studio-mark" aria-hidden="true">
-    <svg class="design-studio-icon" viewBox="0 0 64 64" role="img" aria-label="Design Studio symbol">
-      <line class="grid-line" x1="9" y1="15" x2="55" y2="15"></line>
-      <line class="grid-line" x1="9" y1="27" x2="55" y2="27"></line>
-      <line class="grid-line" x1="9" y1="39" x2="55" y2="39"></line>
-      <line class="grid-line" x1="9" y1="51" x2="55" y2="51"></line>
-      <rect class="ghost-square" x="14" y="10" width="10" height="10" rx="2"></rect>
-      <rect class="ghost-square" x="40" y="34" width="10" height="10" rx="2"></rect>
-      <rect class="selected-square" x="26" y="21" width="16" height="16" rx="3"></rect>
-      <rect class="selection-handle" x="22" y="17" width="6" height="6" rx="1"></rect>
-      <rect class="selection-handle" x="40" y="17" width="6" height="6" rx="1"></rect>
-      <rect class="selection-handle" x="22" y="35" width="6" height="6" rx="1"></rect>
-      <rect class="selection-handle" x="40" y="35" width="6" height="6" rx="1"></rect>
-    </svg>
+  <div class="studio-heading-row">
+    <div class="design-studio-mark" aria-hidden="true">
+      <svg class="design-studio-icon" viewBox="0 0 64 64" role="img" aria-label="Design Studio symbol">
+        <line class="grid-line" x1="9" y1="15" x2="55" y2="15"></line>
+        <line class="grid-line" x1="9" y1="27" x2="55" y2="27"></line>
+        <line class="grid-line" x1="9" y1="39" x2="55" y2="39"></line>
+        <line class="grid-line" x1="9" y1="51" x2="55" y2="51"></line>
+        <rect class="ghost-square" x="14" y="10" width="10" height="10" rx="2"></rect>
+        <rect class="ghost-square" x="40" y="34" width="10" height="10" rx="2"></rect>
+        <rect class="selected-square" x="26" y="21" width="16" height="16" rx="3"></rect>
+        <rect class="selection-handle" x="22" y="17" width="6" height="6" rx="1"></rect>
+        <rect class="selection-handle" x="40" y="17" width="6" height="6" rx="1"></rect>
+        <rect class="selection-handle" x="22" y="35" width="6" height="6" rx="1"></rect>
+        <rect class="selection-handle" x="40" y="35" width="6" height="6" rx="1"></rect>
+      </svg>
+    </div>
+
+    <h1 title="Arrange Orumi blocks by part. Save named designs, import recordings, and split multi-voice MIDI parts into editable lanes.">Design Studio</h1>
   </div>
 
-  <h1>Design Studio</h1>
-
-  <div class="subtitle">
-    Arrange Orumi blocks by part. Save named designs, import recordings, and split multi-voice MIDI parts into editable lanes.
-  </div>
+  <div class="context-message" id="contextMessage"></div>
 
   <nav class="app-menu-bar" aria-label="Design Studio main controls">
     <div class="menu-group">
@@ -2184,7 +2268,10 @@
         <div class="timeline-shell">
           <div class="timeline" id="timeline">
             <div class="time-ruler">
-              <div class="ruler-name" title="Click the beat ruler to set the selected location. Click the same location again to return to beginning.">Beat Ruler</div>
+              <div class="ruler-name" title="Click to set the selected location (click the same spot again to return to beginning). Drag across it to focus on a range of beats.">
+                <div>Beat Ruler</div>
+                <div class="ruler-name-hint">drag to focus</div>
+              </div>
               <div class="ruler-beats" id="rulerBeats" title="Click to set selected location"></div>
             </div>
 
@@ -2254,7 +2341,8 @@
     let selectedBlockId = null;
     let selectedBlockIds = new Set();
     let chordAnalysisAnchorBlockId = null;
-    let selectedLaneId = "lead";
+    let selectedLaneId = null;
+    let laneMenuLaneId = null;
     let currentProjectId = null;
     let pendingChordChecked = false;
     let blockClipboard = [];
@@ -2328,6 +2416,7 @@
     const trashCan = document.getElementById("trashCan");
     const status = document.getElementById("status");
     const projectStatus = document.getElementById("projectStatus");
+    const contextMessage = document.getElementById("contextMessage");
     const projectNameLabel = document.getElementById("projectNameLabel");
 
     const contextSummaryButton = document.getElementById("contextSummaryButton");
@@ -2787,7 +2876,7 @@
       normalizeProject();
 
       clearBlockSelection();
-      selectedLaneId = project.lanes[0]?.id || "lead";
+      selectedLaneId = null;
       selectedInsertBeat = 0;
       pausedBeat = 0;
       blockClipboard = [];
@@ -2922,7 +3011,7 @@
       project = createDefaultProject(name || "Untitled Design");
       currentProjectId = null;
       clearBlockSelection();
-      selectedLaneId = "lead";
+      selectedLaneId = null;
       historyStack = [];
       redoStack = [];
 
@@ -3032,6 +3121,13 @@
       document.addEventListener("keydown", event => {
         if (event.key === "Escape") {
           menuGroups.forEach(item => item.classList.remove("menu-open"));
+
+          const activeTag = document.activeElement && document.activeElement.tagName;
+          const inFormField = activeTag === "INPUT" || activeTag === "TEXTAREA" || activeTag === "SELECT";
+
+          if (!inFormField && (selectedBlockIds.size > 0 || laneMenuLaneId)) {
+            clearSelectionAndRender();
+          }
         }
       });
     }
@@ -4856,6 +4952,9 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         BEAT_WIDTH +
         "px/beat";
 
+      contextMessage.textContent =
+        selectedBlockIds.size > 0 || laneMenuLaneId ? "Press Esc to clear selection" : "";
+
       undoButton.disabled = historyStack.length === 0;
       redoButton.disabled = redoStack.length === 0;
       updateSpecializedEditButtons();
@@ -4921,7 +5020,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         const label = document.createElement("div");
         label.classList.add("lane-label");
 
-        if (lane.id === selectedLaneId) {
+        if (lane.id === laneMenuLaneId) {
           label.classList.add("selected");
         }
 
@@ -4938,7 +5037,29 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         label.title = "Click to select this lane. Drag this lane label to the trash to delete the whole track.";
 
         label.addEventListener("click", () => {
+          if (selectedBlockIds.size > 0) {
+            const laneBlockIds = getSelectedBlocks()
+              .filter(block => block.laneId === lane.id)
+              .map(block => block.id);
+
+            if (laneBlockIds.length > 0) {
+              selectedBlockIds = new Set(laneBlockIds);
+              selectedBlockId = null;
+              selectedLaneId = lane.id;
+              laneMenuLaneId = lane.id;
+              render();
+              return;
+            }
+          }
+
+          if (laneMenuLaneId === lane.id) {
+            laneMenuLaneId = null;
+            render();
+            return;
+          }
+
           selectedLaneId = lane.id;
+          laneMenuLaneId = lane.id;
           clearBlockSelection();
           render();
         });
@@ -4954,6 +5075,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
           saveHistory();
           [project.lanes[idx], project.lanes[swapIdx]] = [project.lanes[swapIdx], project.lanes[idx]];
           selectedLaneId = lane.id;
+          laneMenuLaneId = lane.id;
           localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
           render();
           flashButtonSuccess(btn);
@@ -4966,8 +5088,10 @@ for (let beat = 0; beat <= maxBeat; beat++) {
           }
 
           event.preventDefault();
-          selectedLaneId = lane.id;
-          clearBlockSelection();
+          // Selection state is decided in the click handler below, based on
+          // whatever focus was active at the moment of the click -- don't
+          // clear it here, or a bar-focus selection would already be gone
+          // before we can narrow it to this lane.
           beginLaneDrag(event, lane.id);
         });
 
@@ -5350,7 +5474,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       if (noteBlocks.length === 0) return null;
 
       // If only one note selected, auto-include blocks from other lanes at that beat
-      if (noteBlocks.length === 1 || new Set(allSelected.map(b => b.laneId)).size < 2) {
+      if (noteBlocks.length === 1) {
         const anchorBeat = Number(noteBlocks[0].startBeat || 0);
         const augmented = [...allSelected];
         const coveredLanes = new Set(allSelected.map(b => b.laneId));
@@ -5705,14 +5829,18 @@ for (let beat = 0; beat <= maxBeat; beat++) {
     }
 
     function beginSendLaneToPlayer() {
-      const lane = project.lanes.find(l => l.id === selectedLaneId);
+      const lane = project.lanes.find(l => l.id === laneMenuLaneId);
       if (!lane) {
         flashStatus("Select a lane first.");
         return;
       }
 
-      const laneBlocks = project.blocks
-        .filter(b => b.laneId === lane.id)
+      const narrowedBlocks = selectedBlockIds.size > 0
+        ? getSelectedBlocks().filter(b => b.laneId === lane.id)
+        : [];
+      const isFocused = narrowedBlocks.length > 0;
+
+      const laneBlocks = (isFocused ? narrowedBlocks : project.blocks.filter(b => b.laneId === lane.id))
         .sort((a, b) => Number(a.startBeat || 0) - Number(b.startBeat || 0));
 
       if (laneBlocks.filter(b => b.type !== "rest").length === 0) {
@@ -5734,7 +5862,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       }));
       localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
 
-      flashStatus("Opening Player with all " + laneBlocks.length + " notes from " + lane.name + "…");
+      flashStatus("Opening Player with " + laneBlocks.length + (isFocused ? " focused note" : " note") + (laneBlocks.length === 1 ? "" : "s") + " from " + lane.name + "…");
 
       window.setTimeout(() => {
         window.location.href = "player.html?mode=editDesignSelection&source=design-studio";
@@ -6501,17 +6629,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
       if (!block) {
         blockInspector.innerHTML =
-          "<div class='inspector-empty'>Select a note or rest block to edit it. Shift-click blocks to build a phrase selection. Pause playback, then use Analyze Selected Chord to inspect the harmony around the selected note.</div>";
-
-        blockInspector.appendChild(
-          createInspectorActionButton(
-            "⌕ Analyze Selected Chord",
-            "secondary",
-            analyzePlayheadChord,
-            "Select and analyze notes active at the current playhead position"
-          )
-        );
-
+          "<div class='inspector-empty'>Nothing selected. Drag across the Beat Ruler to focus a range of beats, or click a note to select it.</div>";
         return;
       }
 
@@ -6528,7 +6646,9 @@ for (let beat = 0; beat <= maxBeat; beat++) {
           ".";
         blockInspector.appendChild(info);
 
-        blockInspector.appendChild(createHarmonyCard(selectedBlocks));
+        if (selectionShape !== "horizontal-phrase") {
+          blockInspector.appendChild(createHarmonyCard(selectedBlocks));
+        }
 
         if (selectionShape === "vertical-chord" || (selectedBlocks.some(b => b.type === "note") && getVerticalChordSelection())) {
           const replaceChordButton = document.createElement("button");
@@ -7478,6 +7598,8 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
     function clearSelectionAndRender() {
       clearBlockSelection();
+      selectedLaneId = null;
+      laneMenuLaneId = null;
       render();
       status.textContent = "Selection cleared.";
     }
@@ -7663,7 +7785,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
     }
 
     function renderLaneInspector() {
-      const lane = project.lanes.find(item => item.id === selectedLaneId);
+      const lane = project.lanes.find(item => item.id === laneMenuLaneId);
 
       laneInspector.innerHTML = "";
 
@@ -7824,10 +7946,15 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       playSelectedLaneButton.addEventListener("click", playSelectedLane);
       laneInspector.appendChild(playSelectedLaneButton);
 
+      const laneHasNarrowedFocus = selectedBlockIds.size > 0 &&
+        getSelectedBlocks().some(b => b.laneId === lane.id);
+
       const sendLaneToPlayerButton = document.createElement("button");
       sendLaneToPlayerButton.classList.add("control-button", "secondary");
-      sendLaneToPlayerButton.textContent = "↗ Send Lane to Player";
-      sendLaneToPlayerButton.title = "Send all notes in this lane to Player for editing.";
+      sendLaneToPlayerButton.textContent = "↗ Send to Player";
+      sendLaneToPlayerButton.title = laneHasNarrowedFocus
+        ? "Send only the highlighted notes in this lane to Player for editing."
+        : "Send all notes in this lane to Player for editing.";
       sendLaneToPlayerButton.style.marginTop = "8px";
       sendLaneToPlayerButton.disabled = project.blocks.filter(b => b.laneId === lane.id && b.type !== "rest").length === 0;
       sendLaneToPlayerButton.addEventListener("click", () => {
@@ -11428,11 +11555,12 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       const startPx = beatZeroOffset + rangeStart * BEAT_WIDTH;
       const endPx = beatZeroOffset + rangeEnd * BEAT_WIDTH;
 
-      if (startPx > 0) {
+      if (startPx > beatZeroOffset) {
         const leftEl = document.createElement("div");
         leftEl.className = "focus-range-overlay";
-        leftEl.style.cssText = "position:absolute;top:0;bottom:0;left:0;z-index:20;pointer-events:none;background:rgba(0,0,0,0.55);";
-        leftEl.style.width = startPx + "px";
+        leftEl.style.cssText = "position:absolute;top:0;bottom:0;z-index:20;pointer-events:none;background:rgba(0,0,0,0.55);";
+        leftEl.style.left = beatZeroOffset + "px";
+        leftEl.style.width = (startPx - beatZeroOffset) + "px";
         anchor.appendChild(leftEl);
       }
 
@@ -11580,11 +11708,12 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       const startPx = beatZeroOffset + visualStart * BEAT_WIDTH;
       const endPx = beatZeroOffset + visualEnd * BEAT_WIDTH;
 
-      if (startPx > 0) {
+      if (startPx > beatZeroOffset) {
         const leftEl = document.createElement("div");
         leftEl.className = "focus-range-overlay";
-        leftEl.style.cssText = "position:absolute;top:0;bottom:0;left:0;z-index:20;pointer-events:none;background:rgba(0,0,0,0.55);";
-        leftEl.style.width = startPx + "px";
+        leftEl.style.cssText = "position:absolute;top:0;bottom:0;z-index:20;pointer-events:none;background:rgba(0,0,0,0.55);";
+        leftEl.style.left = beatZeroOffset + "px";
+        leftEl.style.width = (startPx - beatZeroOffset) + "px";
         anchor.appendChild(leftEl);
       }
 
