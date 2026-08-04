@@ -3309,6 +3309,14 @@
   subtitle: "What a sequence becomes if you never stop",
   level: "Composition",
   built: true
+},
+{
+  id: "chord-selection",
+  number: 13,
+  title: "Naming the Move",
+  subtitle: "The seven words that describe where a chord goes next",
+  level: "Progression",
+  built: true
 }
     ];
 
@@ -3549,6 +3557,8 @@ function renderCurrentLesson() {
   renderSeventhChainLesson();
 } else if (lesson.id === "self-similarity") {
   renderSelfSimilarityLesson();
+} else if (lesson.id === "chord-selection") {
+  renderChordSelectionLesson();
 } else {
   renderPlaceholderLesson(lesson);
 }
@@ -7424,6 +7434,36 @@ const composeChords = {
       "Fifth lens: G gives the chord a frame.",
       "Feeling lens: this chord feels suspended."
     ]
+  },
+  am: {
+    name: "Am",
+    feeling: "Kindred cousin",
+    notes: [
+      { note: "A", frequency: 220.00 },
+      { note: "C", frequency: 130.81 },
+      { note: "E", frequency: 163.51 }
+    ],
+    hints: [
+      "Root lens: A is the new center, but two notes below haven't moved.",
+      "Shared-tone lens: C and E are the exact same tones C major used.",
+      "Feeling lens: familiar, not resolved -- a cousin, not a destination.",
+      "Kindred lens: most of the chord's identity carried straight over."
+    ]
+  },
+  caug: {
+    name: "C+",
+    feeling: "Tinted swipe",
+    notes: [
+      { note: "C", frequency: 130.81 },
+      { note: "E", frequency: 163.51 },
+      { note: "G#", frequency: 207.65 }
+    ],
+    hints: [
+      "Root lens: C is still the center, unmoved.",
+      "Third lens: E is still exactly where C major left it.",
+      "Fifth lens: G stretched up a half step into G#.",
+      "Tinted lens: same chord, same job, one recolored tone."
+    ]
   }
 };
 
@@ -7705,6 +7745,18 @@ function playComposeChord(chordKey, delaySeconds = 0, duration = 1.6) {
   chord.notes.forEach((note) => {
     playSimpleTone(ctx, note.frequency, startTime, duration, 0.105);
   });
+}
+
+function playFiveWordRecap() {
+  playComposeProgression(["c", "c7", "f", "fm", "c"]);
+}
+
+function playKindredMove() {
+  playComposeProgression(["c", "am"]);
+}
+
+function playTintedMove() {
+  playComposeProgression(["c", "caug"]);
 }
 
 function resetFeelingMap() {
@@ -8870,6 +8922,206 @@ function renderSelfSimilarityLesson() {
 
   ssPopulateMelodyDropdown();
   ssRenderLevels();
+}
+
+    function renderChordSelectionLesson() {
+  mainPanel.innerHTML = `
+    <section class="hero">
+      <div class="eyebrow">Lesson 13 · Progression</div>
+      <h2>Naming the Move</h2>
+      <p class="hero-question">What word describes what a chord does next -- and how does Progression Builder decide what to suggest?</p>
+    </section>
+
+    <section class="context-card">
+      <div class="eyebrow">Finishing the vocabulary</div>
+      <h3>Five words already, two more to go</h3>
+      <p>
+        Compose by Feeling built a whole progression out of five words: <strong>Solid</strong> (home), <strong>Activated</strong> (pull), <strong>Resolved</strong> (the answer), <strong>Shadowed</strong> (the answer in a different color), <strong>Returned</strong> (home again). Every one of those was about tension and release -- a chord asking for something, and another chord giving it.
+      </p>
+      <p>
+        Not every real move is about tension and release, though. Two more words cover what's left: <strong>Kindred</strong>, for a chord that shares most of its notes with the one before it -- a family resemblance, not a pull -- and <strong>Tinted</strong>, for the same chord with one note colored differently, without changing where it's headed. Together, these seven are the exact words Progression Builder's suggestion engine uses when it offers you a next chord.
+      </p>
+    </section>
+
+    <section class="lesson-stage">
+      <article class="sound-card">
+        <div>
+          <div class="sound-copy">
+            <h3>Hear the first five again</h3>
+            <p>The same progression from Compose by Feeling, back to back: home, pull, answer, shadow, return.</p>
+          </div>
+          <div class="controls">
+            <button class="btn primary" id="csPlayFiveBtn">▶ Play the five</button>
+          </div>
+        </div>
+        <div>
+          <div class="controls" style="flex-wrap:wrap; gap:8px;">
+            <span class="chord-classification-tag stage-solid">Solid</span>
+            <span class="chord-classification-tag stage-activated">Activated</span>
+            <span class="chord-classification-tag stage-resolved">Resolved</span>
+            <span class="chord-classification-tag stage-shadowed">Shadowed</span>
+            <span class="chord-classification-tag stage-returned">Returned</span>
+          </div>
+          <div class="current-tone" style="margin-top:16px;">
+            <h4>All five, one sentence</h4>
+            <p>Home asks a question (Activated), another chord answers it (Resolved) -- sometimes in a different color (Shadowed) -- and then home returns (Returned).</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="visual-card">
+        <div>
+          <h3>Two moves that aren't about pull and release</h3>
+          <p>
+            <strong>Kindred</strong> and <strong>Tinted</strong> both keep most of a chord's identity intact instead of resolving it. Kindred moves sideways to a relative chord; Tinted stays in the exact same place and just recolors one tone.
+          </p>
+        </div>
+        <div class="current-tone">
+          <h4>Why Progression Builder still names them</h4>
+          <p>A suggestion engine that only knew tension and release would run out of things to say the moment a progression settles. These two give it real, honest options for a chord that isn't trying to resolve anything.</p>
+        </div>
+      </article>
+    </section>
+
+    <section class="lesson-stage">
+      <article class="sound-card">
+        <div>
+          <div class="sound-copy">
+            <h3>Kindred: C major → A minor</h3>
+            <p>Listen for what stays the same. Two of the three notes don't move at all.</p>
+          </div>
+          <div class="controls">
+            <button class="btn" id="csPlayKindredBtn">▶ Play the move</button>
+          </div>
+        </div>
+        <div>
+          <div class="current-tone">
+            <h4>What actually happened</h4>
+            <p>C major is C-E-G. A minor is A-C-E. Two notes -- C and E -- are shared between them. Only G moved, down to A. That shared majority is exactly what "kindred" means: a family resemblance, not a resolution.</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="sound-card">
+        <div>
+          <div class="sound-copy">
+            <h3>Tinted: C major → C augmented</h3>
+            <p>Listen for what moves. Only one note changes, and the chord doesn't go anywhere new.</p>
+          </div>
+          <div class="controls">
+            <button class="btn" id="csPlayTintedBtn">▶ Play the move</button>
+          </div>
+        </div>
+        <div>
+          <div class="current-tone">
+            <h4>What actually happened</h4>
+            <p>C major is C-E-G. C augmented is C-E-G#. The root and the third never moved -- only the fifth stretched up half a step. Same chord, same job, one note recolored: that's a "tint."</p>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="reflection-card visible">
+      <h3>Which word fits: C major to A minor?</h3>
+      <p>Play it again above if you need to. Two notes hold still; only one moves.</p>
+
+      <div class="choice-grid">
+        <button class="choice-btn" data-cs-q1="kindred">
+          <strong>Kindred</strong>
+          <span>Family resemblance, no pull</span>
+        </button>
+        <button class="choice-btn" data-cs-q1="tinted">
+          <strong>Tinted</strong>
+          <span>Same chord, one note recolored</span>
+        </button>
+        <button class="choice-btn" data-cs-q1="resolved">
+          <strong>Resolved</strong>
+          <span>Answering a pull</span>
+        </button>
+        <button class="choice-btn" data-cs-q1="shadowed">
+          <strong>Shadowed</strong>
+          <span>The answer, darkened</span>
+        </button>
+      </div>
+
+      <div class="response-box" id="csQ1ResponseBox"></div>
+    </section>
+
+    <section class="reflection-card visible">
+      <h3>Which word fits: C major to C augmented?</h3>
+      <p>The chord never left home -- only one tone changed color.</p>
+
+      <div class="choice-grid">
+        <button class="choice-btn" data-cs-q2="activated">
+          <strong>Activated</strong>
+          <span>Creates a pull toward resolution</span>
+        </button>
+        <button class="choice-btn" data-cs-q2="tinted">
+          <strong>Tinted</strong>
+          <span>Same chord, one note recolored</span>
+        </button>
+        <button class="choice-btn" data-cs-q2="returned">
+          <strong>Returned</strong>
+          <span>Back home again</span>
+        </button>
+        <button class="choice-btn" data-cs-q2="kindred">
+          <strong>Kindred</strong>
+          <span>Family resemblance, no pull</span>
+        </button>
+      </div>
+
+      <div class="response-box" id="csQ2ResponseBox"></div>
+
+      <div class="next-panel">
+        <p>All seven words are now yours -- the same ones you'll see offered as suggestions inside Progression Builder and Chord Factory.</p>
+        <button class="btn primary" id="completeChordSelectionLessonBtn">Complete lesson</button>
+      </div>
+    </section>
+  `;
+
+  document.getElementById("csPlayFiveBtn").addEventListener("click", playFiveWordRecap);
+  document.getElementById("csPlayKindredBtn").addEventListener("click", playKindredMove);
+  document.getElementById("csPlayTintedBtn").addEventListener("click", playTintedMove);
+
+  document.querySelectorAll("[data-cs-q1]").forEach(btn => {
+    btn.addEventListener("click", () => handleCsQ1Choice(btn));
+  });
+  document.querySelectorAll("[data-cs-q2]").forEach(btn => {
+    btn.addEventListener("click", () => handleCsQ2Choice(btn));
+  });
+  document.getElementById("completeChordSelectionLessonBtn").addEventListener("click", completeCurrentLesson);
+}
+
+function handleCsQ1Choice(button) {
+  document.querySelectorAll("[data-cs-q1]").forEach(btn => btn.classList.remove("selected"));
+  button.classList.add("selected");
+
+  const choice = button.dataset.csQ1;
+  const responseBox = document.getElementById("csQ1ResponseBox");
+  if (!responseBox) return;
+
+  const correct = choice === "kindred";
+  responseBox.innerHTML = `
+    <strong>${correct ? "Right -- Kindred." : "Not quite -- it's Kindred."}</strong>
+    <p style="margin: 6px 0 0; color: var(--orumi-muted);">C and E carried straight over into A minor -- only G moved, down to A. Two shared tones out of three is a family resemblance, not a pull toward resolution.</p>
+  `;
+  responseBox.classList.add("visible");
+}
+
+function handleCsQ2Choice(button) {
+  document.querySelectorAll("[data-cs-q2]").forEach(btn => btn.classList.remove("selected"));
+  button.classList.add("selected");
+
+  const choice = button.dataset.csQ2;
+  const responseBox = document.getElementById("csQ2ResponseBox");
+  if (!responseBox) return;
+
+  const correct = choice === "tinted";
+  responseBox.innerHTML = `
+    <strong>${correct ? "Right -- Tinted." : "Not quite -- it's Tinted."}</strong>
+    <p style="margin: 6px 0 0; color: var(--orumi-muted);">C and E never moved -- only G stretched up to G#. Same chord, same job, one recolored tone: nothing resolved, nothing changed function.</p>
+  `;
+  responseBox.classList.add("visible");
 }
 
     function renderPlaceholderLesson(lesson) {
