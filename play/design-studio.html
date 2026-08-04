@@ -19,6 +19,35 @@
       --lane-height: 92px;
     }
 
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(77,150,255,0.35) var(--panel);
+    }
+
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--panel);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(77,150,255,0.35);
+      border-radius: 999px;
+      border: 2px solid var(--panel);
+      background-clip: padding-box;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(77,150,255,0.6);
+    }
+
+    ::-webkit-scrollbar-corner {
+      background: var(--panel);
+    }
+
     body {
       font-family: Arial, sans-serif;
       background: var(--bg);
@@ -212,6 +241,7 @@
 
     .studio > aside.panel {
       height: 100%;
+      min-height: 0;
       overflow-y: auto;
     }
 
@@ -380,12 +410,14 @@
     .workspace {
       min-width: 0;
       height: 100%;
+      min-height: 0;
       display: flex;
       flex-direction: column;
     }
 
     .workspace > .panel {
       height: 100%;
+      min-height: 0;
       display: flex;
       flex-direction: column;
       overflow: hidden;
