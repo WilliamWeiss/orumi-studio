@@ -1258,38 +1258,6 @@
       z-index: 20;
     }
 
-    .focus-exit-pill {
-      position: fixed;
-      top: 130px;
-      left: 50%;
-      transform: translateX(calc(-100% - 6px));
-      background: rgba(34,211,238,0.92);
-      color: #0f1115;
-      font-size: 13px;
-      font-weight: 800;
-      padding: 7px 20px;
-      border-radius: 999px;
-      border: none;
-      cursor: pointer;
-      z-index: 2000;
-      box-shadow: 0 4px 18px rgba(34,211,238,0.45);
-      letter-spacing: 0.02em;
-    }
-
-    .focus-exit-pill:hover {
-      background: rgba(34,211,238,1);
-    }
-
-    .focus-send-pill {
-      transform: translateX(6px);
-      background: rgba(255,255,255,0.94);
-      box-shadow: 0 4px 18px rgba(255,255,255,0.3);
-    }
-
-    .focus-send-pill:hover {
-      background: rgba(255,255,255,1);
-    }
-
     .orumi-block.in-clipboard,
     .orumi-block.selected.in-clipboard {
       outline: 4px solid rgba(34,211,238,0.95);
@@ -2135,7 +2103,6 @@
         <button class="control-button secondary" id="clearSelectedLocationButton">↤ Location to Beginning</button>
         <button class="control-button secondary" id="selectAllButton">☑ Select All</button>
         <button class="control-button secondary" id="selectCurrentLaneButton">☑ Select Current Lane</button>
-        <button class="control-button secondary" id="selectMeasureRangeButton">▦ Select Measure Range</button>
         <button class="control-button secondary" id="selectStackButton">⌕ Select Stack at Selected Beat</button>
         <button class="control-button secondary" id="analyzePlayheadChordButton">⌕ Analyze Selected Chord</button>
         <button class="control-button secondary" id="clearSelectionButton">✕ Clear Selection</button>
@@ -2152,7 +2119,6 @@
         <button class="control-button secondary" id="editSelectionInPlayerButton">▶ Edit Selection in Player</button>
         <button class="control-button secondary" id="suggestHarmonyButton">✧ Suggest Harmony</button>
         <button class="control-button secondary" id="reviewSelectionInProgressionButton">≡ Review Chords in Progression</button>
-        <button class="control-button secondary" id="sendFocusRangeToProgressionButton" disabled title="Set a Focus Range (View menu) first">≡ Send Focus Range to Progression</button>
         <button class="control-button secondary" id="pasteSelectionButton">⧆ Paste at End</button>
         <button class="control-button secondary" id="pasteAtMeasureButton">📍 Paste at Selected Location</button>
         <button class="control-button secondary" id="insertPasteAtLocationButton">⤓ Insert Paste at Selected Location</button>
@@ -2181,7 +2147,6 @@
         <button class="control-button secondary" id="readableViewButton">↔ Readable View</button>
         <button class="control-button secondary" id="goToMeasureButton">📍 Go to Measure</button>
         <button class="control-button secondary" id="showLyricsButton">♩ Show Lyrics</button>
-        <button class="control-button secondary" id="focusRangeButton">🔎 Focus Range</button>
         <button class="control-button secondary" id="findOverlapsButton">🔍 Find Overlapping Notes</button>
       </div>
     </div>
@@ -2380,7 +2345,6 @@
     let blockClipboard = [];
     let clipboardBlockIds = new Set();
     let insertMode = false;
-    let focusRange = null; // { startBeat, endBeat } when active, null otherwise
     let selectedInsertBeat = 0;
     let playbackState = "stopped";
     let playbackStartTime = 0;
@@ -2489,7 +2453,6 @@
     const clearSelectedLocationButton = document.getElementById("clearSelectedLocationButton");
     const selectAllButton = document.getElementById("selectAllButton");
     const selectCurrentLaneButton = document.getElementById("selectCurrentLaneButton");
-    const selectMeasureRangeButton = document.getElementById("selectMeasureRangeButton");
     const selectStackButton = document.getElementById("selectStackButton");
     const analyzePlayheadChordButton = document.getElementById("analyzePlayheadChordButton");
     const clearSelectionButton = document.getElementById("clearSelectionButton");
@@ -2498,7 +2461,6 @@
     const editSelectionInPlayerButton = document.getElementById("editSelectionInPlayerButton");
     const suggestHarmonyButton = document.getElementById("suggestHarmonyButton");
     const reviewSelectionInProgressionButton = document.getElementById("reviewSelectionInProgressionButton");
-    const sendFocusRangeToProgressionButton = document.getElementById("sendFocusRangeToProgressionButton");
     const pasteSelectionButton = document.getElementById("pasteSelectionButton");
     const pasteAtMeasureButton = document.getElementById("pasteAtMeasureButton");
     const insertPasteAtLocationButton = document.getElementById("insertPasteAtLocationButton");
@@ -4987,6 +4949,15 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       contextMessage.textContent =
         selectedBlockIds.size > 0 || laneMenuLaneId ? "Press Esc to clear selection" : "";
 
+      if (playButton) {
+        const laneForPlayTitle = project.lanes.find(item => item.id === laneMenuLaneId);
+        playButton.title = laneForPlayTitle
+          ? "Play only " + laneForPlayTitle.name
+          : selectedBlockIds.size > 0
+            ? "Play only the focused notes"
+            : "Play / Resume";
+      }
+
       undoButton.disabled = historyStack.length === 0;
       redoButton.disabled = redoStack.length === 0;
       updateSpecializedEditButtons();
@@ -5762,7 +5733,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         reviewSelectionInProgressionButton.textContent = "≡ Review Chords in Progression";
         reviewSelectionInProgressionButton.title = canReviewProgression
           ? "Send the selected chord stack or chord sequence to Progression Builder for free chord analysis."
-          : "Select a vertical chord stack, multiple vertical stacks, or a measure range across lanes, then review it in Progression.";
+          : "Select a vertical chord stack, multiple vertical stacks, or drag across the Beat Ruler to select a range, then review it in Progression.";
       }
     }
 
@@ -6245,13 +6216,13 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
       if (selectedBlocks.length === 0) {
         flashStatus("Select one or more chord blocks before opening Progression Builder.");
-        window.alert("Select a chord stack, or use Select Measure Range across lanes, then choose Review Chords in Progression.");
+        window.alert("Select a chord stack, or drag across the Beat Ruler to select a range, then choose Review Chords in Progression.");
         return;
       }
 
       if (!reviewSelection) {
         flashStatus("No chord stacks found in that selection.");
-        window.alert("Select at least one note, or select a measure range across lanes.");
+        window.alert("Select at least one note, or drag across the Beat Ruler to select a range.");
         return;
       }
 
@@ -6276,67 +6247,6 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       window.setTimeout(() => {
         window.location.href = "progression-builder.html?mode=reviewProgression&source=design-studio";
       }, 220);
-    }
-
-    function beginSendFocusRangeToProgression() {
-      if (!focusRange) {
-        flashStatus("Set a Focus Range first, then send it to Progression.");
-        window.alert("Use Focus Range (View menu) to pick a beat range across all lanes, then choose Send Focus Range to Progression.");
-        return;
-      }
-
-      // Focus Range already spans every lane by definition, so this reuses
-      // buildProgressionReviewPayload exactly like the manual-selection path
-      // -- it independently re-derives each lane's content (including rests)
-      // per beat via getChordStackGroupsFromSelection / getBlocksAtChordBeat,
-      // the same machinery already fixed for multi-lane stacks.
-      const rangeBlocks = project.blocks.filter(block =>
-        block.type === "note" &&
-        Number.isFinite(block.midi) &&
-        Number(block.startBeat) < focusRange.endBeat &&
-        Number(block.startBeat) + Number(block.durationBeats) > focusRange.startBeat
-      );
-
-      if (rangeBlocks.length === 0) {
-        flashStatus("No notes found in the focused range.");
-        window.alert("The focused beat range (" + focusRange.startLabel + "–" + focusRange.endLabel + ") doesn't contain any notes to send.");
-        return;
-      }
-
-      const payload = buildProgressionReviewPayload(rangeBlocks);
-
-      if (!payload || !payload.chords || payload.chords.length === 0) {
-        flashStatus("No chord stacks found in the focused range.");
-        return;
-      }
-
-      localStorage.setItem("orumiDesignProgressionReviewPayload", JSON.stringify(payload));
-      localStorage.setItem("orumiProgressionReviewPayload", JSON.stringify(payload));
-      localStorage.setItem("orumiPendingProgressionReviewPayload", JSON.stringify(payload));
-      localStorage.setItem("orumiDesignStudioProjectForProgression", JSON.stringify({
-        currentProjectId,
-        project: JSON.parse(JSON.stringify(project))
-      }));
-      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
-
-      flashStatus(
-        "Opening Progression Builder to review " +
-        payload.chordCount +
-        " chord" + (payload.chordCount === 1 ? "" : "s") +
-        " from beats " + focusRange.startLabel + "–" + focusRange.endLabel + "…"
-      );
-
-      window.setTimeout(() => {
-        window.location.href = "progression-builder.html?mode=reviewProgression&source=design-studio";
-      }, 220);
-    }
-
-    function updateSendFocusRangeButton() {
-      if (!sendFocusRangeToProgressionButton) return;
-      sendFocusRangeToProgressionButton.disabled = !focusRange;
-      sendFocusRangeToProgressionButton.title = focusRange
-        ? "Send beats " + focusRange.startLabel + "–" + focusRange.endLabel + " (all lanes) to Progression"
-        : "Set a Focus Range (View menu) first";
     }
 
     function beginReplaceSelectedChord() {
@@ -7101,130 +7011,6 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       render();
     }
 
-    function selectMeasureRange() {
-      const defaultStart = String(getSelectedInsertMeasure());
-      const startAnswer = window.prompt(
-        "Select blocks starting with which measure?",
-        defaultStart
-      );
-
-      if (!startAnswer) {
-        status.textContent = "Measure range selection cancelled.";
-        return;
-      }
-
-      const endAnswer = window.prompt(
-        "Select blocks through which measure?",
-        startAnswer
-      );
-
-      if (!endAnswer) {
-        status.textContent = "Measure range selection cancelled.";
-        return;
-      }
-
-      const startMeasure = Math.max(1, Math.round(Number(startAnswer)));
-      const endMeasure = Math.max(startMeasure, Math.round(Number(endAnswer)));
-
-      if (!Number.isFinite(startMeasure) || !Number.isFinite(endMeasure)) {
-        status.textContent = "Measure range selection cancelled.";
-        return;
-      }
-
-      const scopeAnswer = window.prompt(
-        "Select measure range from:\n\n" +
-        "A = All Lanes\n" +
-        "S = Selected Lane only\n" +
-        "C = Cancel",
-        "A"
-      );
-
-      if (!scopeAnswer) {
-        status.textContent = "Measure range selection cancelled.";
-        return;
-      }
-
-      const normalizedScope = scopeAnswer.trim().toLowerCase();
-      let scope = "all";
-
-      if (normalizedScope === "a" || normalizedScope === "all" || normalizedScope === "all lanes") {
-        scope = "all";
-      } else if (normalizedScope === "s" || normalizedScope === "selected" || normalizedScope === "selected lane") {
-        scope = "selected";
-      } else {
-        status.textContent = "Measure range selection cancelled.";
-        return;
-      }
-
-      const selectedLane = project.lanes.find(lane => lane.id === selectedLaneId);
-
-      if (scope === "selected" && !selectedLane) {
-        status.textContent = "Select a lane before selecting a lane range.";
-        return;
-      }
-
-      const startBeat = getMeasureStartBeat(startMeasure);
-      const endBeat = getMeasureStartBeat(endMeasure + 1);
-      const tolerance = 0.0001;
-
-      const matchingBlocks = project.blocks
-        .filter(block => {
-          const blockStart = Number(block.startBeat || 0);
-          const blockEnd = blockStart + Number(block.durationBeats || MIN_DURATION);
-          const overlapsRange =
-            blockStart < endBeat - tolerance &&
-            blockEnd > startBeat + tolerance;
-          const matchesScope =
-            scope === "all" || block.laneId === selectedLane.id;
-
-          return overlapsRange && matchesScope;
-        })
-        .sort((a, b) => {
-          if (Number(a.startBeat || 0) !== Number(b.startBeat || 0)) {
-            return Number(a.startBeat || 0) - Number(b.startBeat || 0);
-          }
-
-          const laneA = project.lanes.findIndex(lane => lane.id === a.laneId);
-          const laneB = project.lanes.findIndex(lane => lane.id === b.laneId);
-
-          if (laneA !== laneB) {
-            return laneA - laneB;
-          }
-
-          return Number(a.midi || 0) - Number(b.midi || 0);
-        });
-
-      if (matchingBlocks.length === 0) {
-        clearBlockSelection();
-        render();
-        status.textContent =
-          "No blocks found from M" +
-          startMeasure +
-          " through M" +
-          endMeasure +
-          (scope === "all" ? " across all lanes." : " in " + selectedLane.name + ".");
-        return;
-      }
-
-      selectedBlockIds = new Set(matchingBlocks.map(block => block.id));
-      selectedBlockId = matchingBlocks[0].id;
-      selectedLaneId = matchingBlocks[0].laneId || selectedLaneId;
-
-      render();
-
-      status.textContent =
-        "Selected " +
-        matchingBlocks.length +
-        " block" +
-        (matchingBlocks.length === 1 ? "" : "s") +
-        " from M" +
-        startMeasure +
-        " through M" +
-        endMeasure +
-        (scope === "all" ? " across all lanes." : " in " + selectedLane.name + ".");
-    }
-
-
     function getLaneLength(laneId) {
       const laneBlocks = project.blocks.filter(b => b.laneId === laneId && !b.generated);
       if (laneBlocks.length === 0) return 0;
@@ -7969,14 +7755,6 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       });
 
       laneInspector.appendChild(voiceSelect);
-
-      const playSelectedLaneButton = document.createElement("button");
-      playSelectedLaneButton.classList.add("control-button");
-      playSelectedLaneButton.style.marginTop = "12px";
-      playSelectedLaneButton.textContent = "▶ Play Selected Lane";
-      playSelectedLaneButton.title = "Play only the currently selected lane";
-      playSelectedLaneButton.addEventListener("click", playSelectedLane);
-      laneInspector.appendChild(playSelectedLaneButton);
 
       const laneHasNarrowedFocus = selectedBlockIds.size > 0 &&
         getSelectedBlocks().some(b => b.laneId === lane.id);
@@ -11307,26 +11085,49 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         return;
       }
 
-      if (focusRange) {
-        // In focus mode: only play blocks within the focus range
-        const startBeat = playbackState === "paused" && pausedBeat >= focusRange.startBeat
-          ? pausedBeat
-          : focusRange.startBeat;
-        const focusBlocks = project.blocks.filter(b =>
-          !b.generated &&
-          Number(b.startBeat) < focusRange.endBeat &&
-          Number(b.startBeat) + Number(b.durationBeats) > focusRange.startBeat
-        );
+      const startBeat = playbackState === "paused" ? pausedBeat : 0;
+      const lane = project.lanes.find(item => item.id === laneMenuLaneId);
+
+      if (lane) {
+        const narrowedBlocks = selectedBlockIds.size > 0
+          ? getSelectedBlocks().filter(b => b.laneId === lane.id)
+          : [];
+        const isFocused = narrowedBlocks.length > 0;
+        const laneBlocks = isFocused
+          ? narrowedBlocks
+          : project.blocks.filter(block => block.laneId === lane.id);
+
+        if (laneBlocks.filter(b => b.type === "note").length === 0) {
+          status.textContent = lane.name + " has no notes to play.";
+          return;
+        }
+
         playBlocks(
-          focusBlocks,
-          "Playing focus range beats " + focusRange.startLabel + "–" + focusRange.endLabel + ".",
-          "Focus range playback complete.",
+          laneBlocks,
+          "Playing " + (isFocused ? "focused notes in " : "") + lane.name + ".",
+          (isFocused ? "Focused" : "Selected lane") + " playback complete: " + lane.name + ".",
           startBeat
         );
         return;
       }
 
-      const startBeat = playbackState === "paused" ? pausedBeat : 0;
+      if (selectedBlockIds.size > 0) {
+        const focusedBlocks = getSelectedBlocks();
+
+        if (focusedBlocks.filter(b => b.type === "note").length === 0) {
+          status.textContent = "Nothing to play in the current focus.";
+          return;
+        }
+
+        playBlocks(
+          focusedBlocks,
+          "Playing " + focusedBlocks.length + " focused note" + (focusedBlocks.length === 1 ? "" : "s") + ".",
+          "Focused playback complete.",
+          startBeat
+        );
+        return;
+      }
+
       playBlocks(project.blocks, "Playing Design Studio.", "Playback complete.", startBeat);
     }
 
@@ -11372,33 +11173,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       );
     }
 
-    async function playSelectedLane() {
-      await ensureAudio();
-
-      const lane = project.lanes.find(item => item.id === selectedLaneId);
-
-      if (!lane) {
-        status.textContent = "Select a lane to play.";
-        return;
-      }
-
-      const laneBlocks = project.blocks
-        .filter(block => block.type === "note" && block.laneId === lane.id);
-
-      if (laneBlocks.length === 0) {
-        status.textContent = lane.name + " has no notes to play.";
-        return;
-      }
-
-      const startBeat = playbackState === "paused" ? pausedBeat : 0;
-
-      playBlocks(
-        laneBlocks,
-        "Playing selected lane: " + lane.name + ".",
-        "Selected lane playback complete: " + lane.name + ".",
-        startBeat
-      );
-    }
+    
 
     function pausePlayback() {
       if (playbackState !== "playing") {
@@ -11452,60 +11227,6 @@ for (let beat = 0; beat <= maxBeat; beat++) {
     function getTimelinePixelWidth() {
       const maxBeat = Math.max(12, Math.ceil(getProjectLength()) + 4);
       return Math.max(1040, 104 + ((maxBeat + 2) * BEAT_WIDTH) + 40);
-    }
-
-
-    function enterFocusRange() {
-      const shell = document.querySelector(".timeline-shell");
-      if (!shell) return;
-
-      // Use selected location as center, or prompt for a measure range
-      const bpm = getBeatsPerMeasure() || 4;
-      const answer = window.prompt(
-        "Focus on beats — enter start and end beat numbers as shown on the ruler\n(e.g. \"16-30\" to focus from beat 16 through beat 30):",
-        ""
-      );
-      if (!answer) return;
-
-      const parts = answer.split(/[-–—]/);
-      if (parts.length < 2) {
-        flashStatus("Enter a range like '11-25'.");
-        return;
-      }
-
-      const startLabel = parts[0].trim();
-      const endLabel = parts[1].trim();
-      const startBeat = Math.max(0, Number(startLabel) - 1);
-      const endBeat = Math.max(startBeat + 1, Number(endLabel));
-
-      if (!Number.isFinite(startBeat) || !Number.isFinite(endBeat)) {
-        flashStatus("Invalid beat range.");
-        return;
-      }
-
-      focusRange = { startBeat, endBeat, startLabel, endLabel };
-
-      // Scroll to start of range without changing zoom
-      requestAnimationFrame(() => {
-        shell.scrollLeft = Math.max(0, startBeat * BEAT_WIDTH - 40);
-        applyFocusOverlay();
-      });
-
-      flashStatus("Focused on beats " + startLabel + "–" + endLabel + ". Press Escape or click Exit Focus to return.");
-
-      const btn = document.getElementById("focusRangeButton");
-      if (btn) { btn.textContent = "🔎 Exit Focus"; btn.classList.add("clipboard-active"); }
-      updateSendFocusRangeButton();
-    }
-
-    function exitFocusRange() {
-      focusRange = null;
-      removeFocusOverlay();
-      render();
-      flashStatus("Focus mode exited.");
-      const btn = document.getElementById("focusRangeButton");
-      if (btn) { btn.textContent = "🔎 Focus Range"; btn.classList.remove("clipboard-active"); }
-      updateSendFocusRangeButton();
     }
 
     // Shared range-selection logic: given a beat range and a scope (all
@@ -11704,83 +11425,6 @@ for (let beat = 0; beat <= maxBeat; beat++) {
           " from beat " + (Math.round(startBeat) + 1) +
           " to beat " + (Math.round(finalEndBeat) + 1) + ".";
       }
-    }
-
-    function applyFocusOverlay() {
-      if (!focusRange) return;
-      removeFocusOverlay();
-
-      const lanesContainer = document.getElementById("lanesContainer");
-      const anchor = lanesContainer || document.getElementById("timeline");
-      if (!anchor) return;
-
-      const firstTrack = anchor.querySelector(".lane-track");
-      let beatZeroOffset = 0;
-      if (firstTrack) {
-        const anchorRect = anchor.getBoundingClientRect();
-        const trackRect = firstTrack.getBoundingClientRect();
-        beatZeroOffset = trackRect.left - anchorRect.left;
-      }
-
-      // Expand focus boundaries to include any block that overlaps the range
-      const overlapping = project.blocks.filter(b =>
-        !b.generated &&
-        Number(b.startBeat) < focusRange.endBeat &&
-        Number(b.startBeat) + Number(b.durationBeats) > focusRange.startBeat
-      );
-
-      const visualStart = overlapping.length > 0
-        ? Math.min(...overlapping.map(b => Number(b.startBeat)))
-        : focusRange.startBeat;
-
-      const visualEnd = overlapping.length > 0
-        ? Math.max(...overlapping.map(b => Number(b.startBeat) + Number(b.durationBeats)))
-        : focusRange.endBeat;
-
-      const startPx = beatZeroOffset + visualStart * BEAT_WIDTH;
-      const endPx = beatZeroOffset + visualEnd * BEAT_WIDTH;
-
-      if (startPx > beatZeroOffset) {
-        const leftEl = document.createElement("div");
-        leftEl.className = "focus-range-overlay";
-        leftEl.style.cssText = "position:absolute;top:0;bottom:0;z-index:20;pointer-events:none;background:rgba(0,0,0,0.55);";
-        leftEl.style.left = beatZeroOffset + "px";
-        leftEl.style.width = (startPx - beatZeroOffset) + "px";
-        anchor.appendChild(leftEl);
-      }
-
-      const rightEl = document.createElement("div");
-      rightEl.className = "focus-range-overlay";
-      rightEl.style.cssText = "position:absolute;top:0;bottom:0;z-index:20;pointer-events:none;background:rgba(0,0,0,0.55);width:99999px;";
-      rightEl.style.left = endPx + "px";
-      anchor.appendChild(rightEl);
-
-      if (!document.getElementById("focusExitPill")) {
-        const pill = document.createElement("button");
-        pill.className = "focus-exit-pill";
-        pill.id = "focusExitPill";
-        pill.textContent = "✕ Exit Focus  beats " + focusRange.startLabel + "–" + focusRange.endLabel;
-        pill.addEventListener("click", exitFocusRange);
-        document.body.appendChild(pill);
-      }
-
-      if (!document.getElementById("focusSendToProgressionPill")) {
-        const sendPill = document.createElement("button");
-        sendPill.className = "focus-exit-pill focus-send-pill";
-        sendPill.id = "focusSendToProgressionPill";
-        sendPill.textContent = "≡ Send to Progression";
-        sendPill.title = "Send beats " + focusRange.startLabel + "–" + focusRange.endLabel + " (all lanes) to Progression Builder";
-        sendPill.addEventListener("click", beginSendFocusRangeToProgression);
-        document.body.appendChild(sendPill);
-      }
-    }
-
-    function removeFocusOverlay() {
-      document.querySelectorAll(".focus-range-overlay").forEach(el => el.remove());
-      const pill = document.getElementById("focusExitPill");
-      if (pill) pill.remove();
-      const sendPill = document.getElementById("focusSendToProgressionPill");
-      if (sendPill) sendPill.remove();
     }
 
 
@@ -12755,7 +12399,6 @@ function applyPendingPlayerLineImport() {
     clearSelectedLocationButton.addEventListener("click", () => clearSelectedLocation("Selected location returned to beginning."));
     selectAllButton.addEventListener("click", selectAllBlocks);
     selectCurrentLaneButton.addEventListener("click", selectCurrentLaneBlocks);
-    selectMeasureRangeButton.addEventListener("click", selectMeasureRange);
     selectStackButton.addEventListener("click", selectStackAtSelectedBeat);
     analyzePlayheadChordButton.addEventListener("click", analyzePlayheadChord);
     clearSelectionButton.addEventListener("click", clearSelectionAndRender);
@@ -12769,9 +12412,6 @@ function applyPendingPlayerLineImport() {
     }
     if (reviewSelectionInProgressionButton) {
       reviewSelectionInProgressionButton.addEventListener("click", beginReviewSelectionInProgression);
-      if (sendFocusRangeToProgressionButton) {
-        sendFocusRangeToProgressionButton.addEventListener("click", beginSendFocusRangeToProgression);
-      }
     }
     pasteSelectionButton.addEventListener("click", pasteClipboardAtEnd);
     pasteAtMeasureButton.addEventListener("click", pasteClipboardAtSelectedLocation);
@@ -14254,22 +13894,7 @@ mxmlImportConfirm.addEventListener("click", () => {
       findAndHighlightOverlaps();
     });
 
-    document.getElementById("focusRangeButton")?.addEventListener("click", () => {
-      if (focusRange) {
-        exitFocusRange();
-      } else {
-        enterFocusRange();
-      }
-    });
 
-    document.addEventListener("keydown", e => {
-      if (e.key === "Escape" && focusRange) {
-        exitFocusRange();
-      }
-    });
-
-
-    
     jumpToEndButton.addEventListener("click", jumpToEnd);
     zoomOutButton.addEventListener("click", zoomOutTimeline);
     zoomInButton.addEventListener("click", zoomInTimeline);
