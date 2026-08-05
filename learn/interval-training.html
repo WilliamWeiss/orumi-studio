@@ -7450,19 +7450,19 @@ const composeChords = {
       "Kindred lens: most of the chord's identity carried straight over."
     ]
   },
-  caug: {
-    name: "C+",
+  gm: {
+    name: "Gm",
     feeling: "Tinted swipe",
     notes: [
-      { note: "C", frequency: 130.81 },
-      { note: "E", frequency: 163.51 },
-      { note: "G#", frequency: 207.65 }
+      { note: "G", frequency: 196.00 },
+      { note: "Bb", frequency: 233.08 },
+      { note: "D", frequency: 146.83 }
     ],
     hints: [
-      "Root lens: C is still the center, unmoved.",
-      "Third lens: E is still exactly where C major left it.",
-      "Fifth lens: G stretched up a half step into G#.",
-      "Tinted lens: same chord, same job, one recolored tone."
+      "Root lens: G is the fifth degree of C -- normally major here.",
+      "Third lens: Bb makes this minor instead of the expected major.",
+      "Feeling lens: unresolved and a little wistful, not a pull toward anything.",
+      "Tinted lens: no dominant chord led here -- just a borrowed minor color."
     ]
   }
 };
@@ -7756,7 +7756,7 @@ function playKindredMove() {
 }
 
 function playTintedMove() {
-  playComposeProgression(["c", "caug"]);
+  playComposeProgression(["am", "gm"]);
 }
 
 function resetFeelingMap() {
@@ -9005,8 +9005,8 @@ function renderSelfSimilarityLesson() {
       <article class="sound-card">
         <div>
           <div class="sound-copy">
-            <h3>Tinted: C major → C augmented</h3>
-            <p>Listen for what moves. Only one note changes, and the chord doesn't go anywhere new.</p>
+            <h3>Tinted: Am → Gm, borrowed color</h3>
+            <p>G is the V chord here -- normally major. Listen for the surprise when it shows up minor instead.</p>
           </div>
           <div class="controls">
             <button class="btn" id="csPlayTintedBtn">▶ Play the move</button>
@@ -9015,7 +9015,7 @@ function renderSelfSimilarityLesson() {
         <div>
           <div class="current-tone">
             <h4>What actually happened</h4>
-            <p>C major is C-E-G. C augmented is C-E-G#. The root and the third never moved -- only the fifth stretched up half a step. Same chord, same job, one note recolored: that's a "tint."</p>
+            <p>G is the fifth degree of C major, and the fifth degree is normally major. Play G minor there instead, with nothing dominant-functioning leading into it, and you've borrowed a color from the parallel key without setting up any resolution. That's what separates Tinted from Shadowed: Shadowed is a dominant chord resolving somewhere unexpected. Tinted never had a resolution coming at all -- it's just a scale degree wearing the wrong quality.</p>
           </div>
         </div>
       </article>
@@ -9048,8 +9048,8 @@ function renderSelfSimilarityLesson() {
     </section>
 
     <section class="reflection-card visible">
-      <h3>Which word fits: C major to C augmented?</h3>
-      <p>The chord never left home -- only one tone changed color.</p>
+      <h3>Which word fits: G, appearing minor where major was expected?</h3>
+      <p>Nothing dominant led into it -- the chord's just wearing an unexpected quality.</p>
 
       <div class="choice-grid">
         <button class="choice-btn" data-cs-q2="activated">
@@ -9119,7 +9119,7 @@ function handleCsQ2Choice(button) {
   const correct = choice === "tinted";
   responseBox.innerHTML = `
     <strong>${correct ? "Right -- Tinted." : "Not quite -- it's Tinted."}</strong>
-    <p style="margin: 6px 0 0; color: var(--orumi-muted);">C and E never moved -- only G stretched up to G#. Same chord, same job, one recolored tone: nothing resolved, nothing changed function.</p>
+    <p style="margin: 6px 0 0; color: var(--orumi-muted);">The fifth degree is expected to be major -- here it shows up minor, with nothing dominant-functioning leading into it. No resolution was ever coming, so it can't be Shadowed either: just a borrowed color sitting where a different quality belonged.</p>
   `;
   responseBox.classList.add("visible");
 }

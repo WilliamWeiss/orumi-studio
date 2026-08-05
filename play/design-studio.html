@@ -5066,7 +5066,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
           "<button class='lane-reorder-btn' data-dir='down' title='Move lane down'" + (index === project.lanes.length - 1 ? " disabled" : "") + ">▼</button>" +
           "</div>";
 
-        label.title = "Click to select this lane. Drag this lane label to the trash to delete the whole track.";
+        label.title = "Click to select this lane. Drag this lane label to the trash to delete the whole lane.";
 
         label.addEventListener("click", () => {
           if (selectedBlockIds.size > 0) {
@@ -5762,7 +5762,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         reviewSelectionInProgressionButton.textContent = "≡ Review Chords in Progression";
         reviewSelectionInProgressionButton.title = canReviewProgression
           ? "Send the selected chord stack or chord sequence to Progression Builder for free chord analysis."
-          : "Select a vertical chord stack, multiple vertical stacks, or a measure range across tracks, then review it in Progression.";
+          : "Select a vertical chord stack, multiple vertical stacks, or a measure range across lanes, then review it in Progression.";
       }
     }
 
@@ -6245,13 +6245,13 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
       if (selectedBlocks.length === 0) {
         flashStatus("Select one or more chord blocks before opening Progression Builder.");
-        window.alert("Select a chord stack, or use Select Measure Range across tracks, then choose Review Chords in Progression.");
+        window.alert("Select a chord stack, or use Select Measure Range across lanes, then choose Review Chords in Progression.");
         return;
       }
 
       if (!reviewSelection) {
         flashStatus("No chord stacks found in that selection.");
-        window.alert("Select at least one note, or select a measure range across tracks.");
+        window.alert("Select at least one note, or select a measure range across lanes.");
         return;
       }
 
@@ -7133,8 +7133,8 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
       const scopeAnswer = window.prompt(
         "Select measure range from:\n\n" +
-        "A = All Tracks\n" +
-        "S = Selected Track only\n" +
+        "A = All Lanes\n" +
+        "S = Selected Lane only\n" +
         "C = Cancel",
         "A"
       );
@@ -7147,9 +7147,9 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       const normalizedScope = scopeAnswer.trim().toLowerCase();
       let scope = "all";
 
-      if (normalizedScope === "a" || normalizedScope === "all" || normalizedScope === "all tracks") {
+      if (normalizedScope === "a" || normalizedScope === "all" || normalizedScope === "all lanes") {
         scope = "all";
-      } else if (normalizedScope === "s" || normalizedScope === "selected" || normalizedScope === "selected track") {
+      } else if (normalizedScope === "s" || normalizedScope === "selected" || normalizedScope === "selected lane") {
         scope = "selected";
       } else {
         status.textContent = "Measure range selection cancelled.";
@@ -7159,7 +7159,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       const selectedLane = project.lanes.find(lane => lane.id === selectedLaneId);
 
       if (scope === "selected" && !selectedLane) {
-        status.textContent = "Select a track before selecting a track range.";
+        status.textContent = "Select a lane before selecting a lane range.";
         return;
       }
 
@@ -7202,7 +7202,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
           startMeasure +
           " through M" +
           endMeasure +
-          (scope === "all" ? " across all tracks." : " in " + selectedLane.name + ".");
+          (scope === "all" ? " across all lanes." : " in " + selectedLane.name + ".");
         return;
       }
 
@@ -7221,7 +7221,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         startMeasure +
         " through M" +
         endMeasure +
-        (scope === "all" ? " across all tracks." : " in " + selectedLane.name + ".");
+        (scope === "all" ? " across all lanes." : " in " + selectedLane.name + ".");
     }
 
 
@@ -7381,8 +7381,8 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
       const scopeAnswer = window.prompt(
         "Insert paste how?\n\n" +
-        "A = Make room across all tracks\n" +
-        "S = Make room in selected track only\n" +
+        "A = Make room across all lanes\n" +
+        "S = Make room in selected lane only\n" +
         "C = Cancel",
         "A"
       );
@@ -7395,9 +7395,9 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       const normalizedScope = scopeAnswer.trim().toLowerCase();
       let scope = "all";
 
-      if (normalizedScope === "a" || normalizedScope === "all" || normalizedScope === "all tracks") {
+      if (normalizedScope === "a" || normalizedScope === "all" || normalizedScope === "all lanes") {
         scope = "all";
-      } else if (normalizedScope === "s" || normalizedScope === "selected" || normalizedScope === "selected track" || normalizedScope === "selected lane") {
+      } else if (normalizedScope === "s" || normalizedScope === "selected" || normalizedScope === "selected lane") {
         scope = "selected";
       } else {
         status.textContent = "Insert paste cancelled.";
@@ -7407,7 +7407,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       const selectedLane = project.lanes.find(lane => lane.id === selectedLaneId) || project.lanes[0];
 
       if (scope === "selected" && !selectedLane) {
-        status.textContent = "Select a track before using selected-track insert paste.";
+        status.textContent = "Select a lane before using selected-lane insert paste.";
         return;
       }
 
@@ -7422,7 +7422,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         formatBeatValue(phraseLength) +
         " beats.\n" +
         "Existing blocks at or after this point will shift right " +
-        (scope === "all" ? "across all tracks." : "in " + selectedLane.name + " only.") +
+        (scope === "all" ? "across all lanes." : "in " + selectedLane.name + " only.") +
         "\n\nUndo will be available."
       );
 
@@ -7974,7 +7974,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       playSelectedLaneButton.classList.add("control-button");
       playSelectedLaneButton.style.marginTop = "12px";
       playSelectedLaneButton.textContent = "▶ Play Selected Lane";
-      playSelectedLaneButton.title = "Play only the currently selected lane / track";
+      playSelectedLaneButton.title = "Play only the currently selected lane";
       playSelectedLaneButton.addEventListener("click", playSelectedLane);
       laneInspector.appendChild(playSelectedLaneButton);
 
@@ -8014,8 +8014,8 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       const deleteLaneButton = document.createElement("button");
       deleteLaneButton.classList.add("control-button", "danger");
       deleteLaneButton.style.marginTop = "8px";
-      deleteLaneButton.textContent = "🗑 Delete Track";
-      deleteLaneButton.title = "Delete this track and any notes in it. You can also drag the lane label to the trash.";
+      deleteLaneButton.textContent = "🗑 Delete Lane";
+      deleteLaneButton.title = "Delete this lane and any notes in it. You can also drag the lane label to the trash.";
       deleteLaneButton.disabled = project.lanes.length <= 1;
 
       deleteLaneButton.addEventListener("click", () => {
@@ -8260,7 +8260,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         labelElement.classList.add("dragging-lane");
       }
 
-      createGhost("Track: " + (lane.name || "Lane"), { type: "lane" });
+      createGhost("Lane: " + (lane.name || "Lane"), { type: "lane" });
       if (ghost) {
         ghost.classList.add("lane-ghost");
       }
@@ -8359,18 +8359,18 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       const lane = project.lanes.find(item => item.id === laneId);
 
       if (!lane) {
-        status.textContent = "Track could not be found.";
+        status.textContent = "Lane could not be found.";
         return;
       }
 
       if (project.lanes.length <= 1) {
-        status.textContent = "You need at least one track in the design.";
+        status.textContent = "You need at least one lane in the design.";
         return;
       }
 
       const laneBlocks = project.blocks.filter(block => block.laneId === laneId);
       const confirmed = window.confirm(
-        "Delete track “" +
+        "Delete lane “" +
           (lane.name || "Lane") +
           "”" +
           (laneBlocks.length
@@ -8380,7 +8380,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       );
 
       if (!confirmed) {
-        status.textContent = "Track deletion cancelled.";
+        status.textContent = "Lane deletion cancelled.";
         return;
       }
 
@@ -8400,7 +8400,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       render();
 
       status.textContent =
-        "Deleted track “" +
+        "Deleted lane “" +
         (lane.name || "Lane") +
         "”" +
         (laneBlocks.length
@@ -9075,8 +9075,8 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
       const scopeAnswer = window.prompt(
         "Apply inserted space to:\n\n" +
-        "A = All Tracks\n" +
-        "S = Selected Track only\n" +
+        "A = All Lanes\n" +
+        "S = Selected Lane only\n" +
         "C = Cancel",
         "A"
       );
@@ -9089,9 +9089,9 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       const normalizedScope = scopeAnswer.trim().toLowerCase();
       let scope = "all";
 
-      if (normalizedScope === "a" || normalizedScope === "all" || normalizedScope === "all tracks") {
+      if (normalizedScope === "a" || normalizedScope === "all" || normalizedScope === "all lanes") {
         scope = "all";
-      } else if (normalizedScope === "s" || normalizedScope === "selected" || normalizedScope === "selected track") {
+      } else if (normalizedScope === "s" || normalizedScope === "selected" || normalizedScope === "selected lane") {
         scope = "selected";
       } else {
         status.textContent = "Insert measures cancelled.";
@@ -9101,7 +9101,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       const selectedLane = project.lanes.find(lane => lane.id === selectedLaneId) || project.lanes[0];
 
       if (scope === "selected" && !selectedLane) {
-        status.textContent = "No selected track found.";
+        status.textContent = "No selected lane found.";
         return;
       }
 
@@ -9131,7 +9131,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         " before M" +
         selectedMeasure +
         " " +
-        (scope === "all" ? "across all tracks" : "in " + selectedLane.name) +
+        (scope === "all" ? "across all lanes" : "in " + selectedLane.name) +
         ". " +
         shiftedCount +
         " later block" +
@@ -9381,8 +9381,8 @@ for (let beat = 0; beat <= maxBeat; beat++) {
     function quantizeCleanTiming() {
       const scopeAnswer = window.prompt(
         "Quantize / clean timing for:\n\n" +
-        "A = All Tracks\n" +
-        "S = Selected Track only\n" +
+        "A = All Lanes\n" +
+        "S = Selected Lane only\n" +
         "B = Selected Blocks\n" +
         "C = Cancel",
         getSelectedBlocks().length > 0 ? "B" : "A"
@@ -9396,9 +9396,9 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       const normalizedScope = scopeAnswer.trim().toLowerCase();
       let scope = "all";
 
-      if (normalizedScope === "a" || normalizedScope === "all" || normalizedScope === "all tracks") {
+      if (normalizedScope === "a" || normalizedScope === "all" || normalizedScope === "all lanes") {
         scope = "all";
-      } else if (normalizedScope === "s" || normalizedScope === "selected" || normalizedScope === "selected track") {
+      } else if (normalizedScope === "s" || normalizedScope === "selected" || normalizedScope === "selected lane") {
         scope = "selected";
       } else if (normalizedScope === "b" || normalizedScope === "blocks" || normalizedScope === "selected blocks") {
         scope = "blocks";
@@ -9408,7 +9408,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       }
 
       let targetBlocks = [];
-      let scopeLabel = "all tracks";
+      let scopeLabel = "all lanes";
 
       if (scope === "all") {
         targetBlocks = project.blocks;
@@ -9416,7 +9416,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         const selectedLane = project.lanes.find(lane => lane.id === selectedLaneId);
 
         if (!selectedLane) {
-          status.textContent = "Select a track before quantizing selected track timing.";
+          status.textContent = "Select a lane before quantizing selected-lane timing.";
           return;
         }
 
@@ -9705,7 +9705,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         "Import recording how?\n\n" +
         "A = Append after current design\n" +
         "O = Overlay at start\n" +
-        "N = New track / new lane\n" +
+        "N = New lane\n" +
         "C = Cancel",
         "A"
       );
@@ -9720,7 +9720,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
       if (normalizedAnswer === "o" || normalizedAnswer === "overlay") {
         importMode = "overlay";
-      } else if (normalizedAnswer === "n" || normalizedAnswer === "new" || normalizedAnswer === "new track" || normalizedAnswer === "new lane") {
+      } else if (normalizedAnswer === "n" || normalizedAnswer === "new" || normalizedAnswer === "new lane") {
         importMode = "new";
       } else if (normalizedAnswer === "i" || normalizedAnswer === "insert" || normalizedAnswer === "selected" || normalizedAnswer === "selected location") {
         importMode = "insert";
