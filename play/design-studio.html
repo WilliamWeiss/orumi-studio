@@ -1202,6 +1202,25 @@
       z-index: 30;
     }
 
+    .orumi-block.selected.straddle-partial {
+      outline: none;
+      box-shadow:
+        0 7px 14px rgba(0,0,0,0.40),
+        inset 0 1px 0 rgba(255,255,255,0.22);
+    }
+
+    .straddle-highlight {
+      position: absolute;
+      top: -4px;
+      bottom: -4px;
+      border-radius: 10px;
+      outline: 4px solid rgba(255,255,255,0.95);
+      outline-offset: 2px;
+      box-shadow: 0 0 24px rgba(255,255,255,0.85);
+      pointer-events: none;
+      z-index: 1;
+    }
+
 .overlap-cycle-badge {
       position: absolute;
       top: 4px;
@@ -1499,6 +1518,51 @@
       padding: 12px 4px;
     }
 
+    .inspector-group-label {
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 16px 0 6px;
+    }
+
+    .inspector-group-label:first-child {
+      margin-top: 0;
+    }
+
+    .inspector-group-details {
+      margin-top: 16px;
+      border-top: 1px solid rgba(255,255,255,0.10);
+      padding-top: 10px;
+    }
+
+    .inspector-group-details summary {
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+      list-style: none;
+    }
+
+    .inspector-group-details summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .inspector-group-details summary::before {
+      content: "▸ ";
+    }
+
+    .inspector-group-details[open] summary::before {
+      content: "▾ ";
+    }
+
+    .inspector-group-body {
+      margin-top: 10px;
+    }
+
     .project-name {
       color: #fff7ea;
       font-size: 13px;
@@ -1574,7 +1638,7 @@
       display: none;
       grid-template-columns: 1fr;
       gap: 7px;
-      z-index: 1100;
+      z-index: 9999;
     }
 
     .menu-group:hover .menu-dropdown,
@@ -2099,12 +2163,8 @@
     <div class="menu-group">
       <button class="menu-trigger" type="button">Select</button>
       <div class="menu-dropdown">
-        <button class="control-button secondary" id="setSelectedLocationButton">📍 Set Selected Location</button>
-        <button class="control-button secondary" id="clearSelectedLocationButton">↤ Location to Beginning</button>
         <button class="control-button secondary" id="selectAllButton">☑ Select All</button>
         <button class="control-button secondary" id="selectCurrentLaneButton">☑ Select Current Lane</button>
-        <button class="control-button secondary" id="selectStackButton">⌕ Select Stack at Selected Beat</button>
-        <button class="control-button secondary" id="analyzePlayheadChordButton">⌕ Analyze Selected Chord</button>
         <button class="control-button secondary" id="clearSelectionButton">✕ Clear Selection</button>
       </div>
     </div>
@@ -2114,17 +2174,7 @@
       <div class="menu-dropdown">
         <button class="control-button secondary" id="undoButton">↶ Undo</button>
         <button class="control-button secondary" id="redoButton">↷ Redo</button>
-        <button class="control-button secondary" id="copySelectionButton">⧉ Copy Selection</button>
-        <button class="control-button secondary" id="replaceSelectedChordButton">✧ Edit Selected Chord</button>
-        <button class="control-button secondary" id="editSelectionInPlayerButton">▶ Edit Selection in Player</button>
-        <button class="control-button secondary" id="suggestHarmonyButton">✧ Suggest Harmony</button>
-        <button class="control-button secondary" id="reviewSelectionInProgressionButton">≡ Review Chords in Progression</button>
-        <button class="control-button secondary" id="pasteSelectionButton">⧆ Paste at End</button>
-        <button class="control-button secondary" id="pasteAtMeasureButton">📍 Paste at Selected Location</button>
-        <button class="control-button secondary" id="insertPasteAtLocationButton">⤓ Insert Paste at Selected Location</button>
-        <button class="control-button secondary" id="moveSelectionButton">⇥ Move Selection to Selected Location</button>
         <button class="control-button secondary clipboard-active" id="insertModeButton">⇤ Insert Mode: On</button>
-        <button class="control-button danger" id="deleteSelectionButton">🗑 Delete Selection</button>
         <button class="control-button danger" id="clearButton">🗑 Clear Design</button>
       </div>
     </div>
@@ -2346,6 +2396,9 @@
     let clipboardBlockIds = new Set();
     let insertMode = false;
     let selectedInsertBeat = 0;
+    let pendingPasteRequest = false;
+    let pendingMoveRequest = false;
+    let selectionRangeBeats = null; // { startBeat, endBeat } from the actual drag/range gesture -- not re-derived from selected blocks, so a straddling block's own edges never get mistaken for the boundary itself
     let playbackState = "stopped";
     let playbackStartTime = 0;
     let playbackStartBeat = 0;
@@ -2449,23 +2502,9 @@
     const stopPlaybackButton = document.getElementById("stopPlaybackButton");
     const forwardMeasureButton = document.getElementById("forwardMeasureButton");
     const playFromLocationButton = document.getElementById("playFromLocationButton");
-    const setSelectedLocationButton = document.getElementById("setSelectedLocationButton");
-    const clearSelectedLocationButton = document.getElementById("clearSelectedLocationButton");
     const selectAllButton = document.getElementById("selectAllButton");
     const selectCurrentLaneButton = document.getElementById("selectCurrentLaneButton");
-    const selectStackButton = document.getElementById("selectStackButton");
-    const analyzePlayheadChordButton = document.getElementById("analyzePlayheadChordButton");
     const clearSelectionButton = document.getElementById("clearSelectionButton");
-    const copySelectionButton = document.getElementById("copySelectionButton");
-    const replaceSelectedChordButton = document.getElementById("replaceSelectedChordButton");
-    const editSelectionInPlayerButton = document.getElementById("editSelectionInPlayerButton");
-    const suggestHarmonyButton = document.getElementById("suggestHarmonyButton");
-    const reviewSelectionInProgressionButton = document.getElementById("reviewSelectionInProgressionButton");
-    const pasteSelectionButton = document.getElementById("pasteSelectionButton");
-    const pasteAtMeasureButton = document.getElementById("pasteAtMeasureButton");
-    const insertPasteAtLocationButton = document.getElementById("insertPasteAtLocationButton");
-    const moveSelectionButton = document.getElementById("moveSelectionButton");
-    const deleteSelectionButton = document.getElementById("deleteSelectionButton");
     const clearButton = document.getElementById("clearButton");
     const importChordButton = document.getElementById("importChordButton");
     const importRecordingButton = document.getElementById("importRecordingButton");
@@ -3119,8 +3158,16 @@
           const activeTag = document.activeElement && document.activeElement.tagName;
           const inFormField = activeTag === "INPUT" || activeTag === "TEXTAREA" || activeTag === "SELECT";
 
-          if (!inFormField && (selectedBlockIds.size > 0 || laneMenuLaneId)) {
+          if (inFormField) return;
+
+          if (pendingPasteRequest) {
+            cancelPendingPasteRequest();
+          } else if (pendingMoveRequest) {
+            cancelPendingMoveRequest();
+          } else if (selectedBlockIds.size > 0 || laneMenuLaneId) {
             clearSelectionAndRender();
+          } else if (blockClipboard && blockClipboard.length > 0) {
+            clearClipboardBuffer();
           }
         }
       });
@@ -4740,6 +4787,16 @@ for (let beat = 0; beat <= maxBeat; beat++) {
     function setSelectedLocationBeat(beat, messagePrefix = "Selected location") {
       const nextBeat = snapBeat(Math.max(0, Number(beat || 0)));
 
+      if (pendingPasteRequest) {
+        resolvePendingPasteAtBeat(nextBeat);
+        return;
+      }
+
+      if (pendingMoveRequest) {
+        resolvePendingMoveAtBeat(nextBeat);
+        return;
+      }
+
       if (Math.abs(getSelectedLocationBeat() - nextBeat) < 0.0001) {
         clearSelectedLocation("Selected location returned to beginning.");
         return;
@@ -4754,43 +4811,6 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       const rect = rulerBeats.getBoundingClientRect();
       const x = Math.max(0, event.clientX - rect.left);
       return snapBeat(x / BEAT_WIDTH);
-    }
-
-    function promptForSelectedLocation() {
-      const currentMeasure = String(getSelectedInsertMeasure());
-      const measureAnswer = window.prompt("Set selected location — measure number:", currentMeasure);
-
-      if (!measureAnswer) {
-        status.textContent = "Set selected location cancelled.";
-        return;
-      }
-
-      const measure = Math.max(1, Math.round(Number(measureAnswer)));
-
-      if (!Number.isFinite(measure)) {
-        status.textContent = "Set selected location cancelled.";
-        return;
-      }
-
-      const beatAnswer = window.prompt(
-        "Set selected location — beat within measure:\n\nUse decimals if needed, such as 2.5 or 3.75.",
-        formatBeatValue(getSelectedBeatWithinMeasure())
-      );
-
-      if (!beatAnswer) {
-        status.textContent = "Set selected location cancelled.";
-        return;
-      }
-
-      const beatWithinMeasure = Math.max(1, Number(beatAnswer));
-
-      if (!Number.isFinite(beatWithinMeasure)) {
-        status.textContent = "Set selected location cancelled.";
-        return;
-      }
-
-      const absoluteBeat = getMeasureStartBeat(measure) + (beatWithinMeasure - 1);
-      setSelectedLocationBeat(absoluteBeat, "Selected location set");
     }
 
     function getProjectLength() {
@@ -4910,7 +4930,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       // whether the selection came from shift-clicking, the ruler drag
       // below, or anything else -- rather than a separate focusRange
       // variable that could drift out of sync with the real selection.
-      requestAnimationFrame(() => applySelectionRangeOverlay());
+      requestAnimationFrame(() => { applySelectionRangeOverlay(); applyStraddleHighlights(); });
       renderProjectName();
       populateContextControls();
       createPalette();
@@ -4946,8 +4966,13 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         BEAT_WIDTH +
         "px/beat";
 
-      contextMessage.textContent =
-        selectedBlockIds.size > 0 || laneMenuLaneId ? "Press Esc to clear selection" : "";
+      contextMessage.textContent = pendingPasteRequest
+        ? "Click the Beat Ruler to choose a paste location -- Esc to cancel"
+        : pendingMoveRequest
+          ? "Click the Beat Ruler to choose where to move the selection -- Esc to cancel"
+          : selectedBlockIds.size > 0 || laneMenuLaneId
+            ? "Press Esc to clear selection"
+            : (blockClipboard && blockClipboard.length > 0 ? "Press Esc to clear buffer" : "");
 
       if (playButton) {
         const laneForPlayTitle = project.lanes.find(item => item.id === laneMenuLaneId);
@@ -4960,13 +4985,13 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
       undoButton.disabled = historyStack.length === 0;
       redoButton.disabled = redoStack.length === 0;
-      updateSpecializedEditButtons();
     }
 
     function clearBlockSelection() {
       selectedBlockIds.clear();
       selectedBlockId = null;
       chordAnalysisAnchorBlockId = null;
+      selectionRangeBeats = null;
     }
 
     function selectBlock(blockId, laneId, additive = false) {
@@ -5691,50 +5716,6 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       }
 
       return "mixed";
-    }
-
-    function updateSpecializedEditButtons() {
-      const shape = getCurrentSelectionShape();
-      const canEditChord = shape === "vertical-chord";
-      const canEditPlayer = shape === "horizontal-phrase";
-
-      if (replaceSelectedChordButton) {
-        replaceSelectedChordButton.disabled = !canEditChord;
-        replaceSelectedChordButton.classList.toggle("tool-action-unavailable", !canEditChord);
-        replaceSelectedChordButton.textContent = "✧ Edit Selected Chord";
-        replaceSelectedChordButton.title = canEditChord
-          ? "Open this vertical harmony stack in Chord Factory."
-          : "Select a vertical chord stack across lanes to use Chord Factory.";
-      }
-
-      if (editSelectionInPlayerButton) {
-        editSelectionInPlayerButton.disabled = !canEditPlayer;
-        editSelectionInPlayerButton.classList.toggle("tool-action-unavailable", !canEditPlayer);
-        editSelectionInPlayerButton.textContent = "▶ Edit Selection in Player";
-        editSelectionInPlayerButton.title = canEditPlayer
-          ? "Open this same-lane phrase in Player."
-          : "Select one or more notes in a single lane to use Player.";
-      }
-
-      if (suggestHarmonyButton) {
-        suggestHarmonyButton.disabled = !canEditPlayer;
-        suggestHarmonyButton.classList.toggle("tool-action-unavailable", !canEditPlayer);
-        suggestHarmonyButton.textContent = "✧ Suggest Harmony";
-        suggestHarmonyButton.title = canEditPlayer
-          ? "Send this melody phrase to Progression Builder for harmony suggestions."
-          : "Select one or more melody notes in a single lane to suggest harmony.";
-      }
-
-      if (reviewSelectionInProgressionButton) {
-        const reviewSelection = getProgressionReviewSelection();
-        const canReviewProgression = !!reviewSelection;
-        reviewSelectionInProgressionButton.disabled = !canReviewProgression;
-        reviewSelectionInProgressionButton.classList.toggle("tool-action-unavailable", !canReviewProgression);
-        reviewSelectionInProgressionButton.textContent = "≡ Review Chords in Progression";
-        reviewSelectionInProgressionButton.title = canReviewProgression
-          ? "Send the selected chord stack or chord sequence to Progression Builder for free chord analysis."
-          : "Select a vertical chord stack, multiple vertical stacks, or drag across the Beat Ruler to select a range, then review it in Progression.";
-      }
     }
 
     function buildPlayerEditPayload(selectedBlocks) {
@@ -6562,16 +6543,55 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       select.value = matchedOption ? String(matchedOption.value) : "custom";
     }
 
-    function renderBlockInspector() {
+    function getInspectorGroup(container, groupCache, name, collapsed) {
+      if (groupCache[name]) return groupCache[name];
+
+      if (collapsed) {
+        const details = document.createElement("details");
+        details.className = "inspector-group-details";
+        const summary = document.createElement("summary");
+        summary.textContent = name;
+        details.appendChild(summary);
+        const body = document.createElement("div");
+        body.className = "inspector-group-body";
+        details.appendChild(body);
+        container.appendChild(details);
+        groupCache[name] = body;
+        return body;
+      }
+
+      const label = document.createElement("div");
+      label.className = "inspector-group-label";
+      label.textContent = name;
+      container.appendChild(label);
+
+      const body = document.createElement("div");
+      container.appendChild(body);
+      groupCache[name] = body;
+      return body;
+    }
+
+function renderBlockInspector() {
       const block = project.blocks.find(item => item.id === selectedBlockId);
 
       blockInspector.innerHTML = "";
 
       const selectedBlocks = getSelectedBlocks();
+      const groups = {};
 
       if (!block) {
         blockInspector.innerHTML =
           "<div class='inspector-empty'>Nothing selected. Drag across the Beat Ruler to focus a range of beats, or click a note to select it.</div>";
+
+        if (blockClipboard && blockClipboard.length > 0) {
+          const bufferLabel = document.createElement("div");
+          bufferLabel.className = "inspector-group-label";
+          bufferLabel.textContent = "Tools & Actions";
+          blockInspector.appendChild(bufferLabel);
+
+          appendClipboardActions(blockInspector);
+        }
+
         return;
       }
 
@@ -6588,6 +6608,11 @@ for (let beat = 0; beat <= maxBeat; beat++) {
           ".";
         blockInspector.appendChild(info);
 
+        const actionsLabel = document.createElement("div");
+        actionsLabel.className = "inspector-group-label";
+        actionsLabel.textContent = "Tools & Actions";
+        blockInspector.appendChild(actionsLabel);
+
         if (selectionShape !== "horizontal-phrase") {
           blockInspector.appendChild(createHarmonyCard(selectedBlocks));
         }
@@ -6602,84 +6627,36 @@ for (let beat = 0; beat <= maxBeat; beat++) {
           blockInspector.appendChild(replaceChordButton);
         }
 
-        if (selectionShape === "horizontal-phrase") {
-          const editInPlayerButton = document.createElement("button");
-          editInPlayerButton.classList.add("control-button", "secondary");
-          editInPlayerButton.style.marginTop = "12px";
-          editInPlayerButton.textContent = "▶ Edit Selection in Player";
-          editInPlayerButton.title = "Open the selected same-lane phrase in Player.";
-          editInPlayerButton.addEventListener("click", beginEditSelectionInPlayer);
-          blockInspector.appendChild(editInPlayerButton);
+        const reviewSelection = getProgressionReviewSelection();
 
-          const suggestHarmonyInspectorButton = document.createElement("button");
-          suggestHarmonyInspectorButton.classList.add("control-button", "secondary");
-          suggestHarmonyInspectorButton.style.marginTop = "8px";
-          suggestHarmonyInspectorButton.textContent = "✧ Suggest Harmony";
-          suggestHarmonyInspectorButton.title = "Open Progression Builder to suggest chords for this melody phrase.";
-          suggestHarmonyInspectorButton.addEventListener("click", beginSuggestHarmonyInProgression);
-          blockInspector.appendChild(suggestHarmonyInspectorButton);
-        }
-
-        if (getProgressionReviewSelection()) {
+        if (reviewSelection && reviewSelection.chordGroups.length > 1) {
           const reviewProgressionButton = document.createElement("button");
           reviewProgressionButton.classList.add("control-button", "secondary");
           reviewProgressionButton.style.marginTop = "12px";
           reviewProgressionButton.textContent = "≡ Review Chords in Progression";
-          reviewProgressionButton.title = "Open Progression Builder for free chord analysis of the selected stack or progression.";
+          reviewProgressionButton.title = "Open Progression Builder for free chord analysis of the selected progression.";
           reviewProgressionButton.addEventListener("click", beginReviewSelectionInProgression);
           blockInspector.appendChild(reviewProgressionButton);
         }
 
-        const copySelectionButton = document.createElement("button");
-        copySelectionButton.classList.add("control-button", "secondary");
-        copySelectionButton.style.marginTop = "12px";
-        copySelectionButton.textContent = "Copy Selection";
-        copySelectionButton.addEventListener("click", copySelectionToClipboard);
-        blockInspector.appendChild(copySelectionButton);
-
-        const pasteSelectionButton = document.createElement("button");
-        pasteSelectionButton.classList.add("control-button", "secondary");
-        pasteSelectionButton.style.marginTop = "8px";
-        pasteSelectionButton.textContent = "Paste at End";
-        pasteSelectionButton.addEventListener("click", pasteClipboardAtEnd);
-        blockInspector.appendChild(pasteSelectionButton);
-
-        const pasteAtMeasureButton = document.createElement("button");
-        pasteAtMeasureButton.classList.add("control-button", "secondary");
-        pasteAtMeasureButton.style.marginTop = "8px";
-        pasteAtMeasureButton.textContent = "📍 Paste at Selected Location";
-        pasteAtMeasureButton.addEventListener("click", pasteClipboardAtSelectedLocation);
-        blockInspector.appendChild(pasteAtMeasureButton);
-
-        const insertPasteButton = document.createElement("button");
-        insertPasteButton.classList.add("control-button", "secondary");
-        insertPasteButton.style.marginTop = "8px";
-        insertPasteButton.textContent = "⤓ Insert Paste at Selected Location";
-        insertPasteButton.title = "Make room at the selected location, then paste the copied phrase.";
-        insertPasteButton.addEventListener("click", insertPasteClipboardAtSelectedLocation);
-        blockInspector.appendChild(insertPasteButton);
-
-        const moveSelectionButton = document.createElement("button");
-        moveSelectionButton.classList.add("control-button", "secondary");
-        moveSelectionButton.style.marginTop = "8px";
-        moveSelectionButton.textContent = "Move Selection to Selected Location";
-        moveSelectionButton.addEventListener("click", moveSelectionToSelectedLocation);
-        blockInspector.appendChild(moveSelectionButton);
-
-        const deleteSelectionButton = document.createElement("button");
-        deleteSelectionButton.classList.add("control-button", "danger");
-        deleteSelectionButton.style.marginTop = "8px";
-        deleteSelectionButton.textContent = "Delete Selection";
-        deleteSelectionButton.addEventListener("click", deleteSelectedBlocks);
-        blockInspector.appendChild(deleteSelectionButton);
+        appendClipboardActions(blockInspector);
 
         return;
       }
 
+      if (block.type !== "note") {
+        const restInfo = document.createElement("div");
+        restInfo.classList.add("inspector-empty");
+        restInfo.textContent = "Rest block selected.";
+        blockInspector.appendChild(restInfo);
+      }
+
+      const noteGroup = getInspectorGroup(blockInspector, groups, "Note", false);
+
       if (block.type === "note") {
         const noteLabel = document.createElement("label");
         noteLabel.textContent = "Note";
-        blockInspector.appendChild(noteLabel);
+        noteGroup.appendChild(noteLabel);
 
         const noteSelect = document.createElement("select");
         buildNoteOptions(noteSelect, block.midi);
@@ -6692,11 +6669,11 @@ for (let beat = 0; beat <= maxBeat; beat++) {
           render();
         });
 
-        blockInspector.appendChild(noteSelect);
+        noteGroup.appendChild(noteSelect);
 
         const voiceLabel = document.createElement("label");
         voiceLabel.textContent = "Voice Override";
-        blockInspector.appendChild(voiceLabel);
+        noteGroup.appendChild(voiceLabel);
 
         const voiceSelect = document.createElement("select");
 
@@ -6721,11 +6698,13 @@ for (let beat = 0; beat <= maxBeat; beat++) {
           render();
         });
 
-        blockInspector.appendChild(voiceSelect);
+        noteGroup.appendChild(voiceSelect);
+
+        const lyricGroup = getInspectorGroup(blockInspector, groups, "Lyric", false);
 
         const lyricLabel = document.createElement("label");
         lyricLabel.textContent = "Lyric";
-        blockInspector.appendChild(lyricLabel);
+        lyricGroup.appendChild(lyricLabel);
 
         const lyricInput = document.createElement("input");
         lyricInput.type = "text";
@@ -6740,26 +6719,15 @@ for (let beat = 0; beat <= maxBeat; beat++) {
           render();
         });
 
-        blockInspector.appendChild(lyricInput);
-      } else {
-        blockInspector.innerHTML =
-          "<div class='inspector-empty'>Rest block selected.</div>";
+        lyricGroup.appendChild(lyricInput);
       }
 
-
-      if (block && block.type === "note") {
-        const editSingleInPlayerButton = document.createElement("button");
-        editSingleInPlayerButton.classList.add("control-button", "secondary");
-        editSingleInPlayerButton.style.marginTop = "12px";
-        editSingleInPlayerButton.textContent = "▶ Edit in Player";
-        editSingleInPlayerButton.title = "Open this note as a one-note phrase in Player.";
-        editSingleInPlayerButton.addEventListener("click", beginEditSelectionInPlayer);
-        blockInspector.appendChild(editSingleInPlayerButton);
-      }
+      const arrangementGroup = getInspectorGroup(blockInspector, groups, "Arrangement", false);
+      const toolsGroup = getInspectorGroup(blockInspector, groups, "Tools & Actions", true);
 
       const laneLabel = document.createElement("label");
       laneLabel.textContent = "Lane";
-      blockInspector.appendChild(laneLabel);
+      arrangementGroup.appendChild(laneLabel);
 
       const laneSelect = document.createElement("select");
       project.lanes.forEach(lane => {
@@ -6779,7 +6747,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         render();
       });
 
-      blockInspector.appendChild(laneSelect);
+      arrangementGroup.appendChild(laneSelect);
 
       const durationVelocityRow = document.createElement("div");
       durationVelocityRow.classList.add("mini-row");
@@ -6853,10 +6821,10 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
       durationVelocityRow.appendChild(durationWrap);
       durationVelocityRow.appendChild(velocityWrap);
-      blockInspector.appendChild(durationVelocityRow);
+      noteGroup.appendChild(durationVelocityRow);
 
       if (block.type === "note") {
-        blockInspector.appendChild(
+        toolsGroup.appendChild(
           createInspectorActionButton(
             "⌕ Select Stack at This Beat",
             "secondary",
@@ -6865,7 +6833,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
           )
         );
 
-        blockInspector.appendChild(
+        toolsGroup.appendChild(
           createInspectorActionButton(
             "⌕ Analyze Selected Chord",
             "secondary",
@@ -6874,7 +6842,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
           )
         );
 
-        blockInspector.appendChild(
+        toolsGroup.appendChild(
           createInspectorActionButton(
             "✧ Edit Selected Chord",
             "secondary",
@@ -6890,13 +6858,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         );
       }
 
-      const copyButton = document.createElement("button");
-      copyButton.classList.add("control-button", "secondary");
-      copyButton.style.marginTop = "12px";
-      copyButton.textContent = block.type === "rest" ? "Copy Rest" : "Copy Note";
-
-      copyButton.addEventListener("click", copySelectedBlock);
-      blockInspector.appendChild(copyButton);
+      appendClipboardActions(toolsGroup);
 
       const closeGapButton = document.createElement("button");
       closeGapButton.classList.add("control-button", "secondary");
@@ -6904,24 +6866,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       closeGapButton.textContent = "⇤ Close Gap After";
       closeGapButton.title = "Shift all blocks to the right of this one on the same lane leftward to close any gap.";
       closeGapButton.addEventListener("click", e => closeGapAfterBlock(block, e.currentTarget));
-      blockInspector.appendChild(closeGapButton);
-
-      const deleteButton = document.createElement("button");
-      deleteButton.classList.add("control-button", "danger");
-      deleteButton.style.marginTop = "8px";
-      deleteButton.textContent = "Delete Block";
-
-      deleteButton.addEventListener("click", () => {
-        saveHistory();
-        project.blocks = project.blocks.filter(item => item.id !== block.id);
-        selectedBlockId = null;
-        selectedBlockIds.delete(block.id);
-        localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
-        render();
-        status.textContent = "Block deleted. Undo is available.";
-      });
-
-      blockInspector.appendChild(deleteButton);
+      toolsGroup.appendChild(closeGapButton);
     }
 
     function closeGapAfterBlock(block, sourceBtn) {
@@ -6954,43 +6899,206 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       flashStatus("Closed gap of " + formatBeatValue(gap) + " beat" + (gap === 1 ? "" : "s") + ". Undo is available.");
     }
 
-    function copySelectedBlock() {
-      const block = project.blocks.find(item => item.id === selectedBlockId);
+    // Non-destructive: returns "what would this selection look like if
+    // trimmed to the real selection boundary" without touching
+    // project.blocks. Used for Copy (which should never mutate the
+    // source) and for computing correct lengths up front in Move, before
+    // the user has confirmed anything worth committing to.
+    function getVirtualTrimmedBlocks(blocks) {
+      if (!selectionRangeBeats) return blocks;
 
-      if (!block) {
-        status.textContent = "Select a block to copy.";
-        return;
+      const { startBeat: rangeStart, endBeat: rangeEnd } = selectionRangeBeats;
+
+      return blocks.map(block => {
+        const { inside } = getBlockOverlapSegments(block, rangeStart, rangeEnd);
+        if (!inside) return block;
+        return { ...block, startBeat: inside.startBeat, durationBeats: inside.durationBeats };
+      });
+    }
+
+    // Destructive: actually splits any currently-selected block that
+    // straddles the real selection boundary into up to three real blocks
+    // in project.blocks -- before/inside/after -- keeping only the
+    // "inside" piece(s) selected afterward. Both resulting pieces of a
+    // split note carry a full copy of the original's lyric, voice
+    // override, and everything else, rather than picking a side, so a
+    // downstream render doesn't fall back to a generic filler sound on
+    // whichever half lost the lyric. Call only once an operation is
+    // actually committing (after saveHistory), never while prompts that
+    // could still be cancelled are in progress.
+    function trimSelectionToRange() {
+      if (!selectionRangeBeats) return false;
+
+      const { startBeat: rangeStart, endBeat: rangeEnd } = selectionRangeBeats;
+      const targetIds = new Set(selectedBlockIds);
+      if (targetIds.size === 0) return false;
+
+      const newSelectedIds = new Set();
+      let didSplit = false;
+
+      project.blocks = project.blocks.flatMap(block => {
+        if (!targetIds.has(block.id)) return [block];
+
+        const { before, inside, after } = getBlockOverlapSegments(block, rangeStart, rangeEnd);
+
+        if (!inside || (!before && !after)) {
+          newSelectedIds.add(block.id);
+          return [block];
+        }
+
+        didSplit = true;
+        const pieces = [];
+
+        if (before) {
+          pieces.push({
+            ...block,
+            id: createId(block.type === "rest" ? "rest" : "note"),
+            startBeat: before.startBeat,
+            durationBeats: before.durationBeats
+          });
+        }
+
+        const insidePiece = { ...block, startBeat: inside.startBeat, durationBeats: inside.durationBeats };
+        pieces.push(insidePiece);
+        newSelectedIds.add(insidePiece.id);
+
+        if (after) {
+          pieces.push({
+            ...block,
+            id: createId(block.type === "rest" ? "rest" : "note"),
+            startBeat: after.startBeat,
+            durationBeats: after.durationBeats
+          });
+        }
+
+        return pieces;
+      });
+
+      if (didSplit) {
+        selectedBlockIds = newSelectedIds;
+        selectedBlockId = [...newSelectedIds][0] || null;
       }
 
-      saveHistory();
-
-      const copy = {
-        ...block,
-        id: createId(block.type === "rest" ? "rest" : "note"),
-        startBeat: snapBeat(Number(block.startBeat || 0) + Number(block.durationBeats || 1)),
-        source: block.source || "manual",
-        sourceId: block.sourceId || null
-      };
-
-      project.blocks.push(copy);
-      selectedBlockId = copy.id;
-      selectedLaneId = copy.laneId;
-
-      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
-      render();
-      status.textContent = "Block copied.";
+      return didSplit;
     }
 
     function copySelectionToClipboard() {
-      const selectedBlocks = getSelectedBlocks();
+      const rawSelectedBlocks = getSelectedBlocks();
 
-      if (selectedBlocks.length === 0) {
+      if (rawSelectedBlocks.length === 0) {
         showBannerMessage("Select one or more blocks to copy.", "warning");
         status.textContent = "Select one or more blocks to copy.";
         return;
       }
 
+      // Copy never touches project.blocks -- only what lands in the
+      // clipboard is trimmed to the real selection boundary.
+      const selectedBlocks = getVirtualTrimmedBlocks(rawSelectedBlocks);
       const minStart = Math.min(...selectedBlocks.map(block => Number(block.startBeat || 0)));
+
+      blockClipboard = selectedBlocks.map(block => ({
+        ...block,
+        relativeStartBeat: Number(block.startBeat || 0) - minStart
+      }));
+
+      clipboardBlockIds = new Set(rawSelectedBlocks.map(b => b.id));
+
+      const count = selectedBlocks.length;
+      const msg = "📋 " + count + " block" + (count === 1 ? "" : "s") + " copied";
+      status.textContent = msg;
+      showBannerMessage(msg, "clipboard", true);
+
+      render();
+      flashButtonSuccess(document.getElementById("copySelectionButton"));
+    }
+
+    function computeLaneGapInfo(blocks) {
+      const laneInfo = new Map();
+      if (blocks.length === 0) return laneInfo;
+
+      // Every touched lane uses the SAME overall span (earliest start to
+      // latest end, across every lane in the selection), not its own local
+      // extent -- so pre-existing cross-lane alignment survives a move/cut,
+      // at the cost of occasionally needing "Reveal Overlap" for a lane
+      // whose own content was much shorter than the widest lane involved.
+      const overallMinStart = Math.min(...blocks.map(block => Number(block.startBeat || 0)));
+      const overallMaxEnd = Math.max(
+        ...blocks.map(block => Number(block.startBeat || 0) + Number(block.durationBeats || MIN_DURATION))
+      );
+      const overallGapLength = snapBeat(overallMaxEnd - overallMinStart);
+
+      new Set(blocks.map(block => block.laneId)).forEach(laneId => {
+        laneInfo.set(laneId, {
+          minStart: overallMinStart,
+          maxEnd: overallMaxEnd,
+          gapLength: overallGapLength
+        });
+      });
+
+      return laneInfo;
+    }
+
+    function askGapCloseScope(promptTitle) {
+      const scopeAnswer = window.prompt(
+        promptTitle + "\n\n" +
+        "A = Close gap across the whole arrangement (every lane)\n" +
+        "F = Close gap in the affected lane(s) only, each by its own amount\n" +
+        "N = No, leave the gap",
+        "N"
+      );
+
+      const normalizedScope = (scopeAnswer || "").trim().toLowerCase();
+
+      if (normalizedScope === "a" || normalizedScope === "all" || normalizedScope === "all lanes") {
+        return "all";
+      } else if (normalizedScope === "f" || normalizedScope === "affected" || normalizedScope === "affected lanes") {
+        return "affected";
+      }
+
+      return null;
+    }
+
+    function closeGapsAfterRemoval(laneInfo, excludeIds, scope) {
+      if (!scope || laneInfo.size === 0) return;
+
+      const overallMinStart = Math.min(...[...laneInfo.values()].map(info => info.minStart));
+      const overallMaxEnd = Math.max(...[...laneInfo.values()].map(info => info.maxEnd));
+      const overallGapLength = snapBeat(overallMaxEnd - overallMinStart);
+
+      project.blocks.forEach(block => {
+        if (excludeIds.has(block.id)) return;
+
+        const startBeat = Number(block.startBeat || 0);
+        const info = laneInfo.get(block.laneId);
+
+        if (info) {
+          if (startBeat >= info.maxEnd - 0.0001) {
+            block.startBeat = snapBeat(startBeat - info.gapLength);
+          }
+        } else if (scope === "all") {
+          if (startBeat >= overallMaxEnd - 0.0001) {
+            block.startBeat = snapBeat(startBeat - overallGapLength);
+          }
+        }
+      });
+    }
+
+    function cutSelectionToClipboard() {
+      const initialSelection = getSelectedBlocks();
+
+      if (initialSelection.length === 0) {
+        showBannerMessage("Select one or more blocks to cut.", "warning");
+        status.textContent = "Select one or more blocks to cut.";
+        return;
+      }
+
+      saveHistory();
+      trimSelectionToRange();
+      const selectedBlocks = getSelectedBlocks();
+
+      const minStart = Math.min(...selectedBlocks.map(block => Number(block.startBeat || 0)));
+      const laneInfo = computeLaneGapInfo(selectedBlocks);
+      const hasGap = [...laneInfo.values()].some(info => info.gapLength > 0.0001);
 
       blockClipboard = selectedBlocks.map(block => ({
         ...block,
@@ -6999,16 +7107,26 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
       clipboardBlockIds = new Set(selectedBlocks.map(b => b.id));
 
+      const cutIds = new Set(selectedBlocks.map(block => block.id));
+      project.blocks = project.blocks.filter(block => !cutIds.has(block.id));
+      clearBlockSelection();
+
       const count = selectedBlocks.length;
-      const msg = "📋 " + count + " block" + (count === 1 ? "" : "s") + " copied";
+
+      if (hasGap) {
+        const scope = askGapCloseScope(
+          "Cut " + count + " block" + (count === 1 ? "" : "s") + ". Close the gap left behind?"
+        );
+        closeGapsAfterRemoval(laneInfo, new Set(), scope);
+      }
+
+      const msg = "✂ " + count + " block" + (count === 1 ? "" : "s") + " cut";
       status.textContent = msg;
       showBannerMessage(msg, "clipboard", true);
 
-      const copyBtn = document.getElementById("copySelectionButton");
-      if (copyBtn) copyBtn.classList.add("clipboard-active");
-      flashButtonSuccess(copyBtn);
-
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
       render();
+      flashButtonSuccess(document.getElementById("copySelectionButton"));
     }
 
     function getLaneLength(laneId) {
@@ -7020,114 +7138,49 @@ for (let beat = 0; beat <= maxBeat; beat++) {
     function clearClipboardAfterPaste(pastedCount) {
       clipboardBlockIds = new Set();
       blockClipboard = [];
-      const copyBtn = document.getElementById("copySelectionButton");
-      if (copyBtn) copyBtn.classList.remove("clipboard-active");
-      ["pasteSelectionButton", "pasteAtMeasureButton", "insertPasteAtLocationButton"].forEach(id => {
-        flashButtonSuccess(document.getElementById(id));
-      });
+      flashButtonSuccess(document.getElementById("pasteSelectionButton"));
       const msg = "✓ " + pastedCount + " block" + (pastedCount === 1 ? "" : "s") + " pasted";
       showBannerMessage(msg, "success");
       if (status) status.textContent = msg;
     }
 
-    function pasteClipboardAtEnd() {
+    function clearClipboardBuffer() {
       if (!blockClipboard || blockClipboard.length === 0) {
-        showBannerMessage("Copy a block or selection first.", "warning");
-        status.textContent = "Copy a block or selection first.";
+        status.textContent = "Buffer is already empty.";
         return;
       }
 
-      saveHistory();
+      blockClipboard = [];
+      clipboardBlockIds = new Set();
 
-      const clipboardLaneIds = [...new Set(blockClipboard.map(item => item.laneId))];
-      const isSingleLaneCopy = clipboardLaneIds.length === 1;
-      const targetLaneId = isSingleLaneCopy ? clipboardLaneIds[0] : selectedLaneId;
-      const pasteStart = targetLaneId ? getLaneLength(targetLaneId) : getProjectLength();
-      const newIds = [];
-
-      blockClipboard.forEach(item => {
-        const copy = {
-          ...item,
-          id: createId(item.type === "rest" ? "rest" : "note"),
-          startBeat: snapBeat(pasteStart + Number(item.relativeStartBeat || 0)),
-          source: item.source || "manual",
-          sourceId: item.sourceId || null
-        };
-        delete copy.relativeStartBeat;
-        project.blocks.push(copy);
-        newIds.push(copy.id);
-      });
-
-      selectedBlockIds = new Set(newIds);
-      selectedBlockId = newIds[0] || null;
-      const firstBlock = project.blocks.find(b => b.id === selectedBlockId);
-      if (firstBlock) selectedLaneId = firstBlock.laneId;
-
-      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
-      clearClipboardAfterPaste(newIds.length);
       render();
+      status.textContent = "Clipboard buffer cleared.";
     }
 
-    function confirmAndAdjustPasteLocation() {
-      const info = beatToMeasureInfo(getSelectedLocationBeat());
+    function promptForLocation(actionLabel, defaultBeat) {
+      const info = beatToMeasureInfo(Math.max(0, Number(defaultBeat || 0)));
 
       const measureAnswer = window.prompt(
-        "Paste at — measure number:\n\nCurrent selected location: " + getSelectedLocationLabel(),
+        actionLabel + " — measure number:",
         String(info.measure)
       );
-      if (measureAnswer === null) { status.textContent = "Paste cancelled."; return null; }
+      if (measureAnswer === null) { status.textContent = actionLabel + " cancelled."; return null; }
 
       const measure = Math.max(1, Math.round(Number(measureAnswer)));
-      if (!Number.isFinite(measure)) { status.textContent = "Paste cancelled."; return null; }
+      if (!Number.isFinite(measure)) { status.textContent = actionLabel + " cancelled."; return null; }
 
       const beatAnswer = window.prompt(
-        "Paste at — beat within measure:\n\nUse decimals if needed, such as 2.5 or 3.75.",
+        actionLabel + " — beat within measure:\n\nUse decimals if needed, such as 2.5 or 3.75.",
         formatBeatValue(info.beatWithinMeasure)
       );
-      if (beatAnswer === null) { status.textContent = "Paste cancelled."; return null; }
+      if (beatAnswer === null) { status.textContent = actionLabel + " cancelled."; return null; }
 
       const beatWithinMeasure = Math.max(1, Number(beatAnswer));
-      if (!Number.isFinite(beatWithinMeasure)) { status.textContent = "Paste cancelled."; return null; }
+      if (!Number.isFinite(beatWithinMeasure)) { status.textContent = actionLabel + " cancelled."; return null; }
 
       const absoluteBeat = snapBeat(getMeasureStartBeat(measure) + (beatWithinMeasure - 1));
       selectedInsertBeat = absoluteBeat;
-      render();
-      status.textContent = "Paste location set: " + getSelectedLocationLabel() + ".";
       return absoluteBeat;
-    }
-
-    function pasteClipboardAtSelectedMeasure() {
-      if (!blockClipboard || blockClipboard.length === 0) {
-        showBannerMessage("Copy a block or selection first.", "warning");
-        status.textContent = "Copy a block or selection first.";
-        return;
-      }
-
-      saveHistory();
-      const pasteStart = getSelectedLocationBeat();
-      const newIds = [];
-
-      blockClipboard.forEach(item => {
-        const copy = {
-          ...item,
-          id: createId(item.type === "rest" ? "rest" : "note"),
-          startBeat: snapBeat(pasteStart + Number(item.relativeStartBeat || 0)),
-          source: item.source || "manual",
-          sourceId: item.sourceId || null
-        };
-        delete copy.relativeStartBeat;
-        project.blocks.push(copy);
-        newIds.push(copy.id);
-      });
-
-      selectedBlockIds = new Set(newIds);
-      selectedBlockId = newIds[0] || null;
-      const firstBlock = project.blocks.find(b => b.id === selectedBlockId);
-      if (firstBlock) selectedLaneId = firstBlock.laneId;
-
-      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
-      clearClipboardAfterPaste(newIds.length);
-      render();
     }
 
     function getClipboardPhraseLength() {
@@ -7144,92 +7197,114 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       return Math.max(MIN_DURATION, snapBeat(phraseEnd));
     }
 
-    function insertPasteClipboardAtSelectedLocation() {
+    function computeLanePhraseLengths(items) {
+      const laneLengths = new Map();
+      if (!items || items.length === 0) return laneLengths;
+
+      const overallLength = Math.max(
+        MIN_DURATION,
+        snapBeat(Math.max(
+          ...items.map(item => Number(item.relativeStartBeat || 0) + Number(item.durationBeats || MIN_DURATION))
+        ))
+      );
+
+      new Set(items.map(item => item.laneId)).forEach(laneId => {
+        laneLengths.set(laneId, overallLength);
+      });
+
+      return laneLengths;
+    }
+
+    function pasteSelection() {
       if (!blockClipboard || blockClipboard.length === 0) {
-        status.textContent = "Copy a block or selection first.";
+        showBannerMessage("Copy or cut a selection first.", "warning");
+        status.textContent = "Copy or cut a selection first.";
         return;
       }
 
-      if (!hasSelectedLocation()) {
-        status.textContent = "Set a selected location first.";
-        return;
-      }
+      pendingPasteRequest = true;
+      render();
+      showBannerMessage("Click the Beat Ruler to choose a paste location.", "clipboard");
+      status.textContent = "Click the Beat Ruler where you want to paste. Press Esc to cancel.";
+    }
 
-      const phraseLength = getClipboardPhraseLength();
+    function cancelPendingPasteRequest() {
+      pendingPasteRequest = false;
+      render();
+      status.textContent = "Paste cancelled.";
+    }
 
-      if (phraseLength <= 0) {
-        status.textContent = "Copied phrase has no usable length.";
-        return;
-      }
+    function resolvePendingPasteAtBeat(beat) {
+      pendingPasteRequest = false;
+      selectedInsertBeat = beat;
+      render();
+      continuePasteAtBeat(beat);
+    }
 
-      const adjustedBeat = confirmAndAdjustPasteLocation();
-      if (adjustedBeat === null) return;
+    function continuePasteAtBeat(clickedBeat) {
+      const targetBeat = promptForLocation("Paste", clickedBeat);
+      if (targetBeat === null) return;
 
       const scopeAnswer = window.prompt(
-        "Insert paste how?\n\n" +
+        "Paste how?\n\n" +
+        "J = Just paste here (may overlap existing notes)\n" +
         "A = Make room across all lanes\n" +
         "S = Make room in selected lane only\n" +
         "C = Cancel",
-        "A"
+        "J"
       );
 
       if (!scopeAnswer) {
-        status.textContent = "Insert paste cancelled.";
+        status.textContent = "Paste cancelled.";
         return;
       }
 
       const normalizedScope = scopeAnswer.trim().toLowerCase();
-      let scope = "all";
+      let scope = null;
 
       if (normalizedScope === "a" || normalizedScope === "all" || normalizedScope === "all lanes") {
         scope = "all";
       } else if (normalizedScope === "s" || normalizedScope === "selected" || normalizedScope === "selected lane") {
         scope = "selected";
+      } else if (normalizedScope === "j" || normalizedScope === "just" || normalizedScope === "just paste") {
+        scope = null;
       } else {
-        status.textContent = "Insert paste cancelled.";
+        status.textContent = "Paste cancelled.";
         return;
       }
 
-      const selectedLane = project.lanes.find(lane => lane.id === selectedLaneId) || project.lanes[0];
+      const phraseLength = getClipboardPhraseLength();
+      const lanePhraseLengths = computeLanePhraseLengths(blockClipboard);
+      let selectedLane = null;
 
-      if (scope === "selected" && !selectedLane) {
-        status.textContent = "Select a lane before using selected-lane insert paste.";
-        return;
-      }
+      if (scope) {
+        selectedLane = project.lanes.find(lane => lane.id === selectedLaneId) || project.lanes[0];
 
-      const locationBeat = getSelectedLocationBeat();
-      const locationLabel = getSelectedLocationLabel();
-
-      const confirmed = window.confirm(
-        "Insert paste at " +
-        locationLabel +
-        "?\n\n" +
-        "Copied phrase length: " +
-        formatBeatValue(phraseLength) +
-        " beats.\n" +
-        "Existing blocks at or after this point will shift right " +
-        (scope === "all" ? "across all lanes." : "in " + selectedLane.name + " only.") +
-        "\n\nUndo will be available."
-      );
-
-      if (!confirmed) {
-        status.textContent = "Insert paste cancelled.";
-        return;
+        if (scope === "selected" && !selectedLane) {
+          status.textContent = "Select a lane before making room in the selected lane only.";
+          return;
+        }
       }
 
       saveHistory();
 
-      let shiftedCount = 0;
+      if (scope) {
+        project.blocks.forEach(block => {
+          const blockEnd = Number(block.startBeat || 0) + Number(block.durationBeats || MIN_DURATION);
+          if (blockEnd <= targetBeat + 0.0001) return;
 
-      project.blocks.forEach(block => {
-        const appliesToScope =
-          scope === "all" || block.laneId === selectedLane.id;
+          const laneOwnLength = lanePhraseLengths.get(block.laneId);
 
-        if (appliesToScope && Number(block.startBeat || 0) >= locationBeat) {
-          block.startBeat = snapBeat(Number(block.startBeat || 0) + phraseLength);
-          shiftedCount += 1;
-        }
-      });
+          if (scope === "selected") {
+            if (block.laneId === selectedLane.id && laneOwnLength !== undefined) {
+              block.startBeat = snapBeat(Number(block.startBeat || 0) + laneOwnLength);
+            }
+          } else if (scope === "all") {
+            const shiftAmount = laneOwnLength !== undefined ? laneOwnLength : phraseLength;
+            block.startBeat = snapBeat(Number(block.startBeat || 0) + shiftAmount);
+          }
+        });
+      }
 
       const newIds = [];
 
@@ -7237,24 +7312,19 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         const copy = {
           ...item,
           id: createId(item.type === "rest" ? "rest" : "note"),
-          startBeat: snapBeat(locationBeat + Number(item.relativeStartBeat || 0)),
+          startBeat: snapBeat(targetBeat + Number(item.relativeStartBeat || 0)),
           source: item.source || "manual",
           sourceId: item.sourceId || null
         };
-
         delete copy.relativeStartBeat;
-
         project.blocks.push(copy);
         newIds.push(copy.id);
       });
 
       selectedBlockIds = new Set(newIds);
       selectedBlockId = newIds[0] || null;
-
-      const firstBlock = project.blocks.find(block => block.id === selectedBlockId);
-      if (firstBlock) {
-        selectedLaneId = firstBlock.laneId;
-      }
+      const firstBlock = project.blocks.find(b => b.id === selectedBlockId);
+      if (firstBlock) selectedLaneId = firstBlock.laneId;
 
       localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
       clearClipboardAfterPaste(newIds.length);
@@ -7299,7 +7369,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         ". Undo is available.";
     }
 
-    function moveSelectionToSelectedMeasure() {
+    function moveSelectionToLocation() {
       const selectedBlocks = getSelectedBlocks();
 
       if (selectedBlocks.length === 0) {
@@ -7307,37 +7377,150 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         return;
       }
 
-      const minStart = Math.min(
-        ...selectedBlocks.map(block => Number(block.startBeat || 0))
-      );
-      const deltaBeats = snapBeat(getSelectedLocationBeat() - minStart);
+      pendingMoveRequest = true;
+      render();
+      showBannerMessage("Click the Beat Ruler to choose where to move the selection.", "clipboard");
+      status.textContent = "Click the Beat Ruler where you want to move the selection. Press Esc to cancel.";
+    }
 
-      if (Math.abs(deltaBeats) < 0.0001) {
-        status.textContent =
-          "Selection already starts at selected location " +
-          getSelectedLocationLabel() +
-          ".";
+    function cancelPendingMoveRequest() {
+      pendingMoveRequest = false;
+      render();
+      status.textContent = "Move selection cancelled.";
+    }
+
+    function resolvePendingMoveAtBeat(beat) {
+      pendingMoveRequest = false;
+      selectedInsertBeat = beat;
+      render();
+      continueMoveAtBeat(beat);
+    }
+
+    function continueMoveAtBeat(clickedBeat) {
+      const rawSelectedBlocks = getSelectedBlocks();
+
+      if (rawSelectedBlocks.length === 0) {
+        status.textContent = "Select one or more blocks to move.";
         return;
       }
 
-      const confirmed = window.confirm(
-        "Move " +
-          selectedBlocks.length +
-          " selected block" +
-          (selectedBlocks.length === 1 ? "" : "s") +
-          " so the selection starts at " +
-          getSelectedLocationLabel() +
-          "?\n\nRelative timing and lanes will be preserved. Undo will be available."
+      // Nothing has been trimmed for real yet -- this is only for
+      // computing correct lengths while prompts (which the user could
+      // still cancel) are in progress.
+      const selectedBlocks = getVirtualTrimmedBlocks(rawSelectedBlocks);
+
+      const minStart = Math.min(...selectedBlocks.map(block => Number(block.startBeat || 0)));
+      const maxEnd = Math.max(
+        ...selectedBlocks.map(block => Number(block.startBeat || 0) + Number(block.durationBeats || MIN_DURATION))
+      );
+      const phraseLength = snapBeat(maxEnd - minStart);
+      const originLaneInfo = computeLaneGapInfo(selectedBlocks);
+      const hasOriginGap = [...originLaneInfo.values()].some(info => info.gapLength > 0.0001);
+
+      let targetBeat = promptForLocation("Move", clickedBeat);
+      if (targetBeat === null) return;
+
+      // Ask about closing the origin's gap BEFORE finalizing the
+      // destination. If it applies, the destination is treated as
+      // anchored to the musical material around it, not a fixed clock
+      // position: whatever's sitting at/after the origin's own end drifts
+      // left when that gap closes, so the destination drifts the exact
+      // same amount right along with it -- "half a beat after this note"
+      // stays true even though the note itself just moved.
+      let gapScope = null;
+
+      if (hasOriginGap) {
+        gapScope = askGapCloseScope("Close the gap left at the original position?");
+
+        if (gapScope) {
+          const anyInfo = [...originLaneInfo.values()][0]; // uniform across every touched lane
+          if (targetBeat >= anyInfo.maxEnd - 0.0001) {
+            targetBeat = snapBeat(targetBeat - anyInfo.gapLength);
+          }
+        }
+      }
+
+      const deltaBeats = snapBeat(targetBeat - minStart);
+
+      if (Math.abs(deltaBeats) < 0.0001) {
+        status.textContent = "Selection is already at that location.";
+        return;
+      }
+
+      const scopeAnswer = window.prompt(
+        "Move how?\n\n" +
+        "J = Just move here (may overlap existing notes)\n" +
+        "A = Make room across all lanes\n" +
+        "S = Make room in selected lane only\n" +
+        "C = Cancel",
+        "J"
       );
 
-      if (!confirmed) {
+      if (!scopeAnswer) {
         status.textContent = "Move selection cancelled.";
         return;
       }
 
+      const normalizedScope = scopeAnswer.trim().toLowerCase();
+      let scope = null;
+
+      if (normalizedScope === "a" || normalizedScope === "all" || normalizedScope === "all lanes") {
+        scope = "all";
+      } else if (normalizedScope === "s" || normalizedScope === "selected" || normalizedScope === "selected lane") {
+        scope = "selected";
+      } else if (normalizedScope === "j" || normalizedScope === "just" || normalizedScope === "just move") {
+        scope = null;
+      } else {
+        status.textContent = "Move selection cancelled.";
+        return;
+      }
+
+      let selectedLane = null;
+
+      if (scope) {
+        selectedLane = project.lanes.find(lane => lane.id === selectedLaneId) || project.lanes[0];
+
+        if (scope === "selected" && !selectedLane) {
+          status.textContent = "Select a lane before making room in the selected lane only.";
+          return;
+        }
+      }
+
       saveHistory();
 
-      const movedIds = new Set(selectedBlocks.map(block => block.id));
+      // Now actually committing: split any straddling note for real, and
+      // move exactly the trimmed pieces from here on.
+      trimSelectionToRange();
+      const trimmedSelection = getSelectedBlocks();
+      const movedIds = new Set(trimmedSelection.map(block => block.id));
+
+      // Close the origin's gap first -- before making room at the
+      // destination or moving anything -- so both of those subsequent
+      // steps operate on the already-compacted timeline, matching the
+      // destination adjustment above.
+      if (gapScope) {
+        closeGapsAfterRemoval(originLaneInfo, movedIds, gapScope);
+      }
+
+      if (scope) {
+        project.blocks.forEach(block => {
+          if (movedIds.has(block.id)) return;
+
+          const blockEnd = Number(block.startBeat || 0) + Number(block.durationBeats || MIN_DURATION);
+          if (blockEnd <= targetBeat + 0.0001) return;
+
+          const info = originLaneInfo.get(block.laneId);
+
+          if (scope === "selected") {
+            if (block.laneId === selectedLane.id && info) {
+              block.startBeat = snapBeat(Number(block.startBeat || 0) + info.gapLength);
+            }
+          } else if (scope === "all") {
+            const shiftAmount = info ? info.gapLength : phraseLength;
+            block.startBeat = snapBeat(Number(block.startBeat || 0) + shiftAmount);
+          }
+        });
+      }
 
       project.blocks.forEach(block => {
         if (movedIds.has(block.id)) {
@@ -7350,15 +7533,75 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
       status.textContent =
         "Moved " +
-        selectedBlocks.length +
+        trimmedSelection.length +
         " selected block" +
-        (selectedBlocks.length === 1 ? "" : "s") +
-        " to selected location " +
+        (trimmedSelection.length === 1 ? "" : "s") +
+        " to " +
         getSelectedLocationLabel() +
         ". Undo is available.";
     }
 
+    function appendClipboardActions(container) {
+      const hasSelection = getSelectedBlocks().length > 0;
+      const hasBuffer = !!(blockClipboard && blockClipboard.length > 0);
 
+      const cutButton = document.createElement("button");
+      cutButton.classList.add("control-button", "secondary");
+      cutButton.style.marginTop = "12px";
+      cutButton.textContent = "✂ Cut Selection";
+      cutButton.disabled = !hasSelection;
+      cutButton.addEventListener("click", cutSelectionToClipboard);
+      container.appendChild(cutButton);
+
+      const copySelectionButton = document.createElement("button");
+      copySelectionButton.id = "copySelectionButton";
+      copySelectionButton.classList.add("control-button", "secondary");
+      copySelectionButton.style.marginTop = "8px";
+      copySelectionButton.textContent = "⧉ Copy Selection";
+      copySelectionButton.disabled = !hasSelection;
+      copySelectionButton.classList.toggle("clipboard-active", hasBuffer);
+      copySelectionButton.addEventListener("click", copySelectionToClipboard);
+      container.appendChild(copySelectionButton);
+
+      const pasteSelectionButton = document.createElement("button");
+      pasteSelectionButton.id = "pasteSelectionButton";
+      pasteSelectionButton.classList.add("control-button", "secondary");
+      pasteSelectionButton.style.marginTop = "8px";
+      pasteSelectionButton.textContent = "📋 Paste Selection";
+      pasteSelectionButton.title = "Paste the copied selection -- you'll be asked where.";
+      pasteSelectionButton.disabled = !hasBuffer;
+      pasteSelectionButton.addEventListener("click", pasteSelection);
+      container.appendChild(pasteSelectionButton);
+
+      const clearBufferButton = document.createElement("button");
+      clearBufferButton.id = "clearBufferButton";
+      clearBufferButton.classList.add("control-button", "secondary");
+      clearBufferButton.style.marginTop = "8px";
+      clearBufferButton.textContent = "✕ Clear Buffer";
+      clearBufferButton.title = "Empty the clipboard buffer.";
+      clearBufferButton.disabled = !hasBuffer;
+      clearBufferButton.classList.toggle("clipboard-active", hasBuffer);
+      clearBufferButton.addEventListener("click", clearClipboardBuffer);
+      container.appendChild(clearBufferButton);
+
+      const moveSelectionButton = document.createElement("button");
+      moveSelectionButton.classList.add("control-button", "secondary");
+      moveSelectionButton.style.marginTop = "8px";
+      moveSelectionButton.textContent = "⇥ Move Selection";
+      moveSelectionButton.title = "Move the current selection -- you'll be asked where.";
+      moveSelectionButton.disabled = !hasSelection;
+      moveSelectionButton.addEventListener("click", moveSelectionToLocation);
+      container.appendChild(moveSelectionButton);
+
+      const deleteSelectionButton = document.createElement("button");
+      deleteSelectionButton.id = "deleteSelectionButton";
+      deleteSelectionButton.classList.add("control-button", "danger");
+      deleteSelectionButton.style.marginTop = "8px";
+      deleteSelectionButton.textContent = "Delete Selection";
+      deleteSelectionButton.disabled = !hasSelection;
+      deleteSelectionButton.addEventListener("click", deleteSelectedBlocks);
+      container.appendChild(deleteSelectionButton);
+    }
 
     function selectAllBlocks() {
       if (project.blocks.length === 0) {
@@ -7420,28 +7663,6 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       laneMenuLaneId = null;
       render();
       status.textContent = "Selection cleared.";
-    }
-
-
-    function pasteClipboardAtSelectedLocation() {
-      if (!hasSelectedLocation()) {
-        status.textContent = "Set a selected location first.";
-        return;
-      }
-
-      const adjustedBeat = confirmAndAdjustPasteLocation();
-      if (adjustedBeat === null) return;
-
-      pasteClipboardAtSelectedMeasure();
-    }
-
-    function moveSelectionToSelectedLocation() {
-      if (!hasSelectedLocation()) {
-        status.textContent = "Set a selected location first.";
-        return;
-      }
-
-      moveSelectionToSelectedMeasure();
     }
 
     function getBlocksActiveAtBeat(beat, options = {}) {
@@ -7613,9 +7834,12 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         return;
       }
 
+      const groups = {};
+      const arrangementGroup = getInspectorGroup(laneInspector, groups, "Arrangement", false);
+
       const nameLabel = document.createElement("label");
       nameLabel.textContent = "Lane Name";
-      laneInspector.appendChild(nameLabel);
+      arrangementGroup.appendChild(nameLabel);
 
       const nameInput = document.createElement("input");
       nameInput.value = lane.name || "";
@@ -7627,11 +7851,11 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         render();
       });
 
-      laneInspector.appendChild(nameInput);
+      arrangementGroup.appendChild(nameInput);
 
       const roleLabel = document.createElement("label");
       roleLabel.textContent = "Role";
-      laneInspector.appendChild(roleLabel);
+      arrangementGroup.appendChild(roleLabel);
 
       const roleInput = document.createElement("input");
       roleInput.value = lane.role || "";
@@ -7643,12 +7867,12 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         render();
       });
 
-      laneInspector.appendChild(roleInput);
+      arrangementGroup.appendChild(roleInput);
 
       if (lane.role === "imported melody") {
         const assignLabel = document.createElement("label");
         assignLabel.textContent = "Assign to Part";
-        laneInspector.appendChild(assignLabel);
+        arrangementGroup.appendChild(assignLabel);
 
         const assignRow = document.createElement("div");
         assignRow.style.cssText = "display:flex; gap:6px; flex-wrap:wrap;";
@@ -7710,11 +7934,12 @@ for (let beat = 0; beat <= maxBeat; beat++) {
           assignRow.appendChild(btn);
         });
 
-        laneInspector.appendChild(assignRow);
+        arrangementGroup.appendChild(assignRow);
       }
+
       const voiceLabel = document.createElement("label");
       voiceLabel.textContent = "Lane Voice";
-      laneInspector.appendChild(voiceLabel);
+      arrangementGroup.appendChild(voiceLabel);
 
       const voiceSelect = document.createElement("select");
 
@@ -7754,10 +7979,33 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         render();
       });
 
-      laneInspector.appendChild(voiceSelect);
+      arrangementGroup.appendChild(voiceSelect);
 
       const laneHasNarrowedFocus = selectedBlockIds.size > 0 &&
         getSelectedBlocks().some(b => b.laneId === lane.id);
+
+      if (laneHasNarrowedFocus) {
+        const laneToolsGroup = getInspectorGroup(laneInspector, groups, "Tools & Actions", false);
+
+        const editInPlayerButton = document.createElement("button");
+        editInPlayerButton.classList.add("control-button", "secondary");
+        editInPlayerButton.textContent = "▶ Edit Selection in Player";
+        editInPlayerButton.title = "Open the highlighted notes in this lane in Player.";
+        editInPlayerButton.addEventListener("click", beginEditSelectionInPlayer);
+        laneToolsGroup.appendChild(editInPlayerButton);
+
+        const suggestHarmonyLaneButton = document.createElement("button");
+        suggestHarmonyLaneButton.classList.add("control-button", "secondary");
+        suggestHarmonyLaneButton.style.marginTop = "8px";
+        suggestHarmonyLaneButton.textContent = "✧ Suggest Harmony";
+        suggestHarmonyLaneButton.title = "Open Progression Builder to suggest chords for this melody phrase.";
+        suggestHarmonyLaneButton.addEventListener("click", beginSuggestHarmonyInProgression);
+        laneToolsGroup.appendChild(suggestHarmonyLaneButton);
+
+        appendClipboardActions(laneToolsGroup);
+      }
+
+      const laneActionsGroup = getInspectorGroup(laneInspector, groups, "Lane Actions", true);
 
       const sendLaneToPlayerButton = document.createElement("button");
       sendLaneToPlayerButton.classList.add("control-button", "secondary");
@@ -7770,7 +8018,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       sendLaneToPlayerButton.addEventListener("click", () => {
         beginSendLaneToPlayer();
       });
-      laneInspector.appendChild(sendLaneToPlayerButton);
+      laneActionsGroup.appendChild(sendLaneToPlayerButton);
 
       const clearLaneButton = document.createElement("button");
       clearLaneButton.classList.add("control-button", "danger");
@@ -7779,7 +8027,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       clearLaneButton.title = "Remove all notes from this lane without deleting the lane or its voice assignment.";
       clearLaneButton.disabled = project.blocks.filter(b => b.laneId === lane.id).length === 0;
       clearLaneButton.addEventListener("click", e => clearSelectedLane(lane.id, e.currentTarget));
-      laneInspector.appendChild(clearLaneButton);
+      laneActionsGroup.appendChild(clearLaneButton);
 
       const duplicateLaneButton = document.createElement("button");
       duplicateLaneButton.classList.add("control-button", "secondary");
@@ -7787,7 +8035,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       duplicateLaneButton.textContent = "Duplicate Lane";
 
       duplicateLaneButton.addEventListener("click", duplicateSelectedLane);
-      laneInspector.appendChild(duplicateLaneButton);
+      laneActionsGroup.appendChild(duplicateLaneButton);
 
       const deleteLaneButton = document.createElement("button");
       deleteLaneButton.classList.add("control-button", "danger");
@@ -7800,7 +8048,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         deleteLaneAndBlocks(lane.id);
       });
 
-      laneInspector.appendChild(deleteLaneButton);
+      laneActionsGroup.appendChild(deleteLaneButton);
     }
 
     function clearSelectedLane(laneId, sourceBtn) {
@@ -11272,6 +11520,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       selectedBlockIds = new Set(matchingBlocks.map(block => block.id));
       selectedBlockId = matchingBlocks[0].id;
       selectedLaneId = matchingBlocks[0].laneId || selectedLaneId;
+      selectionRangeBeats = { startBeat, endBeat };
 
       return matchingBlocks;
     }
@@ -11326,6 +11575,83 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
     function removeSelectionRangeOverlay() {
       document.querySelectorAll(".focus-range-overlay").forEach(el => el.remove());
+    }
+
+    // Given a block and a selection's real beat boundary, splits it into up
+    // to three logical segments -- before/inside/after -- without touching
+    // the block itself. "inside" is null only if there's no real overlap
+    // (shouldn't normally happen for something actually selected). Shared
+    // by the visual straddle highlight here and, later, by the real
+    // Cut/Copy/Move trim-to-selection logic -- same math, two consumers.
+    function getBlockOverlapSegments(block, rangeStart, rangeEnd) {
+      const tolerance = 0.0001;
+      const blockStart = Number(block.startBeat || 0);
+      const blockEnd = blockStart + Number(block.durationBeats || MIN_DURATION);
+      const insideStart = Math.max(blockStart, rangeStart);
+      const insideEnd = Math.min(blockEnd, rangeEnd);
+
+      if (insideEnd <= insideStart + tolerance) {
+        return { before: null, inside: null, after: null };
+      }
+
+      const before = (blockStart < rangeStart - tolerance)
+        ? { startBeat: blockStart, durationBeats: snapBeat(rangeStart - blockStart) }
+        : null;
+
+      const inside = { startBeat: insideStart, durationBeats: snapBeat(insideEnd - insideStart) };
+
+      const after = (blockEnd > rangeEnd + tolerance)
+        ? { startBeat: rangeEnd, durationBeats: snapBeat(blockEnd - rangeEnd) }
+        : null;
+
+      return { before, inside, after };
+    }
+
+    // Purely visual preview -- draws a highlight over just the portion of
+    // a straddling selected block that actually falls inside the real
+    // selection boundary, and suppresses that block's normal full-width
+    // selected outline so the partial highlight isn't fighting a second,
+    // contradictory highlight around the whole note. Never touches
+    // project.blocks -- Cut/Copy/Move still act on the untrimmed selection
+    // exactly as they do today.
+    function applyStraddleHighlights() {
+      removeStraddleHighlights();
+
+      if (!selectionRangeBeats || selectedBlockIds.size === 0) return;
+
+      const { startBeat: rangeStart, endBeat: rangeEnd } = selectionRangeBeats;
+
+      selectedBlockIds.forEach(id => {
+        const block = project.blocks.find(b => b.id === id);
+        if (!block) return;
+
+        const { before, after } = getBlockOverlapSegments(block, rangeStart, rangeEnd);
+        if (!before && !after) return;
+
+        const blockEl = document.querySelector('.orumi-block[data-block-id="' + CSS.escape(block.id) + '"]');
+        if (!blockEl) return;
+
+        const blockStart = Number(block.startBeat || 0);
+        const blockEnd = blockStart + Number(block.durationBeats || MIN_DURATION);
+        const insideStart = Math.max(blockStart, rangeStart);
+        const insideEnd = Math.min(blockEnd, rangeEnd);
+
+        const leftOffsetPx = (insideStart - blockStart) * BEAT_WIDTH;
+        const widthPx = (insideEnd - insideStart) * BEAT_WIDTH;
+
+        blockEl.classList.add("straddle-partial");
+
+        const highlight = document.createElement("div");
+        highlight.className = "straddle-highlight";
+        highlight.style.left = leftOffsetPx + "px";
+        highlight.style.width = widthPx + "px";
+        blockEl.appendChild(highlight);
+      });
+    }
+
+    function removeStraddleHighlights() {
+      document.querySelectorAll(".straddle-highlight").forEach(el => el.remove());
+      document.querySelectorAll(".orumi-block.straddle-partial").forEach(el => el.classList.remove("straddle-partial"));
     }
 
     // Ruler drag-to-select: click-and-drag across the Beat Ruler selects
@@ -12395,34 +12721,14 @@ function applyPendingPlayerLineImport() {
       status.textContent = "Playback stopped.";
     });
     forwardMeasureButton.addEventListener("click", () => jumpPlaybackByMeasures(1));
-    setSelectedLocationButton.addEventListener("click", promptForSelectedLocation);
-    clearSelectedLocationButton.addEventListener("click", () => clearSelectedLocation("Selected location returned to beginning."));
     selectAllButton.addEventListener("click", selectAllBlocks);
     selectCurrentLaneButton.addEventListener("click", selectCurrentLaneBlocks);
-    selectStackButton.addEventListener("click", selectStackAtSelectedBeat);
-    analyzePlayheadChordButton.addEventListener("click", analyzePlayheadChord);
     clearSelectionButton.addEventListener("click", clearSelectionAndRender);
-    copySelectionButton.addEventListener("click", copySelectionToClipboard);
-    replaceSelectedChordButton.addEventListener("click", beginReplaceSelectedChord);
-    if (editSelectionInPlayerButton) {
-      editSelectionInPlayerButton.addEventListener("click", beginEditSelectionInPlayer);
-    }
-    if (suggestHarmonyButton) {
-      suggestHarmonyButton.addEventListener("click", beginSuggestHarmonyInProgression);
-    }
-    if (reviewSelectionInProgressionButton) {
-      reviewSelectionInProgressionButton.addEventListener("click", beginReviewSelectionInProgression);
-    }
-    pasteSelectionButton.addEventListener("click", pasteClipboardAtEnd);
-    pasteAtMeasureButton.addEventListener("click", pasteClipboardAtSelectedLocation);
-    insertPasteAtLocationButton.addEventListener("click", insertPasteClipboardAtSelectedLocation);
-    moveSelectionButton.addEventListener("click", moveSelectionToSelectedLocation);
-    deleteSelectionButton.addEventListener("click", deleteSelectedBlocks);
     clearButton.addEventListener("click", clearProject);
     importChordButton.addEventListener("click", () => importPendingChordFromStorage(false));
     importRecordingButton.addEventListener("click", importRecording);
     importProgressionButton.addEventListener("click", importProgression);
-exportMidiButton.addEventListener("click", exportMidi);
+    exportMidiButton.addEventListener("click", exportMidi);
     importMidiButton.addEventListener("click", beginMidiImport);
 
     // ── Show Lyrics toggle ───────────────────────────────────────────
