@@ -871,6 +871,214 @@
       flex-wrap: wrap;
     }
 
+    .pins-ruler-row {
+      display: grid;
+      grid-template-columns: 104px 1fr;
+      height: 26px;
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 4px;
+      position: sticky;
+      top: 142px;
+      z-index: 20;
+      background: var(--bg);
+    }
+
+    .pins-ruler-name {
+      display: grid;
+      place-items: center;
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.02em;
+      cursor: default;
+    }
+
+    .pins-ruler-track {
+      position: relative;
+      overflow: hidden;
+      background: rgba(255,255,255,0.03);
+      border-radius: 4px;
+    }
+
+    .pin-marker-flag {
+      position: absolute;
+      top: 2px;
+      transform: translateX(2px);
+      font-size: 12px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      white-space: nowrap;
+      cursor: pointer;
+      z-index: 3;
+      background: rgba(255,138,101,0.9);
+    }
+
+    .pin-marker-flag:hover {
+      box-shadow: 0 0 10px rgba(255,255,255,0.5);
+    }
+
+    .pin-marker-pending {
+      position: absolute;
+      top: 0;
+      width: 2px;
+      height: 100%;
+      background: rgba(255,255,255,0.85);
+      box-shadow: 0 0 10px rgba(255,255,255,0.6);
+      z-index: 4;
+      pointer-events: none;
+    }
+
+    .pin-marker-picker {
+      background: #1c1f26;
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 14px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-width: 360px;
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+      z-index: 50;
+    }
+
+    .pin-marker-picker-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .pin-marker-picker-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .pin-marker-picker-row label {
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .pin-marker-picker-row textarea {
+      background: rgba(255,255,255,0.08);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 12px;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 60px;
+    }
+
+    .pin-marker-picker-buttons {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .notes-window-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.72);
+      z-index: 9000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .notes-window-overlay.visible {
+      display: flex;
+    }
+
+    .notes-window-dialog {
+      background: #1c1c1c;
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 20px;
+      padding: 28px 32px;
+      max-width: 560px;
+      width: 90vw;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .notes-window-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .notes-window-title {
+      font-size: 1.1rem;
+      font-weight: 900;
+      color: #f4f1e8;
+      margin: 0;
+    }
+
+    .notes-window-list {
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .notes-window-empty {
+      color: var(--muted);
+      font-size: 13px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .notes-window-item {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .notes-window-item-position {
+      font-size: 11px;
+      font-weight: 800;
+      color: #ffab91;
+      cursor: pointer;
+    }
+
+    .notes-window-item-position:hover {
+      text-decoration: underline;
+    }
+
+    .notes-window-item-note {
+      font-size: 13px;
+      color: var(--text);
+      white-space: pre-wrap;
+    }
+
+    .notes-window-item-note.empty {
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    .notes-window-item-buttons {
+      display: flex;
+      gap: 6px;
+    }
+
+    .notes-window-footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
     .lane {
       display: grid;
       grid-template-columns: 104px 1fr;
@@ -996,7 +1204,7 @@
 
     #lanesContainer > .lane-insert-zone:first-child {
       position: sticky;
-      top: 142px;
+      top: 172px;
       z-index: 20;
       background: var(--bg);
     }
@@ -2175,7 +2383,7 @@
         <button class="control-button secondary" id="undoButton">↶ Undo</button>
         <button class="control-button secondary" id="redoButton">↷ Redo</button>
         <button class="control-button secondary clipboard-active" id="insertModeButton">⇤ Insert Mode: On</button>
-        <button class="control-button danger" id="clearButton">🗑 Clear Design</button>
+        <button class="control-button danger" id="clearButton" title="Clears all notes from the current design, but keeps settings like key, tempo, and voice. Use New Design (under Project) to start over completely, including settings.">🗑 Clear All Notes</button>
       </div>
     </div>
 
@@ -2198,9 +2406,25 @@
         <button class="control-button secondary" id="goToMeasureButton">📍 Go to Measure</button>
         <button class="control-button secondary" id="showLyricsButton">♩ Show Lyrics</button>
         <button class="control-button secondary" id="findOverlapsButton">🔍 Find Overlapping Notes</button>
+        <button class="control-button secondary" id="addPinButton">🚩 Add Pin</button>
+        <button class="control-button secondary" id="openNotesButton">🗒 Open Notes</button>
       </div>
     </div>
   </nav>  
+
+<!-- Notes window (Pin & Notate) -->
+  <div class="notes-window-overlay" id="notesWindowOverlay">
+    <div class="notes-window-dialog">
+      <div class="notes-window-title-row">
+        <div class="notes-window-title">Notes</div>
+        <button class="control-button secondary" id="closeNotesWindowButton">✕ Close</button>
+      </div>
+      <div class="notes-window-list" id="notesWindowList"></div>
+      <div class="notes-window-footer">
+        <button class="control-button danger" id="clearAllPinsButton">🗑 Clear All Pins</button>
+      </div>
+    </div>
+  </div>
 
 <!-- MusicXML import dialog -->
   <div class="mxml-import-overlay" id="mxmlImportOverlay">
@@ -2332,6 +2556,11 @@
               <div class="meter-ruler-track" id="meterRulerTrack"></div>
             </div>
 
+            <div class="pins-ruler-row">
+              <div class="pins-ruler-name" title="Pinned notes and comments. Click a flag to view, edit, or clear it. Use Add Pin (under View) to place a new one.">Pins</div>
+              <div class="pins-ruler-track" id="pinsRulerTrack"></div>
+            </div>
+
             <div class="playhead" id="playhead"></div>
 
             <div id="lanesContainer"></div>
@@ -2340,6 +2569,7 @@
 
         <div id="structureMarkerPickerContainer"></div>
         <div id="meterMarkerPickerContainer"></div>
+        <div id="pinPickerContainer"></div>
 
         <div class="status" id="projectStatus">
           Default lanes: Tenor, Lead, Baritone, Bass.
@@ -2398,6 +2628,8 @@
     let selectedInsertBeat = 0;
     let pendingPasteRequest = false;
     let pendingMoveRequest = false;
+    let pendingInsertMeasuresRequest = false;
+    let pendingPinRequest = false;
     let selectionRangeBeats = null; // { startBeat, endBeat } from the actual drag/range gesture -- not re-derived from selected blocks, so a straddling block's own edges never get mistaken for the boundary itself
     let playbackState = "stopped";
     let playbackStartTime = 0;
@@ -3030,14 +3262,57 @@
     }
 
     function newDesign() {
-      const confirmed =
-        window.confirm("Start a new blank Design? Your saved projects will remain available.");
+      if (projectHasDesignContent()) {
+        const saveFirst = window.confirm(
+          "This design has notes in it. Would you like to save your work before starting a new one?\n\nOK = Save first\nCancel = Continue without saving"
+        );
 
-      if (!confirmed) {
-        return;
+        if (saveFirst) {
+          const saved = saveProjectAs();
+          if (!saved) {
+            status.textContent = "New design cancelled because Save As was cancelled.";
+            return;
+          }
+        } else {
+          const continueWithoutSaving = window.confirm(
+            "Start a new design without saving?\n\nThis removes the current browser copy so it will not reappear when you return from Player. Saved projects remain available in Load Project."
+          );
+
+          if (!continueWithoutSaving) {
+            status.textContent = "New design cancelled.";
+            return;
+          }
+        }
+      } else {
+        const confirmed =
+          window.confirm("Start a new blank Design? Your saved projects will remain available.");
+
+        if (!confirmed) {
+          return;
+        }
       }
 
       saveHistory();
+
+      // Back up the current design before replacing it -- same safety net
+      // Clear All Notes already has. New Design fully replaces the
+      // project object, so losing unsaved work here should be just as
+      // recoverable.
+      if (projectHasDesignContent()) {
+        try {
+          const backup = {
+            id: createId("cleared_design"),
+            name: (project.title || "Untitled Design") + " · recently cleared",
+            clearedAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            project: JSON.parse(JSON.stringify(project))
+          };
+          localStorage.setItem(STORAGE_RECENTLY_CLEARED, JSON.stringify(backup));
+          localStorage.setItem(STORAGE_RECOVERY_PREFIX + backup.id, JSON.stringify(backup));
+        } catch (error) {
+          console.warn("Could not create recently cleared backup", error);
+        }
+      }
 
       const name = window.prompt("Name the new design:", "Untitled Design");
 
@@ -3164,6 +3439,10 @@
             cancelPendingPasteRequest();
           } else if (pendingMoveRequest) {
             cancelPendingMoveRequest();
+          } else if (pendingInsertMeasuresRequest) {
+            cancelPendingInsertMeasuresRequest();
+          } else if (pendingPinRequest) {
+            cancelPendingPinRequest();
           } else if (selectedBlockIds.size > 0 || laneMenuLaneId) {
             clearSelectionAndRender();
           } else if (blockClipboard && blockClipboard.length > 0) {
@@ -3701,6 +3980,18 @@
           generated: block.generated || false
         };
       });
+
+      if (!Array.isArray(project.pins)) {
+        project.pins = [];
+      }
+
+      project.pins = project.pins
+        .filter(pin => pin && Number.isFinite(Number(pin.beat)))
+        .map(pin => ({
+          id: pin.id || createId("pin"),
+          beat: Number(pin.beat),
+          note: typeof pin.note === "string" ? pin.note : ""
+        }));
 
       if (!Array.isArray(project.structuralMarkers)) {
         project.structuralMarkers = [];
@@ -4797,6 +5088,16 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         return;
       }
 
+      if (pendingInsertMeasuresRequest) {
+        resolvePendingInsertMeasuresAtBeat(nextBeat);
+        return;
+      }
+
+      if (pendingPinRequest) {
+        resolvePendingPinAtBeat(nextBeat);
+        return;
+      }
+
       if (Math.abs(getSelectedLocationBeat() - nextBeat) < 0.0001) {
         clearSelectedLocation("Selected location returned to beginning.");
         return;
@@ -4925,11 +5226,11 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
     function render() {
       normalizeProject();
-      // Darkening everything outside a range is now a direct visual
+      // Darkening everything outside a range is a direct visual
       // consequence of having more than one block selected -- true
-      // whether the selection came from shift-clicking, the ruler drag
-      // below, or anything else -- rather than a separate focusRange
-      // variable that could drift out of sync with the real selection.
+      // whether the selection came from shift-clicking, a ruler drag,
+      // or anything else, since it's computed fresh from the real
+      // selection every render rather than tracked separately.
       requestAnimationFrame(() => { applySelectionRangeOverlay(); applyStraddleHighlights(); });
       renderProjectName();
       populateContextControls();
@@ -4938,6 +5239,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
       renderRuler();
       renderStructureRuler();
       renderMeterRuler();
+      renderPinsRuler();
       renderLanes();
       renderInspectors();
 
@@ -4970,9 +5272,13 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         ? "Click the Beat Ruler to choose a paste location -- Esc to cancel"
         : pendingMoveRequest
           ? "Click the Beat Ruler to choose where to move the selection -- Esc to cancel"
-          : selectedBlockIds.size > 0 || laneMenuLaneId
-            ? "Press Esc to clear selection"
-            : (blockClipboard && blockClipboard.length > 0 ? "Press Esc to clear buffer" : "");
+          : pendingInsertMeasuresRequest
+            ? "Click the Beat Ruler to choose where to insert measures -- Esc to cancel"
+            : pendingPinRequest
+              ? "Click the Beat Ruler to place a pin -- Esc to cancel"
+              : selectedBlockIds.size > 0 || laneMenuLaneId
+                ? "Press Esc to clear selection"
+                : (blockClipboard && blockClipboard.length > 0 ? "Press Esc to clear buffer" : "");
 
       if (playButton) {
         const laneForPlayTitle = project.lanes.find(item => item.id === laneMenuLaneId);
@@ -7081,6 +7387,17 @@ function renderBlockInspector() {
           }
         }
       });
+
+      // Pins aren't tied to any lane -- they track the overall envelope
+      // regardless of "A" vs "F", the same way a pin marks a moment in
+      // the whole piece rather than one part's own line.
+      if (Array.isArray(project.pins)) {
+        project.pins.forEach(pin => {
+          if (pin.beat >= overallMaxEnd - 0.0001) {
+            pin.beat = snapBeat(pin.beat - overallGapLength);
+          }
+        });
+      }
     }
 
     function cutSelectionToClipboard() {
@@ -7304,6 +7621,14 @@ function renderBlockInspector() {
             block.startBeat = snapBeat(Number(block.startBeat || 0) + shiftAmount);
           }
         });
+
+        if (Array.isArray(project.pins)) {
+          project.pins.forEach(pin => {
+            if (pin.beat >= targetBeat - 0.0001) {
+              pin.beat = snapBeat(pin.beat + phraseLength);
+            }
+          });
+        }
       }
 
       const newIds = [];
@@ -7520,6 +7845,14 @@ function renderBlockInspector() {
             block.startBeat = snapBeat(Number(block.startBeat || 0) + shiftAmount);
           }
         });
+
+        if (Array.isArray(project.pins)) {
+          project.pins.forEach(pin => {
+            if (pin.beat >= targetBeat - 0.0001) {
+              pin.beat = snapBeat(pin.beat + phraseLength);
+            }
+          });
+        }
       }
 
       project.blocks.forEach(block => {
@@ -9076,11 +9409,26 @@ function renderBlockInspector() {
     }
 
     function insertMeasuresAtSelectedPoint() {
-      if (!hasSelectedLocation()) {
-        status.textContent = "Set a selected location before inserting measures.";
-        return;
-      }
+      pendingInsertMeasuresRequest = true;
+      render();
+      showBannerMessage("Click the Beat Ruler to choose where to insert measures.", "clipboard");
+      status.textContent = "Click the Beat Ruler where you want to insert measures. Press Esc to cancel.";
+    }
 
+    function cancelPendingInsertMeasuresRequest() {
+      pendingInsertMeasuresRequest = false;
+      render();
+      status.textContent = "Insert measures cancelled.";
+    }
+
+    function resolvePendingInsertMeasuresAtBeat(beat) {
+      pendingInsertMeasuresRequest = false;
+      selectedInsertBeat = beat;
+      render();
+      continueInsertMeasuresAtBeat();
+    }
+
+    function continueInsertMeasuresAtBeat() {
       const selectedMeasure = getSelectedInsertMeasure();
       const countAnswer = window.prompt(
         "Insert how many measures before Measure " + selectedMeasure + "?",
@@ -9146,6 +9494,17 @@ function renderBlockInspector() {
         }
       });
 
+      // Inserting measures shifts the whole timeline at this point,
+      // regardless of which lane(s) the blank space was applied to --
+      // pins aren't lane-scoped, so they always shift here.
+      if (Array.isArray(project.pins)) {
+        project.pins.forEach(pin => {
+          if (pin.beat >= getSelectedLocationBeat()) {
+            pin.beat = snapBeat(pin.beat + shiftBeats);
+          }
+        });
+      }
+
       localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
       render();
 
@@ -9165,7 +9524,265 @@ function renderBlockInspector() {
         " shifted.";
     }
 
-    function getReadableDurationValues() {
+    function addPinAtSelectedPoint() {
+      pendingPinRequest = true;
+      render();
+      showBannerMessage("Click the Beat Ruler to place a pin.", "clipboard");
+      status.textContent = "Click the Beat Ruler where you want to place a pin. Press Esc to cancel.";
+    }
+
+    function cancelPendingPinRequest() {
+      pendingPinRequest = false;
+      render();
+      status.textContent = "Add pin cancelled.";
+    }
+
+    function resolvePendingPinAtBeat(beat) {
+      pendingPinRequest = false;
+      selectedInsertBeat = beat;
+      render();
+      openPinPicker(null, beat);
+    }
+
+    function renderPinsRuler() {
+      const track = document.getElementById("pinsRulerTrack");
+      if (!track) return;
+
+      track.innerHTML = "";
+
+      const pins = Array.isArray(project.pins) ? project.pins : [];
+
+      pins.forEach(pin => {
+        const flag = document.createElement("div");
+        flag.className = "pin-marker-flag";
+        flag.textContent = "🚩";
+        flag.style.left = pin.beat * BEAT_WIDTH + "px";
+        flag.title = pin.note ? pin.note : "(no comment) -- click to edit or clear this pin.";
+
+        flag.addEventListener("click", event => {
+          event.stopPropagation();
+          openPinPicker(pin, pin.beat);
+        });
+
+        track.appendChild(flag);
+      });
+    }
+
+    // Mirrors openStructureMarkerPicker's own shape (title, editable
+    // field, Save/Delete/Cancel) -- a pin just has one free-text field
+    // instead of section/function dropdowns.
+    function openPinPicker(existingPin, beat) {
+      const container = document.getElementById("pinPickerContainer");
+      if (!container) return;
+
+      container.innerHTML = "";
+
+      const track = document.getElementById("pinsRulerTrack");
+      if (track) {
+        const oldPending = track.querySelector(".pin-marker-pending");
+        if (oldPending) oldPending.remove();
+
+        if (!existingPin) {
+          const pendingLine = document.createElement("div");
+          pendingLine.className = "pin-marker-pending";
+          pendingLine.style.left = beat * BEAT_WIDTH + "px";
+          track.appendChild(pendingLine);
+        }
+      }
+
+      const panel = document.createElement("div");
+      panel.className = "pin-marker-picker";
+
+      const title = document.createElement("div");
+      title.className = "pin-marker-picker-title";
+      const beatInfo = beatToMeasureInfo(beat);
+      title.textContent =
+        (existingPin ? "Edit" : "New") +
+        " pin -- Beat " + beatInfo.beatWithinMeasure + " of M" + beatInfo.measure;
+      panel.appendChild(title);
+
+      const noteRow = document.createElement("div");
+      noteRow.className = "pin-marker-picker-row";
+
+      const noteLabel = document.createElement("label");
+      noteLabel.textContent = "Comment";
+      noteRow.appendChild(noteLabel);
+
+      const noteInput = document.createElement("textarea");
+      noteInput.placeholder = "Add comment here";
+      noteInput.value = existingPin ? (existingPin.note || "") : "";
+      noteRow.appendChild(noteInput);
+      panel.appendChild(noteRow);
+
+      const buttonRow = document.createElement("div");
+      buttonRow.className = "pin-marker-picker-buttons";
+
+      const saveBtn = document.createElement("button");
+      saveBtn.type = "button";
+      saveBtn.className = "control-button";
+      saveBtn.textContent = "Save";
+      saveBtn.addEventListener("click", () => {
+        savePinMarker(existingPin, beat, noteInput.value);
+        container.innerHTML = "";
+      });
+      buttonRow.appendChild(saveBtn);
+
+      if (existingPin) {
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.className = "control-button danger";
+        deleteBtn.textContent = "Clear Pin";
+        deleteBtn.addEventListener("click", () => {
+          deletePinMarker(existingPin);
+          container.innerHTML = "";
+        });
+        buttonRow.appendChild(deleteBtn);
+      }
+
+      const cancelBtn = document.createElement("button");
+      cancelBtn.type = "button";
+      cancelBtn.className = "control-button secondary";
+      cancelBtn.textContent = "Cancel";
+      cancelBtn.addEventListener("click", () => {
+        container.innerHTML = "";
+        const track2 = document.getElementById("pinsRulerTrack");
+        if (track2) {
+          const pending = track2.querySelector(".pin-marker-pending");
+          if (pending) pending.remove();
+        }
+      });
+      buttonRow.appendChild(cancelBtn);
+
+      panel.appendChild(buttonRow);
+      container.appendChild(panel);
+    }
+
+    function savePinMarker(existingPin, beat, noteText) {
+      if (!Array.isArray(project.pins)) {
+        project.pins = [];
+      }
+
+      let pin = existingPin;
+      if (!pin) {
+        pin = { id: createId("pin"), beat };
+        project.pins.push(pin);
+      }
+
+      pin.note = (noteText || "").trim();
+
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+      render();
+      status.textContent = "Pin saved.";
+    }
+
+    function deletePinMarker(pin) {
+      if (!Array.isArray(project.pins)) return;
+      project.pins = project.pins.filter(p => p.id !== pin.id);
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+      render();
+      status.textContent = "Pin cleared.";
+    }
+
+    function openNotesWindow() {
+      const overlay = document.getElementById("notesWindowOverlay");
+      if (!overlay) return;
+
+      renderNotesWindowList();
+      overlay.classList.add("visible");
+    }
+
+    function closeNotesWindow() {
+      const overlay = document.getElementById("notesWindowOverlay");
+      if (overlay) overlay.classList.remove("visible");
+    }
+
+    function renderNotesWindowList() {
+      const list = document.getElementById("notesWindowList");
+      if (!list) return;
+
+      list.innerHTML = "";
+
+      const pins = Array.isArray(project.pins)
+        ? [...project.pins].sort((a, b) => a.beat - b.beat)
+        : [];
+
+      if (pins.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "notes-window-empty";
+        empty.textContent = "No pins yet. Use Add Pin (under View) to place one.";
+        list.appendChild(empty);
+        return;
+      }
+
+      pins.forEach(pin => {
+        const item = document.createElement("div");
+        item.className = "notes-window-item";
+
+        const position = document.createElement("div");
+        position.className = "notes-window-item-position";
+        const beatInfo = beatToMeasureInfo(pin.beat);
+        position.textContent = "M" + beatInfo.measure + " beat " + formatBeatValue(beatInfo.beatWithinMeasure);
+        position.title = "Click to scroll to this pin.";
+        position.addEventListener("click", () => {
+          closeNotesWindow();
+          selectedInsertBeat = pin.beat;
+          render();
+          goToSelectedMeasure();
+        });
+        item.appendChild(position);
+
+        const note = document.createElement("div");
+        note.className = "notes-window-item-note" + (pin.note ? "" : " empty");
+        note.textContent = pin.note ? pin.note : "(no comment)";
+        item.appendChild(note);
+
+        const buttons = document.createElement("div");
+        buttons.className = "notes-window-item-buttons";
+
+        const editBtn = document.createElement("button");
+        editBtn.type = "button";
+        editBtn.className = "control-button secondary";
+        editBtn.textContent = "Edit";
+        editBtn.addEventListener("click", () => {
+          closeNotesWindow();
+          openPinPicker(pin, pin.beat);
+        });
+        buttons.appendChild(editBtn);
+
+        const clearBtn = document.createElement("button");
+        clearBtn.type = "button";
+        clearBtn.className = "control-button danger";
+        clearBtn.textContent = "Clear";
+        clearBtn.addEventListener("click", () => {
+          deletePinMarker(pin);
+          renderNotesWindowList();
+        });
+        buttons.appendChild(clearBtn);
+
+        item.appendChild(buttons);
+        list.appendChild(item);
+      });
+    }
+
+    function clearAllPins() {
+      if (!Array.isArray(project.pins) || project.pins.length === 0) {
+        status.textContent = "No pins to clear.";
+        return;
+      }
+
+      const confirmed = window.confirm(
+        "Clear all " + project.pins.length + " pin(s)? This cannot be undone."
+      );
+      if (!confirmed) return;
+
+      project.pins = [];
+      localStorage.setItem(STORAGE_LEGACY, JSON.stringify(project));
+      render();
+      renderNotesWindowList();
+      status.textContent = "All pins cleared.";
+    }
+
+function getReadableDurationValues() {
       return [
         0.125,
         1 / 6,
@@ -11478,10 +12095,9 @@ function renderBlockInspector() {
     }
 
     // Shared range-selection logic: given a beat range and a scope (all
-    // lanes, or just one), selects every block overlapping that range --
-    // extracted from the old selectMeasureRange's own filter/sort logic,
-    // now callable directly with real beat values instead of requiring
-    // measure numbers typed into a prompt.
+    // lanes, or just one), selects every block overlapping that range.
+    // Callable directly with real beat values, so a ruler drag can call
+    // it live without needing measure numbers typed into a prompt.
     function selectBlocksInBeatRange(startBeat, endBeat, scope, scopeLaneId) {
       const tolerance = 0.0001;
 
@@ -14206,6 +14822,10 @@ mxmlImportConfirm.addEventListener("click", () => {
     zoomInButton.addEventListener("click", zoomInTimeline);
     readableViewButton.addEventListener("click", readableView);
     goToMeasureButton.addEventListener("click", goToSelectedMeasure);
+    document.getElementById("addPinButton")?.addEventListener("click", addPinAtSelectedPoint);
+    document.getElementById("openNotesButton")?.addEventListener("click", openNotesWindow);
+    document.getElementById("closeNotesWindowButton")?.addEventListener("click", closeNotesWindow);
+    document.getElementById("clearAllPinsButton")?.addEventListener("click", clearAllPins);
 
     window.addEventListener("beforeunload", () => {
       stopPlayback();
