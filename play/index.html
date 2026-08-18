@@ -162,7 +162,7 @@ nav a:hover {
     .maqam    { background: #5b4a6b; }
     .celtic   { background: #47624f; }
     .blues    { background: #3f4e6f; }
-    .custom   { background: linear-gradient(135deg, #8b3e2f, #3f4e6f, #5b4a6b); }
+    .soundSignal { background: linear-gradient(135deg, #2f6b4f, #1d4636); }
     .andean   { background: #5f6f72; }
     .factory  { background: #7b586e; }
     .progression { background: #38444a; }
@@ -289,7 +289,7 @@ nav a:hover {
 <script>
   const menuGrid = document.getElementById("menuGrid");
     const systems = ORUMI_CATALOG.systems;
-    const CUSTOM_SOUND_SQUARE_KEY = "orumiCustomSoundSquare";
+    
 
     const systemOrder = [
       "western",
@@ -299,26 +299,12 @@ nav a:hover {
       "maqam",
       "celtic",
       "blues",
-      "custom",
+      "soundSignal",
       "andean",
       "chordFactory",
       "progression",
       "designer"
     ];
-
-    function safeJsonParse(value) {
-      if (!value) return null;
-      try {
-        return JSON.parse(value);
-      } catch (error) {
-        return null;
-      }
-    }
-
-    function getSavedCustomSquare() {
-      const saved = safeJsonParse(localStorage.getItem(CUSTOM_SOUND_SQUARE_KEY));
-      return saved && typeof saved === "object" ? saved : null;
-    }
 
     function getDisplayOctaves(system) {
       const defaults = Array.isArray(system && system.defaultOctaves)
@@ -359,22 +345,22 @@ nav a:hover {
       );
     }
 
-    function buildCustomTile() {
-      const saved = getSavedCustomSquare();
+    // Direct link for now -- Telephone is the only Sound & Signal option
+    // so far. Once a second one exists, this becomes a small picker
+    // instead, same pattern the tool tiles below would use.
+    function buildSoundSignalTile() {
       const link = document.createElement("a");
-      link.classList.add("tile", "custom");
-      link.href = saved ? "player.html?custom=1" : "selection-control.html?custom=1&return=player";
-      link.title = saved
-        ? "Open your locally saved custom sound square."
-        : "Create a custom sound square on this device using Selection Control.";
+      link.classList.add("tile", "soundSignal");
+      link.href = "player.html?system=telephone&voice=warm";
+      link.title = "Sound & Signal -- Telephone Keypad";
 
       const abbr = document.createElement("div");
       abbr.classList.add("abbr");
-      abbr.textContent = saved ? "CU" : "+";
+      abbr.textContent = "S&S";
 
       const label = document.createElement("div");
       label.classList.add("label");
-      label.textContent = saved && saved.name ? saved.name : "Custom";
+      label.textContent = "Sound & Signal";
 
       link.appendChild(abbr);
       link.appendChild(label);
@@ -464,8 +450,8 @@ nav a:hover {
       menuGrid.innerHTML = "";
 
       systemOrder.forEach(systemKey => {
-        if (systemKey === "custom") {
-          menuGrid.appendChild(buildCustomTile());
+        if (systemKey === "soundSignal") {
+          menuGrid.appendChild(buildSoundSignalTile());
           return;
         }
 

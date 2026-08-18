@@ -355,6 +355,27 @@
       filter: none !important;
     }
 
+    /* Telephone keypad (Sound & Signal) -- a real 3x4 dial pad plus
+       star/pound, laid out and colored to actually read as a phone
+       rather than as another row of chromatic squares. */
+    .telephone-dial-pad {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      justify-content: center;
+      width: 100%;
+    }
+
+    .square.telephone-key {
+      background: linear-gradient(160deg, #2f6b4f, #1d4636);
+      color: #eafff1;
+      font-size: clamp(16px, 3.4vmin, 30px);
+    }
+
+    .square.telephone-key.active {
+      background: linear-gradient(160deg, #3f8c68, #275c46);
+    }
+
     .rest-row {
       display: flex;
       justify-content: center;
@@ -1602,6 +1623,35 @@
     const pitchClasses = ORUMI_CATALOG.pitchClasses;
     const numberToPitchClass = ORUMI_CATALOG.numberToPitchClass;
 
+    // Telephone keypad (Sound & Signal). Each key is the real two-tone DTMF
+    // pair, mapped to its nearest tempered pitch rather than the true
+    // (non-scale) Hz values -- close enough to stay instantly recognizable,
+    // and it means these are ordinary Western notes everywhere downstream
+    // (Design Studio, Chord Factory, Progression Builder all just see real
+    // pitches, with no idea -- or need to know -- they started as a dial
+    // tone). This is a palette, not an ORUMI_CATALOG system: getSystem()
+    // already falls back to "western" for any unrecognized systemKey, so
+    // "telephone" resolves safely everywhere else in this file without
+    // needing a catalog entry of its own.
+    const TELEPHONE_KEYS = [
+      { key: "1",     label: "1", rowMidi: 77, rowName: "F5",      colMidi: 86, colName: "D6" },
+      { key: "2",     label: "2", rowMidi: 77, rowName: "F5",      colMidi: 88, colName: "E6" },
+      { key: "3",     label: "3", rowMidi: 77, rowName: "F5",      colMidi: 90, colName: "F#/Gb6" },
+      { key: "4",     label: "4", rowMidi: 79, rowName: "G5",      colMidi: 86, colName: "D6" },
+      { key: "5",     label: "5", rowMidi: 79, rowName: "G5",      colMidi: 88, colName: "E6" },
+      { key: "6",     label: "6", rowMidi: 79, rowName: "G5",      colMidi: 90, colName: "F#/Gb6" },
+      { key: "7",     label: "7", rowMidi: 80, rowName: "G#/Ab5",  colMidi: 86, colName: "D6" },
+      { key: "8",     label: "8", rowMidi: 80, rowName: "G#/Ab5",  colMidi: 88, colName: "E6" },
+      { key: "9",     label: "9", rowMidi: 80, rowName: "G#/Ab5",  colMidi: 90, colName: "F#/Gb6" },
+      { key: "star",  label: "*", rowMidi: 82, rowName: "A#/Bb5",  colMidi: 86, colName: "D6" },
+      { key: "0",     label: "0", rowMidi: 82, rowName: "A#/Bb5",  colMidi: 88, colName: "E6" },
+      { key: "pound", label: "#", rowMidi: 82, rowName: "A#/Bb5",  colMidi: 90, colName: "F#/Gb6" }
+    ];
+
+    function isTelephoneMode() {
+      return getSettingsFromUrl().systemKey === "telephone";
+    }
+
     backButton.addEventListener("click", () => {
       if (window.history.length > 1) {
         window.history.back();
@@ -2078,6 +2128,7 @@
       savePhraseHistory();
 
       const midi = parseInt(button.dataset.midi, 10);
+      const midi2 = button.dataset.midi2 !== undefined ? parseInt(button.dataset.midi2, 10) : null;
       const displayName = button.dataset.displayName;
       const relativeStart = getAutoPhraseRelativeStart(startedAt);
 
@@ -2086,7 +2137,8 @@
         relativeStart,
         Math.max(0.25, Number(initialDurationBeats || 0.25)),
         displayName,
-        voice || getActivePhraseVoice()
+        voice || getActivePhraseVoice(),
+        midi2
       );
 
       preview.liveCapture = true;
@@ -2128,11 +2180,18 @@
       return "player_phrase_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2);
     }
 
-    function createPhraseBlockFromMidi(midi, relativeStartBeat, durationBeats, name, voice) {
+    function createPhraseBlockFromMidi(midi, relativeStartBeat, durationBeats, name, voice, midi2) {
       const safeMidi = Number(midi);
       const safeStart = Math.max(0, Number(relativeStartBeat || 0));
       const safeDuration = Math.max(0.25, Number(durationBeats || 1));
       const id = makePhraseBlockId();
+
+      // Optional second pitch (dual-tone keys, e.g. a Telephone key's
+      // column tone) -- one Play Line block/insert-cursor position still,
+      // just carrying two pitches to play together. null when absent, not
+      // a 0/false-y placeholder, so every downstream check can use a
+      // simple "!= null" test.
+      const safeMidi2 = Number(midi2);
 
       return {
         id,
@@ -2140,6 +2199,7 @@
         type: "note",
         laneId: designPhrasePayload?.laneId || "lead",
         midi: Number.isFinite(safeMidi) ? safeMidi : 60,
+        midi2: Number.isFinite(safeMidi2) ? safeMidi2 : null,
         name: name || midiToDisplayName(Number.isFinite(safeMidi) ? safeMidi : 60),
         startBeat: (designPhrasePayload?.originalStartBeat || 0) + safeStart,
         relativeStartBeat: safeStart,
@@ -3040,7 +3100,95 @@ function openPlayLinePanel() {
         return;
       }
 
+      // A dual-tone Play Line (e.g. a Telephone Keypad phrase) isn't "one
+      // more voice for an existing part" the way a normal single-pitch
+      // send is -- it's inherently two voices. The normal target-part
+      // picker has no way to express "send this as two new lanes," so
+      // dual-tone content bypasses it entirely and always lands in two
+      // dedicated new lanes (or the existing ones from a prior dual-tone
+      // send, appended to) instead.
+      const hasDualTone = designPhraseBlocks.some(
+        block => block.midi2 !== null && block.midi2 !== undefined
+      );
+
+      if (hasDualTone) {
+        sendDualTonePlayerLineToDesign();
+        return;
+      }
+
       showDsChooser();
+    }
+
+    function sendDualTonePlayerLineToDesign() {
+      const confirmed = window.confirm(
+        "This Play Line has dual-tone notes (e.g. a Telephone Keypad phrase). " +
+        "Send it to Design Studio as two new lanes, Low Tone and High Tone?"
+      );
+
+      if (!confirmed) {
+        statusText.textContent = "Send to Design cancelled.";
+        return;
+      }
+
+      dispatchDualTonePlayerLineToDesign();
+    }
+
+    function dispatchDualTonePlayerLineToDesign() {
+      sortPhraseBlocks();
+
+      const payload = {
+        mode: "importPlayerLine",
+        source: "player",
+        dualTone: true,
+        createdAt: new Date().toISOString(),
+        projectTitle: "Player Play Line",
+        voice: getActivePhraseVoice(),
+        context: {
+          ...(designPhrasePayload?.context || {}),
+          beatUnit: "orumi-beat",
+          preserveBeatValues: true
+        },
+        // Rests aren't sent explicitly -- same convention used everywhere
+        // else in this project: no block at a beat position already means
+        // silence there, so an omitted entry is a correct, sufficient
+        // rest. Each block carries its own absolute startBeat, so timing
+        // doesn't depend on rests being present to "hold the place."
+        blocks: designPhraseBlocks
+          .filter(block => !(block.type === "rest" || block.midi === null || block.midi === undefined))
+          .flatMap(block => {
+            const entries = [{
+              type: "note",
+              voicePart: "low",
+              midi: block.midi,
+              name: block.name || midiToDisplayName(block.midi),
+              startBeat: block.relativeStartBeat,
+              durationBeats: block.durationBeats,
+              velocity: block.velocity || 86,
+              voice: block.voice || getActivePhraseVoice()
+            }];
+
+            if (block.midi2 !== null && block.midi2 !== undefined) {
+              entries.push({
+                type: "note",
+                voicePart: "high",
+                midi: block.midi2,
+                name: midiToDisplayName(block.midi2),
+                startBeat: block.relativeStartBeat,
+                durationBeats: block.durationBeats,
+                velocity: block.velocity || 86,
+                voice: block.voice || getActivePhraseVoice()
+              });
+            }
+
+            return entries;
+          })
+      };
+
+      localStorage.setItem("orumiPlayerLineForDesign", JSON.stringify(payload));
+      localStorage.setItem("orumiPendingPlayerLine", JSON.stringify(payload));
+
+      statusText.textContent = "Play Line saved for Design Studio.";
+      window.location.href = "design-studio.html?mode=importPlayerLine&source=player";
     }
 
     function showDsChooser() {
@@ -3754,12 +3902,23 @@ if (returnToDesignButton) {
               now
             );
 
+          // Optional second pitch (dual-tone keys) -- same single-pitch
+          // buildContainedVoice() path called a second time, kept as its
+          // own fully independent voice graph rather than merged into
+          // playedNote's own fields, so it can be stopped separately below
+          // without disturbing the primary voice's own release.
+          const secondaryVoiceNode =
+            block.midi2 !== null && block.midi2 !== undefined
+              ? buildContainedVoice(eventVoice, midiToFrequency(block.midi2), now)
+              : null;
+
           const playedNote = {
             ...voiceNode,
             voice: eventVoice,
             gain: voiceNode.gain,
             oscillators: voiceNode.oscillators || [],
-            noiseSources: voiceNode.noiseSources || []
+            noiseSources: voiceNode.noiseSources || [],
+            secondaryVoiceNode
           };
 
           phrasePlaybackNotes.push(playedNote);
@@ -3777,6 +3936,11 @@ if (returnToDesignButton) {
             }
 
             ORUMI_VOICES.stopVoice(playedNote, audioContext, 0.16);
+
+            if (playedNote.secondaryVoiceNode) {
+              ORUMI_VOICES.stopVoice(playedNote.secondaryVoiceNode, audioContext, 0.16);
+            }
+
             phrasePlaybackNotes =
               phrasePlaybackNotes.filter(note => note !== playedNote);
 
@@ -4409,8 +4573,77 @@ if (returnToDesignButton) {
       customizeSquareButton.addEventListener("click", customizeCurrentSquare);
     }
 
+    // Telephone keypad rendering -- a real 3x4(+*/#) dial pad instead of
+    // the usual octave-by-octave chromatic rows, since a keypad key isn't a
+    // scale degree and has no root/family/mode to speak of. Reuses
+    // attachSquareEvents() and attachRestSquareEvents() as-is so Telephone
+    // keys get the exact same play/drag/record behavior any other note
+    // square already has, rather than a stripped-down reimplementation.
+    function buildTelephoneGrid() {
+      document.body.classList.add("telephone-mode");
+
+      const { voice } = getSettingsFromUrl();
+
+      if (nativeButton) nativeButton.hidden = true;
+      if (fullButton) fullButton.hidden = true;
+      if (customizeSquareButton) customizeSquareButton.hidden = true;
+
+      grid.innerHTML = "";
+
+      const dialPad = document.createElement("div");
+      dialPad.classList.add("telephone-dial-pad");
+
+      TELEPHONE_KEYS.forEach(keyDef => {
+        const button = document.createElement("button");
+        button.classList.add("square", "telephone-key");
+
+        button.dataset.displayName = keyDef.label;
+        button.dataset.midi = keyDef.rowMidi;
+        button.dataset.note = midiToFrequency(keyDef.rowMidi).toFixed(2);
+        button.dataset.midi2 = keyDef.colMidi;
+        button.dataset.note2 = midiToFrequency(keyDef.colMidi).toFixed(2);
+        button.dataset.pc = midiToPc(keyDef.rowMidi);
+
+        button.textContent = keyDef.label;
+        button.title =
+          keyDef.rowName + " + " + keyDef.colName +
+          " -- play this key, or drag it into the Play Line.";
+
+        attachSquareEvents(button);
+        dialPad.appendChild(button);
+      });
+
+      grid.appendChild(dialPad);
+
+      const restRow = document.createElement("div");
+      restRow.classList.add("rest-row");
+
+      const restButton = document.createElement("button");
+      restButton.classList.add("rest-bar");
+      restButton.textContent = "Rest";
+      restButton.title = "Play a Rest, or drag it into the Play Line.";
+      attachRestSquareEvents(restButton);
+      restRow.appendChild(restButton);
+      grid.appendChild(restRow);
+
+      pageTitle.textContent = "Telephone Keypad";
+      gridLabel.textContent =
+        "Sound & Signal · Telephone · Tempered dial tones · " +
+        ORUMI_CATALOG.voices[voice].label;
+
+      refreshIdleStatusText();
+      refreshNavLinks();
+    }
+
     function buildGrid() {
       stopAllNotes();
+
+      if (isTelephoneMode()) {
+        buildTelephoneGrid();
+        return;
+      }
+
+      document.body.classList.remove("telephone-mode");
 
       const { system, root, family, mode, setView, voice, octaves } =
         getSettingsFromUrl();
@@ -4976,6 +5209,20 @@ function saveCurrentRecording() {
             now
           );
 
+        // A Telephone-style key carries a second, independent pitch
+        // (dataset.note2 -- the DTMF column tone). Playing it as a fully
+        // separate buildContainedVoice() call, rather than trying to make
+        // one voice produce two pitches, needs zero changes to voices.js:
+        // it's the same single-pitch path every other square already
+        // uses, called twice. Kept as its own object (not merged into the
+        // primary voiceNode's fields) so its own independent outputGain
+        // and oscillators can be released cleanly and separately -- see
+        // the matching addition in releaseVoiceGracefully() below.
+        const hasSecondTone = button.dataset.note2 !== undefined;
+        const secondaryVoiceNode = hasSecondTone
+          ? buildContainedVoice(audioVoice, parseFloat(button.dataset.note2), now)
+          : null;
+
         const noteRecord = {
           ...voiceNode,
           voice: audioVoice,
@@ -4986,7 +5233,9 @@ function saveCurrentRecording() {
           noiseSources: voiceNode.noiseSources || [],
           pc: button.dataset.pc,
           midi: parseInt(button.dataset.midi, 10),
+          midi2: hasSecondTone ? parseInt(button.dataset.midi2, 10) : null,
           displayName: button.dataset.displayName,
+          secondaryVoiceNode,
           phrasePreviewBlockId: null
         };
 
@@ -5269,6 +5518,16 @@ const autoStopSeconds = Number(voiceNode.autoStopSeconds);
           } catch (error) {}
         });
       }, Math.ceil((release + 0.16) * 1000));
+
+      // A Telephone-style dual-tone key attaches a second, fully
+      // independent voice graph (its own outputGain, oscillators,
+      // everything -- see attachSquareEvents above) rather than merging
+      // into this note's own fields. Releasing it the same way,
+      // recursively, is simpler and safer than trying to merge two
+      // separate voice graphs' internals into one.
+      if (note.secondaryVoiceNode) {
+        releaseVoiceGracefully(note.secondaryVoiceNode, releaseSeconds);
+      }
     }
 
     function stopHeldNote(pointerId) {

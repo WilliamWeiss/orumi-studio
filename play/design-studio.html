@@ -6035,6 +6035,39 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         return map;
       }, {});
 
+      // Player lays notes out sequentially and only respects an explicit
+      // Rest entry in the sequence -- it has no concept of "the pause
+      // between these two notes." Any silent stretch in the original
+      // lane needs a synthetic rest inserted here, in the outgoing
+      // payload only. This never touches project.blocks (unlike the
+      // old, since-removed syncGeneratedRests()), so it can't leave
+      // stray rests behind in the real design.
+      const sortedForGaps = [...selectedBlocks].sort(
+        (a, b) => Number(a.startBeat || 0) - Number(b.startBeat || 0)
+      );
+
+      const blocksWithGapsFilled = [];
+      let cursor = minStart;
+
+      sortedForGaps.forEach(block => {
+        const blockStart = Number(block.startBeat || 0);
+        const gap = snapBeat(blockStart - cursor);
+
+        if (gap > 0.0001) {
+          blocksWithGapsFilled.push({
+            id: "player-gap-rest-" + blocksWithGapsFilled.length,
+            laneId: block.laneId,
+            startBeat: cursor,
+            durationBeats: gap,
+            type: "rest",
+            generated: true
+          });
+        }
+
+        blocksWithGapsFilled.push(block);
+        cursor = blockStart + Number(block.durationBeats || MIN_DURATION);
+      });
+
       return {
         version: 1,
         source: "design-studio",
@@ -6054,7 +6087,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         durationBeats: Math.max(MIN_DURATION, snapBeat(maxEnd - minStart)),
         locationLabel: "M" + location.measure + " beat " + formatBeatValue(location.beatWithinMeasure),
         originalBlockIds: selectedBlocks.map(block => block.id),
-        blocks: selectedBlocks.map(block => {
+        blocks: blocksWithGapsFilled.map(block => {
           const isRest = block.type === "rest" || !Number.isFinite(Number(block.midi));
           const displayName = isRest ? "Rest" : (block.name || midiToDisplayName(block.midi));
           return {
@@ -6537,7 +6570,7 @@ for (let beat = 0; beat <= maxBeat; beat++) {
     }
 
     function beginReplaceSelectedChord() {
-      const selectedBlocks = getVerticalChordSelection();
+      let selectedBlocks = getVerticalChordSelection();
 
       if (!selectedBlocks) {
         flashStatus("Select a vertical chord stack before opening Chord Factory.");
@@ -6557,34 +6590,10 @@ for (let beat = 0; beat <= maxBeat; beat++) {
 
       // Include any resting lane at the anchor beat -- a real rest block if
       // one exists, otherwise a synthetic placeholder so Chord Factory still
-      // sees every voice. Mirrors the same fallback getBlocksAtChordBeat()
-      // already uses; no longer depends on an auto-generated filler rest
-      // physically existing in project.blocks.
+      // sees every voice. Shares the same fallback logic getBlocksAtChordBeat()
+      // uses elsewhere, rather than a second, separately-maintained copy of it.
       const chordAnchorBeat = getSelectedChordAnchorBeat(selectedBlocks);
-      const lanesAlreadyCovered = new Set(selectedBlocks.map(b => b.laneId));
-      project.lanes.forEach(lane => {
-        if (lanesAlreadyCovered.has(lane.id)) return;
-
-        const restBlock = project.blocks.find(b =>
-          b.laneId === lane.id &&
-          b.type === "rest" &&
-          Number(b.startBeat) <= chordAnchorBeat &&
-          Number(b.startBeat) + Number(b.durationBeats) > chordAnchorBeat
-        );
-        if (restBlock) { selectedBlocks.push(restBlock); return; }
-
-        selectedBlocks.push({
-          id: "rest-placeholder-" + lane.id,
-          type: "rest",
-          laneId: lane.id,
-          startBeat: chordAnchorBeat,
-          durationBeats: MIN_DURATION,
-          midi: null,
-          velocity: 0,
-          name: "Rest",
-          isPlaceholder: true
-        });
-      });
+      selectedBlocks = getBlocksAtChordBeat(selectedBlocks, chordAnchorBeat);
 
       const analysis = analyzeSelectedHarmony(selectedBlocks);
       const minStart = Math.min(...selectedBlocks.map(block => Number(block.startBeat || 0)));
@@ -11996,26 +12005,6 @@ function getReadableDurationValues() {
       playBlocks(project.blocks, "Playing Design Studio.", "Playback complete.", startBeat);
     }
 
-    async function playFromSelectedLocation() {
-      await ensureAudio();
-
-      if (!hasSelectedLocation()) {
-        status.textContent = "Set a selected location before playing from location.";
-        return;
-      }
-
-      if (project.blocks.length === 0) {
-        status.textContent = "Nothing to play yet.";
-        return;
-      }
-
-      playBlocks(
-        project.blocks,
-        "Playing from selected location " + getSelectedLocationLabel() + ".",
-        "Playback complete from selected location.",
-        selectedInsertBeat
-      );
-    }
 
     async function playFromSelectedLocation() {
       await ensureAudio();
@@ -12750,7 +12739,78 @@ function getReadableDurationValues() {
       return laneId;
     }
 
-function applyPendingPlayerLineImport() {
+function applyDualTonePlayerLineImport(payload, incomingBlocks) {
+      saveHistory();
+      clearPendingPlayerReplacementPayloads();
+
+      const lowLaneId = getOrCreateImportLane("telephone-low", "Low Tone", payload.voice || null);
+      const highLaneId = getOrCreateImportLane("telephone-high", "High Tone", payload.voice || null);
+
+      // Each of the two lanes gets its own independent append offset --
+      // Low Tone and High Tone can hold different amounts of prior
+      // content (not every dual-tone key press has a second tone), so a
+      // single shared offset would misalign them on a second or later
+      // dual-tone send.
+      function endOfLane(laneId) {
+        const laneBlocks = project.blocks.filter(block => block.laneId === laneId);
+        return laneBlocks.length === 0
+          ? 0
+          : Math.max(...laneBlocks.map(block =>
+              Number(block.startBeat || 0) + Number(block.durationBeats || 1)
+            ));
+      }
+
+      const lowOffset = endOfLane(lowLaneId);
+      const highOffset = endOfLane(highLaneId);
+
+      const newIds = [];
+
+      incomingBlocks.forEach(block => {
+        const isHigh = block.voicePart === "high";
+        const laneId = isHigh ? highLaneId : lowLaneId;
+        const offset = isHigh ? highOffset : lowOffset;
+        const midi = Number.isFinite(Number(block.midi)) ? Number(block.midi) : 60;
+        const nextId = createId("block");
+        newIds.push(nextId);
+
+        project.blocks.push({
+          id: nextId,
+          type: "note",
+          laneId,
+          midi,
+          name: block.name || midiToDisplayName(midi),
+          startBeat: offset + Math.max(0, Number(block.startBeat || 0)),
+          durationBeats: Math.max(MIN_DURATION, Number(block.durationBeats || 1)),
+          velocity: Math.max(20, Math.min(127, Number(block.velocity || 86))),
+          voice: block.voice === undefined ? payload.voice || null : block.voice,
+          system: project.context.system,
+          source: "player-play-line",
+          sourceId: block.blockId || block.id || null
+        });
+      });
+
+      selectedLaneId = lowLaneId;
+      selectedBlockIds = new Set(newIds);
+      selectedBlockId = newIds[0] || null;
+
+      project.blocks.sort((a, b) =>
+        a.startBeat - b.startBeat ||
+        String(a.laneId).localeCompare(String(b.laneId)) ||
+        a.midi - b.midi
+      );
+
+      saveProjectSnapshotSilently();
+      clearJsonKeys(PLAYER_LINE_IMPORT_KEYS);
+      render();
+
+      flashStatus(
+        "Play Line added to Design as Low Tone and High Tone."
+      );
+
+      return true;
+    }
+
+  function applyPendingPlayerLineImport() {
       const params = new URLSearchParams(window.location.search);
       const returnMode = String(params.get("mode") || "").toLowerCase();
       const returnSource = String(params.get("source") || "").toLowerCase();
@@ -12771,6 +12831,14 @@ function applyPendingPlayerLineImport() {
       if (incomingBlocks.length === 0) {
         clearJsonKeys(PLAYER_LINE_IMPORT_KEYS);
         return false;
+      }
+
+      // A dual-tone Play Line (e.g. Telephone Keypad) is inherently two
+      // voices, not one line that could target a single existing part --
+      // it always gets its own dedicated handling rather than being
+      // squeezed through the single-target-lane logic below.
+      if (payload.dualTone) {
+        return applyDualTonePlayerLineImport(payload, incomingBlocks);
       }
 
       saveHistory();
@@ -13158,10 +13226,24 @@ function applyPendingPlayerLineImport() {
       );
 
       if (laneId && Number.isFinite(startBeat)) {
+        const tolerance = 0.08;
+
+        // Coverage match, not onset match: a note that's sustaining
+        // THROUGH this beat (started earlier, still playing here) is the
+        // correct existing block to update -- not only one that happens
+        // to start exactly here. getBlocksAtChordBeat() (which built the
+        // outgoing payload in the first place) already matches on
+        // coverage; matching only on onset here made a sustained note
+        // spanning a chord-group boundary (e.g. from Progression
+        // Builder's own overlap-driven chord splitting) look like
+        // "nothing found," which -- combined with the create-new-block
+        // fallback above -- produced a duplicate instead of recognizing
+        // the real note.
         const byLaneAndTime = project.blocks.find(block =>
           (block.type === "note" || block.type === "rest") &&
           block.laneId === laneId &&
-          Math.abs(Number(block.startBeat || 0) - startBeat) < 0.08
+          Number(block.startBeat || 0) <= startBeat + tolerance &&
+          Number(block.startBeat || 0) + Number(block.durationBeats || MIN_DURATION) > startBeat + tolerance
         );
 
         if (byLaneAndTime) return byLaneAndTime;
@@ -13182,8 +13264,63 @@ function applyPendingPlayerLineImport() {
       let changedCount = 0;
       let labeledCount = 0;
       const changedIds = [];
+      let insertedChordCount = 0;
+
+      // A chord that was added in Progression via "Add a Chord" (rather
+      // than edited from an existing Design chord) has no chord.startBeat
+      // at all -- it never had a position in Design to begin with. Walk
+      // the chords in Progression's own array order and give each such
+      // chord a real position immediately after whatever precedes it,
+      // shifting every lane's later blocks (and pins) forward by its
+      // duration -- the same "insert here, push everything after"
+      // behavior Add Measures already uses, just triggered by a new
+      // Progression chord instead of a manual measure-count prompt.
+      //
+      // cumulativeShift also has to apply to chords that DO have a real
+      // startBeat: if an earlier new chord in this same array already
+      // pushed the timeline forward, a later existing chord's original
+      // (pre-shift) startBeat no longer matches where its blocks actually
+      // sit in project.blocks -- it needs the same cumulative bump before
+      // findDesignBlockForReviewedItem() looks for it, or that lookup
+      // fails and the chord after an insertion looks unedited.
+      let cursorBeat = 0;
+      let cumulativeShift = 0;
 
       payload.chords.forEach(chord => {
+        const hasRealPosition = Number.isFinite(Number(chord.startBeat));
+
+        if (hasRealPosition) {
+          chord.startBeat = Number(chord.startBeat) + cumulativeShift;
+        } else {
+          chord.startBeat = cursorBeat;
+          chord.durationBeats = 1;
+
+          const insertionBeat = chord.startBeat;
+          const shiftBeats = chord.durationBeats;
+
+          project.blocks.forEach(block => {
+            if (Number(block.startBeat || 0) >= insertionBeat) {
+              block.startBeat = snapBeat(Number(block.startBeat || 0) + shiftBeats);
+            }
+          });
+
+          if (Array.isArray(project.pins)) {
+            project.pins.forEach(pin => {
+              if (Number(pin.beat) >= insertionBeat) {
+                pin.beat = snapBeat(Number(pin.beat) + shiftBeats);
+              }
+            });
+          }
+
+          cumulativeShift += shiftBeats;
+          insertedChordCount += 1;
+        }
+
+        const chordDuration = Number.isFinite(Number(chord.durationBeats))
+          ? Number(chord.durationBeats)
+          : 1;
+        cursorBeat = Number(chord.startBeat) + chordDuration;
+
         const chosenName =
           chord.chosenName ||
           chord.chordLabel ||
@@ -13194,17 +13331,89 @@ function applyPendingPlayerLineImport() {
         const items = getReviewedProgressionChordItems(chord);
 
         items.forEach(item => {
-          const target = findDesignBlockForReviewedItem(item, chord);
-
-          if (!target || (target.type !== "note" && target.type !== "rest")) {
-            return;
-          }
+          // A freshly-inserted chord (hasRealPosition was false above) is
+          // being placed at a beat that never existed in Design before --
+          // by definition, nothing genuinely occupies it yet. But the
+          // coverage-based lookup below doesn't know that: if some OTHER
+          // voice's note was already sustaining THROUGH this exact beat
+          // (started earlier, still sounding here -- the shift pass above
+          // only moves blocks that start at/after the insertion point, it
+          // never truncates or extends a note that spans across it, same
+          // as Add Measures), that old note's block still covers this
+          // beat and would coverage-match as a false "target found" --
+          // silently overwriting that sustained note's pitch with the new
+          // chord's value instead of creating the new chord's own block.
+          // Skipping the lookup entirely for a freshly-inserted chord's
+          // own items guarantees it always creates fresh blocks, never
+          // hijacks a note that was only ever passing through.
+          let target = hasRealPosition
+            ? findDesignBlockForReviewedItem(item, chord)
+            : null;
 
           const itemIsRest =
             item.isRest === true ||
             item.type === "rest" ||
             item.name === "Rest" ||
             !Number.isFinite(Number(item.midi));
+
+          if (!target) {
+            // No existing block for this voice at this beat at all -- the
+            // genuinely-empty-lane case (never even a rest block, just a
+            // silent gap). A real incoming note earns a brand-new block
+            // here, built the same way Paste/MusicXML-import blocks are.
+            // A voice Progression also still shows resting has nothing to
+            // create -- it stays exactly as absent as it already was; we
+            // don't resurrect the old permanently-synthesized-rest pattern.
+            if (itemIsRest) {
+              return;
+            }
+
+            const laneId = item.laneId || item.role || null;
+            const startBeat = Number(
+              item.startBeat !== undefined ? item.startBeat : chord?.startBeat
+            );
+
+            if (!laneId || !Number.isFinite(startBeat)) {
+              return;
+            }
+
+            // Always 1 beat for a block created via this path, regardless
+            // of the source chord's own span -- an edited chord's real
+            // durationBeats reflects however long the OTHER voices in it
+            // happened to be, which has no bearing on how long a voice
+            // that's brand new to Design should be. 1 beat matches the
+            // grid spacing every other Progression-originated chord uses.
+            target = {
+              id: createId("note"),
+              type: "note",
+              laneId,
+              midi: Number(item.midi),
+              name: item.name || midiToDisplayName(Number(item.midi)),
+              startBeat,
+              durationBeats: 1,
+              velocity: 82,
+              voice: item.voice || chord.voice || null,
+              system: chord.system || project.context.system,
+              source: "progression-edit",
+              sourceId: null
+            };
+
+            project.blocks.push(target);
+            changedCount += 1;
+
+            if (chosenName) {
+              target.chordLabel = chosenName;
+              target.chordSymbol = chosenName;
+              labeledCount += 1;
+            }
+
+            changedIds.push(target.id);
+            return;
+          }
+
+          if (target.type !== "note" && target.type !== "rest") {
+            return;
+          }
 
           if (itemIsRest) {
             // Progression now marks this voice as resting here; convert a
@@ -13280,7 +13489,12 @@ function applyPendingPlayerLineImport() {
       clearReviewedProgressionPayloadStorage(payload);
       render();
 
-      if (changedCount > 0) {
+      if (insertedChordCount > 0) {
+        flashStatus(
+          "Inserted " + insertedChordCount + " new chord" + (insertedChordCount === 1 ? "" : "s") +
+          " and applied " + changedCount + " Progression note edit" + (changedCount === 1 ? "" : "s") + " to Design."
+        );
+      } else if (changedCount > 0) {
         flashStatus("Applied " + changedCount + " Progression note edit" + (changedCount === 1 ? "" : "s") + " to Design.");
       } else if (labeledCount > 0) {
         flashStatus("Progression returned chord names. No note pitches changed.");

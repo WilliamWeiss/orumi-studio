@@ -4405,12 +4405,7 @@
         temp;
 
       saveProgression(progression);
-      const reviewModeActive = initializeProgressionReviewMode();
-    const suggestModeActive = reviewModeActive ? false : initializeSuggestHarmonyMode();
-
-    if (!reviewModeActive && !suggestModeActive) {
       renderProgression();
-    }
     }
 
     function removeChord(index) {
@@ -4420,12 +4415,7 @@
       progression.splice(index, 1);
 
       saveProgression(progression);
-      const reviewModeActive = initializeProgressionReviewMode();
-    const suggestModeActive = reviewModeActive ? false : initializeSuggestHarmonyMode();
-
-    if (!reviewModeActive && !suggestModeActive) {
       renderProgression();
-    }
     }
 
     function clearProgression() {
@@ -4608,7 +4598,21 @@
             chosenName,
             chordLabel: chosenName,
             name: chosenName,
-            startBeat: Number(chord.startBeat || index),
+            // Only pass through a REAL startBeat -- never invent one from
+            // array index. A chord added here via "Add a Chord" has no
+            // startBeat at all; index-as-fallback gave it a fake but
+            // perfectly valid-looking position (e.g. 4), which defeated
+            // Design's own "does this chord need a new insertion point"
+            // check entirely -- it looked like an existing chord that
+            // just needed its notes updated, and (since that fake beat
+            // happened to land inside another real chord's span) silently
+            // overwrote it instead of inserting a new one. The `|| index`
+            // form also corrupted any chord genuinely at real beat 0,
+            // since 0 is falsy in JS. Leaving the key genuinely absent
+            // (JSON.stringify drops an undefined value entirely) is what
+            // lets Design's own pre-pass correctly detect "this chord
+            // never existed" and give it a real insertion point itself.
+            startBeat: Number.isFinite(Number(chord.startBeat)) ? Number(chord.startBeat) : undefined,
             notes: Array.isArray(chord.notes) ? chord.notes : [],
             blocks: Array.isArray(chord.blocks) ? chord.blocks : [],
             voiceAssignments: Array.isArray(chord.voiceAssignments) ? chord.voiceAssignments : [],
@@ -4835,42 +4839,24 @@
       });
     });
 
-// Chords added here can't currently be sent back to Design Studio --
-    // applyPendingReviewedProgressionFromStorage() only ever updates
-    // EXISTING DS blocks (matched by id or by lane+beat proximity); a
-    // brand-new chord with no matching block is silently skipped, meaning
-    // it would vanish without warning the moment "Send Edited Chords to
-    // Design" runs. Disabling this here rather than shipping that silent
-    // data loss. progressionReviewPayload is only ever set once a DS
-    // review handoff actually loads -- if it's null (e.g. building a
-    // progression from scratch, never sent from DS), there's nothing to
-    // lose, so Add a Chord stays fully available.
-    //
-    // The check runs live inside the click handler (not at setup time)
-    // deliberately: progressionReviewPayload isn't set yet at the point
-    // this setup code runs -- initializeProgressionReviewMode() runs later
-    // in page init. A click, by definition, can only ever happen after
-    // page init has fully finished, so checking at click time sidesteps
-    // that ordering issue entirely.
+// Chords added here now DO round-trip back to Design Studio -- Chord
+    // Factory attaches real per-lane blocks (laneId + midi, same shape
+    // editProgressionChord chords already carry), and Design's
+    // applyPendingReviewedProgressionFromStorage() gives a chord with no
+    // prior startBeat a real insertion point (right after whatever
+    // precedes it in this array) and shifts every lane's later blocks by
+    // its duration -- same "insert here, push everything after" model as
+    // Add Measures. No remaining reason to disable this for a
+    // DS-originated session.
     function updateAddAChordAvailability() {
       if (!addAChordLink) return;
-      if (progressionReviewPayload) {
-        addAChordLink.classList.add("disabled");
-        addAChordLink.title = "Not available yet for chords reviewed from Design Studio -- new chords can't be sent back there until that's built. Coming later.";
-      } else {
-        addAChordLink.classList.remove("disabled");
-        addAChordLink.title = "";
-      }
+      addAChordLink.classList.remove("disabled");
+      addAChordLink.title = "";
     }
 
     const addAChordLink = document.getElementById("addAChordLink");
     if (addAChordLink) {
       const prepareAddChordContext = event => {
-        if (progressionReviewPayload) {
-          if (event) event.preventDefault();
-          return;
-        }
-
         // Add a Chord had no equivalent of what buildChordFactoryEditUrl()
         // already does for Edit Chord (params.set("voice", chord.voice)) --
         // so a brand-new chord always fell back to Chord Factory's own
@@ -4915,8 +4901,6 @@
       addAChordLink.addEventListener("touchstart", prepareAddChordContext, { passive: true });
       addAChordLink.addEventListener("click", prepareAddChordContext);
     }
-
-
     if (applyHarmonyButton) {
       applyHarmonyButton.addEventListener(
         "click",

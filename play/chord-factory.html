@@ -1920,13 +1920,23 @@ h1 {
             root: rawChord.root,
             quality: rawChord.quality,
             voiceAssignments: Array.isArray(rawChord.blocks) && rawChord.blocks.length
-              ? rawChord.blocks.map(block => ({
-                  laneId: block.laneId || block.role || "lead",
-                  laneName: block.laneName || block.laneId || "Voice",
-                  role: block.role || block.laneId || "lead",
-                  midi: Number(block.midi),
-                  name: block.name || block.note || block.displayName || midiToDisplayName(Number(block.midi))
-                }))
+              ? rawChord.blocks.map(block => {
+                  // A rest's block.midi is null -- Number(null) coerces to
+                  // 0, a valid-looking MIDI value (C-1), so it must be
+                  // detected via isRest/type BEFORE ever being run through
+                  // Number(). Losing that flag here is what let rests
+                  // survive as a phantom "C-1" note further downstream.
+                  const isRest = block.isRest === true || block.type === "rest";
+                  const midi = isRest ? null : Number(block.midi);
+                  return {
+                    laneId: block.laneId || block.role || "lead",
+                    laneName: block.laneName || block.laneId || "Voice",
+                    role: block.role || block.laneId || "lead",
+                    midi,
+                    name: isRest ? "Rest" : (block.name || block.note || block.displayName || midiToDisplayName(midi)),
+                    isRest
+                  };
+                })
               : Array.isArray(rawChord.notes)
                 ? rawChord.notes.map(noteName => ({
                     laneId: "lead",
@@ -1968,6 +1978,7 @@ h1 {
 
       const midis = Array.isArray(choice.voiceAssignments)
         ? choice.voiceAssignments
+            .filter(item => !item.isRest)
             .map(item => Number(item.midi))
             .filter(midi => Number.isFinite(midi))
         : [];
@@ -2013,16 +2024,26 @@ h1 {
 
       const assignmentBlocks = Array.isArray(choice.voiceAssignments)
         ? choice.voiceAssignments
-            .map((item, index) => ({
-              id: item.id || item.blockId || "progression_voice_" + index,
-              laneId: item.role || item.laneId || getDesignVoiceLanesLowToHigh()[index] || "lead",
-              laneName: item.laneName || getLaneLabel(item.role || item.laneId || "lead"),
-              midi: Number(item.midi),
-              name: item.name || item.note || item.displayName || midiToDisplayName(Number(item.midi)),
-              note: item.name || item.note || item.displayName || midiToDisplayName(Number(item.midi)),
-              voice: item.voice || progressionVoice || selectedVoice
-            }))
-            .filter(item => Number.isFinite(item.midi))
+            .map((item, index) => {
+              const isRest = !!item.isRest;
+              const midi = isRest ? null : Number(item.midi);
+              const displayName = isRest ? "Rest" : (item.name || item.note || item.displayName || midiToDisplayName(midi));
+              return {
+                id: item.id || item.blockId || "progression_voice_" + index,
+                laneId: item.role || item.laneId || getDesignVoiceLanesLowToHigh()[index] || "lead",
+                laneName: item.laneName || getLaneLabel(item.role || item.laneId || "lead"),
+                midi,
+                name: displayName,
+                note: displayName,
+                voice: item.voice || progressionVoice || selectedVoice,
+                isRest
+              };
+            })
+            // Keep rest lanes (their midi is genuinely null) instead of
+            // dropping them -- a dropped lane disappears from Current
+            // entirely instead of showing as a rest, and can also get
+            // picked as the anchor fallback below by pure array position.
+            .filter(item => item.isRest || Number.isFinite(item.midi))
         : selectedNoteMidis.map((midi, index) => ({
             id: "progression_voice_" + index,
             laneId: getDesignVoiceLanesLowToHigh()[index] || "lead",
@@ -2048,15 +2069,23 @@ h1 {
         return rankB - rankA; // descending: tenor first ... bass ... unrecognized last
       });
 
+      // Fall back to the first REAL (non-rest) voice for the anchor --
+      // assignmentBlocks[0] can be a rest lane (e.g. Tenor resting), and
+      // Number(null) coercing to 0 would otherwise silently anchor the
+      // whole suggestion engine on a phantom "C-1" note.
+      const firstRealAssignment = assignmentBlocks.find(
+        item => !item.isRest && Number.isFinite(Number(item.midi))
+      );
+
       designEditPayload = {
         source: "progression-builder",
         selectedBlocks: assignmentBlocks,
         context: payloadContext,
         detectedChord: choice.chordSymbol || rawChord.name || "Progression chord",
         chordSymbol: choice.chordSymbol || rawChord.name || "Progression chord",
-        anchorLaneId: choice.targetVoiceRole || choice.targetLaneId || context.note?.laneId || (assignmentBlocks[0] && assignmentBlocks[0].laneId),
-        anchorLaneName: choice.targetVoiceLabel || getLaneLabel(choice.targetVoiceRole || choice.targetLaneId || context.note?.laneId || "lead"),
-        anchorMidi: Number(choice.midi || context.note?.midi || (assignmentBlocks[0] && assignmentBlocks[0].midi)),
+        anchorLaneId: choice.targetVoiceRole || choice.targetLaneId || context.note?.laneId || (firstRealAssignment && firstRealAssignment.laneId),
+        anchorLaneName: choice.targetVoiceLabel || getLaneLabel(choice.targetVoiceRole || choice.targetLaneId || context.note?.laneId || (firstRealAssignment && firstRealAssignment.laneId) || "lead"),
+        anchorMidi: Number(choice.midi || context.note?.midi || (firstRealAssignment && firstRealAssignment.midi)),
         fixedHarmonyPerspective: !isProgressionChordEdit,
         fixedHarmonyLaneId: !isProgressionChordEdit
           ? (choice.targetVoiceRole || choice.targetLaneId || context.note?.laneId || context.note?.role || null)
@@ -2067,9 +2096,11 @@ h1 {
       selectedPerspectiveLaneId = designEditPayload.anchorLaneId || null;
 
       // Seed each voice's octave from what the incoming chord actually had --
-      // same reasoning as the Design Studio path above.
+      // same reasoning as the Design Studio path above. Skip rests
+      // explicitly: Number(null) coerces to 0, which would otherwise seed
+      // a bogus octave -1 override for a lane that was never a real note.
       getPayloadStackAssignments().forEach(item => {
-        if (Number.isFinite(Number(item.midi))) {
+        if (!item.isRest && Number.isFinite(Number(item.midi))) {
           voiceOctaveOverrides[item.laneId] = Math.floor(Number(item.midi) / 12) - 1;
         }
       });
@@ -2204,9 +2235,11 @@ h1 {
       // not a formulaic default -- this is what keeps register sane when
       // the New stack later recomputes for a different Root/Quality/
       // Suggestion. The user's own octave changes (via the new per-voice
-      // controls) still take priority from that point on.
+      // controls) still take priority from that point on. Skip rests
+      // explicitly: Number(null) coerces to 0, which would otherwise seed
+      // a bogus octave -1 override for a lane that was never a real note.
       getPayloadStackAssignments().forEach(item => {
-        if (Number.isFinite(Number(item.midi))) {
+        if (!item.isRest && Number.isFinite(Number(item.midi))) {
           voiceOctaveOverrides[item.laneId] = Math.floor(Number(item.midi) / 12) - 1;
         }
       });
@@ -2902,21 +2935,32 @@ h1 {
 
       return designEditPayload.selectedBlocks
         .map((block, index) => {
+          const laneId = block.laneId || designEditPayload.laneId || getDesignVoiceLanesLowToHigh()[index] || "lead";
+          const isRest = block.isRest === true || block.type === "rest";
           const midi = midiFromPayloadBlock(block);
+
           // A rest's midi is null -- Number(null) coerces to 0, which
           // would otherwise pass Number.isFinite and get treated as a
-          // real MIDI-0 (C-1) note. The same > 0 guard is already used
-          // elsewhere in this file for exactly this situation.
-          if (!Number.isFinite(Number(midi)) || Number(midi) <= 0) return null;
+          // real MIDI-0 (C-1) note. Keep the lane as a Rest entry instead
+          // of dropping it -- a dropped lane vanishes from Current
+          // entirely instead of showing as a rest.
+          if (isRest || !Number.isFinite(Number(midi)) || Number(midi) <= 0) {
+            return {
+              laneId,
+              midi: null,
+              isRest: true,
+              displayName: "Rest",
+              sourceIndex: index
+            };
+          }
 
           return {
-            laneId: block.laneId || designEditPayload.laneId || getDesignVoiceLanesLowToHigh()[index] || "lead",
+            laneId,
             midi: Number(midi),
             displayName: block.name || block.note || block.displayName || midiToDisplayName(Number(midi)),
             sourceIndex: index
           };
-        })
-        .filter(Boolean);
+        });
     }
 
     function syncSelectedNotesWithStackDoubling() {
@@ -3254,7 +3298,7 @@ h1 {
       const currentRef = getPayloadStackAssignments().find(item => item.laneId === laneId);
       const source = manuallyPlacedLanes[laneId] ? (newValue || currentRef) : (currentRef || newValue);
 
-      if (!source || !Number.isFinite(Number(source.midi))) {
+      if (!source || source.isRest || !Number.isFinite(Number(source.midi))) {
         factoryStatus.textContent = "Nothing to pin yet for " + getLaneLabel(laneId) + ".";
         return;
       }
@@ -3515,7 +3559,14 @@ h1 {
 
         const block = document.createElement("div");
 
-        if (assignment && Number.isFinite(Number(assignment.midi))) {
+        if (assignment && assignment.isRest) {
+          block.className = "stack-note-block empty";
+          block.dataset.laneId = laneId;
+          block.textContent = "Rest";
+          block.title = isNewStack
+            ? "Rest here. Drag a note here to replace this voice."
+            : "Rest here in the original chord.";
+        } else if (assignment && Number.isFinite(Number(assignment.midi))) {
           const pc = pcToName(Number(assignment.midi) % 12);
           block.className = "stack-note-block " + (pitchClasses[pc]?.className || "c");
           block.dataset.midi = String(Number(assignment.midi));
@@ -4802,6 +4853,26 @@ h1 {
 
       if (progressionEditContext.mode === "addProgressionChord") {
         const chord = buildCurrentChordObject();
+
+        // Real per-lane data, same shape editProgressionChord chords
+        // already carry -- without this, a chord added here only ever
+        // had `notes: [displayNames]`, flat strings with no laneId, which
+        // is meaningless once Design needs to build real per-lane blocks
+        // from it. getCurrentSelectionStackAssignments() already resolves
+        // laneId per voice from the New panel's fixed Tenor/Lead/
+        // Baritone/Bass rows, same function buildProgressionChoiceFromCurrentChord()
+        // already relies on for the harmony-edit flow. A lane left as
+        // "Drop note" here just doesn't get an entry -- consistent with
+        // how a genuine rest already works everywhere else in Design (no
+        // block at that beat, rather than an explicit rest marker).
+        chord.blocks = getCurrentSelectionStackAssignments()
+          .filter(item => Number.isFinite(Number(item.midi)))
+          .map(item => ({
+            laneId: item.laneId || item.role || "lead",
+            laneName: getLaneLabel(item.laneId || item.role || "lead"),
+            midi: Number(item.midi),
+            name: item.displayName || midiToDisplayName(Number(item.midi))
+          }));
 
         const progression = JSON.parse(
           localStorage.getItem("orumiProgression") || "[]"
