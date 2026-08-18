@@ -28,6 +28,20 @@
       --outside-glow: rgba(150,150,150,0.5);
     }
 
+    /* Telephone keypad content (4 rows of large square keys, plus Begin
+       Sound / transport controls / Play Line below) genuinely runs taller
+       than one screen -- unlike the normal chromatic grid, which always
+       fit within a single viewport, which is why body's own height:100vh +
+       overflow:hidden never mattered before. Scoped to this mode only, so
+       every other system keeps its existing fixed, non-scrolling layout
+       exactly as-is. */
+    body.telephone-mode {
+      height: auto;
+      min-height: 100vh;
+      overflow-y: auto;
+      touch-action: pan-y;
+    }
+
     h1 {
       margin: 8px 0;
       text-align: center;
@@ -370,6 +384,13 @@
       background: linear-gradient(160deg, #2f6b4f, #1d4636);
       color: #eafff1;
       font-size: clamp(16px, 3.4vmin, 30px);
+      /* Body allows vertical scroll in telephone mode (see body.telephone-mode
+         above) so Begin Sound / Play Line are reachable -- but a touch that
+         starts on a KEY should never turn into a scroll gesture instead of a
+         held note. Locking touch-action back to none on the keys themselves
+         keeps press-and-hold reliable while the page around them still
+         scrolls normally. */
+      touch-action: none;
     }
 
     .square.telephone-key.active {
@@ -2128,7 +2149,6 @@
       savePhraseHistory();
 
       const midi = parseInt(button.dataset.midi, 10);
-      const midi2 = button.dataset.midi2 !== undefined ? parseInt(button.dataset.midi2, 10) : null;
       const displayName = button.dataset.displayName;
       const relativeStart = getAutoPhraseRelativeStart(startedAt);
 
@@ -2137,8 +2157,7 @@
         relativeStart,
         Math.max(0.25, Number(initialDurationBeats || 0.25)),
         displayName,
-        voice || getActivePhraseVoice(),
-        midi2
+        voice || getActivePhraseVoice()
       );
 
       preview.liveCapture = true;
@@ -2180,18 +2199,11 @@
       return "player_phrase_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2);
     }
 
-    function createPhraseBlockFromMidi(midi, relativeStartBeat, durationBeats, name, voice, midi2) {
+    function createPhraseBlockFromMidi(midi, relativeStartBeat, durationBeats, name, voice) {
       const safeMidi = Number(midi);
       const safeStart = Math.max(0, Number(relativeStartBeat || 0));
       const safeDuration = Math.max(0.25, Number(durationBeats || 1));
       const id = makePhraseBlockId();
-
-      // Optional second pitch (dual-tone keys, e.g. a Telephone key's
-      // column tone) -- one Play Line block/insert-cursor position still,
-      // just carrying two pitches to play together. null when absent, not
-      // a 0/false-y placeholder, so every downstream check can use a
-      // simple "!= null" test.
-      const safeMidi2 = Number(midi2);
 
       return {
         id,
@@ -2199,7 +2211,6 @@
         type: "note",
         laneId: designPhrasePayload?.laneId || "lead",
         midi: Number.isFinite(safeMidi) ? safeMidi : 60,
-        midi2: Number.isFinite(safeMidi2) ? safeMidi2 : null,
         name: name || midiToDisplayName(Number.isFinite(safeMidi) ? safeMidi : 60),
         startBeat: (designPhrasePayload?.originalStartBeat || 0) + safeStart,
         relativeStartBeat: safeStart,
@@ -3902,23 +3913,12 @@ if (returnToDesignButton) {
               now
             );
 
-          // Optional second pitch (dual-tone keys) -- same single-pitch
-          // buildContainedVoice() path called a second time, kept as its
-          // own fully independent voice graph rather than merged into
-          // playedNote's own fields, so it can be stopped separately below
-          // without disturbing the primary voice's own release.
-          const secondaryVoiceNode =
-            block.midi2 !== null && block.midi2 !== undefined
-              ? buildContainedVoice(eventVoice, midiToFrequency(block.midi2), now)
-              : null;
-
           const playedNote = {
             ...voiceNode,
             voice: eventVoice,
             gain: voiceNode.gain,
             oscillators: voiceNode.oscillators || [],
-            noiseSources: voiceNode.noiseSources || [],
-            secondaryVoiceNode
+            noiseSources: voiceNode.noiseSources || []
           };
 
           phrasePlaybackNotes.push(playedNote);
@@ -3936,11 +3936,6 @@ if (returnToDesignButton) {
             }
 
             ORUMI_VOICES.stopVoice(playedNote, audioContext, 0.16);
-
-            if (playedNote.secondaryVoiceNode) {
-              ORUMI_VOICES.stopVoice(playedNote.secondaryVoiceNode, audioContext, 0.16);
-            }
-
             phrasePlaybackNotes =
               phrasePlaybackNotes.filter(note => note !== playedNote);
 
