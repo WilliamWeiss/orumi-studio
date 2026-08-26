@@ -2286,6 +2286,7 @@
     <div class="menu-group">
       <button class="menu-trigger" type="button">Bring In</button>
       <div class="menu-dropdown">
+        <button class="control-button secondary" id="loadOrumiFileButton">⤓ Load Orumi File</button>
         <button class="control-button secondary" id="importChordButton">⤓ Import Chord</button>
         <button class="control-button secondary" id="importRecordingButton">⤓ Import Recording</button>
         <button class="control-button secondary" id="importProgressionButton">⤓ Import Progression</button>
@@ -2298,6 +2299,7 @@
     <div class="menu-group">
       <button class="menu-trigger" type="button">Send Out</button>
       <div class="menu-dropdown">
+        <button class="control-button secondary" id="saveOrumiFileButton">⇩ Save Orumi File</button>
         <button class="control-button secondary" id="exportMidiButton">⇩ Export MIDI</button>
         <button class="control-button secondary" id="exportMusicXmlButton">⇩ Export MusicXML</button>
         <button class="control-button secondary" id="sendToLyricBridgeButton">⇨ Send to Lyric Bridge</button>
@@ -2466,6 +2468,7 @@
 
  <!-- Hidden file input for MusicXML -->
   <input type="file" id="mxmlFileInput" accept=".musicxml,.xml,.mxl,.playscore" style="display:none;" />
+  <input type="file" id="orumiFileInput" accept=".orumi,application/json" style="display:none;" />
 
   <!-- Hidden file input for MuseScore -->
   <input type="file" id="msczFileInput" accept=".mscz" style="display:none;" />
@@ -3125,6 +3128,121 @@
       if (projectLoadModal) {
         projectLoadModal.hidden = true;
       }
+    }
+
+        // A full-fidelity native project file, distinct from MIDI/MusicXML
+    // export -- those are one-way, lossy conversions to standard notation
+    // formats and can't round-trip Orumi-specific data (structural
+    // markers, pins, lane/voice assignments, etc.). This is the actual
+    // project object, verbatim, saved to a real file the user controls --
+    // the only thing that can survive the browser's own localStorage
+    // being cleared, which nothing in this app's code can prevent.
+    async function saveOrumiFile() {
+      const envelope = {
+        orumiFileFormat: 1,
+        savedAt: new Date().toISOString(),
+        project: JSON.parse(JSON.stringify(project))
+      };
+      const json = JSON.stringify(envelope, null, 2);
+      const suggestedName = (project.title || "orumi-project").replace(/\s+/g, "-") + ".orumi";
+
+      if (window.showSaveFilePicker) {
+        try {
+          const handle = await window.showSaveFilePicker({
+            suggestedName,
+            types: [{
+              description: "Orumi Project File",
+              accept: { "application/json": [".orumi"] }
+            }]
+          });
+          const writable = await handle.createWritable();
+          await writable.write(json);
+          await writable.close();
+          flashStatus("Saved " + suggestedName + ".");
+          return;
+        } catch (err) {
+          // AbortError just means the user closed the picker -- not a
+          // real failure, and definitely not a reason to also trigger
+          // the fallback download below.
+          if (err && err.name === "AbortError") return;
+          console.warn("showSaveFilePicker failed, falling back to a download link", err);
+        }
+      }
+
+            // Fallback for browsers (or a managed/policy-restricted Edge/Chrome)
+      // without a working File System Access API -- same Blob+anchor
+      // pattern the existing MusicXML export already uses. No location
+      // choice here, just the browser's default downloads folder -- but
+      // this used to happen completely silently, indistinguishable from
+      // a successful native save, which is exactly what made a real,
+      // reported case of this confusing. Now it says plainly what
+      // happened and where to look.
+      const blob = new Blob([json], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = suggestedName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(a.href);
+      flashStatus(
+        "Saved " + suggestedName + " to your browser's default downloads " +
+        "folder -- this browser doesn't support choosing a save location " +
+        "directly. In Edge, Settings > Downloads > \u201cAsk me what to do " +
+        "with each download\u201d will prompt for a location on every save."
+      );
+    }
+
+    async function loadOrumiFile() {
+      if (window.showOpenFilePicker) {
+        try {
+          const [handle] = await window.showOpenFilePicker({
+            types: [{
+              description: "Orumi Project File",
+              accept: { "application/json": [".orumi"] }
+            }],
+            multiple: false
+          });
+          const file = await handle.getFile();
+          applyLoadedOrumiFile(await file.text(), file.name);
+          return;
+        } catch (err) {
+          if (err && err.name === "AbortError") return;
+          console.warn("showOpenFilePicker failed, falling back to a file input", err);
+        }
+      }
+
+      orumiFileInput.value = "";
+      orumiFileInput.click();
+    }
+
+    function applyLoadedOrumiFile(text, fileName) {
+      let parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch (err) {
+        flashStatus("That file isn't a valid Orumi project file.");
+        return;
+      }
+
+      const loadedProject = parsed && parsed.project ? parsed.project : parsed;
+      if (!loadedProject || typeof loadedProject !== "object" || !Array.isArray(loadedProject.blocks)) {
+        flashStatus("That file doesn't look like an Orumi project.");
+        return;
+      }
+
+      const name = loadedProject.title || (fileName || "").replace(/\.orumi$/i, "") || "Loaded Project";
+
+      // isLegacy: true -- a file load isn't tied to any existing library
+      // id, so it becomes the current (not-yet-saved-to-library) project,
+      // same as opening a project this app can't otherwise trace back to
+      // a saved entry. loadProjectFromEntry() already sets its own status
+      // message using this name, so nothing further needed after this call.
+      loadProjectFromEntry({
+        project: loadedProject,
+        isLegacy: true,
+        name
+      });
     }
 
     function loadProjectFromEntry(entry) {
@@ -6410,7 +6528,43 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         return null;
       }
 
-      const firstChordBeat = chordGroups[0].beat;
+            const firstChordBeat = chordGroups[0].beat;
+
+      // Tier 1 of PB's first-chord classification: find the real chord
+      // stack immediately preceding this selection in the WHOLE piece
+      // (not just what's selected), so Progression Builder can classify
+      // its own first chord against something real instead of nothing.
+      // getChordStackGroupsFromSelection() isn't actually selection-only
+      // despite the name -- it accepts any blocks array -- so pointing it
+      // at project.blocks gives chord groups across the entire piece for
+      // free, no new harmony-detection logic needed.
+      const precedingGroups = getChordStackGroupsFromSelection(project.blocks)
+        .filter(group => group.beat < firstChordBeat - 0.0001);
+      const precedingGroup = precedingGroups.length
+        ? precedingGroups[precedingGroups.length - 1]
+        : null;
+
+      let precedingChord = null;
+      if (precedingGroup) {
+        const precedingStackBlocks = precedingGroup.blocks
+          .slice()
+          .sort((a, b) => {
+            const laneA = project.lanes.findIndex(lane => lane.id === a.laneId);
+            const laneB = project.lanes.findIndex(lane => lane.id === b.laneId);
+            if (laneA !== laneB) return laneA - laneB;
+            return Number(a.midi || 0) - Number(b.midi || 0);
+          });
+        const precedingAnalysis = analyzeSelectedHarmony(precedingStackBlocks);
+        const precedingRootMatch = String(precedingAnalysis.chordLabel || "").match(/^([A-G](?:b)?)/);
+
+        precedingChord = {
+          name: precedingAnalysis.chordLabel || "Preceding chord",
+          root: precedingRootMatch && pitchClasses[precedingRootMatch[1]] ? precedingRootMatch[1] : project.context.root,
+          quality: precedingAnalysis.qualityKey || "custom",
+          keyRoot: project.context.root,
+          mode: project.context.mode
+        };
+      }
 
       const chords = chordGroups.map((group, index) => {
         const beat = group.beat;
@@ -6497,8 +6651,12 @@ for (let beat = 0; beat <= maxBeat; beat++) {
         projectId: currentProjectId,
         projectTitle: project.title || "Untitled Design",
         selectedBlockIds: noteBlocks.map(block => block.id),
-        chordCount: chords.length,
+                chordCount: chords.length,
         chords,
+        // null when this selection genuinely starts at the top of the
+        // piece -- PB falls back to an implied tonic in that case, tier 2
+        // of the same design.
+        precedingChord,
         preservationMode: "free-analysis",
         defaultKeepNote: null,
         keepNote: null,
@@ -13576,6 +13734,19 @@ function applyDualTonePlayerLineImport(payload, incomingBlocks) {
     });
 
     // ── MusicXML import ──────────────────────────────────────────────
+    const saveOrumiFileButton = document.getElementById("saveOrumiFileButton");
+    const loadOrumiFileButton = document.getElementById("loadOrumiFileButton");
+    const orumiFileInput = document.getElementById("orumiFileInput");
+
+    saveOrumiFileButton.addEventListener("click", saveOrumiFile);
+    loadOrumiFileButton.addEventListener("click", loadOrumiFile);
+
+    orumiFileInput.addEventListener("change", async (ev) => {
+      const file = ev.target.files[0];
+      if (!file) return;
+      applyLoadedOrumiFile(await file.text(), file.name);
+    });
+
     const importMusicXmlButton = document.getElementById("importMusicXmlButton");
     const exportMusicXmlButton = document.getElementById("exportMusicXmlButton");
     const mxmlFileInput = document.getElementById("mxmlFileInput");

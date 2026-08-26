@@ -1686,7 +1686,7 @@
         return null;
       }
 
-      return {
+    return {
         source: payload.source || "design-studio",
         mode: "reviewProgression",
         projectId: payload.projectId || null,
@@ -1694,7 +1694,12 @@
         createdAt: payload.createdAt || new Date().toISOString(),
         returnUrl: payload.returnUrl || "design-studio.html",
         context,
-        chords
+        chords,
+        // Tier 1 of first-chord classification (see classifyProgression
+        // call site in renderProgression) -- the real chord Design found
+        // immediately preceding this selection, or null when the
+        // selection genuinely starts at the top of the piece.
+        precedingChord: payload.precedingChord || null
       };
     }
 
@@ -4358,7 +4363,28 @@
 
       emptyState.style.display = "none";
 
-      const classifications = classifyProgression(progression);
+            // classifyProgression() always returns null for index 0 -- it has
+      // nothing to compare the first chord against. Rather than change
+      // that shared, multi-tool function's own indexing, a virtual
+      // predecessor is prepended here and the results shifted back by one:
+      // tier 1 uses the REAL chord Design found immediately before this
+      // selection (progressionReviewPayload.precedingChord) when available;
+      // tier 2 falls back to an implied tonic -- the key's own I chord,
+      // standing in as a hypothetical predecessor -- flagged isImplied so
+      // the classifier doesn't treat a real first-chord tonic as "already
+      // established" by a chord that was never actually sung.
+      const firstChord = progression[0] || {};
+      const virtualPredecessor =
+        (progressionReviewPayload && progressionReviewPayload.precedingChord) || {
+          root: firstChord.keyRoot || "C",
+          quality: String(firstChord.mode || "").toLowerCase() === "minor" ? "minor" : "major",
+          keyRoot: firstChord.keyRoot || "C",
+          mode: firstChord.mode || "major",
+          isImplied: true
+        };
+
+      const classifications =
+        classifyProgression([virtualPredecessor, ...progression]).slice(1);
 
       progression.forEach((chord, index) => {
         progressionStrip.appendChild(

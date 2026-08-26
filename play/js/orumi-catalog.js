@@ -731,15 +731,22 @@ const ORUMI_CATALOG = {
       let establishedTonicsSeen = 0;
       let recentPairs = [];
 
-      if (progression[0] && progression[0].root) {
+            if (progression[0] && progression[0].root) {
         const initialKey = this.getActiveKeyAt(progression, 0);
         const initialTonicPc = ORUMI_CATALOG.pitchClasses[initialKey.root] ? ORUMI_CATALOG.pitchClasses[initialKey.root].number : 0;
         const firstRootPc = this.chordRootPc(progression[0]);
         const firstIsTonic = firstRootPc === initialTonicPc &&
           ["major", "major6", "major7", "add9", "major9"].includes(progression[0].quality);
-        if (firstIsTonic) establishedTonicsSeen = 1;
+        // A real preceding chord (tier 1 of PB's first-chord classification)
+        // that happens to already be the tonic genuinely DID establish it --
+        // the caller's own array literally starts with it. But an IMPLIED
+        // tonic (tier 2, no real preceding chord existed) was never actually
+        // sung, so it must not count as "already established" -- otherwise
+        // a real first chord that happens to be the tonic would wrongly
+        // classify as Returned instead of Solid. isImplied is never set on
+        // a real chord from any tool, so this is purely additive.
+        if (firstIsTonic && !progression[0].isImplied) establishedTonicsSeen = 1;
       }
-
       for (let i = 1; i < progression.length; i++) {
         const prevChord = progression[i - 1];
         const curChord = progression[i];
